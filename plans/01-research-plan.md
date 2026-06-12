@@ -234,7 +234,7 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
 3. `rubric/steps.yaml` — the machine-usable rubric: steps, signals, thresholds, applicability gates,
    weights, essential flags, source citations, `rubric_version`.
 4. `validation/rating-guide.md` *(Phase-2 handoff)* — the expert rating instrument for the A1
-   validation protocol (`02-mvp-tool-plan.md` §7.2) is **compiled from `steps.yaml`**, so the humans
+   validation protocol (`validation/protocol.md` §2) is **compiled from `steps.yaml`**, so the humans
    and the engine are scored against the *same* operationalization of this research.
 5. This plan, reconciled with the synthesis once it lands.
 

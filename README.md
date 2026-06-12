@@ -24,10 +24,13 @@ The project has three phases:
 
 ```
 plans/             Planning documents. See plans/00-master-plan.md for the executive summary.
+plans/02-mvp/      Phase-2 component subplans (a-ingest … h-validate-harness) — one per pipeline
+                   seam, each independently testable; plans/02-mvp-tool-plan.md is the spine.
 research/          Output of the Phase-1 deep research (cited synthesis).
 research/sources/  Annotated bibliography: one note per source (citation + how VeriBayes uses it),
                    plus fetch_sources.sh to download the open-access PDFs locally.
 rubric/            Machine-readable rubric (steps.yaml) — the single source of truth for scoring.
+validation/        The A1 validation protocol (engine-vs-expert calibration) and its artifacts.
 ```
 
 ## Status

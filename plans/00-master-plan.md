@@ -28,7 +28,7 @@ meta-research.
 | Phase | Deliverable | Plan |
 |-------|-------------|------|
 | **1. Research → rubric** | Cited synthesis of Bayesian-workflow gold standards, decomposed into an assessable rubric (`rubric/steps.yaml`). **Executed** — see `research/`. | [`01-research-plan.md`](01-research-plan.md) |
-| **2. MVP tool (v0)** | PDF drag-drop **or arXiv/DOI/OpenAlex ID** → hybrid analysis → step-wise report + badge — **plus the v0 trust bar (below)**. FastAPI + React, local-first. | [`02-mvp-tool-plan.md`](02-mvp-tool-plan.md) |
+| **2. MVP tool (v0)** | PDF drag-drop **or arXiv/DOI/OpenAlex ID** → hybrid analysis → step-wise report + badge — **plus the v0 trust bar (below)**. FastAPI + React, local-first. | [`02-mvp-tool-plan.md`](02-mvp-tool-plan.md) (spine) + [`02-mvp/`](02-mvp/) component subplans + [`validation/protocol.md`](../validation/protocol.md) |
 | **3. Corpus & meta-analysis** | Sampling-rigorous ingestion pipeline (DB + ontology + dedup) over a discipline; visualizations of quality/adoption over time, by subfield, by cluster. | [`03-ingestion-corpus-plan.md`](03-ingestion-corpus-plan.md) |
 
 Cross-cutting: [`04-improvements-and-extensions.md`](04-improvements-and-extensions.md) — my best
@@ -150,10 +150,13 @@ The v0 bar above is binding scope for Phase 2; post-v0 sequencing lives in impro
 ## 8. Where to go next
 
 - New collaborator → read this, then `01`–`04` in order.
-- Implementer → `02-mvp-tool-plan.md` §3 (architecture) and `rubric/steps.yaml`.
+- Implementer → `02-mvp-tool-plan.md` (spine: architecture + contracts), then the `02-mvp/`
+  component subplan you're building, and `rubric/steps.yaml`.
 - Methodologist → `research/bayesian-workflow-gold-standards.md` (esp. §7 caveats) and `01-research-plan.md`.
 - Skeptic / reviewer → `04-improvements-and-extensions.md` (validation, bias, governance).
 
 *Status: Phase-1 research executed; plans, research synthesis, annotated sources, and draft rubric
-live on the `plans` branch (PR into `main`). 2026-06-12: twelve improvement items promoted into v0
-scope and worked into `02`; post-v0 priorities revised in `04` §G–§H.*
+live on the `plans` branch (PR into `main`). 2026-06-12 (branch `plan-extensions-1`): twelve
+improvement items promoted into v0 scope; post-v0 priorities revised in `04` §G–§H. 2026-06-12
+(branch `plan-extensions-2`): MVP plan decomposed into a spine + eight independently testable
+component subplans (`02-mvp/`) + the extracted validation protocol (`validation/protocol.md`).*

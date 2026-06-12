@@ -18,11 +18,12 @@ approach it. The single most important meta-point:
 ### A1. Validate the tool against human experts **[v0 — committed]**
 > Now fully specified — protocol (gold set, blind dual rating, adjudication, κ/absence-FPR metrics,
 > regression gate) and surfacing (calibration page, per-report footer, `VALIDATION.md`):
-> **`02-mvp-tool-plan.md` §7.**
+> **`../validation/protocol.md`** (executed at Phase-2 M7).
 
 Treat the engine as a classifier/measurement device with measurable error. Build a **gold-standard
 set** (v0: 30 fully step-rated papers + cheap relevance-only probes, growing toward 100+ with a
-sealed holdout by v1 — see `02` §7.1) hand-scored on the rubric by 2+ domain experts. Report:
+sealed holdout by v1 — see `validation/protocol.md` §1) hand-scored on the rubric by 2+ domain
+experts. Report:
 - **Inter-rater reliability** among humans (Cohen's/Fleiss' κ) — establishes the ceiling; if humans
   disagree on a step, the tool can't be expected to be crisp there either.
 - **Engine-vs-human agreement per step** (κ, and confusion on done-well/partial/missing).
@@ -40,7 +41,7 @@ basis of low-confidence absences.
 ### A3. Ground every claim in the source**s** **[v0 — committed]**
 > Upgraded per your note to grounding in the source**s**, plural: every finding cites both the
 > **paper** (evidence spans) and the **methodological literature** (the `standards[]` rubric-provenance
-> refs — "says who?"). **`02-mvp-tool-plan.md` §3.5, §4.1.**
+> refs — "says who?"). **`02-mvp-tool-plan.md` §3.5 + `02-mvp/e-assess.md`.**
 
 Every assessment must cite **evidence spans** (page, section, quoted sentence) from the PDF. This
 (a) slashes hallucination, (b) makes the report auditable for reviewers, (c) lets the UI highlight
@@ -50,7 +51,7 @@ dangerous ones** — require the engine to enumerate where it looked.
 
 ### A4. Adversarial self-verification **[v0 — committed]**
 > Promoted from v1 into the v0 pipeline (assess stage runs a refutation pass on every negative
-> finding before reporting). **`02-mvp-tool-plan.md` §3.4 stage 6.**
+> finding before reporting). **`02-mvp/e-assess.md`.**
 
 Reuse the deep-research pattern: after the first pass flags a step as missing/poor, a **second
 independent pass argues the opposite** ("find evidence this step *was* done"). Only findings that
@@ -61,7 +62,7 @@ or different wording).
 ### A5. Human-in-the-loop override + active learning **[v0 — committed (scaffolding); v1 (active loop)]**
 > v0 ships the visible scaffolding — override storage, API, per-step "Disagree?" UI, export,
 > honest "not yet learned from" labeling; the *active* learning loop stays v1.
-> **`02-mvp-tool-plan.md` §8.**
+> **`02-mvp/g-report-api-ui.md`.**
 
 Let an expert correct any judgment in the UI. Corrections are stored and become (a) additional
 eval/gold data and (b) few-shot exemplars. Over time the disagreement log shows where the rubric or
@@ -88,7 +89,7 @@ gates, weights), not hardcoded in prompts. Benefits: auditable, diffable, commun
 and **`rubric_version` stamped on every assessment** so Phase-3 trends stay interpretable across
 rubric changes. The engine compiles this spec into prompts + deterministic checks.
 
-### B3. Don't collapse to one number too early — and design the scoring rule deliberately **[v0 — committed (profile-first + transparent thresholds + what-if explainer, `02` §4.3–4.4); v1 (deliberate proper-scoring aggregation design)]**
+### B3. Don't collapse to one number too early — and design the scoring rule deliberately **[v0 — committed (profile-first + transparent thresholds + what-if explainer, `02` §4.2–4.3 + `02-mvp/f-score-badge.md`); v1 (deliberate proper-scoring aggregation design)]**
 A single 0–100 invites **Goodhart's law** (optimize the badge, not the science). Prefer:
 - a **profile** (vector of per-step scores) as the primary object, with the scalar/badge as a summary;
 - an explicitly documented, **proper-scoring-inspired** aggregation with per-context weights;
@@ -140,13 +141,13 @@ When a paper links a repo (GitHub/OSF/Zenodo), optionally fetch it and check the
 
 ### C5. Multi-format ingest **[v0 — committed]**
 > Promoted from v1. ID input ships next to the dropzone; `fetcher.py` is shared verbatim with
-> Phase 3. **`02-mvp-tool-plan.md` §3.4 stage 1, §5, §6.**
+> Phase 3. **`02-mvp/a-ingest-fetch.md`** (UI surface in `02-mvp/g-report-api-ui.md`).
 
 Accept arXiv ID / DOI / OpenAlex ID (auto-fetch) in addition to PDF drag-drop — essential for Phase 3
 batch ingestion anyway, so build the fetcher once and share it.
 
 ### C6. Caching & cost discipline **[v0 — committed]**
-> Specified incl. cost ledger in the report footer and a budget guard. **`02-mvp-tool-plan.md` §3.6.**
+> Specified incl. cost ledger in the report footer and a budget guard. **`02-mvp-tool-plan.md` §3.5.**
 
 Content-hash + `engine_version` + `rubric_version` cache key; a cheap relevance/classification screen
 before the expensive full assessment. Makes both interactive use and corpus scale affordable, and
@@ -156,7 +157,7 @@ makes runs reproducible.
 
 ## D. Report & UX
 
-### D1. Layered report for four audiences **[v0 — committed]** *(spec: `02` §4.2)*
+### D1. Layered report for four audiences **[v0 — committed]** *(spec: `02-mvp/g-report-api-ui.md`)*
 You named authors, reviewers, meta-researchers, and students. One report, layered views:
 - **Badge + profile** (everyone, top).
 - **Author mode:** prioritized, actionable fix-list (linter-style: error/warning/info), each with a
@@ -166,12 +167,12 @@ You named authors, reviewers, meta-researchers, and students. One report, layere
   exemplar.
 - **Meta-research mode:** the structured JSON (the same object Phase 3 stores).
 
-### D2. Prioritized, severity-tiered suggestions **[v0 — committed]** *(spec: `02` §4.1)*
+### D2. Prioritized, severity-tiered suggestions **[v0 — committed]** *(spec: `02-mvp/g-report-api-ui.md`)*
 Not a flat list. Rank by **impact × ease**. A missing posterior predictive check on the central model
 is an *error*; an un-cited prior justification on a nuisance parameter is *info*. This is what makes
 the report feel like a great linter rather than a nag.
 
-### D3. Explicitly state what was done well, and why **[v0 — committed]** *(spec: `02` §4.1)*
+### D3. Explicitly state what was done well, and why **[v0 — committed]** *(spec: `02-mvp/g-report-api-ui.md`)*
 You asked for this and it matters beyond politeness: positive, *specific* reinforcement ("prior
 predictive check in Fig 2 correctly revealed implausible effect sizes before fitting") teaches good
 practice and builds author trust so the criticism lands. Generic praise is worse than none.
@@ -180,7 +181,7 @@ practice and builds author trust so the criticism lands. Generic praise is worse
 Re-upload a revised manuscript → show which issues resolved, which remain, badge delta. Directly
 serves the author-self-check persona and creates a virtuous revise loop.
 
-### D5. Relevance gate up front **[v0 — committed]** *(spec: `02` §2.1)*
+### D5. Relevance gate up front **[v0 — committed]** *(spec: `02` §2.1 + `02-mvp/d-screen-classify.md`)*
 If the paper isn't a Bayesian-methodology paper, **short-circuit gracefully** with a clear "this
 doesn't appear to apply, here's why" rather than forcing a misleading score. This is one of your
 explicit requirements and should be a visible, well-explained gate, not a silent zero.
@@ -210,7 +211,7 @@ stays reachable.
 
 ## F. Governance, ethics, and failure modes
 
-### F1. Anti-gaming and anti-misuse, stated openly **[v0 — committed]** *(spec: `02` §10 — ships as `ETHICS.md` + report framing + "asserted-but-not-evidenced" policy)*
+### F1. Anti-gaming and anti-misuse, stated openly **[v0 — committed]** *(spec: `02` §7 — ships as `ETHICS.md` + report framing + "asserted-but-not-evidenced" policy)*
 Badges can be (a) gamed (write the magic words without doing the work) and (b) weaponized (used to
 bludgeon authors or gatekeep). Mitigations, documented up front: emphasize **formative feedback over
 ranking**; require **evidence grounding** so keyword-stuffing is detectable; frame as a *report* not a
@@ -223,7 +224,7 @@ well-resourced labs with supplements). Audit engine error **by subfield and venu
 and disclose. A meta-research tool that has un-audited bias would itself fail its own rubric's
 "sensitivity analysis" step.
 
-### F3. Privacy / local-first for unpublished work **[v0 — committed]** *(spec: `02` §9 — disclosure UI, local-only evidence-inventory mode, per-paper purge)*
+### F3. Privacy / local-first for unpublished work **[v0 — committed]** *(spec: `02` §7 — disclosure UI, local-only evidence-inventory mode, per-paper purge)*
 Authors will upload **unpublished manuscripts**. Be explicit about what leaves the machine (PDF text
 to the LLM API in the hybrid engine) and offer a clearer **local-only mode** (deterministic checks +
 local model) for the privacy-sensitive. State the data handling plainly in the UI.
@@ -238,13 +239,14 @@ the tool said what it said. This is the tool practicing the transparency it prea
 ## G. Post-v0 priorities (revised after the 2026-06-12 scope decision)
 
 The v0 set is now: **A1, A3, A4, A5(scaffold), B1, B2, C1, C3, C5, C6, D1–D3, D5, F1, F3** — all
-specified in `02-mvp-tool-plan.md`. What remains, in recommended order:
+specified in the `02` spine + `02-mvp/` component subplans + `validation/protocol.md`. What remains,
+in recommended order:
 
 1. **C2 — figure/table vision parsing.** Now the single biggest *accuracy* lever left: a large share
    of diagnostics live only in trace plots, rank/ECDF plots, PPC overlays, and R-hat/ESS table
-   columns. The gold set's Tier-C figure-only probes (02 §7.1) give *case-level* evidence of the
-   cost (smoke tests, not rates); if C2 needs a quantified justification first, grow that stratum —
-   labels there are cheap because only the figure-borne steps need rating.
+   columns. The gold set's Tier-C figure-only probes (`validation/protocol.md` §1) give *case-level*
+   evidence of the cost (smoke tests, not rates); if C2 needs a quantified justification first, grow
+   that stratum — labels there are cheap because only the figure-borne steps need rating.
 2. **H3a (test-retest) + A2 + H1 — the reliability/uncertainty cluster.** First **test-retest
    reliability** (compute-only; runnable the day M7's harness lands — it bounds every engine-vs-human
    κ, so nothing else in this cluster is interpretable without it). Then make v0's per-judgment
@@ -282,8 +284,8 @@ de-risks the "two experts' idiosyncrasies" problem with a broader rater pool.
 The tool's own sensitivity analysis, in two stages:
 - **H3a — test-retest (same engine, repeated runs).** LLM judgments vary run-to-run and across API
   model updates even at fixed prompts. Engine-self κ is the **noise floor under every engine-vs-human
-  number in `02` §7.3** — and it needs no human labels: two automated harness runs plus a κ. v0's
-  harness already computes it (`02` §7.3); keep it tracked release-over-release.
+  number in `validation/protocol.md` §3** — and it needs no human labels: two automated harness runs
+  plus a κ. v0's harness already computes it (protocol §3); keep it tracked release-over-release.
 - **H3b — inter-model agreement.** Run the identical rubric + prompts across ≥2 different LLMs on
   the gold set and report engine-model agreement (κ) alongside engine-human agreement. If judgments
   swing with the underlying model, that's measurement-instrument variance we must disclose — exactly
@@ -292,12 +294,12 @@ The tool's own sensitivity analysis, in two stages:
 ### H4. Golden-paper regression CI **[v1]**
 Freeze a small, fixed mini-set (~5 papers spanning classes, plus a couple of decoys) and run the full
 engine on every PR touching prompts, rubric, or engine code; diff the resulting reports structurally
-(status/score/badge changes) and block merges on unexplained regressions. This is 02 §7.3's
-regression rule made *continuous* instead of release-time, and it doubles as living documentation of
-what each change does. **Leakage rule:** the mini-set must be **disjoint from the (eventual)
-held-out gold set** — per-PR evaluation makes these papers a dev set by construction, so they are
-either separately labeled or explicitly retired from validation duty (cf. `02` §7.2-4: gold-set
-papers are likewise ineligible as few-shot exemplars).
+(status/score/badge changes) and block merges on unexplained regressions. This is the validation
+protocol's regression rule (`validation/protocol.md` §3) made *continuous* instead of release-time,
+and it doubles as living documentation of what each change does. **Leakage rule:** the mini-set must
+be **disjoint from the (eventual) held-out gold set** — per-PR evaluation makes these papers a dev
+set by construction, so they are either separately labeled or explicitly retired from validation
+duty (cf. protocol §2.4: gold-set papers are likewise ineligible as few-shot exemplars).
 
 ### H5. LaTeX-source ingest for arXiv papers **[v1, cheap win]**
 For arXiv IDs (C5 path), fetch the **source tarball** instead of (or alongside) the PDF: clean
@@ -322,4 +324,4 @@ attack that will actually be tried. Build: (a) **injection red-teaming** — adv
 variants with embedded instructions and an injection-success metric in the validation harness;
 (b) mitigations — strict instruction/data separation in prompts, and the parser flags
 invisible-text/comment spans as suspect evidence. v0 already discloses this as an open attack
-surface in `ETHICS.md` (`02` §10); this item closes it.
+surface in `ETHICS.md` (`02` §7); this item closes it.
