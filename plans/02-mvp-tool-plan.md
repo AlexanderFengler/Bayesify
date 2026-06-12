@@ -195,6 +195,28 @@ lands behind the always-working stub app.
 
 **v0 is not "done" until M7 runs.**
 
+### Build gates (2026-06-12 three-lens review — [full report](reviews/2026-06-12-three-lens-review.md))
+
+Verified conditions from the architecture / statistical-methodology / adversarial review. None
+block M1; each must be resolved **before the milestone it names**. The review's consensus-strengths
+list is equally binding: the decomposition, contracts, and validation-metric core are not to be
+churned while closing these.
+
+| Gate | Resolve by | What |
+|------|-----------|------|
+| G1 | **M1** contract freeze | Define `engine_version` composition; **pin judge/cheap-tier model snapshot IDs** into it (or the cache key + `ScoredResult`); protocol rule: model change invalidates `VALIDATION.md` |
+| G2 | **M2**, before cache.py | Cache key gains parser identity (or degraded-parser runs aren't cached) and a rerun-override dimension |
+| G3 | **M2**, first fixture commit | Fixture licensing: committed fixtures CC-BY/CC0 with license manifest; everything else fetch-by-script + sha256 pin (incl. derived full-text fixtures) |
+| G4 | **start by M2** (gates M7) | Name validation owner + expert-hours budget; **begin rater recruitment now** (months of lead time); prompt author rates only a minority, never adjudicates own disagreements |
+| G5 | **M5** hard gate (start at M1) | Author the rubric machine-half: scoring block, machine-evaluable `na_when`/`mandatory_when` predicates, synonym lists, step→detector map |
+| G6 | **M5** (schema field at M1/M2) | Evidence-conditioned essentialness (BF claim ⇒ S6/S8 mandatory) via a compact `gate_facts` object in §4.3 consumed by `score()` |
+| G7 | **M5** / rubric freeze | VI-specific S4 criteria (ELBO convergence, PSIS k-hat — Yao et al. 2018, SBC sub-branch) so VI papers aren't wrongly Failed |
+| G8 | before **M5** prompts; hard before any expert rates | Run the S4/S6 threshold citation pass; freeze rubric v1.0 |
+| G9 | **M7**, before metrics | Protocol amendment: paper-level **cluster bootstrap** for pooled metrics; precise "mean step-κ" definition |
+
+(G10 — misclassification-corrected prevalence estimators — gates **Phase-3 M1**, recorded in
+`03-ingestion-corpus-plan.md` §2.2.)
+
 ---
 
 ## 6. Validation (A1)

@@ -159,4 +159,7 @@ The v0 bar above is binding scope for Phase 2; post-v0 sequencing lives in impro
 live on the `plans` branch (PR into `main`). 2026-06-12 (branch `plan-extensions-1`): twelve
 improvement items promoted into v0 scope; post-v0 priorities revised in `04` §G–§H. 2026-06-12
 (branch `plan-extensions-2`): MVP plan decomposed into a spine + eight independently testable
-component subplans (`02-mvp/`) + the extracted validation protocol (`validation/protocol.md`).*
+component subplans (`02-mvp/`) + the extracted validation protocol (`validation/protocol.md`).
+Three-lens review (architecture / methodology / adversarial, all findings adversarially verified)
+returned **ready-with-conditions** — implementation may begin at M1; ten milestone-attached gates
+recorded in `02-mvp-tool-plan.md` §5 and [`reviews/2026-06-12-three-lens-review.md`](reviews/2026-06-12-three-lens-review.md).*

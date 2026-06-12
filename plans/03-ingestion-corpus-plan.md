@@ -77,6 +77,14 @@ confidence intervals and the cost stays bounded.
 > **Estimands we can defend with this design:** prevalence of Bayesian-method use over time;
 > per-step adoption rates (e.g., % reporting posterior predictive checks) with CIs; mean per-step
 > scores by subfield; trend slopes around landmark methodological publications.
+>
+> **Gate G10 (three-lens review, 2026-06-12 — must resolve before estimands are fixed here):** the
+> sampling design defends these against *sampling* error only. Engine misclassification biases
+> prevalence (observed p = p·sens + (1−p)·(1−spec)); specify **misclassification-corrected
+> estimators** (Rogan–Gladen-type or a Bayesian misclassification model) with sens/spec uncertainty
+> propagated into the CIs, using the human-rated gold subsample as the internal validation arm.
+> Until then, dashboard quantities are labeled "engine-measured prevalence (uncorrected)". See
+> [`plans/reviews/2026-06-12-three-lens-review.md`](../plans/reviews/2026-06-12-three-lens-review.md).
 
 ### 2.3 Deduplication (robust to repeated sampling)
 
