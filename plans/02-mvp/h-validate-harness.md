@@ -29,7 +29,8 @@ Tier B runs only through stage 4 (relevance); Tier C runs full but reports case 
   and engine-vs-consensus; % agreement + Gwet's AC1/AC2 alongside every κ.
 - Absence errors both directions: strict/broad absence-FPR with raw counts; absence-miss-rate; the
   full `missing` row+column confusion matrix.
-- Badge confusion; Tier-B relevance sens/spec; paper-class accuracy; test-retest engine-self κ.
+- Coverage/quality score agreement (difference distribution + ICC; replaces badge confusion per the
+  2026-06-12 decision); Tier-B relevance sens/spec; paper-class accuracy; test-retest engine-self κ.
 - Evidence-span audit sample: seeded random ~30 spans/run exported as an audit worksheet; the
   auditor's pass/fail comes back in as input to the report (pass-rate + CI).
 - Bootstrap CIs on every κ, binomial CIs on every rate; per-step **"insufficient data"** below the

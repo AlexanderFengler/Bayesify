@@ -135,7 +135,7 @@ the way the dedup-tooling literature does, so our pipeline's accuracy is itself 
                 │  Phase-2 engine (veribayes-core)         │  ← SAME code path as the single-paper tool
                 │  relevance screen → classify → assess    │
                 └───────────────┬─────────────────────────┘
-                                │ structured results (per-step assessments, scores, badge)
+                                │ structured results (per-step assessments, coverage/quality scores)
                 ┌───────────────▼──────────┐
                 │  Corpus DB (DuckDB/SQLite)│  + ontology tables
                 └───────────────┬──────────┘
@@ -175,7 +175,8 @@ dedup_decision(id PK, work_id FK, merged_into_work_id, rule, score, decided_at, 
 assessment(assessment_id PK, work_id FK, engine_version, rubric_version,
            created_at, relevance_label, relevance_rationale,
            paper_class,            -- empirical | numerical-experiment | methodological (Phase 2 classifier)
-           overall_score, badge)   -- badge: verified | shaky | failed
+           coverage_strict, coverage_lenient, quality_score,
+           rubric_profile)          -- profile: synthesis | schad2021 | ... (PR-#1 decision: no badge)
 
 step_assessment(id PK, assessment_id FK, step_id, applicable BOOL,
                 status,             -- e.g. done_well | partial | missing | not_applicable
@@ -232,8 +233,8 @@ Plot — chosen with Phase-2's frontend already in React).
    by subfield, **with CIs** (this is exactly what the probability sample buys us). Directly answers
    "is Bayesian methodology spreading in this field?"
 6. **Corpus map / DB explorer** — an interactive table + citation-graph view (works as nodes, edges
-   from the citation graph) colored by badge, for drilling from a field-level pattern down to
-   individual papers and their reports.
+   from the citation graph) colored by coverage/quality band, for drilling from a field-level
+   pattern down to individual papers and their reports.
 
 Every chart links back to the underlying papers and their Phase-2 reports (drill-down), and exposes
 the sampling/CI caveats inline so meta-researchers don't over-read noise.

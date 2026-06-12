@@ -14,7 +14,7 @@ where A3's dual grounding and A4's anti-false-absence guarantee are implemented.
 ## Design
 
 **Applicability gate.** The applicable-step set comes deterministically from the rubric's gating
-rules (B1 — scoring side: [`f-score-badge`](f-score-badge.md)) over `PaperClass` + detector
+rules (B1 — scoring side: [`f-score`](f-score.md)) over `PaperClass` + detector
 `Evidence`; non-applicable steps get `applicable=false`/`not_applicable`, the triggering gate rule
 as `applicability_reason`, and **no LLM call**.
 
@@ -69,7 +69,7 @@ failed run resume without re-paying; stage output cached per §3.5; `mode=local`
   judge/refuter spans (quote-verified) + the mandatory `absence_search` item when `missing`;
   `standards[]` ⊆ compiled rubric refs with provenance status; `adversarial_verdict` always present.
 - **Errors/edges:** retries exhausted → `AssessError` (loud; per-step memo kept). Empty applicable
-  set → all-`not_applicable` list; f decides badge semantics.
+  set → all-`not_applicable` list; f decides scoring semantics (not_gradable).
 
 ## Test plan
 - **Unit (no LLM):** prompt assembler (deterministic; token budget; section selection; vacuum-prompt

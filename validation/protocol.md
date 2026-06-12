@@ -65,8 +65,9 @@ level, so agreement is decomposed to mirror the engine's own architecture:
   - **Absence-miss-rate** — of consensus-`missing` steps, the share the engine failed to flag.
   - The full confusion matrix for the `missing` row *and* column goes on the calibration page so
     the trade-off is visible.
-- **Engine accuracy, rest:** badge confusion matrix; relevance sensitivity/specificity (Tier B);
-  paper-class accuracy.
+- **Engine accuracy, rest:** coverage/quality score agreement (engine-vs-consensus difference
+  distribution + ICC; replaces the badge confusion matrix after the 2026-06-12 badge removal);
+  relevance sensitivity/specificity (Tier B); paper-class accuracy.
 - **Test-retest reliability (compute-only, free):** the harness runs the engine **twice** on Tier A
   and reports engine-self κ — the engine's own noise floor, below which no engine-vs-human number is
   interpretable.
@@ -89,8 +90,9 @@ level, so agreement is decomposed to mirror the engine's own architecture:
 1. **A `/calibration` page in the app** — the instrument's spec sheet: per-step two-stage agreement
    table (engine-vs-consensus with **inter-expert agreement (pairwise, blind)** alongside — labeled
    exactly so, *not* "ceiling": consensus is built by those raters, so the engine can legitimately
-   score above pairwise-human κ), absence-FPR + miss-rate with confusion matrix, badge confusion,
-   test-retest κ, gold-set size & composition per tier, last-validated date, engine/rubric versions,
+   score above pairwise-human κ), absence-FPR + miss-rate with confusion matrix, coverage/quality
+   score agreement, test-retest κ, gold-set size & composition per tier, last-validated date,
+   engine/rubric versions (+ rubric profile — v0 validates the `synthesis` profile only),
    override count feeding the next round — **every number with its n and CI**.
 2. **A provenance footer on every report** (plan `02-mvp-tool-plan.md` §4.1): engine & rubric
    version, "development-set agreement: κ=… [CI], absence-FPR …/… , absence-miss …/…", validation

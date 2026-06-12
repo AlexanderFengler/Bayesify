@@ -1,4 +1,12 @@
-# Phase 2 — MVP Tool: PDF → Bayesian-Workflow Report + Badge (spine)
+# Phase 2 — MVP Tool: PDF → Bayesian-Workflow Report + Scores (spine)
+
+> **2026-06-12 — decisions from collaborator review (PR #1, S. Radev):** (1) the categorical badge
+> is **dropped** — per-step profile + coverage/quality scores are the outputs (§4.2); (2) v0 ships
+> a **single report view** + the meta-research JSON, multi-view layering deferred (§4.1); (3) the
+> rubric gains **profiles** — our synthesis (default, to become "the gold standard") plus
+> source-pure profiles, first `schad2021` (§2.3); (4) reports are **template-rendered from the
+> result payload** — the LLM never writes the report (§4.1; this was already the architecture, now
+> stated unambiguously).
 
 **Status:** Plan — decomposed: this spine + eight component subplans in [`02-mvp/`](02-mvp/) + the
 validation protocol in [`../validation/protocol.md`](../validation/protocol.md)
@@ -13,8 +21,9 @@ validation protocol in [`../validation/protocol.md`](../validation/protocol.md)
 
 A user drops a PDF (or pastes an arXiv ID / DOI); the tool returns a **step-wise report** grading
 the paper against the Bayesian-workflow rubric, with **suggestions**, **explicit what-was-done-well
-notes**, a **paper-type classification**, a **relevance assessment**, and an overall **badge:
-Verified / Shaky / Failed**.
+notes**, a **paper-type classification**, a **relevance assessment**, and two transparent summary
+scores — **coverage** (share of applicable workflow steps present) and **quality** (weighted mean
+step score). No categorical badge (PR-#1 decision; §4.2).
 
 The twelve improvement items promoted to v0 (decision 2026-06-12) are **scope, not stretch goals**:
 
@@ -22,11 +31,11 @@ The twelve improvement items promoted to v0 (decision 2026-06-12) are **scope, n
 |-------|----------------|-----------------|
 | Trustworthy instrument | **A1** validation protocol + public surfacing · **A3** dual grounding (paper **and** literature) · **A4** adversarial self-verification · **A5** override scaffolding (learning loop mocked) | [`validation/protocol.md`](../validation/protocol.md) + [`h-validate-harness`](02-mvp/h-validate-harness.md) · §3.5 + [`e-assess`](02-mvp/e-assess.md) · [`e-assess`](02-mvp/e-assess.md) · [`g-report-api-ui`](02-mvp/g-report-api-ui.md) |
 | Practical engine | **C5** multi-format ingest · **C6** caching + cost discipline | [`a-ingest-fetch`](02-mvp/a-ingest-fetch.md) · §3.5 |
-| The report | **D1** four layered views · **D2** prioritized suggestions · **D3** specific praise · **D5** relevance gate up front | [`g-report-api-ui`](02-mvp/g-report-api-ui.md) (D1–D3) · §2.1 + [`d-screen-classify`](02-mvp/d-screen-classify.md) (D5) |
+| The report | **D1** single report view + meta-research JSON in v0 (multi-view layering → v1) · **D2** prioritized suggestions · **D3** specific praise · **D5** relevance gate up front | [`g-report-api-ui`](02-mvp/g-report-api-ui.md) (D1–D3) · §2.1 + [`d-screen-classify`](02-mvp/d-screen-classify.md) (D5) |
 | Governance | **F1** anti-gaming/anti-misuse stated openly · **F3** privacy + local-only mode | §7 |
 
 Plus the baseline already committed: applicability gating + rubric-as-spec (B1/B2), deterministic
-detectors + structure-aware parsing incl. supplements (C1/C3), badge with transparent thresholds,
+detectors + structure-aware parsing incl. supplements (C1/C3), transparent per-step scoring,
 persisted structured result.
 
 **Deliberately deferred** (tracked in `04-improvements-and-extensions.md`): figure/table vision
@@ -53,8 +62,22 @@ One of **empirical data analysis** / **numerical experiments–simulation** / **
 rubric applicability** (e.g., SBC near-mandatory for methodological work; PPCs on real data central
 for empirical work) — the context-conditional gating from improvements §B1.
 
-Both outputs condition everything downstream and are shown at the top of the report; the **badge**
-is computed at the *end* of the pipeline ([`f-score-badge`](02-mvp/f-score-badge.md), §4.2).
+Both outputs condition everything downstream and are shown at the top of the report; the **scores**
+are computed at the *end* of the pipeline ([`f-score`](02-mvp/f-score.md), §4.2).
+
+### 2.3 Rubric profiles (added 2026-06-12, PR-#1 point 3)
+Assessment is always conditioned on a named **rubric profile**:
+- **`synthesis` (default)** — our merged, provenance-tracked rubric (`rubric/steps.yaml`), which we
+  develop over time into *the gold standard*.
+- **Source-pure profiles** — the workflow of one specific methodological paper, compiled as a
+  **filter over `steps.yaml`'s per-step/per-threshold source provenance** (steps and thresholds
+  grounded in that source only, with its terminology). **First: `schad2021`** (Schad, Betancourt &
+  Vasishth 2021), per the collaborator suggestion.
+Mechanics: the profile selects which steps/thresholds compile into e-assess prompts and the f
+scoring tables; `ScoredResult.rubric_profile` records it; Phase 3 stores it alongside
+`rubric_version` so corpus slices are profile-explicit. v0 ships both profiles; **validation
+(protocol + gold set) runs on `synthesis` only in v0** — source-pure profiles display "profile not
+yet validated" in the footer.
 
 ---
 
@@ -102,13 +125,13 @@ veribayes/
 | 3. Deterministic detectors | [`c-detectors`](02-mvp/c-detectors.md) | `ParsedDoc` → `Evidence[]` | C1 |
 | 4–5. Relevance gate; classify | [`d-screen-classify`](02-mvp/d-screen-classify.md) | `ParsedDoc`+`Evidence[]` → `Relevance`, `PaperClass` | D5 |
 | 6. Assess (grounded + adversarial) | [`e-assess`](02-mvp/e-assess.md) | all above → `StepAssessment[]` | A3, A4 |
-| 7. Score & badge | [`f-score-badge`](02-mvp/f-score-badge.md) | `StepAssessment[]` + `Relevance`/`PaperClass` + rubric → `ScoredResult` | B1, B3(part) |
+| 7. Score | [`f-score`](02-mvp/f-score.md) | `StepAssessment[]` + `Relevance`/`PaperClass` + rubric → `ScoredResult` | B1, B3 |
 | Transport, report, UI | [`g-report-api-ui`](02-mvp/g-report-api-ui.md) | `ScoredResult` (local mode: `ParsedDoc`+`Evidence[]`) → report views | D1–D3, A5, F3-UI, C6 |
 | Validation harness (M7) | [`h-validate-harness`](02-mvp/h-validate-harness.md) | goldset labels + `ScoredResult`s → validation reports, `VALIDATION.md` | A1 |
 
 After stage 3 the **local-only mode** (F3) is shippable: parse + detectors produce an *evidence
 inventory* — what was found (where), what was not detected, where the engine looked — with no LLM
-judgments, no applicability gating (that needs `PaperClass`), and no badge ("detection only, not
+judgments, no applicability gating (that needs `PaperClass`), and no scores ("detection only, not
 graded").
 
 ### 3.5 Cross-cutting principles (bind every component)
@@ -127,25 +150,36 @@ graded").
 
 ---
 
-## 4. Report, badge, and the result object
+## 4. Report, scores, and the result object
 
 ### 4.1 Report at a glance
-Header: **badge + score profile, relevance, paper type** (with rationale). Per applicable step:
+Header: **coverage + quality scores, step profile, relevance, paper type, rubric profile** (with
+rationale). Per applicable step:
 status (+confidence) · **what was done well** (specific, evidence-cited — D3) · **what to improve**
 (error/warning/info, ranked impact×ease — D2) · evidence spans · standards applied · [Disagree?]
 override control. Footer: engine/rubric versions · cost · **development-set agreement metrics +
 domain-validity line** (→ `/calibration`) · "formative report, not a verdict" (→ `ETHICS.md`).
-Four layered views (D1): **author / reviewer / student / meta-research JSON**. Full spec:
+**v0 ships one view** (PR-#1 decision): a single **report view** (author/reviewer-oriented) plus
+the **meta-research JSON** export — the `ScoredResult` payload is stored complete so student/
+multi-view layering (D1's full four-audience design) can be added later as pure presentation, and
+downstream meta-research loses nothing. **Rendering rule, stated unambiguously (PR-#1 point 4):
+the LLM never writes the report.** It fills structured `StepAssessment` fields; the report is a
+fixed markdown/JSX template rendered programmatically from the result payload. Full spec:
 [`g-report-api-ui`](02-mvp/g-report-api-ui.md).
 
-### 4.2 Badge semantics (transparent, explainable)
-- **Verified** — all *essential* applicable steps done well; no critical gaps.
-- **Shaky** — essential steps present but with notable gaps, or important steps missing.
-- **Failed** — ≥1 essential applicable step absent/incorrect (e.g., MCMC inference with no
-  convergence diagnostics at all).
-Thresholds come from the Phase-1 scoring rule, shown with a **what-if explainer** ("add a posterior
-predictive check → Shaky → Verified"). Low-confidence absences never trigger **Failed** by
-themselves. Spec: [`f-score-badge`](02-mvp/f-score-badge.md).
+### 4.2 Scoring (no badge — 2026-06-12 PR-#1 decision)
+The categorical Verified/Shaky/Failed badge is **dropped**. Outputs, in order of primacy:
+- **Step profile** — status per applicable step (`done_well | partial | missing | not_applicable`
+  + confidence): the differentiated, per-step scoring the collaborator review asked for.
+- **Coverage** — share of applicable steps *present* (done_well ∪ partial), reported as an
+  **uncertainty-honest range** when low-confidence absences exist (e.g., "6–7 / 9") — a
+  low-confidence absence never silently lowers the headline number.
+- **Quality** — weighted mean step sub-score (weights per paper class from the rubric scoring
+  block).
+The rubric's "essential" flags become **expectation tiers** (expected/recommended) driving
+suggestion *severity*, not a verdict; a **score-impact ranking** (re-scoring-verified deltas)
+replaces the badge-era what-if explainer and feeds D2's ordering. Spec:
+[`f-score`](02-mvp/f-score.md).
 
 ### 4.3 The result object & stage contracts (the spec that keeps components independent)
 Defined once in `core/schema.py` (pydantic); every subplan codes against these, tests against
@@ -166,12 +200,15 @@ PaperClass     {primary, secondary?, confidence, rationale, evidence_refs[]}
 StepAssessment {step_id, applicable, applicability_reason, status, confidence,
                 evidence[], standards[], did_well[], suggestions[{severity, text, how_to, ease}],
                 adversarial_verdict{challenged, refuted, notes}}
-ScoredResult   {relevance, paper_class, step_assessments[], profile, overall_score, badge,
-                what_if[], engine_version, rubric_version, cost_ledger, validation_ref}
+GateFacts      {inference_method: mcmc|hmc_nuts|variational|exact_analytic|unstated,
+                n_models, bf_claimed, prior_informativeness}   -- emitted by e, consumed by f (G6)
+ScoredResult   {relevance, paper_class, gate_facts, step_assessments[], profile,
+                coverage{present, applicable, strict, lenient}, quality_score, score_impacts[],
+                engine_version, rubric_version, rubric_profile, cost_ledger, validation_ref}
 ```
 Overrides (A5) live in a **separate table keyed to the assessment** — engine output is never
 mutated; expert corrections sit alongside it. On a relevance-`no` short-circuit, `paper_class` and
-`badge` are **null** and `step_assessments` empty: the g job loop persists that `ScoredResult`
+the scores are **null** and `step_assessments` empty: the g job loop persists that `ScoredResult`
 directly from d's output (f is never invoked on irrelevant papers).
 
 ---
@@ -189,8 +226,8 @@ lands behind the always-working stub app.
 | **M2** | Ingest + parse + cache | [`a`](02-mvp/a-ingest-fetch.md), [`b`](02-mvp/b-parse.md) |
 | **M3** | Detectors → **local-only mode shippable** | [`c`](02-mvp/c-detectors.md) |
 | **M4** | Screen + classify | [`d`](02-mvp/d-screen-classify.md) |
-| **M5** | Assess (grounded + adversarial) + score + badge | [`e`](02-mvp/e-assess.md), [`f`](02-mvp/f-score-badge.md) |
-| **M6** | Full report UX: layered views, overrides, privacy surface, exports | [`g`](02-mvp/g-report-api-ui.md) |
+| **M5** | Assess (grounded + adversarial) + scoring (profile, coverage, quality) | [`e`](02-mvp/e-assess.md), [`f`](02-mvp/f-score.md) |
+| **M6** | Full report UX: the v0 report view + meta-research JSON, overrides, privacy surface, exports | [`g`](02-mvp/g-report-api-ui.md) |
 | **M7** | `veribayes validate` harness built; protocol executed; calibration page + footer + `VALIDATION.md` | [`h`](02-mvp/h-validate-harness.md) (harness) per [`validation/protocol.md`](../validation/protocol.md) (procedure) |
 
 **v0 is not "done" until M7 runs.**
@@ -201,6 +238,11 @@ Verified conditions from the architecture / statistical-methodology / adversaria
 block M1; each must be resolved **before the milestone it names**. The review's consensus-strengths
 list is equally binding: the decomposition, contracts, and validation-metric core are not to be
 churned while closing these.
+
+*Updated 2026-06-12 after the PR-#1 badge decision: G5 no longer needs badge bands (coverage/quality
+definitions instead); G6's "essentialness" now means expectation tier/severity, not a Failed
+verdict; G7 unchanged (a wrongful per-step "missing" still mis-scores VI papers). The gates' files
+and milestones stand.*
 
 | Gate | Resolve by | What |
 |------|-----------|------|
@@ -230,8 +272,9 @@ report-footer / `VALIDATION.md` surfacing — lives in
 
 ## 7. Governance (F1 + F3 — shipped artifacts, not promises)
 
-- **`ETHICS.md` (F1):** formative-not-verdict framing (the badge attests *workflow practice as
-  detectable in the documents*, not correctness); the gaming surface documented — magic words
+- **`ETHICS.md` (F1):** formative-not-verdict framing (the scores attest *workflow practice as
+  detectable in the documents*, not correctness — reinforced by the 2026-06-12 removal of the
+  categorical badge); the gaming surface documented — magic words
   without evidence are flagged **"asserted but not evidenced"** (≤ `partial` credit; detector-class
   hardening tracked as improvements §H6), and **prompt injection** is disclosed as an open attack
   surface until §H7 red-teaming closes it; misuse guidance (structured aid, not an auto-reject
@@ -239,7 +282,7 @@ report-footer / `VALIDATION.md` surfacing — lives in
   centricity, text-only limits) with planned mitigations (F2, C2).
 - **`PRIVACY.md` + UI (F3):** in full mode, extracted text goes to the Anthropic API — disclosed at
   point of use (first-run modal + persistent mode indicator); all storage local; no telemetry;
-  **local-only mode** per paper (evidence inventory, no LLM, no badge); **per-paper purge** deletes
+  **local-only mode** per paper (evidence inventory, no LLM, no scores); **per-paper purge** deletes
   everything derived.
 
 ---

@@ -192,13 +192,16 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
 - Each **applicable** step gets a status → numeric sub-score; **N/A steps are excluded** from the
   denominator (no penalty for legitimately-inapplicable steps).
 - Steps carry **weights** and an **essential** flag, **conditioned on paper type**.
-- The aggregate is a **profile** (vector) plus a documented scalar; the **badge** is a function of the
-  essential-step statuses and the aggregate:
-  - **Verified** — all essential applicable steps `done_well`; no critical gaps.
-  - **Shaky** — essential steps present but with gaps, or important non-essential steps missing.
-  - **Failed** — ≥1 essential applicable step `missing`/incorrect.
-- Per improvements §B3/A2: avoid false precision (single number), keep thresholds transparent with a
-  "what-if" explainer, and never let a **low-confidence** absence alone trigger **Failed**.
+- The aggregate is a **profile** (vector) plus two documented summary scores *(updated 2026-06-12,
+  PR-#1 decision — the earlier Verified/Shaky/Failed badge is dropped)*:
+  - **Coverage** — share of applicable steps present (`done_well` ∪ `partial`), reported as an
+    uncertainty range when absences are low-confidence;
+  - **Quality** — weighted mean step sub-score (weights per paper class).
+  The per-class `essential` flags become **expectation tiers** driving suggestion severity, not a
+  verdict.
+- Per improvements §B3/A2: avoid false precision (single number), keep all scoring rules transparent
+  in the rubric spec, and never let a **low-confidence** absence alone lower the headline coverage
+  number (it widens the range instead).
 
 ## 5. Disagreements & context-dependence (record, don't smooth)
 

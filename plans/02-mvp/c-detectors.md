@@ -12,7 +12,7 @@ The grounding half of the hybrid engine: a versioned catalog of high-precision d
 detectors turning a `ParsedDoc` into structured `Evidence[]`, each hit with the exact span where it
 was found. These hits keep the LLM honest in e-assess (it must reconcile with and cite them), and
 each detector is independently testable, unlike prompt behavior. Completing a+b+c makes the **F3
-local-only mode shippable** (spine §3.4): the evidence inventory needs no LLM and no badge.
+local-only mode shippable** (spine §3.4): the evidence inventory needs no LLM and no scores.
 
 ## Design
 **Catalog (improvements C1, plus the method-mention family the relevance gate floors on):**
@@ -61,7 +61,7 @@ is the review surface for adding detectors; no detector ships without an entry.
 with zero hits, stated as "not detected", never "not done"), and **where the engine looked** (the
 section kinds/titles scanned, incl. supplements — the A3 enumeration rule). With a (ingest) and
 b (parse) in place, g renders this as the local-only report, labeled "detection only, not graded":
-no LLM call, no badge, nothing leaves the machine.
+no LLM call, no scores, nothing leaves the machine.
 
 ## Interface contract
 **Input — `ParsedDoc`** (§4.3): detectors read only `sections[].{id, kind, title, text,

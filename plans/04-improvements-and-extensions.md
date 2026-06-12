@@ -35,8 +35,9 @@ if the labeled set starts small.
 It would be embarrassing for a Bayesian-workflow auditor to emit false-precision point scores. Each
 per-step judgment should carry a **confidence** (e.g., the engine is sure a PPC is absent vs. it
 might be in an unparsed supplement). Surface low-confidence judgments distinctly ("possibly missing —
-not found, but check appendix"). Propagate this into the badge: a paper shouldn't be "Failed" on the
-basis of low-confidence absences.
+not found, but check appendix"). Propagate this into the scores: a low-confidence absence widens
+the coverage range rather than lowering the headline number (implemented this way in
+`02-mvp/f-score.md`).
 
 ### A3. Ground every claim in the source**s** **[v0 — committed]**
 > Upgraded per your note to grounding in the source**s**, plural: every finding cites both the
@@ -89,12 +90,16 @@ gates, weights), not hardcoded in prompts. Benefits: auditable, diffable, commun
 and **`rubric_version` stamped on every assessment** so Phase-3 trends stay interpretable across
 rubric changes. The engine compiles this spec into prompts + deterministic checks.
 
-### B3. Don't collapse to one number too early — and design the scoring rule deliberately **[v0 — committed (profile-first + transparent thresholds + what-if explainer, `02` §4.2–4.3 + `02-mvp/f-score-badge.md`); v1 (deliberate proper-scoring aggregation design)]**
-A single 0–100 invites **Goodhart's law** (optimize the badge, not the science). Prefer:
-- a **profile** (vector of per-step scores) as the primary object, with the scalar/badge as a summary;
+### B3. Don't collapse to one number too early — and design the scoring rule deliberately **[v0 — committed (profile-first, coverage/quality scores, `02` §4.2 + `02-mvp/f-score.md`); v1 (deliberate proper-scoring aggregation design)]**
+> **2026-06-12 (PR-#1):** this item's strongest form was adopted — the categorical badge is dropped
+> entirely; per-step profile + coverage/quality scores are the outputs. The what-if explainer became
+> the score-impact ranking.
+
+A single 0–100 invites **Goodhart's law** (optimize the score, not the science). Prefer:
+- a **profile** (vector of per-step scores) as the primary object, with scalar summaries secondary;
 - an explicitly documented, **proper-scoring-inspired** aggregation with per-context weights;
-- **transparent badge thresholds** with a "what-if" explainer ("add a posterior predictive check →
-  Shaky → Verified"). The badge should *teach*, not just label.
+- **transparent scoring rules** with a score-impact ranking ("adding a posterior predictive check
+  raises coverage to 8/9") — the scores should *teach*, not just label.
 Discuss the gaming surface openly in the docs (see F1).
 
 ### B4. Subfield-calibrated thresholds **[v2]**
@@ -157,9 +162,11 @@ makes runs reproducible.
 
 ## D. Report & UX
 
-### D1. Layered report for four audiences **[v0 — committed]** *(spec: `02-mvp/g-report-api-ui.md`)*
+### D1. Layered report for four audiences **[v0 — single report view + meta-research JSON (PR-#1 decision); v1 — full multi-view layering]** *(spec: `02-mvp/g-report-api-ui.md`)*
+> The complete `ScoredResult` payload is persisted regardless of what the v0 UI shows, so the
+> remaining views are pure presentation work later — and meta-research downstream loses nothing.
 You named authors, reviewers, meta-researchers, and students. One report, layered views:
-- **Badge + profile** (everyone, top).
+- **Coverage/quality scores + profile** (everyone, top).
 - **Author mode:** prioritized, actionable fix-list (linter-style: error/warning/info), each with a
   concrete "how to fix" and a code/exemplar pointer.
 - **Reviewer mode:** an exportable, evidence-cited critique block ready to paste into a review.
@@ -178,7 +185,7 @@ predictive check in Fig 2 correctly revealed implausible effect sizes before fit
 practice and builds author trust so the criticism lands. Generic praise is worse than none.
 
 ### D4. Re-check / diff mode **[v1]**
-Re-upload a revised manuscript → show which issues resolved, which remain, badge delta. Directly
+Re-upload a revised manuscript → show which issues resolved, which remain, coverage/quality delta. Directly
 serves the author-self-check persona and creates a virtuous revise loop.
 
 ### D5. Relevance gate up front **[v0 — committed]** *(spec: `02` §2.1 + `02-mvp/d-screen-classify.md`)*
@@ -196,9 +203,11 @@ The time-axis + landmarks view invites causal reading. Strengthen it with **inte
 confounds (general trends, venue policy changes). Descriptive by default; causal only with the design
 to back it.
 
-### E2. Field dashboards & opt-in badges **[v2]**
-Public per-subfield dashboards could drive adoption — and a requestable **"VeriBayes badge"** for
-papers (à la reproducibility badges) gives authors a carrot. Guard against misuse (F1).
+### E2. Field dashboards & opt-in certification **[v2]**
+Public per-subfield dashboards could drive adoption — and a requestable, opt-in **certification**
+for papers (à la reproducibility badges) gives authors a carrot. *(Note: v0 deliberately ships no
+categorical verdict (2026-06-12); any future certification requires validated thresholds and
+community governance first.)* Guard against misuse (F1).
 
 ### E3. Generalize beyond the Bayesian workflow **[moonshot]**
 The architecture (declarative rubric spec + hybrid engine + corpus pipeline) is **workflow-agnostic**.
@@ -212,7 +221,7 @@ stays reachable.
 ## F. Governance, ethics, and failure modes
 
 ### F1. Anti-gaming and anti-misuse, stated openly **[v0 — committed]** *(spec: `02` §7 — ships as `ETHICS.md` + report framing + "asserted-but-not-evidenced" policy)*
-Badges can be (a) gamed (write the magic words without doing the work) and (b) weaponized (used to
+Scores can be (a) gamed (write the magic words without doing the work) and (b) weaponized (used to
 bludgeon authors or gatekeep). Mitigations, documented up front: emphasize **formative feedback over
 ranking**; require **evidence grounding** so keyword-stuffing is detectable; frame as a *report* not a
 verdict; never auto-publish scores about third-party papers without care. Phase 3's public views need
@@ -260,7 +269,7 @@ in recommended order:
 5. **F4 — full provenance/audit trail.** v0's cache + cost ledger + `standards[]` already carry much
    of it; complete it (prompts, model ids, adversarial verdicts persisted per assessment).
 6. **D4 — re-check / diff mode.** High author value, cheap once caching (C6) exists: re-upload →
-   issue-level diff + badge delta.
+   issue-level diff + score delta.
 7. **F2 — bias audit.** Needs A1 data sliced by subfield/venue/language — schedule once the gold set
    passes ~50 papers.
 8. **B4, E1, E2** — corpus-dependent; sequence with Phase 3.
@@ -294,7 +303,7 @@ The tool's own sensitivity analysis, in two stages:
 ### H4. Golden-paper regression CI **[v1]**
 Freeze a small, fixed mini-set (~5 papers spanning classes, plus a couple of decoys) and run the full
 engine on every PR touching prompts, rubric, or engine code; diff the resulting reports structurally
-(status/score/badge changes) and block merges on unexplained regressions. This is the validation
+(status/score changes) and block merges on unexplained regressions. This is the validation
 protocol's regression rule (`validation/protocol.md` §3) made *continuous* instead of release-time,
 and it doubles as living documentation of what each change does. **Leakage rule:** the mini-set must
 be **disjoint from the (eventual) held-out gold set** — per-PR evaluation makes these papers a dev
@@ -315,13 +324,24 @@ tools become known, this is the gaming vector that will actually be probed — i
 needed, and report its prevalence in Phase-3 corpus stats (it is itself an interesting
 meta-research finding).
 
-### H7. Prompt-injection robustness **[v1 — before E2's public badges make the incentive real]**
+### H7. Prompt-injection robustness **[v1 — before E2's public dashboards/certification make the incentive real]**
 The gaming surface in F1/H6 models *honest-language* gaming (magic words). The more potent attack on
 an LLM judge reading author-controlled text is **embedded instructions targeting the judge**:
 white-font text, PDF-comment payloads, "system:"-style strings in supplements coercing `done_well`
-statuses or suppressing the adversarial pass. Once a VeriBayes badge is worth anything, this is the
+statuses or suppressing the adversarial pass. Once a VeriBayes score is worth anything, this is the
 attack that will actually be tried. Build: (a) **injection red-teaming** — adversarial gold-set
 variants with embedded instructions and an injection-success metric in the validation harness;
 (b) mitigations — strict instruction/data separation in prompts, and the parser flags
 invisible-text/comment spans as suspect evidence. v0 already discloses this as an open attack
 surface in `ETHICS.md` (`02` §7); this item closes it.
+
+### H8. Expand the rubric-profile family **[v1–v2]**
+v0 ships two profiles (spine §2.3): `synthesis` (default; to be developed into *the gold standard*)
+and `schad2021` (first source-pure profile, per the PR-#1 collaborator suggestion). Natural
+expansions: `barg2021` (reporting-focused), `wambs` (checklist-style), `betancourt` (workflow-
+phase-structured) — each a provenance filter over `steps.yaml`, cheap to add. Two real work items
+beyond the filters: (a) **per-profile validation** — protocol metrics are profile-specific, so each
+shipped profile eventually needs its own gold-set pass (until then it carries "profile not yet
+validated"); (b) **cross-profile comparison view** — scoring one paper under several profiles
+surfaces where the standards genuinely disagree, which is itself a meta-research finding (ties to
+01 §5 "record, don't smooth").
