@@ -1,3 +1,6 @@
+# Pixi (env dir is local; pixi.lock IS committed for reproducibility)
+.pixi/
+
 # Python
 __pycache__/
 *.py[cod]

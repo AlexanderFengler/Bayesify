@@ -1,0 +1,64 @@
+"""Typed models for ``rubric/steps.yaml``.
+
+These mirror the YAML's current ``0.1-draft`` shape (G5: pin the shape now so the loader is stable).
+Fields that the rubric-v1.0 freeze will add — the machine-evaluable ``na_when``/``mandatory_when``
+predicates (G5/G6), VI-specific S4 criteria (G7), and the scoring block (G5) — are modelled as
+optional so today's draft loads and tomorrow's freeze is additive, not a schema break.
+"""
+
+from __future__ import annotations
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class _Base(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ThresholdEntry(_Base):
+    """One attributed threshold (e.g. S4 ``rhat_modern``). ``verified`` records whether it was
+    adversarially verified in the deep-research run — preserved, never collapsed (the project's own
+    transparency rule). Flows into ``StandardRef.verified`` in the assessment."""
+
+    value: str
+    source: str
+    verified: bool
+    note: str | None = None
+
+
+class RubricStep(_Base):
+    id: str
+    name: str
+    # Applicability gating (paper_class in {empirical, numerical_experiment, methodological}).
+    essential_for: list[str] = Field(default_factory=list)
+    recommended_for: list[str] = Field(default_factory=list)
+    na_when: str | None = None  # prose in 0.1-draft; becomes a machine predicate at v1.0 (G5/G6)
+    mandatory_when: str | None = None  # evidence-conditioned escalation (G6)
+    requires: list[str] = Field(default_factory=list)  # e.g. S6 -> [S8]
+    inference_scope: list[str] = Field(default_factory=list)  # e.g. [mcmc, hmc_nuts, variational]
+    done_well: str | None = None
+    done_poorly: str | None = None
+    note: str | None = None
+    thresholds: dict[str, ThresholdEntry] = Field(default_factory=dict)
+    citations: list[str] = Field(default_factory=list)
+
+
+class RubricSpec(_Base):
+    rubric_version: str
+    status_values: list[str]
+    steps: list[RubricStep]
+    citations: dict[str, str] = Field(default_factory=dict)
+    # Prose summary in 0.1-draft; the structured scoring block is authored at v1.0 (G5).
+    scoring_rule: str | None = None
+    scoring: dict[str, object] | None = None  # reserved for the v1.0 machine scoring block
+    # Which profile produced this spec (set by the loader): "synthesis" or a source id.
+    profile: str = "synthesis"
+
+    def step(self, step_id: str) -> RubricStep:
+        for s in self.steps:
+            if s.id == step_id:
+                return s
+        raise KeyError(step_id)
+
+    def citation(self, source_id: str) -> str:
+        return self.citations[source_id]

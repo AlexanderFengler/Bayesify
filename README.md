@@ -33,9 +33,26 @@ research/sources/  Annotated bibliography: one note per source (citation + how V
                    plus fetch_sources.sh to download the open-access PDFs locally.
 rubric/            Machine-readable rubric (steps.yaml) — the single source of truth for scoring.
 validation/        The A1 validation protocol (engine-vs-expert calibration) and its artifacts.
+veribayes/core/    The engine (Phase 2, in progress): stage contracts (schema.py), engine versioning,
+                   rubric loader. UI-agnostic — no web deps (enforced by an import-linter contract).
+tests/             pytest suite for veribayes-core.
+```
+
+## Development
+
+Environments are managed with [pixi](https://pixi.sh) (conda-forge, Python 3.12); `pixi.lock` pins
+exact versions for reproducibility.
+
+```sh
+pixi install        # provision the environment from pixi.lock
+pixi run check      # ruff lint + import-contract + pytest
+pixi run test       # just the tests
 ```
 
 ## Status
 
-Planning. See [`plans/00-master-plan.md`](plans/00-master-plan.md) for the executive summary and
-the per-phase plans alongside it.
+Phase 1 (research → rubric) complete; Phase 2 (MVP) under way — see
+[`plans/02-mvp-tool-plan.md`](plans/02-mvp-tool-plan.md) §5 for the milestone/gate map. The current
+branch builds **M1 (skeleton & contracts)**: the §4.3 stage contracts, `engine_version` composition
++ model pinning (gate G1), the `gate_facts` schema field (G6), and the rubric loader with profile
+support. See [`plans/00-master-plan.md`](plans/00-master-plan.md) for the executive summary.
