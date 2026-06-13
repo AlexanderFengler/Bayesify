@@ -689,6 +689,31 @@ main.container {
   color: var(--amber);
 }
 
+.local-notice {
+  text-align: center;
+  padding: 36px;
+}
+.local-notice h2 {
+  margin: 14px 0 8px;
+  font-size: 18px;
+  word-break: break-word;
+}
+.local-notice p {
+  color: var(--ink-soft);
+  max-width: 56ch;
+  margin: 0 auto 22px;
+}
+.local-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid #dfe4fb;
+  padding: 4px 11px;
+  border-radius: 999px;
+}
+
 .error-card {
   text-align: center;
 }

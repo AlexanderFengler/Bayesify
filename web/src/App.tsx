@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { getPaper, streamProgress, submitPaper } from "./api";
 import { Report } from "./Report";
-import { STAGES, type PaperState, type Stage } from "./types";
+import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
 
 type Phase = "idle" | "running" | "done" | "error";
 
@@ -70,7 +70,13 @@ export function App() {
             onStart={start}
           />
         )}
-        {phase === "running" && <Progress stageState={stageState} source={file?.name ?? identifier} />}
+        {phase === "running" && (
+          <Progress
+            stageState={stageState}
+            stages={mode === "local" ? LOCAL_STAGES : STAGES}
+            source={file?.name ?? identifier}
+          />
+        )}
         {phase === "error" && (
           <div className="card error-card">
             <h2>Something went wrong</h2>
@@ -80,8 +86,9 @@ export function App() {
             </button>
           </div>
         )}
-        {phase === "done" && paper?.result && (
-          <Report paper={paper} onReset={reset} />
+        {phase === "done" && paper?.result && <Report paper={paper} onReset={reset} />}
+        {phase === "done" && paper && !paper.result && paper.local_notice && (
+          <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={reset} />
         )}
       </main>
       <Footer />
@@ -230,13 +237,21 @@ function ModeToggle({ mode, setMode }: { mode: "full" | "local"; setMode: (m: "f
   );
 }
 
-function Progress({ stageState, source }: { stageState: Record<string, "running" | "done">; source?: string }) {
+function Progress({
+  stageState,
+  stages,
+  source,
+}: {
+  stageState: Record<string, "running" | "done">;
+  stages: readonly string[];
+  source?: string;
+}) {
   return (
     <div className="card progress-card">
       <h2 className="progress-title">Analyzing</h2>
       {source && <p className="progress-source">{source}</p>}
       <ol className="stepper">
-        {STAGES.map((stage: Stage) => {
+        {stages.map((stage) => {
           const state = stageState[stage];
           return (
             <li key={stage} className={"step " + (state ?? "pending")}>
@@ -246,6 +261,27 @@ function Progress({ stageState, source }: { stageState: Record<string, "running"
           );
         })}
       </ol>
+    </div>
+  );
+}
+
+function LocalNotice({
+  notice,
+  source,
+  onReset,
+}: {
+  notice: string;
+  source: string;
+  onReset: () => void;
+}) {
+  return (
+    <div className="card local-notice">
+      <div className="local-badge">Local-only · detection mode</div>
+      <h2>{source}</h2>
+      <p>{notice}</p>
+      <button className="btn" onClick={onReset}>
+        Analyze another
+      </button>
     </div>
   );
 }

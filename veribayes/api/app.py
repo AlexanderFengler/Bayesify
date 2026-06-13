@@ -72,6 +72,7 @@ def _job_payload(job: jobsmod.Job) -> dict:
         "source_label": job.source_label,
         "relevance_override": job.relevance_override,
         "result": job.result.model_dump(mode="json") if job.result else None,
+        "local_notice": job.local_notice,
         "error": job.error,
     }
 

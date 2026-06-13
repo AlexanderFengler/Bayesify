@@ -8,7 +8,7 @@ import json
 from fastapi.testclient import TestClient
 
 from veribayes.api.app import app
-from veribayes.api.jobs import STAGES, Job, event_stream, run_job
+from veribayes.api.jobs import LOCAL_STAGES, STAGES, Job, event_stream, run_job
 
 client = TestClient(app)
 
@@ -58,6 +58,16 @@ def test_run_job_emits_every_stage_then_done_and_attaches_result() -> None:
     assert job.events[-1]["type"] == "done"
     assert job.status == "done"
     assert job.result is not None and job.result.coverage is not None
+
+
+def test_local_mode_produces_no_scores_and_fewer_stages() -> None:
+    job = Job(id="t3", mode="local", source_label="paper.pdf")
+    asyncio.run(run_job(job))
+    stages_done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
+    assert stages_done == list(LOCAL_STAGES)  # detectors only — no screen/classify/assess/score
+    assert job.result is None  # no scores in local mode
+    assert job.local_notice is not None
+    assert job.status == "done"
 
 
 def test_event_stream_replays_for_a_late_subscriber() -> None:

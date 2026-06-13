@@ -27,6 +27,13 @@ STAGES: tuple[str, ...] = (
     "assess",
     "score",
 )
+# Local-only mode (F3): parse + detectors only — no LLM, no scores. Fewer stages, honestly.
+LOCAL_STAGES: tuple[str, ...] = ("ingest", "parse", "detect")
+_LOCAL_NOTICE = (
+    "Local-only (detection) mode: deterministic detectors run on-device — no LLM, no text leaves "
+    "the machine, and no scores are produced. The detector catalog comes online at milestone M3; "
+    "at M1 this is a labelled placeholder."
+)
 _TERMINAL = {"done", "failed"}
 _STAGE_DELAY_S = 0.45  # simulated per-stage work so progress is visible in the UI
 
@@ -39,7 +46,8 @@ class Job:
     relevance_override: str | None = None  # set by the rerun escape hatch
     status: str = "queued"  # queued | running | done | failed
     stage: str | None = None
-    result: s.ScoredResult | None = None
+    result: s.ScoredResult | None = None  # None in local mode (no scores)
+    local_notice: str | None = None  # set in local mode instead of a result
     error: str | None = None
     _seq: int = 0
     events: list[dict] = field(default_factory=list)
@@ -76,12 +84,16 @@ async def run_job(job: Job) -> None:
     try:
         job.status = "running"
         job.emit({"type": "status", "status": "running"})
-        for stage in STAGES:
+        stages = LOCAL_STAGES if job.mode == "local" else STAGES
+        for stage in stages:
             job.stage = stage
             job.emit({"type": "stage", "stage": stage, "state": "running"})
             await asyncio.sleep(_STAGE_DELAY_S)
             job.emit({"type": "stage", "stage": stage, "state": "done"})
-        job.result = build_stub_result(job.mode)
+        if job.mode == "local":
+            job.local_notice = _LOCAL_NOTICE  # detection only — no scores
+        else:
+            job.result = build_stub_result(job.mode)
         job.status = "done"
         job.emit({"type": "done"})
     except Exception as exc:  # pragma: no cover - defensive; stub never raises
