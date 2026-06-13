@@ -28,12 +28,23 @@ meta-research.
 | Phase | Deliverable | Plan |
 |-------|-------------|------|
 | **1. Research → rubric** | Cited synthesis of Bayesian-workflow gold standards, decomposed into an assessable rubric (`rubric/steps.yaml`). **Executed** — see `research/`. | [`01-research-plan.md`](01-research-plan.md) |
-| **2. MVP tool** | Drag-and-drop PDF → hybrid analysis → step-wise report (suggestions + what-was-done-well + paper-type classification + relevance gate) + badge. FastAPI + React, local-first. | [`02-mvp-tool-plan.md`](02-mvp-tool-plan.md) |
+| **2. MVP tool (v0)** | PDF drag-drop **or arXiv/DOI/OpenAlex ID** → hybrid analysis → step-wise report + badge — **plus the v0 trust bar (below)**. FastAPI + React, local-first. | [`02-mvp-tool-plan.md`](02-mvp-tool-plan.md) |
 | **3. Corpus & meta-analysis** | Sampling-rigorous ingestion pipeline (DB + ontology + dedup) over a discipline; visualizations of quality/adoption over time, by subfield, by cluster. | [`03-ingestion-corpus-plan.md`](03-ingestion-corpus-plan.md) |
 
 Cross-cutting: [`04-improvements-and-extensions.md`](04-improvements-and-extensions.md) — my best
 suggestions for making this excellent (validation, evidence-grounding, anti-gaming, figure parsing,
-governance). Read §G there for the recommended next-iteration priorities.
+governance). Read §G there for the post-v0 priorities and §H for the newest proposals.
+
+**The v0 bar** (twelve improvement items promoted into MVP scope, 2026-06-12 — spec in `02`):
+- *Trustworthy instrument:* expert-validation protocol **with public calibration surfacing** (A1) ·
+  dual grounding of every claim in the paper **and** the methodological literature (A3) ·
+  adversarial self-verification of negative findings (A4) · expert-override scaffolding, learning
+  loop mocked (A5).
+- *Practical engine:* multi-format ingest (C5) · caching + cost ledger + budget guard (C6).
+- *The report:* four layered audience views (D1) · severity-tiered prioritized suggestions (D2) ·
+  specific evidence-cited praise (D3) · graceful relevance gate (D5).
+- *Governance, shipped not promised:* `ETHICS.md` + anti-gaming policy (F1) · privacy disclosure +
+  local-only mode + purge (F3).
 
 **Architectural keystone:** one engine, `veribayes-core` (pure Python, no web deps), applies one
 versioned rubric. The MVP tool and the corpus pipeline both call it — so single-paper and
@@ -76,11 +87,14 @@ research pass closes both.
 
 For each applicable workflow step: a **status** (done-well / partial / missing / N-A) with a
 **confidence**, an **explicit "what was done well, and why"**, **prioritized suggestions**
-(linter-style error/warning/info with concrete how-to), and **evidence spans** linking back to the
-PDF. Plus three up-front determinations you required: a **relevance gate** (is this even a Bayesian
-paper? if not, flagged and short-circuited with reasons), a **rigorous paper-type classification**,
-and the overall **badge** with transparent, explainable thresholds. One report, four **layered views**
-(author / reviewer / student / meta-research JSON).
+(linter-style error/warning/info with concrete how-to), **evidence spans** linking back to the PDF,
+and the **standards applied** (the literature behind each judgment — "says who?"). Plus two
+up-front determinations you required — a **relevance gate** (is this even a Bayesian paper? if not,
+flagged and short-circuited with reasons) and a **rigorous paper-type classification** — and, at the
+end of the pipeline, the overall **badge** with transparent, explainable thresholds. One report, four **layered views** (author /
+reviewer / student / meta-research JSON). Every report carries a **provenance footer**: engine &
+rubric versions, cost, and the engine's current validated accuracy (gold-set κ, absence-claim FPR)
+linking to a full **calibration page**.
 
 ---
 
@@ -103,15 +117,15 @@ and the overall **badge** with transparent, explainable thresholds. One report, 
 
 ```
 Phase 1 ✅ research executed → rubric drafted (steps.yaml v0.1)  [scope gaps S6/S4 to close]
-Phase 2  M1 skeleton+contracts → M2 parse+detect → M3 screen+classify
-         → M4 assess+score+badge → M5 report UX → M6 validation harness
+Phase 2  M1 skeleton+contracts → M2 ingest+parse+cache → M3 detect (local mode shippable)
+         → M4 screen+classify → M5 assess+score+badge → M6 report UX
+         → M7 validation protocol+calibration page   ← v0 isn't done until M7 runs
 Phase 3  M1 frame+sampler → M2 dedup → M3 acquire+batch-engine
          → M4 corpus DB+ontology → M5 dashboards → M6 reproducibility wrapper
 ```
 
-Highest-leverage early investments (from improvements §G): applicability gating + rubric-as-spec;
-evidence grounding + adversarial self-check; deterministic detectors + structured (incl. supplement)
-parsing; a validation harness from day one so we *know* the tool's accuracy.
+The v0 bar above is binding scope for Phase 2; post-v0 sequencing lives in improvements §G
+(next up: figure/table vision parsing, calibrated confidences, closing the override learning loop).
 
 ---
 
@@ -121,14 +135,15 @@ parsing; a validation harness from day one so we *know* the tool's accuracy.
   refutation pass before any negative finding is reported with confidence.
 - **Penalizing legitimate deviations** → applicability gating by paper-type/method (not-done ≠
   not-reported ≠ N-A).
-- **Tool is itself un-validated** → ship an engine-vs-human agreement harness in the MVP; corpus claims
-  cite that measurement error. *(A Bayesian-rigor auditor must meet its own bar.)*
-- **Diagnostics hidden in figures/supplements** → parse supplements now; figure-vision parsing is the
-  planned upgrade.
-- **Badge gaming / misuse** → formative-feedback framing, evidence grounding, transparency; public
-  views carry an explicit ethics note.
-- **Privacy of unpublished manuscripts** → clear data-handling disclosure + a local-only mode on the
-  roadmap.
+- **Tool is itself un-validated** → a full expert-validation protocol ships **in v0** (blind dual
+  rating, κ + absence-claim FPR, regression gate) and is **surfaced** on a calibration page + every
+  report's footer + a citable `VALIDATION.md`. *(A Bayesian-rigor auditor must meet its own bar.)*
+- **Diagnostics hidden in figures/supplements** → parse supplements now; the gold set quantifies the
+  text-only cost; figure-vision parsing is the top post-v0 priority.
+- **Badge gaming / misuse** → formative-feedback framing, dual grounding, "asserted-but-not-evidenced"
+  policy, `ETHICS.md` shipped in v0; public Phase-3 views carry their own ethics note.
+- **Privacy of unpublished manuscripts** → **in v0:** plain disclosure, a local-only
+  evidence-inventory mode, and per-paper purge.
 
 ---
 
@@ -139,5 +154,6 @@ parsing; a validation harness from day one so we *know* the tool's accuracy.
 - Methodologist → `research/bayesian-workflow-gold-standards.md` (esp. §7 caveats) and `01-research-plan.md`.
 - Skeptic / reviewer → `04-improvements-and-extensions.md` (validation, bias, governance).
 
-*Status: planning branch `plans`. Phase-1 research executed this session; nothing committed yet —
-review the `plans/`, `research/`, and `rubric/` files, then we iterate.*
+*Status: Phase-1 research executed; plans, research synthesis, annotated sources, and draft rubric
+live on the `plans` branch (PR into `main`). 2026-06-12: twelve improvement items promoted into v0
+scope and worked into `02`; post-v0 priorities revised in `04` §G–§H.*

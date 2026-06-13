@@ -228,10 +228,15 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
 ## 6. Deliverables of Phase 1
 
 1. `research/bayesian-workflow-gold-standards.md` — the executed deep-research synthesis (cited).
-2. `research/annotated-bibliography.md` — per-source extraction notes (§2.2 template).
+2. `research/sources/` — per-source annotated notes (§2.2 template): one file per source with
+   confirmed citation, key content, and exactly which rubric steps/thresholds it grounds; plus
+   `fetch_sources.sh` for the open-access PDFs. **Delivered.**
 3. `rubric/steps.yaml` — the machine-usable rubric: steps, signals, thresholds, applicability gates,
    weights, essential flags, source citations, `rubric_version`.
-4. This plan, reconciled with the synthesis once it lands.
+4. `validation/rating-guide.md` *(Phase-2 handoff)* — the expert rating instrument for the A1
+   validation protocol (`02-mvp-tool-plan.md` §7.2) is **compiled from `steps.yaml`**, so the humans
+   and the engine are scored against the *same* operationalization of this research.
+5. This plan, reconciled with the synthesis once it lands.
 
 > **Reconciliation status — DONE for this session (2026-06-10).** The deep research executed and its
 > synthesis is in `research/bayesian-workflow-gold-standards.md` (24/25 claims verified 3-0). §3–§5

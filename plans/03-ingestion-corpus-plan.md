@@ -148,6 +148,11 @@ A relational store (DuckDB for analytics-friendly columnar queries locally; SQLi
 MVP corpus). Schema is intentionally **rubric-agnostic**: workflow steps are *rows*, not columns, so
 the schema never changes when the Phase-1 rubric evolves.
 
+> **Authority note:** the columns below are illustrative. The authoritative field list for
+> `assessment`/`step_assessment` is the Phase-2 result object (`schema.py`, `02-mvp-tool-plan.md`
+> §4.4) — which additionally carries `confidence`, `standards[]`, `did_well`, `adversarial_verdict`,
+> `cost_ledger`, and `validation_ref`. Define once there; mirror here.
+
 ```
 work(work_id PK, doi, arxiv_id, openalex_id, pmid, title, abstract,
      year, venue, venue_tier, authors_json, oa_status, retrieved_at, source_provider)
@@ -240,7 +245,9 @@ the sampling/CI caveats inline so meta-researchers don't over-read noise.
 
 1. **M1 — Frame + sampler.** OpenAlex venue/year frame builder; stratified seeded draw; `sampling_plan.yaml`. Output: candidate list + PRISMA counts.
 2. **M2 — Dedup/identity service.** ID-key + fuzzy matching; `work_id` assignment; validation set + precision/recall report.
-3. **M3 — Acquisition + batch engine.** OA full-text fetch; batch-run `veribayes-core`; persist assessments. Two-phase sampling wired in (cheap screen → costly subsample).
+3. **M3 — Acquisition + batch engine.** OA full-text fetch — **reusing the Phase-2 `fetcher.py`
+   (C5) and cache/cost ledger (C6) as-is**; batch-run `veribayes-core`; persist assessments.
+   Two-phase sampling wired in (the cheap screen *is* the Phase-2 relevance gate).
 4. **M4 — Corpus DB + ontology.** Schema, ontology seeding, auto-tagging from deterministic checks.
 5. **M5 — Dashboards.** Quality-over-time + landmarks, subfield scorecards, adoption heatmap, relevance prevalence, cluster view, DB explorer.
 6. **M6 — Reproducibility wrapper.** `make corpus`, PRISMA report generator, docs.
@@ -252,11 +259,14 @@ the sampling/CI caveats inline so meta-researchers don't over-read noise.
 - **Full-text access:** paywalled PDFs limit the frame. Mitigation: restrict estimands to the
   open-access subset and *report that boundary*, or integrate institutional access where permitted.
   OA-only sampling introduces a known bias to disclose.
-- **LLM cost at corpus scale:** controlled by two-phase sampling + caching keyed on `work_id` +
-  `engine_version` (never re-assess unchanged work/engine pairs).
+- **LLM cost at corpus scale:** controlled by two-phase sampling + caching per `02` §3.6
+  (content hash × `engine_version` × `rubric_version` × mode) — never re-assess an unchanged
+  work/engine/rubric triple.
 - **Engine reliability as a measurement instrument:** corpus claims are only as good as the engine's
-  accuracy. Phase 2 must ship a validation set (human-vs-engine agreement per step); corpus reports
-  cite that accuracy as measurement error. See improvements doc §"Calibration & validation."
+  accuracy. Phase 2 ships the full validation protocol in v0 (`02-mvp-tool-plan.md` §7: blind dual
+  expert rating, per-step κ, absence-claim FPR, regression gate); every corpus report **quotes the
+  auto-generated `VALIDATION.md`** as its measurement-error statement, filtered to the
+  `engine_version`/`rubric_version` actually used for the batch.
 - **Subfield taxonomy contention:** subfield boundaries are fuzzy; the ontology is versioned and
   decisions documented.
 
