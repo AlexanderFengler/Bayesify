@@ -46,10 +46,16 @@ inventing our own.
    Behavior*, *eLife* neuro, *Journal of Neuroscience* computational sections, NeurIPS/CogSci
    proceedings, etc.). The exact list is a reviewed artifact checked into the repo
    (`corpus/venues.yaml`) so the frame is auditable and versioned.
-3. **Source of record.** Use a metadata provider with stable IDs and programmatic access —
-   **OpenAlex** (open, no key, rich concept tagging and citation graph) as primary; **Crossref**
-   and **Semantic Scholar** as cross-checks. Record the query, provider, and snapshot date for
-   every retrieval.
+3. **Source of record.** Use **OpenAlex** as primary (stable IDs, rich concept tagging, citation
+   graph), with **Crossref** / **Semantic Scholar** as cross-checks. Record the query, provider, and
+   snapshot date for every retrieval.
+
+   > **Updated 2026-06-13 (OA-providers research).** OpenAlex's *data* is CC0, but as of Feb 2026 its
+   > *live API* is metered (free API key required; list/search billed past a ~$1/day credit). For
+   > corpus-scale frame building, **prefer the CC0 quarterly snapshot** (Zenodo/S3) hosted locally
+   > over hammering the metered API — it's the documented bulk path, free, and fits our local-first
+   > ethos (it also removes rate-limit fragility from the sampler). Reserve the live API for
+   > targeted enrichment. Unpaywall no longer publishes its own snapshot and redirects to OpenAlex.
 
 ### 2.2 The sampling design
 
@@ -268,9 +274,14 @@ the sampling/CI caveats inline so meta-researchers don't over-read noise.
 
 ## 9. Open questions / risks
 
-- **Full-text access:** paywalled PDFs limit the frame. Mitigation: restrict estimands to the
-  open-access subset and *report that boundary*, or integrate institutional access where permitted.
-  OA-only sampling introduces a known bias to disclose.
+- **Full-text access & redistribution:** paywalled PDFs limit the frame. Mitigation: restrict
+  estimands to the open-access subset and *report that boundary*, or integrate institutional access
+  where permitted. OA-only sampling introduces a known bias to disclose. **Redistribution (verified
+  2026-06-13):** OpenAlex/Unpaywall provide *links* to OA copies hosted by third parties; the PDF
+  bytes are governed by **each copy's own `license`** (cc-by/cc0/publisher/null), not by the index.
+  Downloading for our own assessment is fine; the corpus store keeps PDFs **local and gitignored**
+  and never redistributes non-CC bytes (gate G3). arXiv's default license likewise grants no
+  redistribution — link back to arXiv. Bulk arXiv full text via S3 is requester-pays.
 - **LLM cost at corpus scale:** controlled by two-phase sampling + caching per `02` §3.5
   (content hash × `engine_version` × `rubric_version` × mode) — never re-assess an unchanged
   work/engine/rubric triple.

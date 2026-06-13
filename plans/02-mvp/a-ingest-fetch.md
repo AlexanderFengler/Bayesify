@@ -18,9 +18,25 @@ supplement `SourceDoc`s; [`b-parse`](b-parse.md) merges them into the one `Parse
 **ID normalization.** DOIs are **lowercased and de-versioned** (resolver prefixes stripped; trailing `.v\d+` registrant version suffixes split off and kept as a version hint) — DOIs are case-insensitive and we must not cache the same paper under two spellings. arXiv version suffixes are likewise split out, not discarded. The normalized forms populate `SourceDoc.ids{doi?, arxiv_id?, openalex_id?}`, including IDs *learned* during resolution (a DOI lookup that surfaces an arXiv ID records both — Phase 3 dedup depends on this).
 
 **Resolution chain (old plan §3.4 stage 1, verbatim policy).** `fetcher.py` resolves IDs to an OA PDF:
-1. **arXiv API** — for arXiv IDs (and DOIs that map to arXiv): authoritative metadata + PDF, version explicit.
-2. **OpenAlex / Unpaywall** — for DOIs/OpenAlex IDs: best OA location (`version` field tells us VoR vs accepted manuscript).
+1. **arXiv API** — for arXiv IDs (and DOIs that map to arXiv): authoritative metadata + PDF, version explicit. Politeness: ≤ 1 request / 3 s, single connection; use `export.arxiv.org`; **link back to arXiv for downloads** (its default license does not grant redistribution).
+2. **OpenAlex / Unpaywall** — for DOIs/OpenAlex IDs: best OA location (`version` tells us VoR vs accepted manuscript), plus the **per-location `license`** field (cc-by / cc0 / publisher-specific / null).
 3. **Crossref** — metadata of last resort; if it yields no fetchable OA PDF either, raise `NoOpenAccessError` carrying the title/venue found, so the UI can say *which* paper we found and invite a manual PDF upload.
+
+**Provider terms & config (verified 2026-06-13 — see the OA-providers research).** Both providers are
+fit for this on-demand single-paper use, with conditions, so the fetcher takes config and records
+provenance accordingly:
+- **OpenAlex** moved to a metered API (Feb 2026): a **free API key is now required** for real use
+  (`OPENALEX_API_KEY`, env/config); single-entity DOI lookups remain free, but list/search/bulk are
+  billed past a ~$1/day credit. For *this* component (one lookup per paper) the free tier suffices;
+  the corpus path (Phase 3) uses the CC0 snapshot instead (`03` §2.1). 100 req/s hard cap.
+- **Unpaywall** is free but requires a contact **`email` query parameter** (`UNPAYWALL_EMAIL`,
+  config), ≤ 100,000 calls/day; its live-API ToS forbids redistributing *its index* and access is
+  "freely revocable" — fine for on-demand lookups, not as a redistributable corpus source.
+- **The PDF bytes are never the index's to license.** Capture the per-location `license` on the
+  `SourceDoc` (or alongside it) so any later caching/redistribution decision (and the G3 fixture
+  rule) can honor the *host/publisher* license. Downloading an OA copy for our own analysis is fine;
+  **redistributing the bytes requires that paper's own license** (cc-by/cc0 ok; null/publisher
+  likely not). This confirms the repo's existing "don't commit non-CC PDFs" stance (gate G3).
 Fetched bytes are sniffed (`%PDF` magic + content type); an HTML paywall page raises `NotAPdfError` instead of poisoning the cache.
 
 **sha256 + version_label (feeds validation).** Every ingest computes `sha256` over the **exact bytes** and captures a human-readable `version_label` — e.g. `"arXiv v2"`, `"publisher VoR (Unpaywall)"`, `"uploaded PDF"`. These two fields are exactly what `validation/protocol.md` §1 pins: each goldset entry stores the sha256 + version of the rated document, and `veribayes validate` hard-fails on mismatch. This component is the *only* place those values are minted — get them right here and version pinning is free everywhere else.

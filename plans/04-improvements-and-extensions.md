@@ -135,9 +135,12 @@ detect these. This is distinctive and directly improves accuracy — and pairs w
 becomes the evidence span).
 
 ### C3. Structure-aware parsing + supplements **[v0 — committed]**
-Use **GROBID** (or similar) for TEI-structured parsing (sections, references, figure/table captions)
-rather than flat text. Crucially, **parse supplements/appendices** — that's where diagnostics often
-hide. The relevance/absence logic depends on having actually looked there.
+Use **Docling** (decided 2026-06-13 after prototyping; MIT, pure-Python, local — replaces the earlier
+GROBID plan; see `02-mvp/b-parse.md`) for structure-aware parsing (sections, captions, **table
+structure**, figures) rather than flat text. Crucially, **parse supplements/appendices** — that's
+where diagnostics often hide. The relevance/absence logic depends on having actually looked there.
+Bonus: Docling's table-structure recognition extracts R-hat/ESS table columns as structured cells
+*now*, a head-start on the table-borne slice of C2.
 
 ### C4. Reach into the linked artifacts **[v2]**
 When a paper links a repo (GitHub/OSF/Zenodo), optionally fetch it and check the *code* for what the
