@@ -1,8 +1,10 @@
 # VeriBayes — Master Plan (Executive Summary)
 
 **One line:** VeriBayes ingests an academic paper and returns an evidence-linked, step-by-step report
-on how well it followed Bayesian-workflow best practices, culminating in a badge —
-**Verified / Shaky / Failed** — and, at scale, charts how a whole field's practices evolve.
+on how well it followed Bayesian-workflow best practices — a per-step score profile with two
+transparent summary scores, **coverage** (share of applicable steps present) and **quality** — and,
+at scale, charts how a whole field's practices evolve. *(The earlier Verified/Shaky/Failed badge was
+dropped on 2026-06-12 after collaborator review — see §5.)*
 
 **Audience for this doc:** collaborators who need to understand *what we're building and why* in five
 minutes, then drill into the per-phase plans.
@@ -28,7 +30,7 @@ meta-research.
 | Phase | Deliverable | Plan |
 |-------|-------------|------|
 | **1. Research → rubric** | Cited synthesis of Bayesian-workflow gold standards, decomposed into an assessable rubric (`rubric/steps.yaml`). **Executed** — see `research/`. | [`01-research-plan.md`](01-research-plan.md) |
-| **2. MVP tool (v0)** | PDF drag-drop **or arXiv/DOI/OpenAlex ID** → hybrid analysis → step-wise report + badge — **plus the v0 trust bar (below)**. FastAPI + React, local-first. | [`02-mvp-tool-plan.md`](02-mvp-tool-plan.md) |
+| **2. MVP tool (v0)** | PDF drag-drop **or arXiv/DOI/OpenAlex ID** → hybrid analysis → step-wise report + coverage/quality scores — **plus the v0 trust bar (below)**. FastAPI + React, local-first. | [`02-mvp-tool-plan.md`](02-mvp-tool-plan.md) (spine) + [`02-mvp/`](02-mvp/) component subplans + [`validation/protocol.md`](../validation/protocol.md) |
 | **3. Corpus & meta-analysis** | Sampling-rigorous ingestion pipeline (DB + ontology + dedup) over a discipline; visualizations of quality/adoption over time, by subfield, by cluster. | [`03-ingestion-corpus-plan.md`](03-ingestion-corpus-plan.md) |
 
 Cross-cutting: [`04-improvements-and-extensions.md`](04-improvements-and-extensions.md) — my best
@@ -91,8 +93,10 @@ For each applicable workflow step: a **status** (done-well / partial / missing /
 and the **standards applied** (the literature behind each judgment — "says who?"). Plus two
 up-front determinations you required — a **relevance gate** (is this even a Bayesian paper? if not,
 flagged and short-circuited with reasons) and a **rigorous paper-type classification** — and, at the
-end of the pipeline, the overall **badge** with transparent, explainable thresholds. One report, four **layered views** (author /
-reviewer / student / meta-research JSON). Every report carries a **provenance footer**: engine &
+end of the pipeline, the **coverage and quality scores** (no categorical badge; uncertainty-honest
+coverage ranges when absences are low-confidence). v0 ships **one report view** (author/reviewer-
+oriented) plus the meta-research JSON; the full four-audience layering is v1 presentation work over
+the same stored payload. Every report carries a **provenance footer**: engine &
 rubric versions, cost, and the engine's current validated accuracy (gold-set κ, absence-claim FPR)
 linking to a full **calibration page**.
 
@@ -110,6 +114,13 @@ linking to a full **calibration page**.
 - **Sampling rigor (Phase 3):** probability sampling (stratified, seeded) per PRISMA-style reproducible
   frames; layered deduplication (persistent IDs → fuzzy match) validated like SRA-DM/ASySD. Citable
   methodology, not ad hoc.
+- **From collaborator review (PR #1, S. Radev, 2026-06-12):** (a) **no categorical badge** — per-step
+  profile + coverage/quality scores (any future verdict/certification only with validated thresholds,
+  v2+); (b) **single report view in v0** + meta-research JSON, multi-view layering later as pure
+  presentation; (c) **rubric profiles** — our synthesis stays the default and grows into *the gold
+  standard*, with source-pure profiles alongside, first `schad2021`; (d) reports are
+  **template-rendered from the result payload** — the LLM fills structured fields, never writes the
+  report.
 
 ---
 
@@ -118,7 +129,7 @@ linking to a full **calibration page**.
 ```
 Phase 1 ✅ research executed → rubric drafted (steps.yaml v0.1)  [scope gaps S6/S4 to close]
 Phase 2  M1 skeleton+contracts → M2 ingest+parse+cache → M3 detect (local mode shippable)
-         → M4 screen+classify → M5 assess+score+badge → M6 report UX
+         → M4 screen+classify → M5 assess+score → M6 report UX
          → M7 validation protocol+calibration page   ← v0 isn't done until M7 runs
 Phase 3  M1 frame+sampler → M2 dedup → M3 acquire+batch-engine
          → M4 corpus DB+ontology → M5 dashboards → M6 reproducibility wrapper
@@ -140,7 +151,7 @@ The v0 bar above is binding scope for Phase 2; post-v0 sequencing lives in impro
   report's footer + a citable `VALIDATION.md`. *(A Bayesian-rigor auditor must meet its own bar.)*
 - **Diagnostics hidden in figures/supplements** → parse supplements now; the gold set quantifies the
   text-only cost; figure-vision parsing is the top post-v0 priority.
-- **Badge gaming / misuse** → formative-feedback framing, dual grounding, "asserted-but-not-evidenced"
+- **Score gaming / misuse** → no categorical verdict to weaponize (2026-06-12 decision), formative-feedback framing, dual grounding, "asserted-but-not-evidenced"
   policy, `ETHICS.md` shipped in v0; public Phase-3 views carry their own ethics note.
 - **Privacy of unpublished manuscripts** → **in v0:** plain disclosure, a local-only
   evidence-inventory mode, and per-paper purge.
@@ -150,10 +161,18 @@ The v0 bar above is binding scope for Phase 2; post-v0 sequencing lives in impro
 ## 8. Where to go next
 
 - New collaborator → read this, then `01`–`04` in order.
-- Implementer → `02-mvp-tool-plan.md` §3 (architecture) and `rubric/steps.yaml`.
+- Implementer → `02-mvp-tool-plan.md` (spine: architecture + contracts), then the `02-mvp/`
+  component subplan you're building, and `rubric/steps.yaml`.
 - Methodologist → `research/bayesian-workflow-gold-standards.md` (esp. §7 caveats) and `01-research-plan.md`.
 - Skeptic / reviewer → `04-improvements-and-extensions.md` (validation, bias, governance).
 
 *Status: Phase-1 research executed; plans, research synthesis, annotated sources, and draft rubric
-live on the `plans` branch (PR into `main`). 2026-06-12: twelve improvement items promoted into v0
-scope and worked into `02`; post-v0 priorities revised in `04` §G–§H.*
+live on the `plans` branch (PR into `main`). 2026-06-12 (branch `plan-extensions-1`): twelve
+improvement items promoted into v0 scope; post-v0 priorities revised in `04` §G–§H. 2026-06-12
+(branch `plan-extensions-2`): MVP plan decomposed into a spine + eight independently testable
+component subplans (`02-mvp/`) + the extracted validation protocol (`validation/protocol.md`).
+Three-lens review (architecture / methodology / adversarial, all findings adversarially verified)
+returned **ready-with-conditions** — implementation may begin at M1; ten milestone-attached gates
+recorded in `02-mvp-tool-plan.md` §5 and [`reviews/2026-06-12-three-lens-review.md`](reviews/2026-06-12-three-lens-review.md).
+Same day: four decisions from S. Radev's PR-#1 review folded in (badge → scores; single v0 view;
+rubric profiles incl. `schad2021`; template-rendered reports) — see §5.*

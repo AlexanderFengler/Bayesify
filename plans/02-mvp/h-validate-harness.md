@@ -1,0 +1,94 @@
+# h. Validation harness — VeriBayes v0 component
+
+**Milestone:** M7
+**v0 items covered:** A1 (the *engineering* of validation — the procedure itself is
+[`../../validation/protocol.md`](../../validation/protocol.md); this subplan builds what executes it)
+**Contract:** consumes `validation/goldset/*.json` (labels + pinned sha256) + engine `ScoredResult`s → produces `validation/reports/<engine_version>.json`, auto-generated `VALIDATION.md`, and the `/api/calibration` payload   (types: ../02-mvp-tool-plan.md §4.3)
+**Depends on / stubs:** the full a–f chain for *live* runs; all metric computation is developed and unit-tested against **hand-authored `ScoredResult` + goldset-label fixtures** (no engine, no LLM, no network). [`g-report-api-ui`](g-report-api-ui.md) consumes the report via `GET /api/calibration` (fixture-fed pre-M7).
+
+## Purpose
+Build `veribayes validate`: the CLI + library that runs the engine over the gold set, computes every
+metric in protocol §3, and emits the three surfacing artifacts (versioned report JSON, public
+`VALIDATION.md`, calibration payload). The protocol defines *what* is measured and *why*; this
+component makes it executable, repeatable, and impossible to fudge silently — it is the release
+gate's mechanical half.
+
+## Design
+**CLI.** `veribayes validate [--tier A|B|C|all] [--engine-version-check] [--seed N]` — lives in
+`tests/eval/` per spine §3.3, imports `veribayes-core` only (web-free seam, same rule as a).
+
+**Run pipeline per Tier-A paper:** resolve goldset entry → fetch via a's `fetcher`/blob store →
+**hash check against the pinned sha256 — hard-fail on mismatch** (protocol §1 version pinning;
+the run aborts with a version-mismatch report, never computes metrics on a different document) →
+run the engine **twice** (test-retest, protocol §3) → store both `ScoredResult`s content-addressed.
+Tier B runs only through stage 4 (relevance); Tier C runs full but reports case results, not rates.
+
+**Metric computation (pure functions over labels + results, fully unit-testable):**
+- Two-stage agreement: stage-1 applicability (binary κ + sens/spec over all step×paper cells);
+  stage-2 status (weighted κ, 3-level ordinal, both-applicable cells only) — human-vs-human pairwise
+  and engine-vs-consensus; % agreement + Gwet's AC1/AC2 alongside every κ.
+- Absence errors both directions: strict/broad absence-FPR with raw counts; absence-miss-rate; the
+  full `missing` row+column confusion matrix.
+- Coverage/quality score agreement (difference distribution + ICC; replaces badge confusion per the
+  2026-06-12 decision); Tier-B relevance sens/spec; paper-class accuracy; test-retest engine-self κ.
+- Evidence-span audit sample: seeded random ~30 spans/run exported as an audit worksheet; the
+  auditor's pass/fail comes back in as input to the report (pass-rate + CI).
+- Bootstrap CIs on every κ, binomial CIs on every rate; per-step **"insufficient data"** below the
+  n-floor; regression comparison vs the previous report with noise-relative tolerances (protocol §3).
+
+**Outputs.**
+1. `validation/reports/<engine_version>.json` — every metric with n, CI, raw counts; goldset
+   composition per tier; rater-relationship disclosures; the regression verdict vs prior report.
+2. `VALIDATION.md` — auto-generated, public, citable; all numbers labeled **"development-set
+   agreement"** until the sealed holdout exists (protocol §4); domain-validity statement included.
+3. The `/api/calibration` payload g renders — same JSON, no reformatting logic in the API layer.
+
+**Release gating.** `validate --check` exits non-zero on regression-rule violation; CI wires this so
+a prompt/rubric/engine change that degrades absence-FPR, absence-miss-rate, or mean step-κ beyond
+noise tolerance cannot merge to a release branch. (The per-PR golden-paper mini-set is improvements
+§H4, v1 — explicitly disjoint from the gold set.)
+
+## Interface contract
+- **In:** `validation/goldset/<work_id>.json` — `{ids, sha256, version_label, rubric_version,
+  raters[{id, relationship}], ratings[{step_id, applicable, status, missing_subtag?, evidence_ptr,
+  confidence}] × 2..3, consensus[...], relevance_label, paper_class_label, tier}`. Plus engine
+  `ScoredResult`s (live or fixture).
+- **Out:** report JSON (schema versioned, additive-only changes), `VALIDATION.md`, calibration
+  payload. All three derive from one computation — no number exists in two places independently.
+- **Errors:** sha256 mismatch → `GoldsetVersionMismatch` (hard fail, names the paper and both
+  hashes); missing consensus labels → that paper excluded *and counted* in the report's exclusion
+  log (silent drops forbidden); engine failure on a goldset paper is itself a reported metric
+  (completion rate), not a skip.
+
+## Test plan
+- **Metric unit tests against hand-computed cases:** small synthetic label/result tables where κ,
+  AC1, FPR, miss-rate, and CIs are verifiable by hand (incl. the κ-paradox case: 95% agreement,
+  skewed marginals — AC1 must stay high while κ collapses); two-stage decomposition cases where
+  raters disagree on applicability (must land in stage 1, never stage 2 or FPR).
+- **Determinism:** same seed + same inputs → byte-identical report JSON.
+- **Hard-fail tests:** tampered sha256 → `GoldsetVersionMismatch`; missing consensus → exclusion
+  logged; no silent paths (asserted by exhaustive enum on exit reasons).
+- **Surfacing tests:** report JSON → `VALIDATION.md` generator snapshot; wide-CI metric renders the
+  "preliminary" state; below-floor step renders "insufficient data" (consumed by g's footer tests).
+- **End-to-end dry run (pre-M7 gate):** the full CLI over a **synthetic mini-goldset** (3 fixture
+  papers with fabricated consensus labels + stub-engine results) exercises every code path without
+  any expert labels — so M7's live run is the protocol's first execution, not the harness's.
+
+## Definition of done
+- [ ] `veribayes validate` runs Tiers A/B/C end-to-end on the synthetic mini-goldset in CI (no LLM).
+- [ ] Every protocol-§3 metric implemented as a pure function with hand-verified unit tests; CIs on
+      all of them; insufficient-data floors honored.
+- [ ] sha256 pinning hard-fail + exclusion logging proven by tests.
+- [ ] Report JSON, `VALIDATION.md`, and calibration payload generated from one computation; g's
+      `/api/calibration` serves it unmodified.
+- [ ] `validate --check` regression gate wired into CI for release branches.
+- [ ] M7 exit: live run over the real Tier-A/B/C gold set completes; first `VALIDATION.md`
+      published; calibration page live — **this closes v0**.
+
+## Out of scope (deferred)
+- **Sealed-holdout management** — arrives with the v1 gold-set growth (protocol §4); the report
+  schema already reserves a `holdout` block so its addition is additive.
+- **Confidence-calibration audit** (reliability diagrams, Brier scores) — improvements **H1** (v1);
+  the report schema reserves the slot.
+- **Golden-paper per-PR regression CI** — improvements **H4** (v1), disjoint mini-set.
+- **Inter-model agreement runs** — improvements **H3b** (v1); test-retest (H3a) is in scope here.

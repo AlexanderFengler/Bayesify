@@ -77,6 +77,14 @@ confidence intervals and the cost stays bounded.
 > **Estimands we can defend with this design:** prevalence of Bayesian-method use over time;
 > per-step adoption rates (e.g., % reporting posterior predictive checks) with CIs; mean per-step
 > scores by subfield; trend slopes around landmark methodological publications.
+>
+> **Gate G10 (three-lens review, 2026-06-12 — must resolve before estimands are fixed here):** the
+> sampling design defends these against *sampling* error only. Engine misclassification biases
+> prevalence (observed p = p·sens + (1−p)·(1−spec)); specify **misclassification-corrected
+> estimators** (Rogan–Gladen-type or a Bayesian misclassification model) with sens/spec uncertainty
+> propagated into the CIs, using the human-rated gold subsample as the internal validation arm.
+> Until then, dashboard quantities are labeled "engine-measured prevalence (uncorrected)". See
+> [`plans/reviews/2026-06-12-three-lens-review.md`](../plans/reviews/2026-06-12-three-lens-review.md).
 
 ### 2.3 Deduplication (robust to repeated sampling)
 
@@ -127,7 +135,7 @@ the way the dedup-tooling literature does, so our pipeline's accuracy is itself 
                 │  Phase-2 engine (veribayes-core)         │  ← SAME code path as the single-paper tool
                 │  relevance screen → classify → assess    │
                 └───────────────┬─────────────────────────┘
-                                │ structured results (per-step assessments, scores, badge)
+                                │ structured results (per-step assessments, coverage/quality scores)
                 ┌───────────────▼──────────┐
                 │  Corpus DB (DuckDB/SQLite)│  + ontology tables
                 └───────────────┬──────────┘
@@ -150,8 +158,10 @@ the schema never changes when the Phase-1 rubric evolves.
 
 > **Authority note:** the columns below are illustrative. The authoritative field list for
 > `assessment`/`step_assessment` is the Phase-2 result object (`schema.py`, `02-mvp-tool-plan.md`
-> §4.4) — which additionally carries `confidence`, `standards[]`, `did_well`, `adversarial_verdict`,
-> `cost_ledger`, and `validation_ref`. Define once there; mirror here.
+> §4.3) — which additionally carries `confidence`, `standards[]`, `did_well`, `adversarial_verdict`,
+> `cost_ledger`, and `validation_ref`, and in which per-step `score`/`weight` moved out of
+> `StepAssessment` into `ScoredResult.profile` (the columns shown predate that move). Define once
+> there; mirror here.
 
 ```
 work(work_id PK, doi, arxiv_id, openalex_id, pmid, title, abstract,
@@ -165,7 +175,8 @@ dedup_decision(id PK, work_id FK, merged_into_work_id, rule, score, decided_at, 
 assessment(assessment_id PK, work_id FK, engine_version, rubric_version,
            created_at, relevance_label, relevance_rationale,
            paper_class,            -- empirical | numerical-experiment | methodological (Phase 2 classifier)
-           overall_score, badge)   -- badge: verified | shaky | failed
+           coverage_strict, coverage_lenient, quality_score,
+           rubric_profile)          -- profile: synthesis | schad2021 | ... (PR-#1 decision: no badge)
 
 step_assessment(id PK, assessment_id FK, step_id, applicable BOOL,
                 status,             -- e.g. done_well | partial | missing | not_applicable
@@ -222,8 +233,8 @@ Plot — chosen with Phase-2's frontend already in React).
    by subfield, **with CIs** (this is exactly what the probability sample buys us). Directly answers
    "is Bayesian methodology spreading in this field?"
 6. **Corpus map / DB explorer** — an interactive table + citation-graph view (works as nodes, edges
-   from the citation graph) colored by badge, for drilling from a field-level pattern down to
-   individual papers and their reports.
+   from the citation graph) colored by coverage/quality band, for drilling from a field-level
+   pattern down to individual papers and their reports.
 
 Every chart links back to the underlying papers and their Phase-2 reports (drill-down), and exposes
 the sampling/CI caveats inline so meta-researchers don't over-read noise.
@@ -246,8 +257,9 @@ the sampling/CI caveats inline so meta-researchers don't over-read noise.
 1. **M1 — Frame + sampler.** OpenAlex venue/year frame builder; stratified seeded draw; `sampling_plan.yaml`. Output: candidate list + PRISMA counts.
 2. **M2 — Dedup/identity service.** ID-key + fuzzy matching; `work_id` assignment; validation set + precision/recall report.
 3. **M3 — Acquisition + batch engine.** OA full-text fetch — **reusing the Phase-2 `fetcher.py`
-   (C5) and cache/cost ledger (C6) as-is**; batch-run `veribayes-core`; persist assessments.
-   Two-phase sampling wired in (the cheap screen *is* the Phase-2 relevance gate).
+   (C5, `plans/02-mvp/a-ingest-fetch.md`) and cache/cost ledger (C6) as-is**; batch-run
+   `veribayes-core`; persist assessments. Two-phase sampling wired in (the cheap screen *is* the
+   Phase-2 relevance gate).
 4. **M4 — Corpus DB + ontology.** Schema, ontology seeding, auto-tagging from deterministic checks.
 5. **M5 — Dashboards.** Quality-over-time + landmarks, subfield scorecards, adoption heatmap, relevance prevalence, cluster view, DB explorer.
 6. **M6 — Reproducibility wrapper.** `make corpus`, PRISMA report generator, docs.
@@ -259,13 +271,13 @@ the sampling/CI caveats inline so meta-researchers don't over-read noise.
 - **Full-text access:** paywalled PDFs limit the frame. Mitigation: restrict estimands to the
   open-access subset and *report that boundary*, or integrate institutional access where permitted.
   OA-only sampling introduces a known bias to disclose.
-- **LLM cost at corpus scale:** controlled by two-phase sampling + caching per `02` §3.6
+- **LLM cost at corpus scale:** controlled by two-phase sampling + caching per `02` §3.5
   (content hash × `engine_version` × `rubric_version` × mode) — never re-assess an unchanged
   work/engine/rubric triple.
 - **Engine reliability as a measurement instrument:** corpus claims are only as good as the engine's
-  accuracy. Phase 2 ships the full validation protocol in v0 (`02-mvp-tool-plan.md` §7: blind dual
-  expert rating, per-step κ, absence-claim FPR, regression gate); every corpus report **quotes the
-  auto-generated `VALIDATION.md`** as its measurement-error statement, filtered to the
+  accuracy. Phase 2 ships the full validation protocol in v0 (`validation/protocol.md`: blind dual
+  expert rating, per-step κ, absence-claim FPR + miss-rate, regression gate); every corpus report
+  **quotes the auto-generated `VALIDATION.md`** as its measurement-error statement, filtered to the
   `engine_version`/`rubric_version` actually used for the batch.
 - **Subfield taxonomy contention:** subfield boundaries are fuzzy; the ontology is versioned and
   decisions documented.

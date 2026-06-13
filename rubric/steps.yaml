@@ -4,19 +4,25 @@
 # synthesis, 2026-06-10). Every threshold is attributed to its source; do NOT collapse to one number.
 #
 # applicability gating: paper_class ∈ {empirical, numerical_experiment, methodological}
-#   essential_for: classes where the step is pass/fail-critical
-#   recommended_for: classes where it is expected but not badge-failing
+#   essential_for: classes where the step is tier-1 "expected" (missing => error-severity finding)
+#   recommended_for: classes where it is tier-2 "recommended" (missing => warning/info)
 #   na_when: conditions making the step legitimately not-applicable (excluded from denominator)
 # status values emitted by the engine: done_well | partial | missing | not_applicable
 # CAUTION: two scope gaps remain before v1.0 — see steps S4 (modern R-hat/ESS) and S6 (LOO/WAIC).
+# PROFILES (2026-06-12, PR-#1): assessment is conditioned on a rubric profile — `synthesis`
+#   (this whole file; the default, to be developed into the gold standard) or a source-pure
+#   profile compiled by filtering steps/thresholds on `citations` provenance (first: `schad2021`).
 
 rubric_version: "0.1-draft"
 status_values: [done_well, partial, missing, not_applicable]
-badge_rule: >
-  Verified = all essential applicable steps done_well & no critical gap;
-  Shaky = essential present with gaps OR important non-essential missing;
-  Failed = >=1 essential applicable step missing/incorrect.
-  A low-confidence absence MUST NOT alone trigger Failed.
+scoring_rule: >
+  (2026-06-12 decision — no categorical badge.) Primary output = per-step profile.
+  coverage = present/applicable where present = done_well|partial, reported as a
+  strict-lenient range when absences are low-confidence (a low-confidence absence
+  MUST NOT alone lower the headline number). quality = weighted mean sub-score over
+  applicable steps. essential_for now sets expectation tier (severity), not a verdict.
+  Full scoring block (sub-score map, per-class weights, low-confidence threshold,
+  mixing rule) to be authored at rubric v1.0 freeze — gate G5.
 
 steps:
   - id: S1
