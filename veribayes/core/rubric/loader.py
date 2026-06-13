@@ -47,19 +47,14 @@ def load_rubric(
 def _apply_source_profile(spec: RubricSpec, source_id: str) -> RubricSpec:
     if source_id not in spec.citations:
         raise RubricProfileError(
-            f"unknown rubric profile {source_id!r}; "
-            f"known source ids: {sorted(spec.citations)}"
+            f"unknown rubric profile {source_id!r}; known source ids: {sorted(spec.citations)}"
         )
     filtered_steps: list[RubricStep] = []
     for step in spec.steps:
         if source_id not in step.citations:
             continue  # this step is not grounded in the named source -> excluded from the profile
-        kept_thresholds = {
-            name: t for name, t in step.thresholds.items() if t.source == source_id
-        }
-        filtered_steps.append(
-            step.model_copy(update={"thresholds": kept_thresholds})
-        )
+        kept_thresholds = {name: t for name, t in step.thresholds.items() if t.source == source_id}
+        filtered_steps.append(step.model_copy(update={"thresholds": kept_thresholds}))
     return spec.model_copy(
         update={
             "steps": filtered_steps,

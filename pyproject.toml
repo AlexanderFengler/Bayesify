@@ -15,6 +15,13 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.5",
     "import-linter>=2.0",
+    "httpx>=0.27",  # FastAPI TestClient transport
+]
+api = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "python-multipart>=0.0.9",  # multipart upload
+    "sse-starlette>=2.0",        # SSE progress stream
 ]
 
 [build-system]
@@ -30,6 +37,14 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# The M1 stub engine is hand-authored prose fixture data; long readable strings are fine there.
+"veribayes/core/stub.py" = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency markers are designed to be called in argument defaults (not a B008 smell).
+extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Query", "fastapi.Path", "fastapi.Depends"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -58,12 +73,13 @@ platforms = ["osx-arm64", "linux-64"]
 
 [tool.pixi.dependencies]
 python = "3.12.*"
+nodejs = "22.*"  # frontend toolchain (web/), pixi-managed for reproducibility
 
 [tool.pixi.pypi-dependencies]
 veribayes = { path = ".", editable = true }
 
 [tool.pixi.environments]
-default = { features = ["dev"], solve-group = "default" }
+default = { features = ["dev", "api"], solve-group = "default" }
 
 [tool.pixi.tasks]
 test = "pytest -q"
@@ -71,3 +87,9 @@ lint = "ruff check veribayes tests"
 fmt = "ruff format veribayes tests"
 imports = "lint-imports"
 check = { depends-on = ["lint", "imports", "test"] }
+# --- App (M1 stub: real flow, stub engine) ---
+api = "uvicorn veribayes.api.app:app --reload --port 8000"
+setup-web = { cmd = "npm install", cwd = "web" }
+web = { cmd = "npm run dev", cwd = "web" }
+web-build = { cmd = "npm run build", cwd = "web" }
+web-typecheck = { cmd = "npm run typecheck", cwd = "web" }

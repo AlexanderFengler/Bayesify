@@ -1,0 +1,69 @@
+import type { PaperState } from "./types";
+
+export interface SubmitInput {
+  file?: File | null;
+  identifier?: string; // an arXiv ID / DOI / OpenAlex ID / URL
+  mode: "full" | "local";
+}
+
+// Decide which form field an identifier belongs in (a thin client-side guess; the real resolver is
+// the ingest component). Defaults to `url` so anything pasteable still reaches the backend.
+function classifyIdentifier(raw: string): Record<string, string> {
+  const v = raw.trim();
+  if (/^(arxiv:)?\d{4}\.\d{4,5}(v\d+)?$/i.test(v)) return { arxiv_id: v.replace(/^arxiv:/i, "") };
+  if (/^10\.\d{4,9}\//.test(v) || /doi\.org\//i.test(v)) return { doi: v };
+  if (/^W\d+$/i.test(v) || /openalex\.org\//i.test(v)) return { openalex_id: v };
+  return { url: v };
+}
+
+export async function submitPaper(input: SubmitInput): Promise<string> {
+  const form = new FormData();
+  form.set("mode", input.mode);
+  if (input.file) form.set("file", input.file);
+  else if (input.identifier) {
+    for (const [k, val] of Object.entries(classifyIdentifier(input.identifier))) form.set(k, val);
+  }
+  const res = await fetch("/api/papers", { method: "POST", body: form });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(body.detail ?? "upload failed");
+  }
+  const body = await res.json();
+  return body.paper_id as string;
+}
+
+export async function getPaper(paperId: string): Promise<PaperState> {
+  const res = await fetch(`/api/papers/${paperId}`);
+  if (!res.ok) throw new Error("could not fetch paper");
+  return (await res.json()) as PaperState;
+}
+
+export interface ProgressEvent {
+  type: "status" | "stage" | "done" | "failed";
+  stage?: string;
+  state?: "running" | "done";
+  reason?: string;
+}
+
+// Subscribe to the SSE progress stream. Returns a close() handle.
+export function streamProgress(
+  paperId: string,
+  onEvent: (e: ProgressEvent) => void,
+  onDone: () => void,
+): () => void {
+  const es = new EventSource(`/api/papers/${paperId}/events`);
+  es.onmessage = (msg) => {
+    const e = JSON.parse(msg.data) as ProgressEvent;
+    onEvent(e);
+    if (e.type === "done" || e.type === "failed") {
+      es.close();
+      onDone();
+    }
+  };
+  es.onerror = () => {
+    // The stream closes itself on terminal events; an error after that is expected. If it errors
+    // before completion the polling fallback in App will still resolve the result.
+    es.close();
+  };
+  return () => es.close();
+}
