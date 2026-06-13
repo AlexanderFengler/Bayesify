@@ -14,7 +14,22 @@ here MUST bump ``engine_version`` (it does, automatically) and invalidates the c
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
+
+# --- OA-provider config (M2 fetcher; verified terms 2026-06-13) ---
+# OpenAlex moved to a metered API in Feb 2026: a free API key is recommended (single-DOI lookups
+# stay free). Unpaywall requires a contact email parameter on every call. Both read from the
+# environment so no secret is hard-coded; absence is tolerated (the fetcher skips that provider).
+
+
+def openalex_api_key() -> str | None:
+    return os.environ.get("OPENALEX_API_KEY") or None
+
+
+def unpaywall_email() -> str | None:
+    return os.environ.get("UNPAYWALL_EMAIL") or None
+
 
 # --- Pinned models (G1) ---------------------------------------------------------------------------
 # Judge: the most capable model, for nuanced per-step methodology judgment (assess stage).
