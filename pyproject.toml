@@ -41,6 +41,10 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.ruff.lint.per-file-ignores]
 # The M1 stub engine is hand-authored prose fixture data; long readable strings are fine there.
 "veribayes/core/stub.py" = ["E501"]
+# The detector catalog is regex-pattern data (the C1 review surface); patterns read best unwrapped.
+"veribayes/core/detectors/catalog.py" = ["E501"]
+# The fixture generator is hand-authored prose (sample paper text); long readable strings are fine.
+"tests/fixtures/build_fixtures.py" = ["E501"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI dependency markers are designed to be called in argument defaults (not a B008 smell).

@@ -14,9 +14,12 @@ standards), and severity-tiered suggestions. It is **not** a real assessment —
 from __future__ import annotations
 
 from veribayes.core import schema as s
+from veribayes.core.detectors import catalog_fingerprint
 from veribayes.core.versioning import compute_engine_version
 
-_ENGINE_VERSION = compute_engine_version().compact
+# Fold the real detector catalog into the engine version (G1): a detector change now invalidates the
+# result cache. The prompt-set hash stays sentinel until e-assess prompts land.
+_ENGINE_VERSION = compute_engine_version(detector_catalog=catalog_fingerprint()).compact
 _RUBRIC_VERSION = "0.1-draft"
 
 

@@ -1,0 +1,301 @@
+[
+  {
+    "detector_id": "software.stan",
+    "detector_version": "0.1.0",
+    "kind": "software_mention",
+    "span": {
+      "page": 1,
+      "quote": "using Bayesian inference in Stan. Posterior predictive checks",
+      "section_id": "s01"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "method.posterior",
+    "detector_version": "0.1.0",
+    "kind": "method_mention",
+    "span": {
+      "page": 1,
+      "quote": "Bayesian inference in Stan. Posterior predictive checks reproduced the",
+      "section_id": "s01"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "workflow.posterior_predictive",
+    "detector_version": "0.1.0",
+    "kind": "workflow_signal",
+    "span": {
+      "page": 1,
+      "quote": "Bayesian inference in Stan. Posterior predictive checks reproduced the",
+      "section_id": "s01"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "diag.rhat",
+    "detector_version": "0.1.0",
+    "kind": "diagnostic_value",
+    "span": {
+      "page": 1,
+      "quote": "RT distributions, and all R-hat < 1.01.",
+      "section_id": "s01"
+    },
+    "value": {
+      "metric": "rhat",
+      "op": "<",
+      "value": 1.01
+    }
+  },
+  {
+    "detector_id": "method.prior",
+    "detector_version": "0.1.0",
+    "kind": "method_mention",
+    "span": {
+      "page": 3,
+      "quote": "drift rate was given a weakly-informative prior. We drew samples from the",
+      "section_id": "s02"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "method.posterior",
+    "detector_version": "0.1.0",
+    "kind": "method_mention",
+    "span": {
+      "page": 3,
+      "quote": "prior. We drew samples from the posterior distribution with the NUTS",
+      "section_id": "s02"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "method.mcmc",
+    "detector_version": "0.1.0",
+    "kind": "method_mention",
+    "span": {
+      "page": 3,
+      "quote": "distribution with the NUTS sampler, running 4 chains of",
+      "section_id": "s02"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "sampler.chains",
+    "detector_version": "0.1.0",
+    "kind": "sampler_config",
+    "span": {
+      "page": 3,
+      "quote": "the NUTS sampler, running 4 chains of 2000 iterations after 1000",
+      "section_id": "s02"
+    },
+    "value": {
+      "count": 4,
+      "metric": "chains"
+    }
+  },
+  {
+    "detector_id": "sampler.iterations",
+    "detector_version": "0.1.0",
+    "kind": "sampler_config",
+    "span": {
+      "page": 3,
+      "quote": "sampler, running 4 chains of 2000 iterations after 1000 warm-up draws with",
+      "section_id": "s02"
+    },
+    "value": {
+      "count": 2000,
+      "metric": "iterations"
+    }
+  },
+  {
+    "detector_id": "sampler.warmup",
+    "detector_version": "0.1.0",
+    "kind": "sampler_config",
+    "span": {
+      "page": 3,
+      "quote": "of 2000 iterations after 1000 warm-up draws with a fixed random",
+      "section_id": "s02"
+    },
+    "value": {
+      "count": 1000,
+      "metric": "warmup"
+    }
+  },
+  {
+    "detector_id": "sampler.seed",
+    "detector_version": "0.1.0",
+    "kind": "sampler_config",
+    "span": {
+      "page": 3,
+      "quote": "warm-up draws with a fixed random seed. Convergence was assessed",
+      "section_id": "s02"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "diag.rhat",
+    "detector_version": "0.1.0",
+    "kind": "diagnostic_mention",
+    "span": {
+      "page": 3,
+      "quote": "Convergence was assessed with R-hat and bulk-ESS (minimum ESS was",
+      "section_id": "s02"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "diag.ess",
+    "detector_version": "0.1.0",
+    "kind": "diagnostic_mention",
+    "span": {
+      "page": 3,
+      "quote": "was assessed with R-hat and bulk-ESS (minimum ESS was 1,200);",
+      "section_id": "s02"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "diag.ess",
+    "detector_version": "0.1.0",
+    "kind": "diagnostic_value",
+    "span": {
+      "page": 3,
+      "quote": "R-hat and bulk-ESS (minimum ESS was 1,200); there were no divergent",
+      "section_id": "s02"
+    },
+    "value": {
+      "metric": "ess",
+      "op": "=",
+      "value": 1200.0
+    }
+  },
+  {
+    "detector_id": "diag.divergences",
+    "detector_version": "0.1.0",
+    "kind": "diagnostic_value",
+    "span": {
+      "page": 3,
+      "quote": "ESS was 1,200); there were no divergent transitions.",
+      "section_id": "s02"
+    },
+    "value": {
+      "count": 0,
+      "metric": "divergences"
+    }
+  },
+  {
+    "detector_id": "diag.loo_waic",
+    "detector_version": "0.1.0",
+    "kind": "diagnostic_mention",
+    "span": {
+      "page": 5,
+      "quote": "Model comparison used PSIS-LOO and WAIC. All Pareto-k values",
+      "section_id": "s03"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "diag.loo_waic",
+    "detector_version": "0.1.0",
+    "kind": "diagnostic_mention",
+    "span": {
+      "page": 5,
+      "quote": "comparison used PSIS-LOO and WAIC. All Pareto-k values were <",
+      "section_id": "s03"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "diag.pareto_k",
+    "detector_version": "0.1.0",
+    "kind": "diagnostic_value",
+    "span": {
+      "page": 5,
+      "quote": "used PSIS-LOO and WAIC. All Pareto-k values were < 0.7, indicating reliable",
+      "section_id": "s03"
+    },
+    "value": {
+      "metric": "pareto_k",
+      "op": "<",
+      "value": 0.7
+    }
+  },
+  {
+    "detector_id": "workflow.sensitivity",
+    "detector_version": "0.1.0",
+    "kind": "workflow_signal",
+    "span": {
+      "page": 5,
+      "quote": "reliable estimates. A prior sensitivity analysis confirmed the",
+      "section_id": "s03"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "method.posterior",
+    "detector_version": "0.1.0",
+    "kind": "method_mention",
+    "span": {
+      "page": 6,
+      "quote": "Figure 2: Posterior predictive checks overlaid on the",
+      "section_id": "s04"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "workflow.posterior_predictive",
+    "detector_version": "0.1.0",
+    "kind": "workflow_signal",
+    "span": {
+      "page": 6,
+      "quote": "Figure 2: Posterior predictive checks overlaid on the",
+      "section_id": "s04"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "open.code",
+    "detector_version": "0.1.0",
+    "kind": "open_science",
+    "span": {
+      "page": 12,
+      "quote": "Analysis code is available at",
+      "section_id": "s05"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "open.github",
+    "detector_version": "0.1.0",
+    "kind": "open_science",
+    "span": {
+      "page": 12,
+      "quote": "Analysis code is available at github.com/lab/ddm-paper and archived on",
+      "section_id": "s05"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "open.zenodo",
+    "detector_version": "0.1.0",
+    "kind": "open_science",
+    "span": {
+      "page": 12,
+      "quote": "and archived on Zenodo. We also report trace plots",
+      "section_id": "s05"
+    },
+    "value": null
+  },
+  {
+    "detector_id": "diag.trace_plot",
+    "detector_version": "0.1.0",
+    "kind": "diagnostic_mention",
+    "span": {
+      "page": 12,
+      "quote": "on Zenodo. We also report trace plots for every parameter.",
+      "section_id": "s05"
+    },
+    "value": null
+  }
+]
