@@ -78,8 +78,19 @@ nodejs = "22.*"  # frontend toolchain (web/), pixi-managed for reproducibility
 [tool.pixi.pypi-dependencies]
 veribayes = { path = ".", editable = true }
 
+# Heavy parser deps (component b) — conda-forge, not pypi: conda builds carry correct platform tags,
+# avoiding the locally-built-wheel macOS-version mismatch. Only installed in the `parse` environment,
+# so the default env (and CI) stays light. torch + models land in gitignored .pixi; nothing big is
+# committed (the lockfile grows, but it's text).
+[tool.pixi.feature.parse.dependencies]
+docling = ">=2.0"   # primary parser: layout / sections / tables / captions
+pymupdf = ">=1.24"  # fast fallback + synthetic-PDF test fixtures
+
 [tool.pixi.environments]
 default = { features = ["dev", "api"], solve-group = "default" }
+# The heavy parser env — install/run with `pixi run -e parse <task>`. Not installed by a plain
+# `pixi install`, so the default workflow stays light.
+parse = { features = ["dev", "api", "parse"], solve-group = "default" }
 
 [tool.pixi.tasks]
 test = "pytest -q"
@@ -87,6 +98,7 @@ lint = "ruff check veribayes tests"
 fmt = "ruff format veribayes tests"
 imports = "lint-imports"
 check = { depends-on = ["lint", "imports", "test"] }
+test-parse = "pytest tests/test_parse.py -v"  # run with: pixi run -e parse test-parse
 # --- App (M1 stub: real flow, stub engine) ---
 api = "uvicorn veribayes.api.app:app --reload --port 8000"
 setup-web = { cmd = "npm install", cwd = "web" }

@@ -33,3 +33,12 @@ class FetchFailedError(IngestError):
 
 class NotAPdfError(IngestError):
     """The fetched payload is not a PDF (e.g. an HTML paywall page)."""
+
+
+class UnparseableDocument(IngestError):
+    """A PDF that cannot be turned into a ``ParsedDoc`` (component b). ``reason`` is a stable code:
+    ``no_text_layer`` (scanned, OCR off in v0), ``corrupt_pdf``, ``encrypted``."""
+
+    def __init__(self, reason: str, *, user_message: str | None = None) -> None:
+        super().__init__(f"unparseable document: {reason}", user_message=user_message)
+        self.reason = reason
