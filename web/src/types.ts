@@ -120,6 +120,7 @@ export interface PaperState {
   inventory: EvidenceInventory | null;
   parser: string | null;
   parser_version: string | null;
+  backend: string | null; // "agent-sdk" | "api" | "stub" — who produced the result
   local_notice: string | null;
   error: string | null;
 }

@@ -163,11 +163,13 @@ def test_full_upload_with_fake_client_attaches_real_relevance_and_class(
     tmp_path, monkeypatch
 ) -> None:
     from veribayes.api import jobs as jobsmod
+    from veribayes.core import config
     from veribayes.core.llm import FakeLLMClient
     from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
 
     monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")  # makes run_job route to the full pipeline
+    monkeypatch.setattr(config, "claude_code_available", lambda: False)  # deterministic backend
     fake = FakeLLMClient(
         Relevance(
             label=RelevanceLabel.yes, confidence=0.92, rationale="Bayesian", evidence_refs=[0]
@@ -187,6 +189,7 @@ def test_full_upload_with_fake_client_attaches_real_relevance_and_class(
     assert job.status == "done" and job.result is not None
     assert job.result.relevance.label is RelevanceLabel.yes  # real screen output
     assert job.result.paper_class.primary is PaperClassLabel.empirical  # real classify output
+    assert job.backend == "api"  # the result is stamped with the live backend (not "stub")
     # both cheap-model calls are metered into the ledger
     assert {e.stage for e in job.result.cost_ledger.entries} == {"screen", "classify"}
     done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
@@ -227,6 +230,7 @@ def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatc
     asyncio.run(run_job(job))
     assert job.status == "done" and job.result is not None
     assert job.result.coverage is not None  # the labelled stub engine, unchanged sans credentials
+    assert job.backend == "stub"  # the badge tells the UI this is NOT a live model run
 
 
 def test_local_report_json_and_md(tmp_path, monkeypatch) -> None:

@@ -90,6 +90,7 @@ def _job_payload(job: jobsmod.Job) -> dict:
         "inventory": job.inventory.model_dump(mode="json") if job.inventory else None,
         "parser": job.parser,
         "parser_version": job.parser_version,
+        "backend": job.backend,
         "local_notice": job.local_notice,
         "error": job.error,
     }

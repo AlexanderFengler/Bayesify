@@ -84,6 +84,7 @@ class Job:
     inventory: EvidenceInventory | None = None  # local-only detection result
     parser: str | None = None  # which parser ran (docling | pymupdf), surfaced in the local report
     parser_version: str | None = None
+    backend: str | None = None  # who produced the result: "agent-sdk" | "api" | "stub"
     local_notice: str | None = None  # the labelled local-mode explanation
     error: str | None = None
     _seq: int = 0
@@ -202,6 +203,7 @@ async def _run_full(job: Job) -> None:
     the per-step assessment still stubbed (M4 — grading lands at M5)."""
     parsed, evidence = await _front_half(job)
     client = _llm_client()
+    job.backend = config.llm_backend()  # "agent-sdk" (subscription) | "api" — shown in the report
 
     job.stage = "screen"
     job.emit({"type": "stage", "stage": "screen", "state": "running"})
@@ -238,6 +240,7 @@ async def _run_stub(job: Job) -> None:
         job.local_notice = _LOCAL_NEEDS_UPLOAD  # detection needs the bytes; nothing to show
     else:
         job.result = build_stub_result(job.mode)
+        job.backend = "stub"  # no credentials → the labelled placeholder engine
     job.status = "done"
     job.emit({"type": "done"})
 

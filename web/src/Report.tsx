@@ -29,7 +29,9 @@ export function Report({ paper, onReset }: { paper: PaperState; onReset: () => v
     <div className="report">
       <div className="report-head">
         <div>
-          <div className="report-eyebrow">Report</div>
+          <div className="report-eyebrow">
+            Report <BackendBadge backend={paper.backend} />
+          </div>
           <h1 className="report-title">{paper.source_label}</h1>
         </div>
         <button className="btn" onClick={onReset}>
@@ -38,6 +40,7 @@ export function Report({ paper, onReset }: { paper: PaperState; onReset: () => v
       </div>
 
       <SummaryBand r={r} />
+      <RelevanceLine r={r} />
 
       <div className="steps">
         {r.step_assessments.map((a) => (
@@ -46,6 +49,36 @@ export function Report({ paper, onReset }: { paper: PaperState; onReset: () => v
       </div>
 
       <ProvenanceFooter r={r} />
+    </div>
+  );
+}
+
+// Who produced this result. The clearest "the model actually ran" signal — a real backend
+// (subscription / API) vs the labelled stub that runs when no credentials are configured.
+function BackendBadge({ backend }: { backend: string | null }) {
+  if (!backend) return null;
+  const map: Record<string, { label: string; live: boolean }> = {
+    "agent-sdk": { label: "Live · Claude subscription", live: true },
+    api: { label: "Live · Anthropic API", live: true },
+    stub: { label: "Stub engine · no model", live: false },
+  };
+  const m = map[backend] ?? { label: backend, live: false };
+  return <span className={"backend-badge " + (m.live ? "be-live" : "be-stub")}>{m.label}</span>;
+}
+
+// The model's own relevance verdict + rationale — for a live run this reflects THIS paper; the stub
+// always shows its fixed HDDM sentence, so this is how you see the screen stage actually ran.
+function RelevanceLine({ r }: { r: ScoredResult }) {
+  return (
+    <div className="relevance-line">
+      <span className="grounding-label">Relevance gate</span>
+      <p className="rl-text">
+        <span className={"status-pill status-" + (r.relevance.label === "yes" ? "done_well" : "partial")}>
+          {r.relevance.label}
+        </span>
+        <span className="rl-conf">{Math.round(r.relevance.confidence * 100)}% conf.</span>
+        {r.relevance.rationale}
+      </p>
     </div>
   );
 }
@@ -198,7 +231,9 @@ function NotApplicable({ paper, onReset }: { paper: PaperState; onReset: () => v
     <div className="report">
       <div className="report-head">
         <div>
-          <div className="report-eyebrow">Relevance gate</div>
+          <div className="report-eyebrow">
+            Relevance gate <BackendBadge backend={paper.backend} />
+          </div>
           <h1 className="report-title">{paper.source_label}</h1>
         </div>
         <button className="btn" onClick={onReset}>
