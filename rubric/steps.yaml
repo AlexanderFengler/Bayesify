@@ -21,8 +21,19 @@ scoring_rule: >
   strict-lenient range when absences are low-confidence (a low-confidence absence
   MUST NOT alone lower the headline number). quality = weighted mean sub-score over
   applicable steps. essential_for now sets expectation tier (severity), not a verdict.
-  Full scoring block (sub-score map, per-class weights, low-confidence threshold,
-  mixing rule) to be authored at rubric v1.0 freeze — gate G5.
+  The machine-evaluable scoring block + applicability gates below are the G5 half
+  (M5); weights are a uniform v0 placeholder (B3 v1 differentiates them).
+
+# G5 scoring block — the machine half f-score (core/score.py) reads; nothing hardcoded.
+scoring:
+  sub_score: { done_well: 1.0, partial: 0.5, missing: 0.0 }   # not_applicable is excluded
+  low_confidence_threshold: 0.6   # an absence below this confidence is "uncertain" (widens the range)
+  weight_default: 1.0
+  weights:                # per-class step-weight overrides; omitted steps use weight_default.
+    empirical: {}         # v0: uniform weights — a documented placeholder (B3 v1 differentiates).
+    numerical_experiment: {}
+    methodological: {}
+  mixing_rule: max        # mixed primary+secondary: weight = max(primary, secondary).
 
 steps:
   - id: S1
@@ -52,6 +63,8 @@ steps:
     name: Computational faithfulness (convergence & sampling diagnostics)
     essential_for: [empirical, numerical_experiment, methodological]
     na_when: "Exact/analytic/conjugate posterior — no sampler. Mark not_applicable, do not penalize."
+    gate:
+      na_when_inference: [exact_analytic]   # no sampler to diagnose → not_applicable (G6)
     inference_scope: [mcmc, hmc_nuts, variational]
     done_well: "Reports R-hat AND ESS for every parameter (BARG); divergences=0; warmup/iters/chains stated; treedepth/E-FMI/MCSE as relevant."
     done_poorly: "No convergence diagnostics; single chain; ignored divergences; only one of R-hat/ESS."
@@ -80,6 +93,10 @@ steps:
     name: Model comparison / selection
     na_when: "Only one model entertained and no Bayes factor reported."
     essential_for: []   # conditionally essential only when >=2 models or a BF is claimed
+    gate:               # G6: model comparison is N/A for a single model w/o BF, else expected
+      na_when_single_model_no_bf: true
+      essential_when_models_gte: 2
+      essential_when_bf_claimed: true
     done_well: "PSIS-LOO/WAIC with SE and Pareto-k reported, interpreted with uncertainty. For BF: robust BF sub-workflow (verify priors, bridge-sample >=2x, SBC-check BF accuracy)."
     done_poorly: "Model chosen with no comparison / inappropriate criterion; high Pareto-k ignored; BF reported without prior justification, stability, or SBC."
     thresholds:
@@ -103,6 +120,9 @@ steps:
     recommended_for: [empirical, numerical_experiment]
     na_when: "Likelihood clearly dominates and priors are immaterial AND no BF/informative prior used."
     mandatory_when: "Informative/weakly-informative priors used, OR any Bayes-factor claim (WAMBS; Schad 2022)."
+    gate:               # G6: informative priors or a BF claim escalate S8 to expected (any class)
+      essential_when_prior_informative: true
+      essential_when_bf_claimed: true
     done_well: "Alternative priors/specifications tried; robustness (or lack of) reported regardless of outcome."
     done_poorly: "Single specification; no sensitivity check despite influential priors/BF."
     citations: [wambs2017, vandeschoot2021, gelman2020, schad2022_bf]
