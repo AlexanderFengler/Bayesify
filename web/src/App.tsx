@@ -111,9 +111,9 @@ function Header() {
         <span className="brand-tag">Bayesian-workflow report</span>
         <span
           className="pill pill-stub"
-          title="Relevance + paper-type are live (M4). Per-step grading is still stubbed until M5."
+          title="Full mode grades end-to-end (M5): relevance, paper type, and per-step assessment + scoring."
         >
-          M4 · grading stubbed
+          M5 · live grading
         </span>
       </div>
     </header>

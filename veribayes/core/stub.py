@@ -451,23 +451,3 @@ def cost_ledger(entries: Iterable[s.CostLedgerEntry]) -> s.CostLedger:
         total_tokens=sum(e.input_tokens + e.output_tokens for e in items),
         total_cost_usd=round(sum(e.cost_usd for e in items), 6),
     )
-
-
-def build_screened_result(
-    relevance: s.Relevance,
-    paper_class: s.PaperClass | None,
-    *,
-    cost_entries: Iterable[s.CostLedgerEntry] = (),
-    mode: str = "full",
-) -> s.ScoredResult:
-    """A real-relevance + real-paper-type result with the per-step assessment **still stubbed**
-    (M4: assess/score land at M5). The header renders the genuine screen/classify output and the
-    real cost ledger; the body remains the labelled stub until M5 replaces it."""
-    base = build_stub_result(mode)
-    return base.model_copy(
-        update={
-            "relevance": relevance,
-            "paper_class": paper_class,
-            "cost_ledger": cost_ledger(cost_entries),
-        }
-    )

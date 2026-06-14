@@ -21,6 +21,7 @@ from pathlib import Path
 
 from veribayes.core import config
 from veribayes.core import schema as s
+from veribayes.core.assess import assess
 from veribayes.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
 from veribayes.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
 from veribayes.core.errors import IngestError
@@ -28,13 +29,11 @@ from veribayes.core.ingest import ingest_upload
 from veribayes.core.llm import AgentSDKClient, AnthropicClient, LLMClient
 from veribayes.core.parse import parse
 from veribayes.core.pipeline import screen_and_classify
-from veribayes.core.stub import (
-    ENGINE_VERSION,
-    RUBRIC_VERSION,
-    build_screened_result,
-    build_stub_result,
-    cost_ledger,
-)
+from veribayes.core.rubric.loader import load_rubric
+from veribayes.core.score import ScoreMeta, score
+from veribayes.core.stub import ENGINE_VERSION, RUBRIC_VERSION, build_stub_result, cost_ledger
+
+_RUBRIC = load_rubric()  # static rubric spec, loaded once
 
 # Pipeline stages surfaced to the UI (plans 02 §3.4).
 STAGES: tuple[str, ...] = (
@@ -217,14 +216,15 @@ async def _run_local(job: Job) -> None:
 
 
 async def _run_full(job: Job) -> None:
-    """Full mode (upload + credentials): real front half, then screen + classify.
+    """Full mode (upload + credentials): the whole real engine — ingest -> parse -> detect ->
+    screen -> classify -> assess -> score.
 
-    A ``no`` short-circuits with null scores; a relevant paper gets real relevance + paper type
-    with the per-step assessment still stubbed (M4 — grading lands at M5). Results are cached so
-    identical re-uploads return instantly — but **safely**, so a hit can never mask a broken run:
-    only successful runs are cached (a failure is never stored), the key includes ``engine_version``
-    (a code/model/prompt change busts it), the hit is labelled ``from_cache`` in the UI, and
-    ``force_fresh`` / ``VERIBAYES_NO_CACHE`` bypass it entirely to force a real run.
+    A ``no`` short-circuits with null scores; a relevant paper is graded end-to-end (per-step
+    assessments + profile/coverage/quality — no stub). Results are cached so identical re-uploads
+    return instantly — but **safely**, so a hit can never mask a broken run: only successful runs
+    are cached (a failure is never stored), the key includes ``engine_version`` (a code/model/prompt
+    change busts it), the hit is labelled ``from_cache`` in the UI, and ``force_fresh`` /
+    ``VERIBAYES_NO_CACHE`` bypass it entirely to force a real run.
     """
     key = FullResultKey(
         content_sha256=sha256_bytes(job.data),  # computed before _front_half clears job.data
@@ -239,7 +239,7 @@ async def _run_full(job: Job) -> None:
             job.result = s.ScoredResult.model_validate(cached["result"])
             job.backend = cached.get("backend")
             job.from_cache = True
-            for stage in STAGES[:5]:  # ingest..classify — complete the UI stepper instantly
+            for stage in STAGES:  # complete the UI stepper instantly
                 job.emit({"type": "stage", "stage": stage, "state": "done"})
             job.status = "done"
             job.emit({"type": "done"})
@@ -251,22 +251,33 @@ async def _run_full(job: Job) -> None:
 
     job.stage = "screen"
     job.emit({"type": "stage", "stage": "screen", "state": "running"})
-    relevance, paper_class, cost_entries = await asyncio.to_thread(
+    relevance, paper_class, costs = await asyncio.to_thread(
         screen_and_classify, parsed, evidence, client=client
     )
     job.emit({"type": "stage", "stage": "screen", "state": "done"})
-    if paper_class is not None:  # classify only runs for a non-'no' paper
-        job.emit({"type": "stage", "stage": "classify", "state": "done"})
 
     if relevance.label is s.RelevanceLabel.no:
         job.result = s.ScoredResult.short_circuit(
             relevance=relevance,
             engine_version=ENGINE_VERSION,
             rubric_version=RUBRIC_VERSION,
-            cost_ledger=cost_ledger(cost_entries),
+            cost_ledger=cost_ledger(costs),
         )
     else:
-        job.result = build_screened_result(relevance, paper_class, cost_entries=cost_entries)
+        job.emit({"type": "stage", "stage": "classify", "state": "done"})
+        job.stage = "assess"
+        job.emit({"type": "stage", "stage": "assess", "state": "running"})
+        assessments, gate_facts, assess_costs = await asyncio.to_thread(
+            assess, parsed, evidence, relevance, paper_class, _RUBRIC, client=client
+        )
+        job.emit({"type": "stage", "stage": "assess", "state": "done"})
+        job.stage = "score"
+        job.emit({"type": "stage", "stage": "score", "state": "running"})
+        ledger = cost_ledger(costs + assess_costs)
+        meta = ScoreMeta(engine_version=ENGINE_VERSION, cost_ledger=ledger)
+        job.result = score(relevance, paper_class, assessments, gate_facts, _RUBRIC, meta)
+        job.emit({"type": "stage", "stage": "score", "state": "done"})
+
     # Cache only on success (we reached here without raising) — never mask a broken run.
     if _cache_enabled():
         _results().put(key, {"backend": job.backend, "result": job.result.model_dump(mode="json")})

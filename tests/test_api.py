@@ -159,53 +159,77 @@ def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:
     assert "PDF" in (job.error or "")  # the typed NotAPdfError user_message
 
 
-def test_full_upload_with_fake_client_attaches_real_relevance_and_class(
-    tmp_path, monkeypatch
-) -> None:
+def _full_fake(relevance: str = "yes", judge_status: str = "done_well"):
+    """A schema-aware fake for the whole full pipeline: Relevance for screen, PaperClass for
+    classify, StepJudgment for each assess judge call, RefuterVerdict for refuters. Records the
+    schema name of every call so tests can assert what ran."""
+    from veribayes.core.assess import RefuterVerdict, StepJudgment
+    from veribayes.core.llm import LLMResponse
+    from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+
+    class _F:
+        def __init__(self) -> None:
+            self.calls: list[str] = []
+
+        def complete(self, *, model, system, user, schema, max_tokens=1024):
+            self.calls.append(schema.__name__)
+            if schema.__name__ == "Relevance":
+                refs = [] if relevance == "no" else [0]
+                p = Relevance(
+                    label=RelevanceLabel(relevance),
+                    confidence=0.9,
+                    rationale="b",
+                    evidence_refs=refs,
+                )
+            elif schema.__name__ == "PaperClass":
+                p = PaperClass(
+                    primary=PaperClassLabel.empirical,
+                    confidence=0.8,
+                    rationale="r",
+                    evidence_refs=[0],
+                )
+            elif schema.__name__ == "StepJudgment":
+                p = StepJudgment(status=judge_status, confidence=0.9)
+            else:
+                p = RefuterVerdict(refuted=False, notes="absent")
+            return LLMResponse(parsed=p, model=model, input_tokens=10, output_tokens=5)
+
+    return _F()
+
+
+def test_full_upload_grades_end_to_end(tmp_path, monkeypatch) -> None:
     from veribayes.api import jobs as jobsmod
     from veribayes.core import config
-    from veribayes.core.llm import FakeLLMClient
-    from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+    from veribayes.core.schema import PaperClassLabel, RelevanceLabel
 
     monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")  # makes run_job route to the full pipeline
     monkeypatch.setattr(config, "claude_code_available", lambda: False)  # deterministic backend
-    fake = FakeLLMClient(
-        Relevance(
-            label=RelevanceLabel.yes, confidence=0.92, rationale="Bayesian", evidence_refs=[0]
-        ),
-        PaperClass(
-            primary=PaperClassLabel.empirical,
-            confidence=0.8,
-            rationale="real data",
-            evidence_refs=[0],
-        ),
-    )
+    fake = _full_fake()
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
 
     job = Job(id="full1", mode="full", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     asyncio.run(run_job(job))
 
-    assert job.status == "done" and job.result is not None
-    assert job.result.relevance.label is RelevanceLabel.yes  # real screen output
-    assert job.result.paper_class.primary is PaperClassLabel.empirical  # real classify output
-    assert job.backend == "api"  # the result is stamped with the live backend (not "stub")
-    # both cheap-model calls are metered into the ledger
-    assert {e.stage for e in job.result.cost_ledger.entries} == {"screen", "classify"}
+    r = job.result
+    assert job.status == "done" and r is not None
+    assert r.relevance.label is RelevanceLabel.yes  # real screen
+    assert r.paper_class.primary is PaperClassLabel.empirical  # real classify
+    assert len(r.step_assessments) == 10 and r.profile is not None  # real assess + score (no stub)
+    assert r.coverage is not None and r.quality_score is not None
+    assert job.backend == "api"
+    assert {"screen", "classify", "assess"} <= {e.stage for e in r.cost_ledger.entries}
     done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
-    assert done == ["ingest", "parse", "detect", "screen", "classify"]
+    assert done == ["ingest", "parse", "detect", "screen", "classify", "assess", "score"]
 
 
 def test_full_upload_short_circuits_on_no(tmp_path, monkeypatch) -> None:
     from veribayes.api import jobs as jobsmod
-    from veribayes.core.llm import FakeLLMClient
-    from veribayes.core.schema import Relevance, RelevanceLabel
+    from veribayes.core.schema import RelevanceLabel
 
     monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
-    fake = FakeLLMClient(
-        Relevance(label=RelevanceLabel.no, confidence=0.9, rationale="not Bayesian")
-    )
+    fake = _full_fake(relevance="no")
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
 
     # a non-Bayesian PDF, so the detector floor doesn't (correctly) override the 'no'
@@ -214,9 +238,9 @@ def test_full_upload_short_circuits_on_no(tmp_path, monkeypatch) -> None:
 
     assert job.status == "done" and job.result is not None
     assert job.result.relevance.label is RelevanceLabel.no
-    assert job.result.paper_class is None  # short-circuit: classify skipped, scores null
+    assert job.result.paper_class is None  # short-circuit: classify + assess skipped, scores null
     assert job.result.quality_score is None
-    assert len(fake.calls) == 1  # classify never called
+    assert fake.calls == ["Relevance"]  # only the screen call; no classify/assess
 
 
 def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatch) -> None:
@@ -234,20 +258,6 @@ def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatc
 
 
 # --- result caching (safe: success-only, visible, bypassable) -------------------------------------
-
-
-def _full_fake():
-    from veribayes.core.llm import FakeLLMClient
-    from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
-
-    return FakeLLMClient(
-        Relevance(
-            label=RelevanceLabel.yes, confidence=0.9, rationale="bayesian", evidence_refs=[0]
-        ),
-        PaperClass(
-            primary=PaperClassLabel.empirical, confidence=0.8, rationale="real", evidence_refs=[0]
-        ),
-    )
 
 
 def _full_cache_env(tmp_path, monkeypatch):
@@ -269,7 +279,8 @@ def test_identical_rerun_is_served_from_cache_without_calling_the_model(tmp_path
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: f1)
     j1 = Job(id="ca1", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j1))
-    assert j1.from_cache is False and j1.result is not None and len(f1.calls) == 2
+    assert j1.from_cache is False and j1.result is not None
+    assert "StepJudgment" in f1.calls  # the full pipeline really ran
 
     # same bytes → cache hit; the LLM client must NOT be called again
     f2 = FakeLLMClient()  # empty: would raise if invoked
@@ -300,7 +311,7 @@ def test_failed_run_is_not_cached_so_breakage_is_never_masked(tmp_path, monkeypa
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: f2)
     j2 = Job(id="cf2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j2))
-    assert j2.status == "done" and j2.from_cache is False and len(f2.calls) == 2
+    assert j2.status == "done" and j2.from_cache is False and "StepJudgment" in f2.calls
 
 
 def test_no_cache_env_always_runs_fresh(tmp_path, monkeypatch):
@@ -318,7 +329,7 @@ def test_no_cache_env_always_runs_fresh(tmp_path, monkeypatch):
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: f2)
     j2 = Job(id="cn2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j2))
-    assert j2.from_cache is False and len(f2.calls) == 2  # not cached: a real run every time
+    assert j2.from_cache is False and "StepJudgment" in f2.calls  # not cached: a real run each time
 
 
 def test_local_report_json_and_md(tmp_path, monkeypatch) -> None:
