@@ -26,6 +26,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from veribayes.api import jobs as jobsmod
 from veribayes.api.jobs import JobStore, event_stream, run_job
+from veribayes.core.report import fix_list
 
 app = FastAPI(title="VeriBayes API", version="0.1.0")
 
@@ -87,6 +88,10 @@ def _job_payload(job: jobsmod.Job) -> dict:
         "source_label": job.source_label,
         "relevance_override": job.relevance_override,
         "result": job.result.model_dump(mode="json") if job.result else None,
+        # D2 prioritised fix-list, derived server-side (the SPA renders it; not in the contract).
+        "fix_list": (
+            [f.model_dump(mode="json") for f in fix_list(job.result)] if job.result else None
+        ),
         "inventory": job.inventory.model_dump(mode="json") if job.inventory else None,
         "parser": job.parser,
         "parser_version": job.parser_version,
@@ -229,6 +234,15 @@ def _render_markdown(job: jobsmod.Job) -> str:
         f"**Profile:** {r.rubric_profile}",
         "",
     ]
+    fixes = fix_list(r)
+    if fixes:
+        lines.append("## Priority fixes")
+        for f in fixes:
+            lines.append(
+                f"- [{f.severity.value}] {f.step_id}: {f.text} "
+                f"— _{f.how_to}_ ({f.ease.value} effort)"
+            )
+        lines.append("")
     for a in r.step_assessments:
         lines.append(f"## {a.step_id} — {a.status.value}")
         for d in a.did_well:

@@ -1,4 +1,4 @@
-import type { PaperState, ScoredResult, StepAssessment, StepStatus } from "./types";
+import type { FixItem, PaperState, ScoredResult, StepAssessment, StepStatus } from "./types";
 
 const STEP_NAMES: Record<string, string> = {
   S1: "Model specification & justification",
@@ -34,13 +34,17 @@ export function Report({ paper, onReset }: { paper: PaperState; onReset: () => v
           </div>
           <h1 className="report-title">{paper.source_label}</h1>
         </div>
-        <button className="btn" onClick={onReset}>
-          Analyze another
-        </button>
+        <div className="report-head-actions">
+          <Downloads paperId={paper.paper_id} />
+          <button className="btn" onClick={onReset}>
+            Analyze another
+          </button>
+        </div>
       </div>
 
       <SummaryBand r={r} />
       <RelevanceLine r={r} />
+      <PriorityFixes fixes={paper.fix_list} />
 
       <div className="steps">
         {r.step_assessments.map((a) => (
@@ -67,6 +71,48 @@ function BackendBadge({ backend, fromCache }: { backend: string | null; fromCach
     return <span className="backend-badge be-cache">Cached · {name}</span>;
   }
   return <span className="backend-badge be-live">Live · {name}</span>;
+}
+
+function Downloads({ paperId }: { paperId: string }) {
+  return (
+    <span className="report-downloads">
+      <a href={`/api/papers/${paperId}/report.json`} target="_blank" rel="noreferrer">
+        report.json
+      </a>
+      <a href={`/api/papers/${paperId}/report.md`} target="_blank" rel="noreferrer">
+        report.md
+      </a>
+    </span>
+  );
+}
+
+// D2: the prioritized fix-list across all steps (severity → step weight → ease), each with the
+// verified score-impact of fixing it. Ranked server-side; this just renders.
+function PriorityFixes({ fixes }: { fixes: FixItem[] | null }) {
+  if (!fixes || fixes.length === 0) return null;
+  return (
+    <div className="fixes">
+      <div className="grounding-label">Priority fixes</div>
+      {fixes.map((f, i) => (
+        <div key={i} className={"fix sev-" + f.severity}>
+          <div className="fix-head">
+            <span className={"sev-tag sev-" + f.severity}>{f.severity}</span>
+            <span className="fix-step">{f.step_id}</span>
+            <span className="fix-text">{f.text}</span>
+            <span className="ease" title="estimated effort">
+              {f.ease} effort
+            </span>
+          </div>
+          <div className="how-to">{f.how_to}</div>
+          {f.coverage_delta > 0 && (
+            <div className="fix-impact">
+              fixing this lifts coverage by {(f.coverage_delta * 100).toFixed(0)} pts
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // The model's own relevance verdict + rationale — for a live run this reflects THIS paper; the stub

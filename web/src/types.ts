@@ -110,6 +110,17 @@ export interface EvidenceInventory {
   n_hits: number;
 }
 
+export interface FixItem {
+  step_id: string;
+  severity: Severity;
+  text: string;
+  how_to: string;
+  ease: Ease;
+  weight: number;
+  coverage_delta: number;
+  quality_delta: number;
+}
+
 export interface PaperState {
   paper_id: string;
   status: "queued" | "running" | "done" | "failed";
@@ -117,6 +128,7 @@ export interface PaperState {
   mode: string;
   source_label: string;
   result: ScoredResult | null;
+  fix_list: FixItem[] | null;
   inventory: EvidenceInventory | null;
   parser: string | null;
   parser_version: string | null;

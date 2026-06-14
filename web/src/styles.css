@@ -730,6 +730,69 @@ main.container {
   text-align: center;
 }
 
+/* --- report head actions + downloads --- */
+.report-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.report-downloads {
+  display: flex;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.report-downloads a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.report-downloads a:hover {
+  text-decoration: underline;
+}
+
+/* --- D2 priority fix-list --- */
+.fixes {
+  margin: 0 0 22px;
+}
+.fix {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px 16px;
+  margin-bottom: 8px;
+}
+.fix.sev-error {
+  border-left-color: var(--red);
+}
+.fix.sev-warning {
+  border-left-color: var(--amber);
+}
+.fix.sev-info {
+  border-left-color: var(--blue);
+}
+.fix-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.fix-step {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+.fix-text {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+}
+.fix-impact {
+  font-size: 12px;
+  color: var(--green);
+  margin-top: 6px;
+}
+
 /* --- backend provenance badge + relevance line --- */
 .backend-badge {
   display: inline-block;
