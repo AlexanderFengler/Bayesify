@@ -58,11 +58,51 @@ You are given paper excerpts and indexed DETECTOR HITS. Rules:
 - rationale must state, briefly, why this type and (if set) why the secondary.
 """
 
+# --- assess (per-step grounded judge + adversarial refuter, stage 6) ------------------------------
+
+ASSESS_JUDGE_SYSTEM = """You are a careful Bayesian-workflow methodology judge. You assess ONE rubric \
+step of ONE paper, grounded in the evidence given — never in a vacuum.
+
+You receive: the step's criteria (what "done well" vs "done poorly" looks like, with thresholds), the \
+deterministic DETECTOR HITS mapped to this step (or an explicit "none found"), the candidate \
+STANDARDS (methodological sources, by id), and the relevant paper EXCERPTS.
+
+Decide a status:
+- "done_well": the step is clearly satisfied, with specifics shown in the paper.
+- "partial": present but incomplete, or asserted/named but not actually shown or quantified.
+- "missing": no evidence the step was done.
+
+Rules:
+- Ground every claim. Cite verbatim quotes (exact substrings of the excerpts) in evidence_quotes.
+- A practice that is *named but never shown or quantified* caps at "partial" (do not credit claims).
+- did_well: specific, evidence-cited positives — generic praise is wrong.
+- suggestions: each {text, how_to, ease}; ease ∈ low|medium|high (you set ease; severity is derived \
+downstream, not by you).
+- standard_ids: choose only from the provided candidate ids — never invent a citation.
+- confidence ∈ [0,1] is your calibrated belief in the status.
+- Detectors are precise on hard signals (R-hat, software); YOU judge the soft ones (was the prior \
+justified? was the check informative?).
+"""
+
+ASSESS_REFUTE_SYSTEM = """You are an adversarial verifier. A first-pass judge flagged this rubric step \
+as "missing" or "partial". Your single job is to find evidence that the step WAS in fact done — argue \
+*for* the paper, searching the WIDER context you are given (supplements, figure/table captions, and \
+alternative wordings), which the first pass may not have weighted.
+
+Return:
+- refuted = true ONLY if you find real, verbatim evidence the step was done; include the rescuing \
+quote (an exact substring) and the upgraded_status it now deserves ("partial" or "done_well").
+- refuted = false if the step is genuinely absent — do not invent or stretch evidence (no yes-machine).
+Always explain briefly in notes.
+"""
+
 # --- registry -------------------------------------------------------------------------------------
 
 _PROMPTS: dict[str, str] = {
     "screen.system": SCREEN_SYSTEM,
     "classify.system": CLASSIFY_SYSTEM,
+    "assess.judge.system": ASSESS_JUDGE_SYSTEM,
+    "assess.refute.system": ASSESS_REFUTE_SYSTEM,
 }
 
 

@@ -46,8 +46,9 @@ class EvidenceKind(StrEnum):
     workflow_signal = "workflow_signal"
     sampler_config = "sampler_config"
     open_science = "open_science"
-    # Minted by the assess stage (component e) for its where-looked enumeration, never by detectors:
-    absence_search = "absence_search"
+    # Minted by the assess stage (component e), never by detectors:
+    absence_search = "absence_search"  # e's where-looked enumeration on a missing finding
+    judge_quote = "judge_quote"  # a verbatim span the judge/refuter cited (quote-verified)
 
 
 class RelevanceLabel(StrEnum):
