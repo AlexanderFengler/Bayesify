@@ -44,34 +44,6 @@ def _ev(detector_id: str, kind: EvidenceKind, quote: str = "q") -> Evidence:
     )
 
 
-# --- context discipline ---------------------------------------------------------------------------
-
-
-def test_context_excludes_references_and_supplements() -> None:
-    parsed = _parsed(
-        (SectionKind.abstract, "Abstract", "We fit a Bayesian model."),
-        (SectionKind.body, "Methods", "MCMC with Stan."),
-        (SectionKind.references, "References", "Gelman 2020. Bayesian Workflow."),
-        (SectionKind.supplement, "Supp", "Extra sampler detail."),
-    )
-    ctx = S._context(parsed)
-    assert "Bayesian model" in ctx and "MCMC with Stan" in ctx
-    assert "Gelman 2020" not in ctx  # references excluded (A3)
-    assert "Extra sampler detail" not in ctx  # supplements excluded from the screen context
-
-
-def test_context_truncates_to_budget() -> None:
-    parsed = _parsed((SectionKind.body, "Body", "x" * 50_000))
-    assert len(S._context(parsed, max_chars=1000)) <= 1000
-
-
-def test_evidence_digest_indexes_hits() -> None:
-    digest = S._evidence_digest([_ev("software.stan", EvidenceKind.software_mention, "in Stan")])
-    assert digest.startswith("[0] software.stan")
-    assert "in Stan" in digest
-    assert S._evidence_digest([]) == "(no deterministic detector hits)"
-
-
 # --- the happy path -------------------------------------------------------------------------------
 
 

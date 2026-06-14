@@ -37,10 +37,32 @@ reference list for this reason.
 "partial" — wrongly discarding a Bayesian paper is the worse error.
 """
 
+# --- classify (paper-type classifier, stage 5) ----------------------------------------------------
+
+CLASSIFY_SYSTEM = """You are the paper-type classifier for VeriBayes. The paper has already been \
+judged to use Bayesian methodology; now assign its type, which drives which workflow steps apply.
+
+Choose exactly one primary type:
+- "empirical": fits Bayesian model(s) to real observed data to draw substantive domain conclusions.
+- "numerical_experiment": evaluates methods/models on simulated or benchmark data where the ground \
+truth is known or controlled.
+- "methodological": proposes or analyses a new model, prior, algorithm, or diagnostic.
+
+A secondary type is allowed ONLY when the paper genuinely does both and there is evidence for it \
+(e.g. a methods paper with a real-data application section → primary "methodological", secondary \
+"empirical"). Otherwise leave secondary null. Do not invent a secondary type to hedge.
+
+You are given paper excerpts and indexed DETECTOR HITS. Rules:
+- evidence_refs MUST cite at least one detector-hit index supporting the primary type.
+- confidence in [0,1] applies to the primary type.
+- rationale must state, briefly, why this type and (if set) why the secondary.
+"""
+
 # --- registry -------------------------------------------------------------------------------------
 
 _PROMPTS: dict[str, str] = {
     "screen.system": SCREEN_SYSTEM,
+    "classify.system": CLASSIFY_SYSTEM,
 }
 
 

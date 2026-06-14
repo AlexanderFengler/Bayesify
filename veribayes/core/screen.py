@@ -17,6 +17,7 @@ Two deterministic guards wrap the LLM (d-screen-classify.md):
 from __future__ import annotations
 
 from veribayes.core import config
+from veribayes.core.context import build_user
 from veribayes.core.llm import LLMClient, call_with_policy, ledger_entry
 from veribayes.core.prompts import SCREEN_SYSTEM
 from veribayes.core.schema import (
@@ -26,7 +27,6 @@ from veribayes.core.schema import (
     ParsedDoc,
     Relevance,
     RelevanceLabel,
-    SectionKind,
 )
 
 # Evidence kinds that count as *Bayesian-substantive* for the floor. open_science is excluded — a
@@ -40,8 +40,6 @@ _FAMILY_OF_KIND: dict[EvidenceKind, str] = {
     EvidenceKind.workflow_signal: "workflow",
     EvidenceKind.sampler_config: "sampler",
 }
-_CONTEXT_KINDS = (SectionKind.abstract, SectionKind.body, SectionKind.caption)
-_CONTEXT_MAX_CHARS = 12_000
 _FLOOR_MIN_FAMILIES = 2
 
 
@@ -57,57 +55,11 @@ def screen(
     Raises ``LLMError`` (fail closed) if the cheap-model call cannot complete — never a defaulted
     label.
     """
-    user = _build_user(parsed, evidence)
+    user = build_user(parsed, evidence)
     response = call_with_policy(
         client, model=model, system=SCREEN_SYSTEM, user=user, schema=Relevance, max_tokens=600
     )
     return _apply_floor(response.parsed, evidence), ledger_entry("screen", response)
-
-
-# --- context + evidence digest --------------------------------------------------------------------
-
-
-def _build_user(parsed: ParsedDoc, evidence: list[Evidence]) -> str:
-    return (
-        "PAPER EXCERPTS (reference list excluded):\n"
-        f"{_context(parsed)}\n\n"
-        "DETECTOR HITS (deterministic; cite these indices in evidence_refs):\n"
-        f"{_evidence_digest(evidence)}"
-    )
-
-
-def _context(parsed: ParsedDoc, *, max_chars: int = _CONTEXT_MAX_CHARS) -> str:
-    """Abstract first, then body in reading order, then captions — references and supplements
-    excluded. Truncated to a char budget (a cheap token proxy for the screen call)."""
-    by_kind = {kind: [s for s in parsed.sections if s.kind is kind] for kind in _CONTEXT_KINDS}
-    ordered = (
-        by_kind[SectionKind.abstract] + by_kind[SectionKind.body] + by_kind[SectionKind.caption]
-    )
-
-    blocks: list[str] = []
-    used = 0
-    for section in ordered:
-        if not section.text:
-            continue
-        block = f"## {section.title or section.kind.value}\n{section.text}"
-        if used + len(block) > max_chars:
-            remaining = max_chars - used
-            if remaining > 0:
-                blocks.append(block[:remaining])
-            break
-        blocks.append(block)
-        used += len(block)
-    return "\n\n".join(blocks) or "(no extractable text)"
-
-
-def _evidence_digest(evidence: list[Evidence]) -> str:
-    if not evidence:
-        return "(no deterministic detector hits)"
-    lines = []
-    for i, e in enumerate(evidence):
-        value = f" {e.value}" if e.value else ""
-        lines.append(f'[{i}] {e.detector_id} · {e.kind.value}{value}: "{e.span.quote}"')
-    return "\n".join(lines)
 
 
 # --- detector floor -------------------------------------------------------------------------------
