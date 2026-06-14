@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -259,19 +260,37 @@ class AgentSDKClient:
         except ImportError as exc:  # pragma: no cover - dependency is declared
             raise LLMError("the 'claude-agent-sdk' package is not installed") from exc
 
-        options = sdk.ClaudeAgentOptions(
+        # The CLI's schema-bound `output_format` needs an extra turn and some CLI versions reject
+        # it, so by default we prompt for JSON and parse it ourselves (the hormuz-proven path).
+        # max_turns has headroom for a thinking turn; allowed_tools=[] stops it looping. Opt into
+        # native output_format with VERIBAYES_AGENT_OUTPUT_FORMAT=1.
+        use_output_format = os.environ.get("VERIBAYES_AGENT_OUTPUT_FORMAT", "").strip().lower() in (
+            "1", "true", "yes",
+        )
+        opts_kwargs: dict = dict(
             system_prompt=system,
             model=model,
-            allowed_tools=[],  # pure LLM call, no tools
-            max_turns=1,
+            allowed_tools=[],
+            max_turns=4,
             permission_mode="bypassPermissions",
-            output_format={"type": "json_schema", "schema": schema.model_json_schema()},
         )
+        prompt = user
+        if use_output_format:
+            opts_kwargs["output_format"] = {
+                "type": "json_schema",
+                "schema": schema.model_json_schema(),
+            }
+        else:
+            prompt = (
+                f"{user}\n\nRespond with ONLY a JSON object matching this JSON Schema — no prose, "
+                f"no markdown fences:\n{json.dumps(schema.model_json_schema())}"
+            )
+        options = sdk.ClaudeAgentOptions(**opts_kwargs)
 
         async def _collect():
             chunks: list[str] = []
             result: dict = {"structured": None, "in": 0, "out": 0, "error": None}
-            async for msg in sdk.query(prompt=user, options=options):
+            async for msg in sdk.query(prompt=prompt, options=options):
                 if hasattr(msg, "structured_output") or hasattr(msg, "total_cost_usd"):
                     so = getattr(msg, "structured_output", None)
                     if isinstance(so, dict):
@@ -293,13 +312,14 @@ class AgentSDKClient:
 
         if result["error"]:
             raise LLMError(f"agent SDK error: {result['error']}")
+        # Parse/validation failures are transient — a fresh attempt often yields well-formed JSON.
         data = result["structured"] if result["structured"] is not None else _brace_json(text)
         if data is None:
-            raise LLMError("agent SDK returned no structured output and no parseable JSON")
+            raise LLMTransientError(f"agent SDK returned no parseable JSON (got: {text[:200]!r})")
         try:
             parsed = schema.model_validate(data)
         except ValidationError as exc:
-            raise LLMError(f"agent SDK output failed schema validation: {exc}") from exc
+            raise LLMTransientError(f"agent SDK output failed schema validation: {exc}") from exc
         return LLMResponse(
             parsed=parsed, model=model, input_tokens=result["in"], output_tokens=result["out"]
         )
