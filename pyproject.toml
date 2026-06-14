@@ -9,6 +9,7 @@ dependencies = [
     "pydantic>=2.7",
     "pyyaml>=6.0",
     "httpx>=0.27",  # the OA-provider fetcher (core stays web-free: httpx is allowed, FastAPI is not)
+    "anthropic>=0.40",  # the LLM stages (screen/classify/assess); imported lazily in core.llm
 ]
 
 [project.optional-dependencies]
@@ -108,6 +109,9 @@ fmt = "ruff format veribayes tests"
 imports = "lint-imports"
 check = { depends-on = ["lint", "imports", "test"] }
 test-parse = "pytest tests/test_parse.py -v"  # run with: pixi run -e parse test-parse
+# Live screen/classify accuracy gates over the labeled fixture set. Needs ANTHROPIC_API_KEY and makes
+# real (paid) cheap-model calls; opt-in via this task's env so it never fires during `pixi run check`.
+eval = { cmd = "pytest tests/eval -v", env = { VERIBAYES_RUN_EVAL = "1" } }
 # --- App ---
 # One-process run (recommended): builds the UI and serves it + the API on one port (http://localhost:8000).
 # Run `pixi run setup-web` once first (installs node_modules).

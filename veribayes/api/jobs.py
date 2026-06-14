@@ -18,13 +18,22 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from veribayes.core import config
 from veribayes.core import schema as s
 from veribayes.core.cache import BlobStore
 from veribayes.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
 from veribayes.core.errors import IngestError
 from veribayes.core.ingest import ingest_upload
+from veribayes.core.llm import AnthropicClient, LLMClient
 from veribayes.core.parse import parse
-from veribayes.core.stub import build_stub_result
+from veribayes.core.pipeline import screen_and_classify
+from veribayes.core.stub import (
+    ENGINE_VERSION,
+    RUBRIC_VERSION,
+    build_screened_result,
+    build_stub_result,
+    cost_ledger,
+)
 
 # Pipeline stages surfaced to the UI (plans 02 §3.4).
 STAGES: tuple[str, ...] = (
@@ -120,14 +129,22 @@ class JobStore:
         return self._jobs.pop(paper_id, None) is not None
 
 
+def _llm_client() -> LLMClient:
+    """The LLM client for full mode. A seam: tests monkeypatch this to inject a FakeLLMClient."""
+    return AnthropicClient(api_key=config.anthropic_api_key())
+
+
 async def run_job(job: Job) -> None:
-    """Drive a job to completion. Local-only + upload runs the real front-half engine; every other
-    path keeps the M1 stub / placeholder until its component lands."""
+    """Drive a job to completion. Uploads run the real front-half engine (ingest->parse->detect);
+    full mode with an API key adds screen+classify; every other path keeps the M1 stub / placeholder
+    until its component lands."""
     try:
         job.status = "running"
         job.emit({"type": "status", "status": "running"})
         if job.mode == "local" and job.data is not None:
             await _run_local(job)
+        elif job.mode == "full" and job.data is not None and config.anthropic_api_key():
+            await _run_full(job)
         else:
             await _run_stub(job)
     except IngestError as exc:  # typed, user-facing (bad PDF, scanned, encrypted, …)
@@ -140,12 +157,10 @@ async def run_job(job: Job) -> None:
         job.emit({"type": "failed", "reason": str(exc)})
 
 
-async def _run_local(job: Job) -> None:
-    """The real F3 local-only pipeline: ingest -> parse -> detect -> inventory, on-device.
-
-    Each stage runs in a worker thread (parse is CPU-bound) so the event loop keeps streaming
-    progress. ``IngestError`` from ingest/parse propagates to ``run_job`` as a user-facing failure.
-    """
+async def _front_half(job: Job) -> tuple[s.ParsedDoc, list[s.Evidence]]:
+    """The on-device front half shared by local and full mode: ingest -> parse -> detect, with a
+    stage event around each (parse is CPU-bound, so each step runs in a worker thread). Sets the
+    job's parser + evidence inventory. ``IngestError`` propagates to ``run_job``."""
     blobs = _blobs()
     data, filename = job.data, job.filename
     assert data is not None
@@ -167,8 +182,42 @@ async def _run_local(job: Job) -> None:
     evidence = await asyncio.to_thread(run_detectors, parsed)
     job.inventory = evidence_inventory(parsed, evidence)
     job.emit({"type": "stage", "stage": "detect", "state": "done"})
+    return parsed, evidence
 
+
+async def _run_local(job: Job) -> None:
+    """The real F3 local-only pipeline: ingest -> parse -> detect -> inventory, on-device."""
+    await _front_half(job)
     job.local_notice = _LOCAL_NOTICE
+    job.status = "done"
+    job.emit({"type": "done"})
+
+
+async def _run_full(job: Job) -> None:
+    """Full mode (upload + API key): real front half, then screen + classify on the cheap model.
+    A ``no`` short-circuits with null scores; a relevant paper gets real relevance + paper type with
+    the per-step assessment still stubbed (M4 — grading lands at M5)."""
+    parsed, evidence = await _front_half(job)
+    client = _llm_client()
+
+    job.stage = "screen"
+    job.emit({"type": "stage", "stage": "screen", "state": "running"})
+    relevance, paper_class, cost_entries = await asyncio.to_thread(
+        screen_and_classify, parsed, evidence, client=client
+    )
+    job.emit({"type": "stage", "stage": "screen", "state": "done"})
+    if paper_class is not None:  # classify only runs for a non-'no' paper
+        job.emit({"type": "stage", "stage": "classify", "state": "done"})
+
+    if relevance.label is s.RelevanceLabel.no:
+        job.result = s.ScoredResult.short_circuit(
+            relevance=relevance,
+            engine_version=ENGINE_VERSION,
+            rubric_version=RUBRIC_VERSION,
+            cost_ledger=cost_ledger(cost_entries),
+        )
+    else:
+        job.result = build_screened_result(relevance, paper_class, cost_entries=cost_entries)
     job.status = "done"
     job.emit({"type": "done"})
 

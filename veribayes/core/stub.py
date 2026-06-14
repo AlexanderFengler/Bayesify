@@ -13,6 +13,8 @@ standards), and severity-tiered suggestions. It is **not** a real assessment —
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from veribayes.core import schema as s
 from veribayes.core.detectors import catalog_fingerprint
 from veribayes.core.prompts import prompt_set_fingerprint
@@ -24,6 +26,11 @@ _ENGINE_VERSION = compute_engine_version(
     detector_catalog=catalog_fingerprint(), prompt_set=prompt_set_fingerprint()
 ).compact
 _RUBRIC_VERSION = "0.1-draft"
+
+# Public aliases — the real engine version / rubric version the screened pipeline (M4) stamps onto
+# its results and short-circuits.
+ENGINE_VERSION = _ENGINE_VERSION
+RUBRIC_VERSION = _RUBRIC_VERSION
 
 
 def _ev(
@@ -433,4 +440,34 @@ def build_stub_result(mode: str = "full") -> s.ScoredResult:
             total_cost_usd=0.305,
         ),
         validation_ref="unvalidated",
+    )
+
+
+def cost_ledger(entries: Iterable[s.CostLedgerEntry]) -> s.CostLedger:
+    """Roll a sequence of cost entries into a ``CostLedger`` with totals."""
+    items = list(entries)
+    return s.CostLedger(
+        entries=items,
+        total_tokens=sum(e.input_tokens + e.output_tokens for e in items),
+        total_cost_usd=round(sum(e.cost_usd for e in items), 6),
+    )
+
+
+def build_screened_result(
+    relevance: s.Relevance,
+    paper_class: s.PaperClass | None,
+    *,
+    cost_entries: Iterable[s.CostLedgerEntry] = (),
+    mode: str = "full",
+) -> s.ScoredResult:
+    """A real-relevance + real-paper-type result with the per-step assessment **still stubbed**
+    (M4: assess/score land at M5). The header renders the genuine screen/classify output and the
+    real cost ledger; the body remains the labelled stub until M5 replaces it."""
+    base = build_stub_result(mode)
+    return base.model_copy(
+        update={
+            "relevance": relevance,
+            "paper_class": paper_class,
+            "cost_ledger": cost_ledger(cost_entries),
+        }
     )

@@ -39,6 +39,18 @@ _HDDM_PDF = _pdf(
     ]
 )
 
+# A non-Bayesian decoy (no detector hits → no detector floor), so a screened 'no' actually stands.
+_DECOY_PDF = _pdf(
+    [
+        "Returns to schooling: an instrumental-variables analysis",
+        "Abstract. We estimate the causal effect of schooling on wages using ordinary",
+        "least squares and two-stage least squares regression on survey data.",
+        "Methods. Standard errors are clustered by region; we report p-values and 95 percent",
+        "confidence intervals. Robustness is assessed with placebo regressions.",
+        "Results. The estimated return is 8 percent per year of schooling.",
+    ]
+)
+
 
 # --- synchronous endpoints ------------------------------------------------------------------------
 
@@ -145,6 +157,72 @@ def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:
     asyncio.run(run_job(job))
     assert job.status == "failed"
     assert "PDF" in (job.error or "")  # the typed NotAPdfError user_message
+
+
+def test_full_upload_with_fake_client_attaches_real_relevance_and_class(
+    tmp_path, monkeypatch
+) -> None:
+    from veribayes.api import jobs as jobsmod
+    from veribayes.core.llm import FakeLLMClient
+    from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")  # makes run_job route to the full pipeline
+    fake = FakeLLMClient(
+        Relevance(
+            label=RelevanceLabel.yes, confidence=0.92, rationale="Bayesian", evidence_refs=[0]
+        ),
+        PaperClass(
+            primary=PaperClassLabel.empirical,
+            confidence=0.8,
+            rationale="real data",
+            evidence_refs=[0],
+        ),
+    )
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
+
+    job = Job(id="full1", mode="full", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
+    asyncio.run(run_job(job))
+
+    assert job.status == "done" and job.result is not None
+    assert job.result.relevance.label is RelevanceLabel.yes  # real screen output
+    assert job.result.paper_class.primary is PaperClassLabel.empirical  # real classify output
+    # both cheap-model calls are metered into the ledger
+    assert {e.stage for e in job.result.cost_ledger.entries} == {"screen", "classify"}
+    done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
+    assert done == ["ingest", "parse", "detect", "screen", "classify"]
+
+
+def test_full_upload_short_circuits_on_no(tmp_path, monkeypatch) -> None:
+    from veribayes.api import jobs as jobsmod
+    from veribayes.core.llm import FakeLLMClient
+    from veribayes.core.schema import Relevance, RelevanceLabel
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
+    fake = FakeLLMClient(
+        Relevance(label=RelevanceLabel.no, confidence=0.9, rationale="not Bayesian")
+    )
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
+
+    # a non-Bayesian PDF, so the detector floor doesn't (correctly) override the 'no'
+    job = Job(id="full2", mode="full", source_label="x.pdf", data=_DECOY_PDF, filename="x.pdf")
+    asyncio.run(run_job(job))
+
+    assert job.status == "done" and job.result is not None
+    assert job.result.relevance.label is RelevanceLabel.no
+    assert job.result.paper_class is None  # short-circuit: classify skipped, scores null
+    assert job.result.quality_score is None
+    assert len(fake.calls) == 1  # classify never called
+
+
+def test_full_upload_without_api_key_falls_back_to_stub(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    job = Job(id="full3", mode="full", source_label="x.pdf", data=_HDDM_PDF, filename="x.pdf")
+    asyncio.run(run_job(job))
+    assert job.status == "done" and job.result is not None
+    assert job.result.coverage is not None  # the labelled stub engine, unchanged without a key
 
 
 def test_local_report_json_and_md(tmp_path, monkeypatch) -> None:

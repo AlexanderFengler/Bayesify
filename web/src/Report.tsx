@@ -22,6 +22,9 @@ const STATUS_LABEL: Record<StepStatus, string> = {
 
 export function Report({ paper, onReset }: { paper: PaperState; onReset: () => void }) {
   const r = paper.result!;
+  if (r.relevance.label === "no") {
+    return <NotApplicable paper={paper} onReset={onReset} />;
+  }
   return (
     <div className="report">
       <div className="report-head">
@@ -186,6 +189,42 @@ function Confidence({ value }: { value: number }) {
     <span className="confidence" title="engine confidence (uncalibrated at this milestone)">
       {Math.round(value * 100)}% conf.
     </span>
+  );
+}
+
+function NotApplicable({ paper, onReset }: { paper: PaperState; onReset: () => void }) {
+  const r = paper.result!;
+  return (
+    <div className="report">
+      <div className="report-head">
+        <div>
+          <div className="report-eyebrow">Relevance gate</div>
+          <h1 className="report-title">{paper.source_label}</h1>
+        </div>
+        <button className="btn" onClick={onReset}>
+          Analyze another
+        </button>
+      </div>
+
+      <div className="card na-card">
+        <div className="na-badge">This doesn&rsquo;t appear to apply</div>
+        <p className="na-lead">
+          The relevance gate found no Bayesian statistical methodology to assess, so no per-step
+          report was produced &mdash; <strong>nothing was graded</strong>.
+        </p>
+        <div className="na-why">
+          <div className="grounding-label">Why</div>
+          <p>{r.relevance.rationale}</p>
+          <div className="na-conf">gate confidence {Math.round(r.relevance.confidence * 100)}%</div>
+        </div>
+        <p className="na-foot">
+          If you believe this is a Bayesian paper, the detector inventory and a forced re-run will
+          arrive with the full report UX (M6).
+        </p>
+      </div>
+
+      <ProvenanceFooter r={r} />
+    </div>
   );
 }
 

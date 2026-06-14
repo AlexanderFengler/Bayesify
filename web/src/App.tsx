@@ -88,7 +88,9 @@ export function App() {
           </div>
         )}
         {phase === "done" && paper?.result && <Report paper={paper} onReset={reset} />}
-        {phase === "done" && paper?.inventory && <Inventory paper={paper} onReset={reset} />}
+        {phase === "done" && paper && !paper.result && paper.inventory && (
+          <Inventory paper={paper} onReset={reset} />
+        )}
         {phase === "done" && paper && !paper.result && !paper.inventory && paper.local_notice && (
           <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={reset} />
         )}
@@ -107,8 +109,11 @@ function Header() {
           <span className="brand-name">VeriBayes</span>
         </div>
         <span className="brand-tag">Bayesian-workflow report</span>
-        <span className="pill pill-stub" title="The engine is a stub at this milestone.">
-          M1 · stub engine
+        <span
+          className="pill pill-stub"
+          title="Relevance + paper-type are live (M4). Per-step grading is still stubbed until M5."
+        >
+          M4 · grading stubbed
         </span>
       </div>
     </header>

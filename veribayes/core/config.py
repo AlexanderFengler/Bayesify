@@ -31,6 +31,12 @@ def unpaywall_email() -> str | None:
     return os.environ.get("UNPAYWALL_EMAIL") or None
 
 
+def anthropic_api_key() -> str | None:
+    """The Anthropic API key for the LLM stages (screen/classify/assess). Absent → the app keeps
+    full mode on the stub engine and the eval harness skips; local-only mode never needs it."""
+    return os.environ.get("ANTHROPIC_API_KEY") or None
+
+
 # --- Pinned models (G1) ---------------------------------------------------------------------------
 # Judge: the most capable model, for nuanced per-step methodology judgment (assess stage).
 JUDGE_MODEL: str = "claude-opus-4-8"
