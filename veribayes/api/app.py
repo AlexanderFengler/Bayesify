@@ -155,10 +155,17 @@ async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dic
     job = store.get(paper_id)
     if job is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
+    # Restore the upload bytes (the worker freed them after the first ingest) so the rerun can
+    # actually re-run the pipeline rather than fall back to the stub.
+    if job.data is None and job.content_sha256:
+        blobs = jobsmod._blobs()
+        if blobs.exists(job.content_sha256):
+            job.data = blobs.get(job.content_sha256)
     job.relevance_override = relevance_override
     job.status = "queued"
     job.stage = None
     job.result = None
+    job.inventory = None
     job.from_cache = False
     job.force_fresh = True  # an explicit rerun always bypasses the cache (verify the live path)
     job.events.clear()

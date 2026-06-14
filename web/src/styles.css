@@ -936,6 +936,29 @@ main.container {
   color: var(--ink-soft);
   margin: 0;
 }
+.na-escape {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line-strong);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.na-escape .na-foot {
+  max-width: 60ch;
+}
+
+/* Banner shown atop a report that was graded only because the user overrode the relevance gate. */
+.override-banner {
+  font-size: 13px;
+  color: var(--amber);
+  background: var(--amber-soft);
+  border: 1px solid #f0e0bf;
+  border-radius: 8px;
+  padding: 11px 15px;
+  margin-bottom: 18px;
+}
 
 /* --- local-only detection inventory --- */
 .inventory-summary {

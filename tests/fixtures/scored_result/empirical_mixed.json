@@ -5,7 +5,8 @@
     "rationale": "Bayesian",
     "evidence_refs": [
       0
-    ]
+    ],
+    "overridden": false
   },
   "paper_class": {
     "primary": "empirical",

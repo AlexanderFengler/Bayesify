@@ -168,6 +168,10 @@ class Relevance(_Base):
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
     evidence_refs: list[int] = Field(default_factory=list)  # indices into the consumed Evidence[]
+    # Provenance: True when a human overrode the gate (the rerun escape hatch), not the model. The
+    # grounding discipline below disciplines the *model's* claims; a human override is exempt. The
+    # screen stage never sets this — only the API rerun path does (disclosed in the rationale).
+    overridden: bool = False
 
     @model_validator(mode="after")
     def _refs_discipline(self) -> Relevance:
@@ -175,7 +179,11 @@ class Relevance(_Base):
         # but its rationale must enumerate what was searched and not found (so always non-empty).
         if not self.rationale.strip():
             raise ValueError("Relevance.rationale must be non-empty")
-        if self.label in (RelevanceLabel.yes, RelevanceLabel.partial) and not self.evidence_refs:
+        if (
+            not self.overridden
+            and self.label in (RelevanceLabel.yes, RelevanceLabel.partial)
+            and not self.evidence_refs
+        ):
             raise ValueError(f"relevance '{self.label.value}' requires >=1 evidence_ref")
         return self
 

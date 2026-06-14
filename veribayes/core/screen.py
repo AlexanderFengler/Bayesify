@@ -59,7 +59,10 @@ def screen(
     response = call_with_policy(
         client, model=model, system=SCREEN_SYSTEM, user=user, schema=Relevance, max_tokens=600
     )
-    return _apply_floor(response.parsed, evidence), ledger_entry("screen", response)
+    # `overridden` is a human-only provenance flag; the model never owns it. Force it off here so a
+    # stray model value can't bypass the grounding discipline — only the API rerun path sets it.
+    relevance = response.parsed.model_copy(update={"overridden": False})
+    return _apply_floor(relevance, evidence), ledger_entry("screen", response)
 
 
 # --- detector floor -------------------------------------------------------------------------------

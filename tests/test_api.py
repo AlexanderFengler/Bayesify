@@ -243,6 +243,39 @@ def test_full_upload_short_circuits_on_no(tmp_path, monkeypatch) -> None:
     assert fake.calls == ["Relevance"]  # only the screen call; no classify/assess
 
 
+def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch) -> None:
+    """The gate says 'no', but the user overrides it: the rerun forces relevance to 'partial' and
+    grades end-to-end — classify runs even though screen had skipped it, and the override is
+    disclosed in the rationale (A5)."""
+    from veribayes.api import jobs as jobsmod
+    from veribayes.core.schema import RelevanceLabel
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
+    fake = _full_fake(relevance="no")  # the gate would short-circuit this paper...
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
+
+    # ...but the user forced a full grade via the escape hatch (relevance_override set on the job).
+    job = Job(
+        id="rerun-eh",
+        mode="full",
+        source_label="x.pdf",
+        data=_DECOY_PDF,
+        filename="x.pdf",
+        relevance_override="partial",
+    )
+    asyncio.run(run_job(job))
+
+    r = job.result
+    assert job.status == "done" and r is not None
+    assert r.relevance.label is RelevanceLabel.partial  # forced by the override, not 'no'
+    assert "[User override:" in r.relevance.rationale  # the override is disclosed in-band
+    assert r.paper_class is not None  # classify ran even though the gate had said 'no'
+    assert len(r.step_assessments) == 10  # fully graded, not short-circuited
+    assert r.coverage is not None and r.quality_score is not None
+    assert fake.calls[0] == "Relevance" and "PaperClass" in fake.calls  # screen + forced classify
+
+
 def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatch) -> None:
     from veribayes.core import config
 

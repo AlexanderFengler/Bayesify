@@ -23,6 +23,7 @@ from veribayes.core import config
 from veribayes.core import schema as s
 from veribayes.core.assess import assess
 from veribayes.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
+from veribayes.core.classify import classify
 from veribayes.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
 from veribayes.core.errors import IngestError
 from veribayes.core.ingest import ingest_upload
@@ -89,6 +90,7 @@ class Job:
     source_label: str  # what the user gave us (filename or an ID/URL)
     data: bytes | None = None  # uploaded PDF bytes (local-only real pipeline); cleared after parse
     filename: str | None = None
+    content_sha256: str | None = None  # set at ingest; lets the rerun escape hatch re-read the blob
     relevance_override: str | None = None  # set by the rerun escape hatch
     status: str = "queued"  # queued | running | done | failed
     stage: str | None = None
@@ -190,6 +192,7 @@ async def _front_half(job: Job) -> tuple[s.ParsedDoc, list[s.Evidence]]:
     job.stage = "ingest"
     job.emit({"type": "stage", "stage": "ingest", "state": "running"})
     source = await asyncio.to_thread(ingest_upload, blobs, data, filename=filename)
+    job.content_sha256 = source.sha256  # the rerun escape hatch re-reads the blob by this
     job.data = None  # bytes are now content-addressed in the blob store; free the in-memory copy
     job.emit({"type": "stage", "stage": "ingest", "state": "done"})
 
@@ -256,6 +259,20 @@ async def _run_full(job: Job) -> None:
     )
     job.emit({"type": "stage", "stage": "screen", "state": "done"})
 
+    # Escape hatch (rerun): the user forces a relevance so a short-circuited paper is graded anyway.
+    # Cite whatever the detectors found (better grounding for a false-negative screen); the override
+    # is a human provenance, so it's exempt from the "relevant ⇒ ≥1 ref" rule even with no hits.
+    if job.relevance_override:
+        relevance = relevance.model_copy(
+            update={
+                "label": s.RelevanceLabel(job.relevance_override),
+                "overridden": True,
+                "evidence_refs": relevance.evidence_refs or list(range(len(evidence)))[:3],
+                "rationale": relevance.rationale + " [User override: graded as "
+                f"{job.relevance_override} on request.]",
+            }
+        )
+
     if relevance.label is s.RelevanceLabel.no:
         job.result = s.ScoredResult.short_circuit(
             relevance=relevance,
@@ -264,6 +281,11 @@ async def _run_full(job: Job) -> None:
             cost_ledger=cost_ledger(costs),
         )
     else:
+        if paper_class is None:  # the gate had said 'no' but the user forced grading → classify now
+            paper_class, classify_cost = await asyncio.to_thread(
+                classify, parsed, evidence, client=client
+            )
+            costs = costs + [classify_cost]
         job.emit({"type": "stage", "stage": "classify", "state": "done"})
         job.stage = "assess"
         job.emit({"type": "stage", "stage": "assess", "state": "running"})

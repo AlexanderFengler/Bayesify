@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { getPaper, streamProgress, submitPaper } from "./api";
+import { getPaper, rerun, streamProgress, submitPaper } from "./api";
 import { Inventory } from "./Inventory";
 import { Report } from "./Report";
 import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
@@ -26,6 +26,27 @@ export function App() {
     setError(null);
   };
 
+  // Stream one paper_id to completion and load the final result. Shared by a fresh run and a rerun.
+  const track = useCallback((paperId: string) => {
+    setPhase("running");
+    setStageState({});
+    setError(null);
+    streamProgress(
+      paperId,
+      (e) => {
+        if (e.type === "stage" && e.stage) {
+          setStageState((prev) => ({ ...prev, [e.stage!]: e.state ?? "running" }));
+        }
+      },
+      async () => {
+        const result = await getPaper(paperId);
+        setPaper(result);
+        setPhase(result.status === "failed" ? "error" : "done");
+        if (result.status === "failed") setError(result.error ?? "assessment failed");
+      },
+    );
+  }, []);
+
   const start = useCallback(async () => {
     if (!file && !identifier.trim()) return;
     setPhase("running");
@@ -33,25 +54,26 @@ export function App() {
     setError(null);
     try {
       const paperId = await submitPaper({ file, identifier, mode });
-      streamProgress(
-        paperId,
-        (e) => {
-          if (e.type === "stage" && e.stage) {
-            setStageState((prev) => ({ ...prev, [e.stage!]: e.state ?? "running" }));
-          }
-        },
-        async () => {
-          const result = await getPaper(paperId);
-          setPaper(result);
-          setPhase(result.status === "failed" ? "error" : "done");
-          if (result.status === "failed") setError(result.error ?? "assessment failed");
-        },
-      );
+      track(paperId);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setPhase("error");
     }
-  }, [file, identifier, mode]);
+  }, [file, identifier, mode, track]);
+
+  // Gate-page escape hatch: re-run a short-circuited paper as 'partial' so it gets fully graded.
+  const rerunPaper = useCallback(
+    async (paperId: string) => {
+      try {
+        await rerun(paperId);
+        track(paperId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setPhase("error");
+      }
+    },
+    [track],
+  );
 
   return (
     <div className="page">
@@ -87,7 +109,9 @@ export function App() {
             </button>
           </div>
         )}
-        {phase === "done" && paper?.result && <Report paper={paper} onReset={reset} />}
+        {phase === "done" && paper?.result && (
+          <Report paper={paper} onReset={reset} onRerun={rerunPaper} />
+        )}
         {phase === "done" && paper && !paper.result && paper.inventory && (
           <Inventory paper={paper} onReset={reset} />
         )}

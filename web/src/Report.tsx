@@ -24,13 +24,21 @@ const STATUS_LABEL: Record<StepStatus, string> = {
   not_applicable: "not applicable",
 };
 
-export function Report({ paper, onReset }: { paper: PaperState; onReset: () => void }) {
+export function Report({
+  paper,
+  onReset,
+  onRerun,
+}: {
+  paper: PaperState;
+  onReset: () => void;
+  onRerun: (paperId: string) => void;
+}) {
   const r = paper.result!;
   // Records of expert disagreements made this session (step_id -> corrected status). Purely a UI
   // indicator; the engine output is never mutated (A5).
   const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
   if (r.relevance.label === "no") {
-    return <NotApplicable paper={paper} onReset={onReset} />;
+    return <NotApplicable paper={paper} onReset={onReset} onRerun={onRerun} />;
   }
   return (
     <div className="report">
@@ -48,6 +56,13 @@ export function Report({ paper, onReset }: { paper: PaperState; onReset: () => v
           </button>
         </div>
       </div>
+
+      {r.relevance.overridden && (
+        <div className="override-banner">
+          Graded on request. The relevance gate did not classify this as a Bayesian paper; you asked
+          for a full assessment anyway, so treat coverage and quality as provisional.
+        </div>
+      )}
 
       <SummaryBand r={r} />
       <RelevanceLine r={r} />
@@ -367,8 +382,17 @@ function Confidence({ value }: { value: number }) {
   );
 }
 
-function NotApplicable({ paper, onReset }: { paper: PaperState; onReset: () => void }) {
+function NotApplicable({
+  paper,
+  onReset,
+  onRerun,
+}: {
+  paper: PaperState;
+  onReset: () => void;
+  onRerun: (paperId: string) => void;
+}) {
   const r = paper.result!;
+  const [busy, setBusy] = useState(false);
   return (
     <div className="report">
       <div className="report-head">
@@ -394,10 +418,22 @@ function NotApplicable({ paper, onReset }: { paper: PaperState; onReset: () => v
           <p>{r.relevance.rationale}</p>
           <div className="na-conf">gate confidence {Math.round(r.relevance.confidence * 100)}%</div>
         </div>
-        <p className="na-foot">
-          If you believe this is a Bayesian paper, the detector inventory and a forced re-run will
-          arrive with the full report UX (M6).
-        </p>
+        <div className="na-escape">
+          <p className="na-foot">
+            If you believe this is a Bayesian paper, you can override the gate and grade it anyway.
+            The override is recorded; coverage and quality will be marked provisional.
+          </p>
+          <button
+            className="btn btn-primary"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              onRerun(paper.paper_id);
+            }}
+          >
+            {busy ? "Re-running…" : "Run full assessment anyway"}
+          </button>
+        </div>
       </div>
 
       <ProvenanceFooter r={r} />

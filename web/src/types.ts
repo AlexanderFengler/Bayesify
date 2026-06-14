@@ -56,6 +56,7 @@ export interface Relevance {
   label: "yes" | "partial" | "no";
   confidence: number;
   rationale: string;
+  overridden: boolean; // true when a human overrode the gate (the rerun escape hatch)
 }
 export interface PaperClass {
   primary: string;
@@ -127,6 +128,7 @@ export interface PaperState {
   stage: string | null;
   mode: string;
   source_label: string;
+  relevance_override: string | null; // set when the user forced a short-circuited paper to be graded
   result: ScoredResult | null;
   fix_list: FixItem[] | null;
   inventory: EvidenceInventory | null;
