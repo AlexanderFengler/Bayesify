@@ -69,9 +69,10 @@ def llm_backend() -> str:
 # --- Pinned models (G1) ---------------------------------------------------------------------------
 # Judge: the most capable model, for nuanced per-step methodology judgment (assess stage).
 JUDGE_MODEL: str = "claude-opus-4-8"
-# Screen tier: cheapest fast model, for the relevance gate + paper-type classifier (cheap-before-
-# expensive, C6). Gates the costly assess stage.
-SCREEN_MODEL: str = "claude-haiku-4-5"
+# Screen/classify model. During M4 bring-up this is Opus 4.8 — guaranteed available on a Max plan
+# via the Agent SDK, avoiding tier-availability surprises while we validate the subscription path.
+# It can move back to the cheap Haiku tier (the C6 gate) later. Override: VERIBAYES_SCREEN_MODEL.
+SCREEN_MODEL: str = os.environ.get("VERIBAYES_SCREEN_MODEL") or "claude-opus-4-8"
 
 
 @dataclass(frozen=True)

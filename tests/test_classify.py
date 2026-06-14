@@ -7,6 +7,7 @@ from datetime import datetime
 import pytest
 
 from veribayes.core import classify as C
+from veribayes.core import config
 from veribayes.core.llm import FakeLLMClient, LLMError, LLMTransientError
 from veribayes.core.schema import (
     Evidence,
@@ -49,7 +50,7 @@ def test_classify_returns_paperclass_and_meters_cost() -> None:
     cls, entry = C.classify(_parsed("We fit a model to real RT data."), [_ev()], client=client)
 
     assert cls.primary is PaperClassLabel.empirical and cls.secondary is None
-    assert entry.stage == "classify" and entry.model == "claude-haiku-4-5"
+    assert entry.stage == "classify" and entry.model == config.SCREEN_MODEL
     assert client.calls[0]["schema"] == "PaperClass"
     assert "DETECTOR HITS" in client.calls[0]["user"]
 
