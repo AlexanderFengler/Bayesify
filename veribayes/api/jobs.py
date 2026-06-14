@@ -24,7 +24,7 @@ from veribayes.core.cache import BlobStore
 from veribayes.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
 from veribayes.core.errors import IngestError
 from veribayes.core.ingest import ingest_upload
-from veribayes.core.llm import AnthropicClient, LLMClient
+from veribayes.core.llm import AgentSDKClient, AnthropicClient, LLMClient
 from veribayes.core.parse import parse
 from veribayes.core.pipeline import screen_and_classify
 from veribayes.core.stub import (
@@ -130,7 +130,10 @@ class JobStore:
 
 
 def _llm_client() -> LLMClient:
-    """The LLM client for full mode. A seam: tests monkeypatch this to inject a FakeLLMClient."""
+    """The LLM client for full mode, chosen by ``config.llm_backend()``: the Claude subscription via
+    the Agent SDK, or the API key. A seam: tests monkeypatch this to inject a FakeLLMClient."""
+    if config.llm_backend() == "agent-sdk":
+        return AgentSDKClient()
     return AnthropicClient(api_key=config.anthropic_api_key())
 
 
@@ -143,7 +146,7 @@ async def run_job(job: Job) -> None:
         job.emit({"type": "status", "status": "running"})
         if job.mode == "local" and job.data is not None:
             await _run_local(job)
-        elif job.mode == "full" and job.data is not None and config.anthropic_api_key():
+        elif job.mode == "full" and job.data is not None and config.llm_backend() != "none":
             await _run_full(job)
         else:
             await _run_stub(job)

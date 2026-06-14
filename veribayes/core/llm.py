@@ -19,10 +19,12 @@ tested against the contract first.
 
 from __future__ import annotations
 
+import asyncio
+import json
 from dataclasses import dataclass
 from typing import Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from veribayes.core import config
 from veribayes.core.schema import CostLedgerEntry
@@ -175,6 +177,131 @@ class AnthropicClient:
             model=model,
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
+        )
+
+
+# --- Claude Agent SDK client (runs on a Claude subscription, no API key) --------------------------
+
+
+def _run_sync(coro_factory):
+    """Run an async coroutine to completion from sync code. Safe in a worker thread (no running
+    loop → ``asyncio.run``); if a loop is already running, run in a fresh thread."""
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro_factory())
+    import threading
+
+    box: dict = {}
+
+    def _runner() -> None:
+        box["value"] = asyncio.run(coro_factory())
+
+    thread = threading.Thread(target=_runner)
+    thread.start()
+    thread.join()
+    return box["value"]
+
+
+def _usage_tokens(usage: object) -> tuple[int, int]:
+    def get(key: str) -> int:
+        raw = usage.get(key) if isinstance(usage, dict) else getattr(usage, key, 0)
+        return int(raw or 0)
+
+    if usage is None:
+        return 0, 0
+    return get("input_tokens"), get("output_tokens")
+
+
+def _brace_json(text: str) -> dict | None:
+    """Best-effort: parse the first balanced ``{...}`` object from text (fallback when the CLI did
+    not return schema-bound ``structured_output``)."""
+    start = text.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    for i in range(start, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    obj = json.loads(text[start : i + 1])
+                except ValueError:
+                    return None
+                return obj if isinstance(obj, dict) else None
+    return None
+
+
+class AgentSDKClient:
+    """An ``LLMClient`` backed by the **Claude Agent SDK** — runs on the user's Claude Code session,
+    so it bills their **subscription** (Pro/Max) instead of API credits. Requires the ``claude`` CLI
+    installed and logged in (``claude login``); the SDK is imported lazily.
+
+    Mirrors the proven single-turn, tool-free, schema-bound pattern: ``output_format`` json-schema →
+    ``ResultMessage.structured_output``, with a brace-matching text fallback. **Note:** if
+    ``ANTHROPIC_API_KEY`` is set, the Agent SDK bills *that* key (API), not the subscription — unset
+    it to use the plan.
+    """
+
+    def complete[T: BaseModel](
+        self,
+        *,
+        model: str,
+        system: str,
+        user: str,
+        schema: type[T],
+        max_tokens: int = 1024,
+    ) -> LLMResponse[T]:
+        try:
+            import claude_agent_sdk as sdk
+        except ImportError as exc:  # pragma: no cover - dependency is declared
+            raise LLMError("the 'claude-agent-sdk' package is not installed") from exc
+
+        options = sdk.ClaudeAgentOptions(
+            system_prompt=system,
+            model=model,
+            allowed_tools=[],  # pure LLM call, no tools
+            max_turns=1,
+            permission_mode="bypassPermissions",
+            output_format={"type": "json_schema", "schema": schema.model_json_schema()},
+        )
+
+        async def _collect():
+            chunks: list[str] = []
+            result: dict = {"structured": None, "in": 0, "out": 0, "error": None}
+            async for msg in sdk.query(prompt=user, options=options):
+                if hasattr(msg, "structured_output") or hasattr(msg, "total_cost_usd"):
+                    so = getattr(msg, "structured_output", None)
+                    if isinstance(so, dict):
+                        result["structured"] = so
+                    result["in"], result["out"] = _usage_tokens(getattr(msg, "usage", None))
+                    if getattr(msg, "is_error", False):
+                        result["error"] = getattr(msg, "result", None) or "agent SDK error"
+                elif hasattr(msg, "content"):
+                    for block in msg.content:
+                        text = getattr(block, "text", None)
+                        if isinstance(text, str):
+                            chunks.append(text)
+            return "".join(chunks).strip(), result
+
+        try:
+            text, result = _run_sync(_collect)
+        except Exception as exc:  # CLI launch / connection problems → retryable
+            raise LLMTransientError(str(exc)) from exc
+
+        if result["error"]:
+            raise LLMError(f"agent SDK error: {result['error']}")
+        data = result["structured"] if result["structured"] is not None else _brace_json(text)
+        if data is None:
+            raise LLMError("agent SDK returned no structured output and no parseable JSON")
+        try:
+            parsed = schema.model_validate(data)
+        except ValidationError as exc:
+            raise LLMError(f"agent SDK output failed schema validation: {exc}") from exc
+        return LLMResponse(
+            parsed=parsed, model=model, input_tokens=result["in"], output_tokens=result["out"]
         )
 
 

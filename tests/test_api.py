@@ -216,13 +216,17 @@ def test_full_upload_short_circuits_on_no(tmp_path, monkeypatch) -> None:
     assert len(fake.calls) == 1  # classify never called
 
 
-def test_full_upload_without_api_key_falls_back_to_stub(tmp_path, monkeypatch) -> None:
+def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatch) -> None:
+    from veribayes.core import config
+
     monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("VERIBAYES_LLM_BACKEND", raising=False)
+    monkeypatch.setattr(config, "claude_code_available", lambda: False)  # no key, no CLI → none
     job = Job(id="full3", mode="full", source_label="x.pdf", data=_HDDM_PDF, filename="x.pdf")
     asyncio.run(run_job(job))
     assert job.status == "done" and job.result is not None
-    assert job.result.coverage is not None  # the labelled stub engine, unchanged without a key
+    assert job.result.coverage is not None  # the labelled stub engine, unchanged sans credentials
 
 
 def test_local_report_json_and_md(tmp_path, monkeypatch) -> None:

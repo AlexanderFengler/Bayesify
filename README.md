@@ -69,6 +69,20 @@ Drop a PDF and choose **Local-only** mode for an on-device evidence inventory (n
 leaves the machine). PDF parsing uses PyMuPDF by default; `pixi run -e parse app` adds the richer
 Docling parser (layout, tables, captions).
 
+### LLM backend (Full mode)
+
+Full mode (relevance + paper-type, with grading from M5) needs a model. VeriBayes picks a backend
+automatically (override with `VERIBAYES_LLM_BACKEND=agent-sdk|api|none`):
+
+1. **Claude subscription** via the Claude Agent SDK — used when the `claude` CLI is installed and
+   logged in (`claude login`). **No API key**; bills your Pro/Max plan. To use it, make sure
+   `ANTHROPIC_API_KEY` is **unset** (if it's set, the Agent SDK bills that key instead).
+2. **API key** — set `ANTHROPIC_API_KEY` (pay-as-you-go). Haiku screen+classify is ≈ $0.01/paper.
+3. **Neither** → Full mode falls back to the labelled stub engine; Local-only mode still works.
+
+The active path is whatever `config.llm_backend()` resolves to. Run the live accuracy gates with
+`ANTHROPIC_API_KEY=... pixi run eval` (or on the subscription backend, just `pixi run eval`).
+
 ## Status
 
 Phase 1 (research → rubric) complete; Phase 2 (MVP) under way — see

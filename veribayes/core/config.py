@@ -14,7 +14,9 @@ here MUST bump ``engine_version`` (it does, automatically) and invalidates the c
 
 from __future__ import annotations
 
+import importlib.util
 import os
+import shutil
 from dataclasses import dataclass
 
 # --- OA-provider config (M2 fetcher; verified terms 2026-06-13) ---
@@ -35,6 +37,33 @@ def anthropic_api_key() -> str | None:
     """The Anthropic API key for the LLM stages (screen/classify/assess). Absent → the app keeps
     full mode on the stub engine and the eval harness skips; local-only mode never needs it."""
     return os.environ.get("ANTHROPIC_API_KEY") or None
+
+
+def claude_code_available() -> bool:
+    """True if the Claude Agent SDK can run on the local Claude Code session: the ``claude`` CLI is
+    on PATH and ``claude_agent_sdk`` is importable. This is the no-API-key path that bills the
+    user's Claude subscription (Pro/Max)."""
+    if shutil.which("claude") is None:
+        return False
+    return importlib.util.find_spec("claude_agent_sdk") is not None
+
+
+def llm_backend() -> str:
+    """Which backend full mode uses: ``"agent-sdk"`` (Claude subscription via Claude Code, no key),
+    ``"api"`` (``ANTHROPIC_API_KEY``, pay-as-you-go), or ``"none"`` (→ stub fallback).
+
+    Default preference is **subscription-first** (mirrors the hormuz translator): the Agent SDK when
+    the ``claude`` CLI is available, else the API key. Override with ``VERIBAYES_LLM_BACKEND``.
+    Caveat: the Agent SDK bills ``ANTHROPIC_API_KEY`` if it is set — unset it to use the plan,
+    or set ``VERIBAYES_LLM_BACKEND=agent-sdk``."""
+    override = os.environ.get("VERIBAYES_LLM_BACKEND")
+    if override in ("agent-sdk", "api", "none"):
+        return override
+    if claude_code_available():
+        return "agent-sdk"
+    if anthropic_api_key():
+        return "api"
+    return "none"
 
 
 # --- Pinned models (G1) ---------------------------------------------------------------------------

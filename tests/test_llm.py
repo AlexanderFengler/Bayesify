@@ -97,3 +97,85 @@ def test_ledger_entry_unpriced_model_fails_loud() -> None:
     )
     with pytest.raises(KeyError):
         ledger_entry("screen", resp)
+
+
+# --- real AnthropicClient (SDK injected; no network) ----------------------------------------------
+
+
+def test_anthropic_client_maps_parsed_output_and_usage() -> None:
+    from types import SimpleNamespace
+
+    from veribayes.core.llm import AnthropicClient
+
+    class _Msgs:
+        def parse(self, **kw):
+            return SimpleNamespace(
+                parsed_output=_Answer(label="yes"),
+                usage=SimpleNamespace(input_tokens=11, output_tokens=4),
+            )
+
+    client = AnthropicClient(api_key="sk-fake")
+    client._sdk_client = SimpleNamespace(messages=_Msgs())  # bypass real SDK construction
+    resp = client.complete(model="claude-haiku-4-5", system="s", user="u", schema=_Answer)
+    assert resp.parsed.label == "yes" and resp.input_tokens == 11 and resp.output_tokens == 4
+
+
+# --- AgentSDKClient (claude-agent-sdk query monkeypatched; no CLI/session) ---
+
+
+def _agent_complete(monkeypatch, messages):
+    import claude_agent_sdk as sdk
+
+    from veribayes.core.llm import AgentSDKClient
+
+    async def fake_query(*, prompt, options):
+        for m in messages:
+            yield m
+
+    monkeypatch.setattr(sdk, "query", fake_query)
+    return AgentSDKClient().complete(
+        model="claude-haiku-4-5", system="s", user="u", schema=_Answer
+    )
+
+
+def test_agentsdk_maps_structured_output(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    resp = _agent_complete(
+        monkeypatch,
+        [
+            SimpleNamespace(content=[SimpleNamespace(text="(prose, ignored)")]),
+            SimpleNamespace(
+                structured_output={"label": "yes"},
+                usage={"input_tokens": 12, "output_tokens": 4},
+                is_error=False,
+                result=None,
+                total_cost_usd=0.0,
+            ),
+        ],
+    )
+    assert resp.parsed.label == "yes" and resp.input_tokens == 12 and resp.output_tokens == 4
+
+
+def test_agentsdk_falls_back_to_brace_json(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    resp = _agent_complete(
+        monkeypatch,
+        [
+            SimpleNamespace(content=[SimpleNamespace(text='here: {"label": "no"} done')]),
+            SimpleNamespace(usage=None, is_error=False, result=None, total_cost_usd=0.0),
+        ],
+    )
+    assert resp.parsed.label == "no"
+
+
+def test_agentsdk_raises_on_error(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    with pytest.raises(LLMError):
+        _agent_complete(
+            monkeypatch,
+            [SimpleNamespace(structured_output=None, usage=None, is_error=True, result="boom",
+                             total_cost_usd=0.0)],
+        )
