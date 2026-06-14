@@ -121,6 +121,7 @@ export interface PaperState {
   parser: string | null;
   parser_version: string | null;
   backend: string | null; // "agent-sdk" | "api" | "stub" — who produced the result
+  from_cache: boolean; // true if this was a cached replay, not a fresh run
   local_notice: string | null;
   error: string | null;
 }

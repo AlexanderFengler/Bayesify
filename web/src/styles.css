@@ -752,6 +752,11 @@ main.container {
   background: var(--amber-soft);
   border: 1px solid #f0e0bf;
 }
+.backend-badge.be-cache {
+  color: var(--blue);
+  background: var(--blue-soft);
+  border: 1px solid #cfe2f6;
+}
 .relevance-line {
   margin: 0 0 18px;
   padding: 12px 16px;

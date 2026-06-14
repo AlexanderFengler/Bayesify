@@ -13,6 +13,7 @@ the user's home). Runtime-hardening items (orphan sweep, arq/rq escalation) are 
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import uuid
 from dataclasses import dataclass, field
@@ -20,7 +21,7 @@ from pathlib import Path
 
 from veribayes.core import config
 from veribayes.core import schema as s
-from veribayes.core.cache import BlobStore
+from veribayes.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
 from veribayes.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
 from veribayes.core.errors import IngestError
 from veribayes.core.ingest import ingest_upload
@@ -58,6 +59,7 @@ _LOCAL_NEEDS_UPLOAD = (
 )
 _TERMINAL = {"done", "failed"}
 _STAGE_DELAY_S = 0.45  # simulated per-stage work (stub paths) so progress is visible in the UI
+_log = logging.getLogger("veribayes.jobs")
 
 
 def _data_root() -> Path:
@@ -68,6 +70,17 @@ def _data_root() -> Path:
 
 def _blobs() -> BlobStore:
     return BlobStore(_data_root() / "blobs")
+
+
+def _results() -> ResultCache:
+    return ResultCache(_data_root() / "results")
+
+
+def _cache_enabled() -> bool:
+    """Result caching is on unless VERIBAYES_NO_CACHE is set. Caching is **success-only** and the
+    cache hit is surfaced (``from_cache``), so it can never silently mask a broken live run — a
+    failure is never cached, and a hit is always labelled."""
+    return os.environ.get("VERIBAYES_NO_CACHE", "").strip().lower() not in ("1", "true", "yes")
 
 
 @dataclass
@@ -85,6 +98,8 @@ class Job:
     parser: str | None = None  # which parser ran (docling | pymupdf), surfaced in the local report
     parser_version: str | None = None
     backend: str | None = None  # who produced the result: "agent-sdk" | "api" | "stub"
+    from_cache: bool = False  # this result was a cache replay, not a fresh run (surfaced in the UI)
+    force_fresh: bool = False  # bypass the cache for this run (set by the rerun escape hatch)
     local_notice: str | None = None  # the labelled local-mode explanation
     error: str | None = None
     _seq: int = 0
@@ -152,10 +167,14 @@ async def run_job(job: Job) -> None:
         else:
             await _run_stub(job)
     except IngestError as exc:  # typed, user-facing (bad PDF, scanned, encrypted, …)
+        _log.warning("job %s failed (ingest, stage=%s): %s", job.id, job.stage, exc.user_message)
         job.status = "failed"
         job.error = exc.user_message
         job.emit({"type": "failed", "reason": exc.user_message})
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception as exc:
+        # Log the full traceback to the app console so failures are debuggable (not swallowed), and
+        # surface the message to the UI. str(exc) carries the chained cause (e.g. the SDK's error).
+        _log.exception("job %s failed in stage %s", job.id, job.stage)
         job.status = "failed"
         job.error = str(exc)
         job.emit({"type": "failed", "reason": str(exc)})
@@ -198,9 +217,34 @@ async def _run_local(job: Job) -> None:
 
 
 async def _run_full(job: Job) -> None:
-    """Full mode (upload + API key): real front half, then screen + classify on the cheap model.
-    A ``no`` short-circuits with null scores; a relevant paper gets real relevance + paper type with
-    the per-step assessment still stubbed (M4 — grading lands at M5)."""
+    """Full mode (upload + credentials): real front half, then screen + classify.
+
+    A ``no`` short-circuits with null scores; a relevant paper gets real relevance + paper type
+    with the per-step assessment still stubbed (M4 — grading lands at M5). Results are cached so
+    identical re-uploads return instantly — but **safely**, so a hit can never mask a broken run:
+    only successful runs are cached (a failure is never stored), the key includes ``engine_version``
+    (a code/model/prompt change busts it), the hit is labelled ``from_cache`` in the UI, and
+    ``force_fresh`` / ``VERIBAYES_NO_CACHE`` bypass it entirely to force a real run.
+    """
+    key = FullResultKey(
+        content_sha256=sha256_bytes(job.data),  # computed before _front_half clears job.data
+        engine_version=ENGINE_VERSION,
+        rubric_version=RUBRIC_VERSION,
+        mode="full",
+        relevance_override=job.relevance_override,
+    )
+    if _cache_enabled() and not job.force_fresh:
+        cached = _results().get(key)
+        if cached is not None:
+            job.result = s.ScoredResult.model_validate(cached["result"])
+            job.backend = cached.get("backend")
+            job.from_cache = True
+            for stage in STAGES[:5]:  # ingest..classify — complete the UI stepper instantly
+                job.emit({"type": "stage", "stage": stage, "state": "done"})
+            job.status = "done"
+            job.emit({"type": "done"})
+            return
+
     parsed, evidence = await _front_half(job)
     client = _llm_client()
     job.backend = config.llm_backend()  # "agent-sdk" (subscription) | "api" — shown in the report
@@ -223,6 +267,9 @@ async def _run_full(job: Job) -> None:
         )
     else:
         job.result = build_screened_result(relevance, paper_class, cost_entries=cost_entries)
+    # Cache only on success (we reached here without raising) — never mask a broken run.
+    if _cache_enabled():
+        _results().put(key, {"backend": job.backend, "result": job.result.model_dump(mode="json")})
     job.status = "done"
     job.emit({"type": "done"})
 

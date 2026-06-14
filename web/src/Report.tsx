@@ -30,7 +30,7 @@ export function Report({ paper, onReset }: { paper: PaperState; onReset: () => v
       <div className="report-head">
         <div>
           <div className="report-eyebrow">
-            Report <BackendBadge backend={paper.backend} />
+            Report <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
           </div>
           <h1 className="report-title">{paper.source_label}</h1>
         </div>
@@ -55,15 +55,18 @@ export function Report({ paper, onReset }: { paper: PaperState; onReset: () => v
 
 // Who produced this result. The clearest "the model actually ran" signal — a real backend
 // (subscription / API) vs the labelled stub that runs when no credentials are configured.
-function BackendBadge({ backend }: { backend: string | null }) {
+function BackendBadge({ backend, fromCache }: { backend: string | null; fromCache: boolean }) {
   if (!backend) return null;
-  const map: Record<string, { label: string; live: boolean }> = {
-    "agent-sdk": { label: "Live · Claude subscription", live: true },
-    api: { label: "Live · Anthropic API", live: true },
-    stub: { label: "Stub engine · no model", live: false },
-  };
-  const m = map[backend] ?? { label: backend, live: false };
-  return <span className={"backend-badge " + (m.live ? "be-live" : "be-stub")}>{m.label}</span>;
+  if (backend === "stub") {
+    return <span className="backend-badge be-stub">Stub engine · no model</span>;
+  }
+  const name =
+    backend === "agent-sdk" ? "Claude subscription" : backend === "api" ? "Anthropic API" : backend;
+  // A cache replay is labelled distinctly from a fresh live run, so a hit never masquerades as live.
+  if (fromCache) {
+    return <span className="backend-badge be-cache">Cached · {name}</span>;
+  }
+  return <span className="backend-badge be-live">Live · {name}</span>;
 }
 
 // The model's own relevance verdict + rationale — for a live run this reflects THIS paper; the stub
@@ -232,7 +235,7 @@ function NotApplicable({ paper, onReset }: { paper: PaperState; onReset: () => v
       <div className="report-head">
         <div>
           <div className="report-eyebrow">
-            Relevance gate <BackendBadge backend={paper.backend} />
+            Relevance gate <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
           </div>
           <h1 className="report-title">{paper.source_label}</h1>
         </div>

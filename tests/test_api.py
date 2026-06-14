@@ -233,6 +233,94 @@ def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatc
     assert job.backend == "stub"  # the badge tells the UI this is NOT a live model run
 
 
+# --- result caching (safe: success-only, visible, bypassable) -------------------------------------
+
+
+def _full_fake():
+    from veribayes.core.llm import FakeLLMClient
+    from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+
+    return FakeLLMClient(
+        Relevance(
+            label=RelevanceLabel.yes, confidence=0.9, rationale="bayesian", evidence_refs=[0]
+        ),
+        PaperClass(
+            primary=PaperClassLabel.empirical, confidence=0.8, rationale="real", evidence_refs=[0]
+        ),
+    )
+
+
+def _full_cache_env(tmp_path, monkeypatch):
+    from veribayes.core import config
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
+    monkeypatch.setattr(config, "claude_code_available", lambda: False)  # backend "api"
+
+
+def test_identical_rerun_is_served_from_cache_without_calling_the_model(tmp_path, monkeypatch):
+    from veribayes.api import jobs as jobsmod
+    from veribayes.core.llm import FakeLLMClient
+
+    _full_cache_env(tmp_path, monkeypatch)
+    monkeypatch.delenv("VERIBAYES_NO_CACHE", raising=False)
+
+    f1 = _full_fake()
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: f1)
+    j1 = Job(id="ca1", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
+    asyncio.run(run_job(j1))
+    assert j1.from_cache is False and j1.result is not None and len(f1.calls) == 2
+
+    # same bytes → cache hit; the LLM client must NOT be called again
+    f2 = FakeLLMClient()  # empty: would raise if invoked
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: f2)
+    j2 = Job(id="ca2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
+    asyncio.run(run_job(j2))
+    assert j2.from_cache is True and j2.result is not None
+    assert len(f2.calls) == 0  # served from cache, no model call
+    assert j2.backend == "api"  # original backend preserved through the cache
+
+
+def test_failed_run_is_not_cached_so_breakage_is_never_masked(tmp_path, monkeypatch):
+    from veribayes.api import jobs as jobsmod
+    from veribayes.core.llm import FakeLLMClient, LLMTransientError
+
+    _full_cache_env(tmp_path, monkeypatch)
+    monkeypatch.delenv("VERIBAYES_NO_CACHE", raising=False)
+
+    # first run fails (transient ×3 → fail closed)
+    f1 = FakeLLMClient(LLMTransientError("x"), LLMTransientError("y"), LLMTransientError("z"))
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: f1)
+    j1 = Job(id="cf1", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
+    asyncio.run(run_job(j1))
+    assert j1.status == "failed" and j1.result is None
+
+    # a working rerun must actually RUN (nothing cached), not replay a phantom success
+    f2 = _full_fake()
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: f2)
+    j2 = Job(id="cf2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
+    asyncio.run(run_job(j2))
+    assert j2.status == "done" and j2.from_cache is False and len(f2.calls) == 2
+
+
+def test_no_cache_env_always_runs_fresh(tmp_path, monkeypatch):
+    from veribayes.api import jobs as jobsmod
+
+    _full_cache_env(tmp_path, monkeypatch)
+    monkeypatch.setenv("VERIBAYES_NO_CACHE", "1")
+
+    f1 = _full_fake()
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: f1)
+    j1 = Job(id="cn1", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
+    asyncio.run(run_job(j1))
+
+    f2 = _full_fake()
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: f2)
+    j2 = Job(id="cn2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
+    asyncio.run(run_job(j2))
+    assert j2.from_cache is False and len(f2.calls) == 2  # not cached: a real run every time
+
+
 def test_local_report_json_and_md(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
     job = store.create(mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")

@@ -91,6 +91,7 @@ def _job_payload(job: jobsmod.Job) -> dict:
         "parser": job.parser,
         "parser_version": job.parser_version,
         "backend": job.backend,
+        "from_cache": job.from_cache,
         "local_notice": job.local_notice,
         "error": job.error,
     }
@@ -153,6 +154,8 @@ async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dic
     job.status = "queued"
     job.stage = None
     job.result = None
+    job.from_cache = False
+    job.force_fresh = True  # an explicit rerun always bypasses the cache (verify the live path)
     job.events.clear()
     store.overrides.append(
         {"assessment_id": paper_id, "kind": "relevance_rerun", "value": relevance_override}
