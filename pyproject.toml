@@ -45,6 +45,8 @@ select = ["E", "F", "I", "UP", "B"]
 "veribayes/core/detectors/catalog.py" = ["E501"]
 # The fixture generator is hand-authored prose (sample paper text); long readable strings are fine.
 "tests/fixtures/build_fixtures.py" = ["E501"]
+# The prompt set is LLM prompt-text data (the G1 review surface); prompts read best unwrapped.
+"veribayes/core/prompts.py" = ["E501"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI dependency markers are designed to be called in argument defaults (not a B008 smell).

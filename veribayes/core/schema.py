@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class _Base(BaseModel):
@@ -168,6 +168,16 @@ class Relevance(_Base):
     rationale: str
     evidence_refs: list[int] = Field(default_factory=list)  # indices into the consumed Evidence[]
 
+    @model_validator(mode="after")
+    def _refs_discipline(self) -> Relevance:
+        # d-screen-classify.md: 'yes'/'partial' must cite >=1 detector hit; 'no' may have empty refs
+        # but its rationale must enumerate what was searched and not found (so always non-empty).
+        if not self.rationale.strip():
+            raise ValueError("Relevance.rationale must be non-empty")
+        if self.label in (RelevanceLabel.yes, RelevanceLabel.partial) and not self.evidence_refs:
+            raise ValueError(f"relevance '{self.label.value}' requires >=1 evidence_ref")
+        return self
+
 
 class PaperClass(_Base):
     primary: PaperClassLabel
@@ -175,6 +185,14 @@ class PaperClass(_Base):
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
     evidence_refs: list[int] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _refs_discipline(self) -> PaperClass:
+        if not self.rationale.strip():
+            raise ValueError("PaperClass.rationale must be non-empty")
+        if not self.evidence_refs:
+            raise ValueError("PaperClass requires >=1 evidence_ref")
+        return self
 
 
 class GateFacts(_Base):

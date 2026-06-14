@@ -46,7 +46,10 @@ def test_scored_result_round_trip_is_byte_stable() -> None:
     result = s.ScoredResult(
         relevance=_relevance(s.RelevanceLabel.yes),
         paper_class=s.PaperClass(
-            primary=s.PaperClassLabel.empirical, confidence=0.8, rationale="real data"
+            primary=s.PaperClassLabel.empirical,
+            confidence=0.8,
+            rationale="real data",
+            evidence_refs=[0],
         ),
         gate_facts=s.GateFacts(
             inference_method=s.InferenceMethod.hmc_nuts,
