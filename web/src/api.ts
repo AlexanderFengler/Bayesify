@@ -66,6 +66,20 @@ export async function rerun(paperId: string): Promise<string> {
   return (await res.json()).paper_id as string;
 }
 
+export interface Calibration {
+  status: string; // "not_yet_validated" until the M7 validation run produces agreement metrics
+  note: string;
+  agreement?: Record<string, number> | null; // populated post-M7; absent/empty for now
+}
+
+// Fetch the engine's calibration status. Honest by construction: pre-M7 it reports
+// "not_yet_validated" with no agreement metrics (the validation run hasn't happened yet).
+export async function getCalibration(): Promise<Calibration> {
+  const res = await fetch("/api/calibration");
+  if (!res.ok) throw new Error("could not fetch calibration");
+  return (await res.json()) as Calibration;
+}
+
 export interface ProgressEvent {
   type: "status" | "stage" | "done" | "failed";
   stage?: string;

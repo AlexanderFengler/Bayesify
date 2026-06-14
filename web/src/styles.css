@@ -94,8 +94,21 @@ body {
   color: var(--ink-faint);
   font-size: 13px;
 }
-.topbar-inner .pill-stub {
+.mode-indicator {
   margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.mi-full {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.mi-local {
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .pill {
@@ -727,7 +740,17 @@ main.container {
   padding: 18px 0;
   color: var(--ink-faint);
   font-size: 12.5px;
-  text-align: center;
+}
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.footer-links {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
 }
 
 /* --- report head actions + downloads --- */
@@ -1114,6 +1137,119 @@ main.container {
   font-size: 12px;
   color: var(--ink-faint);
   margin: 10px 0 0;
+}
+
+/* --- modals (privacy disclosure + calibration) --- */
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 30, 50, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 20;
+}
+.modal-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  width: 100%;
+  max-width: 560px;
+  max-height: 86vh;
+  overflow-y: auto;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+}
+.modal-title {
+  margin: 0;
+  font-size: 19px;
+}
+.modal-x {
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 0 4px;
+}
+.modal-body {
+  padding: 14px 24px 24px;
+}
+.modal-lead {
+  font-size: 15px;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+.modal-foot {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 16px 0 0;
+}
+.modal-actions {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+.privacy-mode {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+.privacy-mode p {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+.privacy-mode-head {
+  font-size: 13px;
+  font-weight: 650;
+}
+.pm-full {
+  color: var(--amber);
+}
+.pm-local {
+  color: var(--green);
+}
+.calib-status {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 650;
+  padding: 4px 11px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+.calib-status.pending {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+.calib-status.ok {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.calib-metrics {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+.calib-metrics li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.calib-k {
+  color: var(--ink-soft);
+}
+.calib-v {
+  font-family: var(--mono);
 }
 
 @media (max-width: 640px) {

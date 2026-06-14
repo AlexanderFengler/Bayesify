@@ -1,10 +1,13 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getPaper, rerun, streamProgress, submitPaper } from "./api";
 import { Inventory } from "./Inventory";
+import { CalibrationModal, PrivacyModal } from "./Modal";
 import { Report } from "./Report";
 import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
 
 type Phase = "idle" | "running" | "done" | "error";
+type ModalKind = "privacy" | "calibration" | null;
+const PRIVACY_ACK_KEY = "veribayes.privacy.ack"; // set once the first-run disclosure is acknowledged
 
 export function App() {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -15,7 +18,23 @@ export function App() {
   const [stageState, setStageState] = useState<Record<string, "running" | "done">>({});
   const [paper, setPaper] = useState<PaperState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [modal, setModal] = useState<ModalKind>(null);
+  const [firstRun, setFirstRun] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  // First visit: show the privacy/mode disclosure before anything is uploaded (PRIVACY.md, F3).
+  useEffect(() => {
+    if (!localStorage.getItem(PRIVACY_ACK_KEY)) {
+      setFirstRun(true);
+      setModal("privacy");
+    }
+  }, []);
+
+  const ackPrivacy = useCallback(() => {
+    localStorage.setItem(PRIVACY_ACK_KEY, "1");
+    setFirstRun(false);
+    setModal(null);
+  }, []);
 
   const reset = () => {
     setPhase("idle");
@@ -77,7 +96,7 @@ export function App() {
 
   return (
     <div className="page">
-      <Header />
+      <Header mode={mode} />
       <main className="container">
         {phase === "idle" && (
           <UploadCard
@@ -119,12 +138,16 @@ export function App() {
           <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={reset} />
         )}
       </main>
-      <Footer />
+      <Footer onPrivacy={() => setModal("privacy")} onCalibration={() => setModal("calibration")} />
+      {modal === "privacy" && (
+        <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
+      )}
+      {modal === "calibration" && <CalibrationModal onClose={() => setModal(null)} />}
     </div>
   );
 }
 
-function Header() {
+function Header({ mode }: { mode: "full" | "local" }) {
   return (
     <header className="topbar">
       <div className="container topbar-inner">
@@ -133,23 +156,46 @@ function Header() {
           <span className="brand-name">VeriBayes</span>
         </div>
         <span className="brand-tag">Bayesian-workflow report</span>
-        <span
-          className="pill pill-stub"
-          title="Full mode grades end-to-end (M5): relevance, paper type, and per-step assessment + scoring."
-        >
-          M5 · live grading
-        </span>
+        <ModeIndicator mode={mode} />
       </div>
     </header>
   );
 }
 
-function Footer() {
+// Always-visible reminder of what the current mode means for the outbound data path (F3). The
+// per-paper toggle lives in the upload card; this keeps the privacy consequence on screen at all
+// times, including while a report is showing.
+function ModeIndicator({ mode }: { mode: "full" | "local" }) {
+  if (mode === "local") {
+    return (
+      <span className="mode-indicator mi-local" title="Detectors only — no LLM call.">
+        Local-only · nothing leaves this machine
+      </span>
+    );
+  }
+  return (
+    <span className="mode-indicator mi-full" title="Extracted text is sent to Anthropic for grading.">
+      Full · text sent to Anthropic
+    </span>
+  );
+}
+
+function Footer({ onPrivacy, onCalibration }: { onPrivacy: () => void; onCalibration: () => void }) {
   return (
     <footer className="footer">
-      <div className="container">
-        Formative report, not a verdict. The badge concept was dropped — VeriBayes reports per-step
-        practice, not a pass/fail.
+      <div className="container footer-inner">
+        <span>
+          Formative report, not a verdict. The badge concept was dropped — VeriBayes reports per-step
+          practice, not a pass/fail.
+        </span>
+        <span className="footer-links">
+          <button className="link-btn" onClick={onPrivacy}>
+            Privacy
+          </button>
+          <button className="link-btn" onClick={onCalibration}>
+            Calibration
+          </button>
+        </span>
       </div>
     </footer>
   );
