@@ -18,6 +18,7 @@ dev = [
     "pytest>=8.0",
     "ruff>=0.5",
     "import-linter>=2.0",
+    "hypothesis>=6.0",  # property tests for the f-score invariants (N/A-never-penalizes, monotonic, …)
 ]
 api = [
     "fastapi>=0.110",
@@ -70,6 +71,13 @@ name = "core is web-free"
 type = "forbidden"
 source_modules = ["veribayes.core"]
 forbidden_modules = ["veribayes.api", "fastapi", "starlette", "uvicorn"]
+
+# f-score is a pure, deterministic function (f-score.md DoD): no LLM, no network, no IO.
+[[tool.importlinter.contracts]]
+name = "score is pure"
+type = "forbidden"
+source_modules = ["veribayes.core.score"]
+forbidden_modules = ["veribayes.core.llm", "anthropic", "claude_agent_sdk", "httpx"]
 
 # --- Environment management (pixi, conda-forge) ---------------------------------------------------
 # Reproducible environments + lockfile. `pixi install` provisions Python 3.12; `pixi run check`
