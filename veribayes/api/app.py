@@ -1,17 +1,27 @@
-"""VeriBayes API (M1 stub).
+"""VeriBayes API + single-process web server.
 
-Implements the real upload -> job -> SSE -> report flow against the stub engine, plus the endpoint
-surface from plans 02-mvp/g §5. Endpoints that need later components (real calibration data, real
-purge of derived artifacts) return honest stubs and are labelled as such.
+Implements the real upload -> job -> SSE -> report flow (real on-device pipeline in local-only mode;
+stub engine for full mode until those components land), plus the endpoint surface from plans
+02-mvp/g §5. Endpoints that need later components (real calibration data, real purge) return honest
+stubs and are labelled as such.
+
+**One process serves both the API and the built UI** (`pixi run app`): the FastAPI app mounts
+``web/dist`` at ``/`` so the SPA and its ``/api`` calls share one origin — one command to run, no
+second server, no CORS. The Vite dev server (``pixi run web``, hot-reload, proxies ``/api``) is for
+development only; the static mount is conditional, so it is simply absent when ``web/dist`` is
+unbuilt.
 """
 
 from __future__ import annotations
 
 import asyncio
+import os
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
 from veribayes.api import jobs as jobsmod
@@ -259,3 +269,12 @@ def _render_inventory_markdown(job: jobsmod.Job) -> str:
         f"Skipped (not scanned): {skipped}.",
     ]
     return "\n".join(lines)
+
+
+# --- Static frontend (single-process mode) --------------------------------------------------------
+# Mounted LAST so it never shadows the /api routes above. Present only when web/dist exists (built
+# by `pixi run app`); absent in the Vite dev flow. Override the location via VERIBAYES_WEB_DIST.
+_default_dist = Path(__file__).resolve().parents[2] / "web" / "dist"
+_web_dist = Path(os.environ.get("VERIBAYES_WEB_DIST", str(_default_dist)))
+if _web_dist.is_dir():
+    app.mount("/", StaticFiles(directory=str(_web_dist), html=True), name="web")

@@ -106,7 +106,12 @@ fmt = "ruff format veribayes tests"
 imports = "lint-imports"
 check = { depends-on = ["lint", "imports", "test"] }
 test-parse = "pytest tests/test_parse.py -v"  # run with: pixi run -e parse test-parse
-# --- App (M1 stub: real flow, stub engine) ---
+# --- App ---
+# One-process run (recommended): builds the UI and serves it + the API on one port (http://localhost:8000).
+# Run `pixi run setup-web` once first (installs node_modules).
+app = { cmd = "uvicorn veribayes.api.app:app --port 8000", depends-on = ["web-build"] }
+# Hot-reload dev: run `pixi run api` and, in another terminal, `pixi run web` (Vite on :5173 proxies
+# /api to :8000 and hot-reloads the UI). The static mount is absent here (web/dist need not exist).
 api = "uvicorn veribayes.api.app:app --reload --port 8000"
 setup-web = { cmd = "npm install", cwd = "web" }
 web = { cmd = "npm run dev", cwd = "web" }

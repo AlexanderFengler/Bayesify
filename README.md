@@ -49,6 +49,26 @@ pixi run check      # ruff lint + import-contract + pytest
 pixi run test       # just the tests
 ```
 
+### Running the app
+
+One process serves the UI and the API on a single port — build the frontend once, then run:
+
+```sh
+pixi run setup-web  # one-time: install the frontend's node_modules
+pixi run app        # builds the UI and serves it + the API at http://localhost:8000
+```
+
+For frontend hot-reload during development, run the two dev servers instead (Vite proxies `/api`):
+
+```sh
+pixi run api        # FastAPI with --reload on :8000
+pixi run web        # Vite dev server on http://localhost:5173 (in a second terminal)
+```
+
+Drop a PDF and choose **Local-only** mode for an on-device evidence inventory (no LLM, nothing
+leaves the machine). PDF parsing uses PyMuPDF by default; `pixi run -e parse app` adds the richer
+Docling parser (layout, tables, captions).
+
 ## Status
 
 Phase 1 (research → rubric) complete; Phase 2 (MVP) under way — see

@@ -6,6 +6,7 @@ import asyncio
 import json
 
 import fitz  # PyMuPDF — a base dep so the API can parse in local-only mode
+import pytest
 from fastapi.testclient import TestClient
 
 from veribayes.api.app import app, store
@@ -57,6 +58,16 @@ def test_create_with_id_returns_paper_id() -> None:
 
 def test_unknown_paper_is_404() -> None:
     assert client.get("/api/papers/nope").status_code == 404
+
+
+def test_single_process_serves_ui_without_shadowing_api() -> None:
+    """When web/dist is built, the static mount serves the SPA at / but must not shadow /api.
+    Skips when the bundle is absent (the Vite dev flow), since the mount is conditional."""
+    if not any(getattr(r, "name", None) == "web" for r in app.routes):
+        pytest.skip("web/dist not built — single-process serving inactive")
+    root = client.get("/")
+    assert root.status_code == 200 and "text/html" in root.headers["content-type"]
+    assert client.get("/api/calibration").json()["status"] == "not_yet_validated"
 
 
 def test_calibration_is_honest_about_not_being_validated() -> None:
