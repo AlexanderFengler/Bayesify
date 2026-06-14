@@ -793,6 +793,60 @@ main.container {
   margin-top: 6px;
 }
 
+/* --- A5 per-step override (Disagree) --- */
+.link-btn.disagree {
+  margin-top: 10px;
+  font-size: 12.5px;
+}
+.disagree-form {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfe;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.disagree-form label {
+  font-size: 12px;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.disagree-form select,
+.disagree-form textarea {
+  font: inherit;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.disagree-form textarea {
+  min-height: 52px;
+  resize: vertical;
+}
+.disagree-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.override-chip {
+  margin-top: 12px;
+  font-size: 12.5px;
+  color: var(--ink);
+  background: var(--accent-soft);
+  border: 1px solid #dfe4fb;
+  border-radius: 8px;
+  padding: 8px 11px;
+}
+.override-note {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
 /* --- backend provenance badge + relevance line --- */
 .backend-badge {
   display: inline-block;

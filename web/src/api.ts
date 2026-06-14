@@ -38,6 +38,34 @@ export async function getPaper(paperId: string): Promise<PaperState> {
   return (await res.json()) as PaperState;
 }
 
+// Record an expert disagreement on one step (A5). Append-only; never mutates the engine output —
+// "recorded for the v1 learning loop, not yet used to change judgments".
+export async function recordOverride(
+  paperId: string,
+  stepId: string,
+  correctedStatus: string,
+  rationale: string,
+): Promise<void> {
+  const form = new FormData();
+  form.set("corrected_status", correctedStatus);
+  form.set("rationale", rationale);
+  form.set("author", "you");
+  const res = await fetch(`/api/assessments/${paperId}/steps/${stepId}/override`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) throw new Error("could not record override");
+}
+
+// Re-run a short-circuited paper as 'partial' (the gate-page escape hatch). Returns the paper_id.
+export async function rerun(paperId: string): Promise<string> {
+  const form = new FormData();
+  form.set("relevance_override", "partial");
+  const res = await fetch(`/api/papers/${paperId}/rerun`, { method: "POST", body: form });
+  if (!res.ok) throw new Error("could not re-run");
+  return (await res.json()).paper_id as string;
+}
+
 export interface ProgressEvent {
   type: "status" | "stage" | "done" | "failed";
   stage?: string;

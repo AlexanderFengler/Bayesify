@@ -1,4 +1,8 @@
+import { useState } from "react";
+import { recordOverride } from "./api";
 import type { FixItem, PaperState, ScoredResult, StepAssessment, StepStatus } from "./types";
+
+const STATUS_OPTIONS: StepStatus[] = ["done_well", "partial", "missing", "not_applicable"];
 
 const STEP_NAMES: Record<string, string> = {
   S1: "Model specification & justification",
@@ -22,6 +26,9 @@ const STATUS_LABEL: Record<StepStatus, string> = {
 
 export function Report({ paper, onReset }: { paper: PaperState; onReset: () => void }) {
   const r = paper.result!;
+  // Records of expert disagreements made this session (step_id -> corrected status). Purely a UI
+  // indicator; the engine output is never mutated (A5).
+  const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
   if (r.relevance.label === "no") {
     return <NotApplicable paper={paper} onReset={onReset} />;
   }
@@ -48,7 +55,15 @@ export function Report({ paper, onReset }: { paper: PaperState; onReset: () => v
 
       <div className="steps">
         {r.step_assessments.map((a) => (
-          <StepCard key={a.step_id} a={a} />
+          <StepCard
+            key={a.step_id}
+            a={a}
+            overridden={overrides[a.step_id]}
+            onOverride={async (status, rationale) => {
+              await recordOverride(paper.paper_id, a.step_id, status, rationale);
+              setOverrides((prev) => ({ ...prev, [a.step_id]: status }));
+            }}
+          />
         ))}
       </div>
 
@@ -180,7 +195,15 @@ function Chip({ k, v }: { k: string; v: string }) {
   );
 }
 
-function StepCard({ a }: { a: StepAssessment }) {
+function StepCard({
+  a,
+  overridden,
+  onOverride,
+}: {
+  a: StepAssessment;
+  overridden?: StepStatus;
+  onOverride: (status: StepStatus, rationale: string) => Promise<void>;
+}) {
   const na = a.status === "not_applicable";
   return (
     <section className={"step-card status-" + a.status}>
@@ -260,9 +283,79 @@ function StepCard({ a }: { a: StepAssessment }) {
               <span className="adv-label">Adversarial check</span> {a.adversarial_verdict.notes}
             </div>
           )}
+
+          {overridden ? (
+            <div className="override-chip">
+              Expert override recorded: <strong>{STATUS_LABEL[overridden]}</strong>
+              <span className="override-note">
+                recorded for the v1 learning loop — not yet used to change judgments
+              </span>
+            </div>
+          ) : (
+            <DisagreeControl currentStatus={a.status} onOverride={onOverride} />
+          )}
         </div>
       )}
     </section>
+  );
+}
+
+function DisagreeControl({
+  currentStatus,
+  onOverride,
+}: {
+  currentStatus: StepStatus;
+  onOverride: (status: StepStatus, rationale: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<StepStatus>(currentStatus);
+  const [rationale, setRationale] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!open) {
+    return (
+      <button className="link-btn disagree" onClick={() => setOpen(true)}>
+        Disagree?
+      </button>
+    );
+  }
+  return (
+    <div className="disagree-form">
+      <label>
+        Corrected status
+        <select value={status} onChange={(e) => setStatus(e.target.value as StepStatus)}>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {STATUS_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <textarea
+        placeholder="Why? (optional rationale — recorded, not used to change the judgment)"
+        value={rationale}
+        onChange={(e) => setRationale(e.target.value)}
+      />
+      <div className="disagree-actions">
+        <button
+          className="btn btn-primary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await onOverride(status, rationale);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Record override
+        </button>
+        <button className="link-btn" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }
 
