@@ -17,6 +17,7 @@ node_modules/
 dist/
 .vite/
 *.local
+*.tsbuildinfo
 
 # Data & artifacts (do not commit papers or large corpora)
 data/

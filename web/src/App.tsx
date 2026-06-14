@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { getPaper, streamProgress, submitPaper } from "./api";
+import { Inventory } from "./Inventory";
 import { Report } from "./Report";
 import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
 
@@ -87,7 +88,8 @@ export function App() {
           </div>
         )}
         {phase === "done" && paper?.result && <Report paper={paper} onReset={reset} />}
-        {phase === "done" && paper && !paper.result && paper.local_notice && (
+        {phase === "done" && paper?.inventory && <Inventory paper={paper} onReset={reset} />}
+        {phase === "done" && paper && !paper.result && !paper.inventory && paper.local_notice && (
           <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={reset} />
         )}
       </main>

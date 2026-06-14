@@ -78,17 +78,20 @@ platforms = ["osx-arm64", "linux-64"]
 [tool.pixi.dependencies]
 python = "3.12.*"
 nodejs = "22.*"  # frontend toolchain (web/), pixi-managed for reproducibility
+# PyMuPDF is the light, deterministic parser (component b fallback, no torch). It lives in the base
+# env — not the heavy `parse` feature — so the running API (`pixi run api`) can parse PDFs for the
+# local-only detection mode out of the box. Docling (richer, heavier) stays an opt-in upgrade below.
+pymupdf = ">=1.24"
 
 [tool.pixi.pypi-dependencies]
 veribayes = { path = ".", editable = true }
 
-# Heavy parser deps (component b) — conda-forge, not pypi: conda builds carry correct platform tags,
+# Heavy parser dep (component b) — conda-forge, not pypi: conda builds carry correct platform tags,
 # avoiding the locally-built-wheel macOS-version mismatch. Only installed in the `parse` environment,
 # so the default env (and CI) stays light. torch + models land in gitignored .pixi; nothing big is
-# committed (the lockfile grows, but it's text).
+# committed (the lockfile grows, but it's text). PyMuPDF is in the base env (above), not here.
 [tool.pixi.feature.parse.dependencies]
-docling = ">=2.0"   # primary parser: layout / sections / tables / captions
-pymupdf = ">=1.24"  # fast fallback + synthetic-PDF test fixtures
+docling = ">=2.0"   # richer parser upgrade: layout / sections / tables / captions
 
 [tool.pixi.environments]
 default = { features = ["dev", "api"], solve-group = "default" }

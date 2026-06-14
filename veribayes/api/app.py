@@ -55,10 +55,15 @@ async def create_paper(
         )
     if mode not in ("full", "local"):
         raise HTTPException(status_code=422, detail="mode must be 'full' or 'local'.")
-    # M1 stub: we do not persist the bytes yet — the ingest component (a) owns that.
-    if file is not None:
-        await file.read()
-    job = store.create(mode=mode, source_label=_source_label(file, arxiv_id, doi, openalex_id, url))
+    # Local-only mode runs the real on-device pipeline (a+b+c) over the uploaded bytes; carry them
+    # to the worker. (Full mode is still the stub, so the bytes are only needed for local mode.)
+    data = await file.read() if file is not None else None
+    job = store.create(
+        mode=mode,
+        source_label=_source_label(file, arxiv_id, doi, openalex_id, url),
+        data=data,
+        filename=file.filename if file is not None else None,
+    )
     asyncio.create_task(run_job(job))
     return {"paper_id": job.id, "status": job.status}
 
@@ -72,6 +77,9 @@ def _job_payload(job: jobsmod.Job) -> dict:
         "source_label": job.source_label,
         "relevance_override": job.relevance_override,
         "result": job.result.model_dump(mode="json") if job.result else None,
+        "inventory": job.inventory.model_dump(mode="json") if job.inventory else None,
+        "parser": job.parser,
+        "parser_version": job.parser_version,
         "local_notice": job.local_notice,
         "error": job.error,
     }
@@ -96,17 +104,32 @@ async def get_events(paper_id: str):
 @app.get("/api/papers/{paper_id}/report.json")
 async def report_json(paper_id: str):
     job = store.get(paper_id)
-    if job is None or job.result is None:
-        raise HTTPException(status_code=404, detail="no result yet")
-    return JSONResponse(job.result.model_dump(mode="json"))
+    if job is None:
+        raise HTTPException(status_code=404, detail="unknown paper_id")
+    if job.result is not None:
+        return JSONResponse(job.result.model_dump(mode="json"))
+    if job.inventory is not None:  # local-only detection report
+        return JSONResponse(
+            {
+                "mode": "local",
+                "parser": job.parser,
+                "parser_version": job.parser_version,
+                "inventory": job.inventory.model_dump(mode="json"),
+            }
+        )
+    raise HTTPException(status_code=404, detail="no result yet")
 
 
 @app.get("/api/papers/{paper_id}/report.md")
 async def report_md(paper_id: str):
     job = store.get(paper_id)
-    if job is None or job.result is None:
-        raise HTTPException(status_code=404, detail="no result yet")
-    return PlainTextResponse(_render_markdown(job))
+    if job is None:
+        raise HTTPException(status_code=404, detail="unknown paper_id")
+    if job.result is not None:
+        return PlainTextResponse(_render_markdown(job))
+    if job.inventory is not None:
+        return PlainTextResponse(_render_inventory_markdown(job))
+    raise HTTPException(status_code=404, detail="no result yet")
 
 
 @app.post("/api/papers/{paper_id}/rerun")
@@ -203,4 +226,36 @@ def _render_markdown(job: jobsmod.Job) -> str:
         f"_Engine {r.engine_version} · rubric {r.rubric_version} · "
         f"${r.cost_ledger.total_cost_usd} · {r.validation_ref}. Formative report, not a verdict._"
     )
+    return "\n".join(lines)
+
+
+def _render_inventory_markdown(job: jobsmod.Job) -> str:
+    """The local-only detection report as Markdown — found / not-detected / where-looked. Labelled
+    'detection only, not graded' (no scores, no LLM)."""
+    inv = job.inventory
+    assert inv is not None
+    lines = [
+        f"# VeriBayes — local detection report — {job.source_label}",
+        "",
+        f"_Detection only, not graded. Parser: {job.parser} ({job.parser_version}). "
+        f"{inv.n_hits} signals detected. No LLM; nothing left this machine._",
+        "",
+    ]
+    for fam in inv.families:
+        lines.append(f"## {fam.family.replace('_', ' ')}")
+        if fam.found:
+            for h in fam.found:
+                val = f" — `{h.value}`" if h.value else ""
+                page = f", p.{h.page}" if h.page is not None else ""
+                lines.append(f'- **{h.detector_id}**{val}: "{h.quote}" (§{h.section_id}{page})')
+        if fam.not_detected:
+            lines.append(f"- _not detected: {', '.join(fam.not_detected)}_")
+        lines.append("")
+    looked = ", ".join(f"{sc.kind.value} ({sc.title})" for sc in inv.where_looked) or "—"
+    skipped = ", ".join(f"{sc.title}" for sc in inv.skipped) or "none"
+    lines += [
+        "## Where the engine looked",
+        f"Scanned: {looked}.",
+        f"Skipped (not scanned): {skipped}.",
+    ]
     return "\n".join(lines)

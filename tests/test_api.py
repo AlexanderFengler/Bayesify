@@ -5,12 +5,38 @@ from __future__ import annotations
 import asyncio
 import json
 
+import fitz  # PyMuPDF — a base dep so the API can parse in local-only mode
 from fastapi.testclient import TestClient
 
-from veribayes.api.app import app
+from veribayes.api.app import app, store
 from veribayes.api.jobs import LOCAL_STAGES, STAGES, Job, event_stream, run_job
 
 client = TestClient(app)
+
+
+def _pdf(lines: list[str]) -> bytes:
+    doc = fitz.open()
+    page = doc.new_page()
+    y = 72
+    for line in lines:
+        page.insert_text((72, y), line, fontsize=11)
+        y += 18
+    return doc.tobytes()
+
+
+_HDDM_PDF = _pdf(
+    [
+        "A hierarchical drift-diffusion model of decision making",
+        "Abstract. We fit a hierarchical drift-diffusion model to response-time data using",
+        "Bayesian inference in Stan, with weakly-informative priors on every drift rate.",
+        "Methods. We drew from the posterior distribution with the NUTS sampler, running",
+        "4 chains of 2000 iterations after 1000 warm-up draws with a fixed random seed.",
+        "Convergence was checked with R-hat and bulk-ESS; all R-hat < 1.01 and there were",
+        "no divergent transitions. Posterior predictive checks reproduced the RT data.",
+        "Results. Model comparison used PSIS-LOO and WAIC; code is available on github.com.",
+        "References. Carpenter et al. Stan: a probabilistic programming language.",
+    ]
+)
 
 
 # --- synchronous endpoints ------------------------------------------------------------------------
@@ -68,6 +94,61 @@ def test_local_mode_produces_no_scores_and_fewer_stages() -> None:
     assert job.result is None  # no scores in local mode
     assert job.local_notice is not None
     assert job.status == "done"
+
+
+# --- real local-only pipeline (a+b+c on-device) ---------------------------------------------------
+
+
+def test_local_upload_runs_real_detection(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    job = Job(id="loc1", mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
+    asyncio.run(run_job(job))
+
+    assert job.status == "done"
+    assert job.result is None  # local mode never produces scores
+    assert job.parser == "pymupdf"  # default env has no docling → fast fallback
+    assert job.inventory is not None and job.inventory.n_hits > 0
+    found = {h.detector_id for fam in job.inventory.families for h in fam.found}
+    assert {"software.stan", "diag.rhat", "sampler.chains"} <= found
+    # stages are detection-only, in order
+    done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
+    assert done == list(LOCAL_STAGES)
+    assert job.data is None  # bytes freed after ingest
+
+
+def test_local_upload_skips_references_section(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    job = Job(id="loc2", mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
+    asyncio.run(run_job(job))
+    # the References line names Stan; it must not be scanned
+    ref_sections = {sc.section_id for sc in job.inventory.skipped}
+    hits_in_refs = [
+        h for fam in job.inventory.families for h in fam.found if h.section_id in ref_sections
+    ]
+    assert not hits_in_refs
+
+
+def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    job = Job(id="loc3", mode="local", source_label="x.txt", data=b"not a pdf", filename="x.txt")
+    asyncio.run(run_job(job))
+    assert job.status == "failed"
+    assert "PDF" in (job.error or "")  # the typed NotAPdfError user_message
+
+
+def test_local_report_json_and_md(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    job = store.create(mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
+    asyncio.run(run_job(job))
+
+    rj = client.get(f"/api/papers/{job.id}/report.json").json()
+    assert rj["mode"] == "local" and rj["inventory"]["n_hits"] > 0
+    rm = client.get(f"/api/papers/{job.id}/report.md").text
+    assert "local detection report" in rm
+    assert "Where the engine looked" in rm
+    # the status payload carries the inventory for the UI
+    payload = client.get(f"/api/papers/{job.id}").json()
+    assert payload["inventory"]["n_hits"] > 0 and payload["parser"] == "pymupdf"
 
 
 def test_event_stream_replays_for_a_late_subscriber() -> None:

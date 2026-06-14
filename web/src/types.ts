@@ -81,6 +81,35 @@ export interface ScoredResult {
   validation_ref: string;
 }
 
+// --- Local-only detection inventory (mirror of core/detectors EvidenceInventory) ---
+export interface InventoryHit {
+  detector_id: string;
+  family: string;
+  kind: string;
+  value: Record<string, unknown> | null;
+  section_id: string;
+  section_title: string;
+  page: number | null;
+  quote: string;
+}
+export interface InventoryFamily {
+  family: string;
+  found: InventoryHit[];
+  not_detected: string[];
+}
+export interface ScannedSection {
+  section_id: string;
+  kind: string;
+  title: string;
+  page: number | null;
+}
+export interface EvidenceInventory {
+  families: InventoryFamily[];
+  where_looked: ScannedSection[];
+  skipped: ScannedSection[];
+  n_hits: number;
+}
+
 export interface PaperState {
   paper_id: string;
   status: "queued" | "running" | "done" | "failed";
@@ -88,6 +117,9 @@ export interface PaperState {
   mode: string;
   source_label: string;
   result: ScoredResult | null;
+  inventory: EvidenceInventory | null;
+  parser: string | null;
+  parser_version: string | null;
   local_notice: string | null;
   error: string | null;
 }
