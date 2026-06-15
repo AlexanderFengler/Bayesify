@@ -23,6 +23,7 @@ from veribayes.core.schema import (
     Coverage,
     GateFacts,
     PaperClass,
+    PaperClassLabel,
     Profile,
     Relevance,
     RelevanceLabel,
@@ -102,7 +103,7 @@ def score(
         if resolved.applicable and assessment.status is StepStatus.not_applicable:
             raise ContractError(f"{step.id} is applicable but status is not_applicable")
 
-        weight = _weight(rubric, step.id, paper_class)
+        weight = step_weight(rubric, step.id, paper_class.primary, paper_class.secondary)
         sub = None if not resolved.applicable else scoring.sub_score[assessment.status.value]
         profile_steps.append(
             StepProfile(
@@ -152,7 +153,14 @@ def score(
 # --- arithmetic (shared by score() and the score-impact what-ifs) --------------------------------
 
 
-def _weight(rubric: RubricSpec, step_id: str, paper_class: PaperClass) -> float:
+def step_weight(
+    rubric: RubricSpec,
+    step_id: str,
+    primary: PaperClassLabel,
+    secondary: PaperClassLabel | None = None,
+) -> float:
+    """The f-score weight for a step under a paper class. Public: shared by ``score()`` and the
+    validation harness, which derives human-implied coverage/quality with the SAME weights."""
     scoring = rubric.scoring
     assert scoring is not None
 
@@ -161,10 +169,10 @@ def _weight(rubric: RubricSpec, step_id: str, paper_class: PaperClass) -> float:
             return scoring.weight_default
         return scoring.weights.get(cls, {}).get(step_id, scoring.weight_default)
 
-    primary = w(paper_class.primary.value)
-    if paper_class.secondary is not None and scoring.mixing_rule == "max":
-        return max(primary, w(paper_class.secondary.value))
-    return primary
+    p = w(primary.value)
+    if secondary is not None and scoring.mixing_rule == "max":
+        return max(p, w(secondary.value))
+    return p
 
 
 def _uncertain(calcs: list[tuple[str, StepCalc]], low_conf: float) -> int:

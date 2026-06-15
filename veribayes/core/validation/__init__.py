@@ -18,6 +18,12 @@ from veribayes.core.validation.human_report import (
     StepDefectKind,
     StepRating,
 )
+from veribayes.core.validation.report import (
+    ValidationReport,
+    build_report,
+    to_calibration_payload,
+    to_markdown,
+)
 
 __all__ = [
     "GoldOrigin",
@@ -30,4 +36,8 @@ __all__ = [
     "StepDefect",
     "StepDefectKind",
     "StepRating",
+    "ValidationReport",
+    "build_report",
+    "to_calibration_payload",
+    "to_markdown",
 ]
