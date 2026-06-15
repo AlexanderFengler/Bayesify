@@ -46,7 +46,10 @@ steps:
   - id: S2
     name: Prior specification
     essential_for: [empirical, numerical_experiment, methodological]
-    na_when: "No non-trivial priors (e.g., likelihood fully dominates and priors are immaterial) — still expected to be reported."
+    # v0: S2 is always applicable (no na_when) — priors are always expected to be reported, so the
+    # engine and a blind rater gate it identically. The immaterial-priors nuance is a `note`, not an
+    # N/A path; depth of justification may be relaxed there, but reporting is still required.
+    note: "When the likelihood fully dominates and priors are immaterial, the depth of justification may be relaxed — but the priors must still be reported (silence remains a defect)."
     done_well: "Every prior listed and justified (weakly-informative vs informative, and why); informative priors sourced."
     done_poorly: "'Default priors' with no statement of what they are; priors absent; unexamined flat priors."
     citations: [barg2021, wambs2017, vandeschoot2021]

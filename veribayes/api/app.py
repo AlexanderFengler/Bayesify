@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -27,6 +28,7 @@ from sse_starlette.sse import EventSourceResponse
 from veribayes.api import jobs as jobsmod
 from veribayes.api.jobs import JobStore, event_stream, run_job
 from veribayes.core.report import fix_list
+from veribayes.core.rubric import RubricProfileError, load_rubric
 
 app = FastAPI(title="VeriBayes API", version="0.1.0")
 
@@ -147,6 +149,40 @@ async def report_md(paper_id: str):
     if job.inventory is not None:
         return PlainTextResponse(_render_inventory_markdown(job))
     raise HTTPException(status_code=404, detail="no result yet")
+
+
+@lru_cache(maxsize=8)
+def _rubric_payload(profile: str) -> dict:
+    """The compiled rubric a profile resolves to — the single source of truth for step names and the
+    per-step prose the report + (V3) the blind rating form render. Cached per profile (static)."""
+    spec = load_rubric(profile=profile)
+    return {
+        "rubric_version": spec.rubric_version,
+        "rubric_profile": spec.profile,
+        "status_values": spec.status_values,
+        "steps": [
+            {
+                "id": s.id,
+                "name": s.name,
+                "essential_for": s.essential_for,
+                "recommended_for": s.recommended_for,
+                "done_well": s.done_well,
+                "done_poorly": s.done_poorly,
+                "citations": s.citations,
+            }
+            for s in spec.steps
+        ],
+    }
+
+
+@app.get("/api/rubric")
+async def get_rubric(profile: str = "synthesis") -> dict:
+    """Serve the compiled rubric so the UI never hardcodes step names/prose (they'd drift from
+    rubric/steps.yaml). ``profile`` defaults to the merged 'synthesis' standard; unknown -> 422."""
+    try:
+        return _rubric_payload(profile)
+    except RubricProfileError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.post("/api/papers/{paper_id}/rerun")

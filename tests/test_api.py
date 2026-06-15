@@ -86,6 +86,20 @@ def test_calibration_is_honest_about_not_being_validated() -> None:
     assert client.get("/api/calibration").json()["status"] == "not_yet_validated"
 
 
+def test_rubric_endpoint_serves_compiled_steps() -> None:
+    # Single source of truth: the UI reads step names/prose from here, never a hardcoded map.
+    body = client.get("/api/rubric").json()
+    assert body["rubric_profile"] == "synthesis"
+    assert body["rubric_version"]
+    assert [s["id"] for s in body["steps"]] == [f"S{i}" for i in range(1, 11)]
+    assert all(s["name"] for s in body["steps"])  # every step carries a display name
+    assert "done_well" in body["steps"][0]  # the per-step prose a rater is guided by (V3)
+
+
+def test_rubric_unknown_profile_is_422() -> None:
+    assert client.get("/api/rubric", params={"profile": "does_not_exist"}).status_code == 422
+
+
 def test_override_is_recorded_but_not_yet_learned_from() -> None:
     r = client.post(
         "/api/assessments/abc/steps/S4/override",

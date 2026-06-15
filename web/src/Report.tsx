@@ -1,28 +1,7 @@
 import { useState } from "react";
 import { recordOverride } from "./api";
+import { STATUS_LABEL, STATUS_OPTIONS, useStepNames } from "./rubric";
 import type { FixItem, PaperState, ScoredResult, StepAssessment, StepStatus } from "./types";
-
-const STATUS_OPTIONS: StepStatus[] = ["done_well", "partial", "missing", "not_applicable"];
-
-const STEP_NAMES: Record<string, string> = {
-  S1: "Model specification & justification",
-  S2: "Prior specification",
-  S3: "Prior predictive checks",
-  S4: "Computational faithfulness (convergence & diagnostics)",
-  S5: "Posterior predictive checks",
-  S6: "Model comparison / selection",
-  S7: "Simulation-based calibration",
-  S8: "Prior / model sensitivity analysis",
-  S9: "Reporting & reproducibility",
-  S10: "Posterior summary & inference communication",
-};
-
-const STATUS_LABEL: Record<StepStatus, string> = {
-  done_well: "done well",
-  partial: "partial",
-  missing: "missing",
-  not_applicable: "not applicable",
-};
 
 export function Report({
   paper,
@@ -37,6 +16,7 @@ export function Report({
   // Records of expert disagreements made this session (step_id -> corrected status). Purely a UI
   // indicator; the engine output is never mutated (A5).
   const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
+  const stepNames = useStepNames();
   if (r.relevance.label === "no") {
     return <NotApplicable paper={paper} onReset={onReset} onRerun={onRerun} />;
   }
@@ -73,6 +53,7 @@ export function Report({
           <StepCard
             key={a.step_id}
             a={a}
+            stepName={stepNames[a.step_id] ?? a.step_id}
             overridden={overrides[a.step_id]}
             onOverride={async (status, rationale) => {
               await recordOverride(paper.paper_id, a.step_id, status, rationale);
@@ -212,10 +193,12 @@ function Chip({ k, v }: { k: string; v: string }) {
 
 function StepCard({
   a,
+  stepName,
   overridden,
   onOverride,
 }: {
   a: StepAssessment;
+  stepName: string;
   overridden?: StepStatus;
   onOverride: (status: StepStatus, rationale: string) => Promise<void>;
 }) {
@@ -226,7 +209,7 @@ function StepCard({
         <span className={"status-pill status-" + a.status}>{STATUS_LABEL[a.status]}</span>
         <div className="step-heading">
           <span className="step-id">{a.step_id}</span>
-          <span className="step-name">{STEP_NAMES[a.step_id] ?? a.step_id}</span>
+          <span className="step-name">{stepName}</span>
         </div>
         {!na && <Confidence value={a.confidence} />}
       </header>
