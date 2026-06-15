@@ -27,8 +27,8 @@ from veribayes.core.schema import (
 from veribayes.core.score import (
     ContractError,
     ScoreMeta,
-    _Calc,
-    _summaries,
+    StepCalc,
+    coverage_quality_from_weighted_steps,
     score,
 )
 
@@ -199,12 +199,12 @@ _ORDER = {StepStatus.missing: 0, StepStatus.partial: 1, StepStatus.done_well: 2}
 
 
 @st.composite
-def _calc(draw) -> _Calc:
+def _calc(draw) -> StepCalc:
     applicable = draw(st.booleans())
     status = draw(st.sampled_from(_STATUSES)) if applicable else StepStatus.not_applicable
     weight = draw(st.floats(min_value=0.1, max_value=5.0))
     confidence = draw(st.floats(min_value=0.0, max_value=1.0))
-    return _Calc(applicable, status, weight, confidence)
+    return StepCalc(applicable, status, weight, confidence)
 
 
 _calcs = st.lists(_calc(), min_size=0, max_size=12)
@@ -212,7 +212,7 @@ _calcs = st.lists(_calc(), min_size=0, max_size=12)
 
 @given(_calcs)
 def test_uncertainty_honesty(calcs) -> None:
-    cov, _ = _summaries(calcs, _SUB, _LOW)
+    cov, _ = coverage_quality_from_weighted_steps(calcs, _SUB, _LOW)
     if cov is not None:
         assert cov.strict <= cov.lenient + 1e-9
         no_uncertain = all(
@@ -225,8 +225,9 @@ def test_uncertainty_honesty(calcs) -> None:
 
 @given(_calcs)
 def test_na_step_never_penalises(calcs) -> None:
-    cov, q = _summaries(calcs, _SUB, _LOW)
-    cov2, q2 = _summaries([*calcs, _Calc(False, StepStatus.not_applicable, 1.0, 1.0)], _SUB, _LOW)
+    cov, q = coverage_quality_from_weighted_steps(calcs, _SUB, _LOW)
+    na = StepCalc(False, StepStatus.not_applicable, 1.0, 1.0)
+    cov2, q2 = coverage_quality_from_weighted_steps([*calcs, na], _SUB, _LOW)
     # adding an N/A step changes nothing about coverage/quality
     assert (cov is None) == (cov2 is None)
     if cov is not None:
@@ -244,9 +245,9 @@ def test_upgrading_a_step_never_lowers_scores(calcs, idx) -> None:
     if not c.applicable or c.status is StepStatus.done_well:
         return
     better = StepStatus.partial if c.status is StepStatus.missing else StepStatus.done_well
-    base_cov, base_q = _summaries(calcs, _SUB, _LOW)
+    base_cov, base_q = coverage_quality_from_weighted_steps(calcs, _SUB, _LOW)
     up = list(calcs)
-    up[i] = _Calc(True, better, c.weight, c.confidence)
-    up_cov, up_q = _summaries(up, _SUB, _LOW)
+    up[i] = StepCalc(True, better, c.weight, c.confidence)
+    up_cov, up_q = coverage_quality_from_weighted_steps(up, _SUB, _LOW)
     assert up_cov.strict >= base_cov.strict - 1e-9
     assert up_q >= base_q - 1e-9

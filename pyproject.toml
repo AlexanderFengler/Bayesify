@@ -79,6 +79,23 @@ type = "forbidden"
 source_modules = ["veribayes.core.score"]
 forbidden_modules = ["veribayes.core.llm", "anthropic", "claude_agent_sdk", "httpx"]
 
+# The human-report contract is the measuring instrument: it must not depend on engine *behaviour*,
+# so the instrument can never inherit the engine's framing (the validity firewall). It shares only
+# the schema vocabulary (enums/EvidenceSpan/GateFacts); the no-ScoredResult/StepAssessment guarantee
+# (class-level, not expressible here) is asserted by tests/test_human_report.py.
+[[tool.importlinter.contracts]]
+name = "human-report contract is engine-free"
+type = "forbidden"
+source_modules = ["veribayes.core.validation.human_report"]
+forbidden_modules = [
+    "veribayes.core.score",
+    "veribayes.core.assess",
+    "veribayes.core.screen",
+    "veribayes.core.classify",
+    "veribayes.core.pipeline",
+    "veribayes.core.llm",
+]
+
 # --- Environment management (pixi, conda-forge) ---------------------------------------------------
 # Reproducible environments + lockfile. `pixi install` provisions Python 3.12; `pixi run check`
 # runs lint + import-contract + tests. Runtime deps come from [project.dependencies] and dev tools

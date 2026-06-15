@@ -53,8 +53,10 @@ _PRESENT = (StepStatus.done_well, StepStatus.partial)
 
 
 @dataclass(frozen=True)
-class _Calc:
-    """The minimal per-step facts the scoring arithmetic needs."""
+class StepCalc:
+    """The minimal per-step facts the scoring arithmetic needs. The public input to the coverage/
+    quality seam — shared by ``score()`` and the validation harness, which derives human-implied
+    coverage/quality from the consensus statuses using the *same* arithmetic."""
 
     applicable: bool
     status: StepStatus
@@ -86,7 +88,7 @@ def score(
         raise ContractError("duplicate step_id in step_assessments")
 
     profile_steps: list[StepProfile] = []
-    calcs: list[tuple[str, _Calc]] = []
+    calcs: list[tuple[str, StepCalc]] = []
     for step in rubric.steps:  # canonical: rubric order
         assessment = by_id.get(step.id)
         if assessment is None:
@@ -112,12 +114,13 @@ def score(
                 tier=resolved.tier,
             )
         )
-        calcs.append(
-            (step.id, _Calc(resolved.applicable, assessment.status, weight, assessment.confidence))
-        )
+        calc = StepCalc(resolved.applicable, assessment.status, weight, assessment.confidence)
+        calcs.append((step.id, calc))
 
     low_conf = scoring.low_confidence_threshold
-    coverage, quality = _summaries([c for _, c in calcs], scoring.sub_score, low_conf)
+    coverage, quality = coverage_quality_from_weighted_steps(
+        [c for _, c in calcs], scoring.sub_score, low_conf
+    )
     n_applicable = sum(1 for _, c in calcs if c.applicable)
     profile = Profile(
         steps=profile_steps,
@@ -164,7 +167,7 @@ def _weight(rubric: RubricSpec, step_id: str, paper_class: PaperClass) -> float:
     return primary
 
 
-def _uncertain(calcs: list[tuple[str, _Calc]], low_conf: float) -> int:
+def _uncertain(calcs: list[tuple[str, StepCalc]], low_conf: float) -> int:
     return sum(
         1
         for _, c in calcs
@@ -172,10 +175,16 @@ def _uncertain(calcs: list[tuple[str, _Calc]], low_conf: float) -> int:
     )
 
 
-def _summaries(
-    calcs: list[_Calc], sub_score: dict[str, float], low_conf: float
+def coverage_quality_from_weighted_steps(
+    steps: list[StepCalc], sub_score: dict[str, float], low_conf: float
 ) -> tuple[Coverage | None, float | None]:
-    applicable = [c for c in calcs if c.applicable]
+    """Coverage (uncertainty-honest range) + weighted-mean quality from per-step ``StepCalc``s.
+
+    The public scoring seam. ``score()`` calls it over the engine's assessments; the validation
+    harness calls it over a human's consensus statuses (with weights from the same rubric) so that
+    human-implied and engine coverage are computed by *identical* arithmetic — any disagreement is
+    then purely in the input statuses, never in whose formula. Pure: no randomness, clock, or IO."""
+    applicable = [c for c in steps if c.applicable]
     n = len(applicable)
     if n == 0:  # not gradable — no division; coverage/quality are null
         return None, None
@@ -199,7 +208,7 @@ def _summaries(
 
 
 def _score_impacts(
-    calcs: list[tuple[str, _Calc]],
+    calcs: list[tuple[str, StepCalc]],
     sub_score: dict[str, float],
     low_conf: float,
     base_cov: Coverage | None,
@@ -216,8 +225,8 @@ def _score_impacts(
         if not c.applicable or c.status is StepStatus.done_well:
             continue
         hypo = list(plain)
-        hypo[i] = _Calc(True, StepStatus.done_well, c.weight, c.confidence)
-        cov2, q2 = _summaries(hypo, sub_score, low_conf)
+        hypo[i] = StepCalc(True, StepStatus.done_well, c.weight, c.confidence)
+        cov2, q2 = coverage_quality_from_weighted_steps(hypo, sub_score, low_conf)
         assert cov2 is not None and q2 is not None
         impacts.append(
             ScoreImpact(
