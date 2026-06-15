@@ -96,6 +96,20 @@ forbidden_modules = [
     "veribayes.core.llm",
 ]
 
+# The metric engine is pure (same discipline as score): no LLM, no network, no IO — just labels in,
+# statistics out. Deterministic (the bootstrap is seeded).
+[[tool.importlinter.contracts]]
+name = "validation metrics is pure"
+type = "forbidden"
+source_modules = ["veribayes.core.validation.metrics"]
+forbidden_modules = [
+    "veribayes.core.llm",
+    "veribayes.api",
+    "anthropic",
+    "claude_agent_sdk",
+    "httpx",
+]
+
 # --- Environment management (pixi, conda-forge) ---------------------------------------------------
 # Reproducible environments + lockfile. `pixi install` provisions Python 3.12; `pixi run check`
 # runs lint + import-contract + tests. Runtime deps come from [project.dependencies] and dev tools
