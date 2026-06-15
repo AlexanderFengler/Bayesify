@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getPaper, rerun, streamProgress, submitPaper } from "./api";
 import { Inventory } from "./Inventory";
 import { CalibrationModal, PrivacyModal } from "./Modal";
+import { Rate } from "./Rate";
 import { Report } from "./Report";
 import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
 
@@ -18,6 +19,7 @@ export function App() {
   const [stageState, setStageState] = useState<Record<string, "running" | "done">>({});
   const [paper, setPaper] = useState<PaperState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ratingPaperId, setRatingPaperId] = useState<string | null>(null); // blind-rating takeover
   const [modal, setModal] = useState<ModalKind>(null);
   const [firstRun, setFirstRun] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -28,6 +30,13 @@ export function App() {
       setFirstRun(true);
       setModal("privacy");
     }
+  }, []);
+
+  // Direct blind-rating entry: /?rate=<paper_id> opens the blind form for an already-ingested paper
+  // (a stable link for assigning a rater a paper; the in-app entry is the local detection view).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("rate");
+    if (id) setRatingPaperId(id);
   }, []);
 
   const ackPrivacy = useCallback(() => {
@@ -98,44 +107,50 @@ export function App() {
     <div className="page">
       <Header mode={mode} />
       <main className="container">
-        {phase === "idle" && (
-          <UploadCard
-            mode={mode}
-            setMode={setMode}
-            identifier={identifier}
-            setIdentifier={setIdentifier}
-            file={file}
-            setFile={setFile}
-            dragging={dragging}
-            setDragging={setDragging}
-            fileInput={fileInput}
-            onStart={start}
-          />
-        )}
-        {phase === "running" && (
-          <Progress
-            stageState={stageState}
-            stages={mode === "local" ? LOCAL_STAGES : STAGES}
-            source={file?.name ?? identifier}
-          />
-        )}
-        {phase === "error" && (
-          <div className="card error-card">
-            <h2>Something went wrong</h2>
-            <p>{error}</p>
-            <button className="btn" onClick={reset}>
-              Try again
-            </button>
-          </div>
-        )}
-        {phase === "done" && paper?.result && (
-          <Report paper={paper} onReset={reset} onRerun={rerunPaper} />
-        )}
-        {phase === "done" && paper && !paper.result && paper.inventory && (
-          <Inventory paper={paper} onReset={reset} />
-        )}
-        {phase === "done" && paper && !paper.result && !paper.inventory && paper.local_notice && (
-          <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={reset} />
+        {ratingPaperId ? (
+          <Rate paperId={ratingPaperId} onExit={() => setRatingPaperId(null)} />
+        ) : (
+          <>
+            {phase === "idle" && (
+              <UploadCard
+                mode={mode}
+                setMode={setMode}
+                identifier={identifier}
+                setIdentifier={setIdentifier}
+                file={file}
+                setFile={setFile}
+                dragging={dragging}
+                setDragging={setDragging}
+                fileInput={fileInput}
+                onStart={start}
+              />
+            )}
+            {phase === "running" && (
+              <Progress
+                stageState={stageState}
+                stages={mode === "local" ? LOCAL_STAGES : STAGES}
+                source={file?.name ?? identifier}
+              />
+            )}
+            {phase === "error" && (
+              <div className="card error-card">
+                <h2>Something went wrong</h2>
+                <p>{error}</p>
+                <button className="btn" onClick={reset}>
+                  Try again
+                </button>
+              </div>
+            )}
+            {phase === "done" && paper?.result && (
+              <Report paper={paper} onReset={reset} onRerun={rerunPaper} />
+            )}
+            {phase === "done" && paper && !paper.result && paper.inventory && (
+              <Inventory paper={paper} onReset={reset} onRate={setRatingPaperId} />
+            )}
+            {phase === "done" && paper && !paper.result && !paper.inventory && paper.local_notice && (
+              <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={reset} />
+            )}
+          </>
         )}
       </main>
       <Footer onPrivacy={() => setModal("privacy")} onCalibration={() => setModal("calibration")} />

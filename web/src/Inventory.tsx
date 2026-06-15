@@ -25,7 +25,15 @@ function valueText(value: Record<string, unknown> | null): string | null {
     .join(", ");
 }
 
-export function Inventory({ paper, onReset }: { paper: PaperState; onReset: () => void }) {
+export function Inventory({
+  paper,
+  onReset,
+  onRate,
+}: {
+  paper: PaperState;
+  onReset: () => void;
+  onRate: (paperId: string) => void;
+}) {
   const inv = paper.inventory!;
   const families = inv.families.filter((f) => f.found.length > 0 || f.not_detected.length > 0);
   return (
@@ -35,9 +43,15 @@ export function Inventory({ paper, onReset }: { paper: PaperState; onReset: () =
           <div className="local-badge">Local-only · detection mode</div>
           <h1 className="report-title">{paper.source_label}</h1>
         </div>
-        <button className="btn" onClick={onReset}>
-          Analyze another
-        </button>
+        <div className="report-head-actions">
+          {/* Blind entry: rate from the no-grade detection view, never from the engine's report. */}
+          <button className="btn" onClick={() => onRate(paper.paper_id)}>
+            Rate this paper (blind)
+          </button>
+          <button className="btn" onClick={onReset}>
+            Analyze another
+          </button>
+        </div>
       </div>
 
       <InventorySummary inv={inv} parser={paper.parser} paperId={paper.paper_id} />

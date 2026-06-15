@@ -1,14 +1,8 @@
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { recordOverride } from "./api";
 import { STATUS_LABEL, STATUS_OPTIONS, useStepNames } from "./rubric";
-import type {
-  EvidenceSpan,
-  FixItem,
-  PaperState,
-  ScoredResult,
-  StepAssessment,
-  StepStatus,
-} from "./types";
+import { EvidenceBlock, StepCardShell } from "./StepCard";
+import type { FixItem, PaperState, ScoredResult, StepAssessment, StepStatus } from "./types";
 
 export function Report({
   paper,
@@ -194,60 +188,6 @@ function Chip({ k, v }: { k: string; v: string }) {
     <div className="chip">
       <span className="chip-k">{k}</span>
       <span className="chip-v">{v}</span>
-    </div>
-  );
-}
-
-// The blind-safe shell shared by the engine report card (here) and (V3) the rating card: the frame +
-// header (step-id + step-name) with a leading `pill` slot and a trailing `headerRight` slot, plus the
-// body as children. It carries NO engine judgment of its own — the report passes the status pill +
-// confidence in; the rating form will pass its own (blank) inputs.
-function StepCardShell({
-  stepId,
-  stepName,
-  sectionClass,
-  pill,
-  headerRight,
-  children,
-}: {
-  stepId: string;
-  stepName: string;
-  sectionClass?: string;
-  pill?: ReactNode;
-  headerRight?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className={"step-card" + (sectionClass ? " " + sectionClass : "")}>
-      <header className="step-card-head">
-        {pill}
-        <div className="step-heading">
-          <span className="step-id">{stepId}</span>
-          <span className="step-name">{stepName}</span>
-        </div>
-        {headerRight}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-// The "In the paper" evidence panel over verbatim spans — reused by the rating form, which shows the
-// rater the same detector spans as neutral inputs to cite from. Renders nothing when empty.
-function EvidenceBlock({ spans, label = "In the paper" }: { spans: EvidenceSpan[]; label?: string }) {
-  if (spans.length === 0) return null;
-  return (
-    <div className="grounding">
-      <div className="grounding-label">{label}</div>
-      {spans.map((s, i) => (
-        <blockquote key={i} className="evidence">
-          &ldquo;{s.quote}&rdquo;
-          <cite>
-            §{s.section_id}
-            {s.page != null && `, p.${s.page}`}
-          </cite>
-        </blockquote>
-      ))}
     </div>
   );
 }

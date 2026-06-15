@@ -1,3 +1,4 @@
+import type { Rubric } from "./rubric";
 import type { PaperState } from "./types";
 
 export interface SubmitInput {
@@ -64,6 +65,73 @@ export async function rerun(paperId: string): Promise<string> {
   const res = await fetch(`/api/papers/${paperId}/rerun`, { method: "POST", body: form });
   if (!res.ok) throw new Error("could not re-run");
   return (await res.json()).paper_id as string;
+}
+
+// --- Blind expert rating (V3) ---------------------------------------------------------------------
+
+export interface RateContextSpan {
+  section_id: string;
+  section_title: string;
+  page: number | null;
+  quote: string;
+  family: string;
+  detector_id: string;
+  kind: string;
+}
+export interface RateContext {
+  paper_id: string;
+  source_label: string;
+  source_sha256: string | null;
+  rubric: Rubric;
+  evidence: RateContextSpan[];
+  where_looked: { section_id: string; title: string; kind: string; page: number | null }[];
+}
+
+// Load the BLIND rating context (rubric + detector evidence only — never the engine's ScoredResult).
+export async function fetchRateContext(paperId: string): Promise<RateContext> {
+  const res = await fetch(`/api/rate/context/${paperId}`);
+  if (!res.ok) throw new Error("could not load rating context");
+  return (await res.json()) as RateContext;
+}
+
+// The Rating a blind rater builds (mirrors veribayes.core.validation.human_report.Rating).
+export interface RatingStepInput {
+  step_id: string;
+  applicable: boolean;
+  status: string;
+  confidence: number;
+  evidence: { section_id: string; page: number | null; quote: string }[];
+  rationale: string;
+  applicability_reason?: string;
+  missing_subtag?: string | null;
+}
+export interface RatingInput {
+  rater_id: string;
+  relationship: string;
+  relevance_label: string;
+  relevance_rationale: string;
+  paper_class_label: string | null;
+  paper_class_rationale: string;
+  gate_facts: {
+    inference_method: string;
+    n_models: number;
+    bf_claimed: boolean;
+    prior_informativeness: string;
+  } | null;
+  steps: RatingStepInput[];
+}
+
+// Record one blind Rating. The server validates it against the contract; a 422 detail is surfaced.
+export async function submitRating(paperId: string, rating: RatingInput): Promise<void> {
+  const res = await fetch("/api/rate/submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paper_id: paperId, rating }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(typeof body.detail === "string" ? body.detail : "rating rejected");
+  }
 }
 
 export interface Calibration {
