@@ -120,6 +120,10 @@ class JobStore:
         self._jobs: dict[str, Job] = {}
         # A5 scaffolding: append-only override log, keyed by assessment id (= paper id at M1).
         self.overrides: list[dict] = []
+        # Blind expert ratings (V3): append-only, never mutates engine output. Each entry is one
+        # rater's Rating for a paper; 2-3 + consensus assemble into a HumanReport at adjudication
+        # (M7). In-memory for now — durable per-session storage lands before the first real rater.
+        self.ratings: list[dict] = []
 
     def create(
         self,

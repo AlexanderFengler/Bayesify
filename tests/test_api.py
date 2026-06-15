@@ -100,6 +100,84 @@ def test_rubric_unknown_profile_is_422() -> None:
     assert client.get("/api/rubric", params={"profile": "does_not_exist"}).status_code == 422
 
 
+def _all_keys(obj) -> set[str]:
+    """Every dict key anywhere in a nested JSON structure."""
+    keys: set[str] = set()
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            keys.add(k)
+            keys |= _all_keys(v)
+    elif isinstance(obj, list):
+        for it in obj:
+            keys |= _all_keys(it)
+    return keys
+
+
+def test_rate_context_is_blind(tmp_path, monkeypatch) -> None:
+    from veribayes.core.stub import build_stub_result
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    job = store.create(mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
+    asyncio.run(run_job(job))  # local front-half → detector inventory (no LLM, no grade)
+    assert job.inventory is not None
+    job.result = build_stub_result("full")  # pretend the engine ALSO graded it — must NOT leak
+
+    body = client.get(f"/api/rate/context/{job.id}").json()
+    assert body["rubric"]["steps"]  # the rater gets the rubric to walk...
+    assert body["evidence"]  # ...and the HDDM paper's detector hits (Stan, NUTS, R-hat, …)
+    # ...but NOTHING of the engine's judgment.
+    leaked = _all_keys(body) & {
+        "status",
+        "coverage",
+        "quality_score",
+        "did_well",
+        "suggestions",
+        "adversarial_verdict",
+        "score_impacts",
+        "step_assessments",
+        "relevance",
+        "paper_class",
+    }
+    assert leaked == set(), f"engine judgment leaked into the blind context: {leaked}"
+    assert all(e["kind"] not in ("absence_search", "judge_quote") for e in body["evidence"])
+
+
+def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    job = store.create(mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
+    asyncio.run(run_job(job))
+    rating = {
+        "rater_id": "r1",
+        "relationship": "independent",
+        "relevance_label": "yes",
+        "relevance_rationale": "fits a hierarchical Bayesian model",
+        "paper_class_label": "empirical",
+        "paper_class_rationale": "fit to behavioural data",
+        "gate_facts": {
+            "inference_method": "mcmc",
+            "n_models": 1,
+            "bf_claimed": False,
+            "prior_informativeness": "weakly_informative",
+        },
+        "steps": [
+            {
+                "step_id": "S1",
+                "applicable": True,
+                "status": "done_well",
+                "confidence": 0.9,
+                "evidence": [{"section_id": "s01", "quote": "hierarchical drift-diffusion model"}],
+                "rationale": "the model is specified and justified",
+            }
+        ],
+    }
+    ok = client.post("/api/rate/submit", json={"paper_id": job.id, "rating": rating})
+    assert ok.status_code == 200 and ok.json()["recorded"] is True
+    # the Rating contract is enforced at the boundary: 'partial' relevance needs a paper_class
+    bad = {**rating, "relevance_label": "partial", "paper_class_label": None}
+    r = client.post("/api/rate/submit", json={"paper_id": job.id, "rating": bad})
+    assert r.status_code == 422
+
+
 def test_override_is_recorded_but_not_yet_learned_from() -> None:
     r = client.post(
         "/api/assessments/abc/steps/S4/override",

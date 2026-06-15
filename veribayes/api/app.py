@@ -23,12 +23,15 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, ConfigDict
 from sse_starlette.sse import EventSourceResponse
 
 from veribayes.api import jobs as jobsmod
 from veribayes.api.jobs import JobStore, event_stream, run_job
 from veribayes.core.report import fix_list
 from veribayes.core.rubric import RubricProfileError, load_rubric
+from veribayes.core.schema import EvidenceKind
+from veribayes.core.validation import Rating
 
 app = FastAPI(title="VeriBayes API", version="0.1.0")
 
@@ -240,6 +243,75 @@ async def record_override(
 async def export_overrides() -> PlainTextResponse:
     body = "\n".join(__import__("json").dumps(o) for o in store.overrides)
     return PlainTextResponse(body, media_type="application/x-ndjson")
+
+
+# --- Blind expert rating (V3) ---------------------------------------------------------------------
+# The rating surface is the human side of validation. Blindness is enforced HERE, server-side: the
+# context handler has no access path to job.result, and assess-minted evidence kinds are excluded.
+_RATE_BLIND_EXCLUDE = {EvidenceKind.absence_search, EvidenceKind.judge_quote}
+
+
+@app.get("/api/rate/context/{paper_id}")
+async def rate_context(paper_id: str, profile: str = "synthesis") -> dict:
+    """Blind rating context: the rubric to walk + the deterministic detector evidence to cite from,
+    and NOTHING from the engine's ScoredResult. A rater handed the engine's framing would measure an
+    echo, so this never reads job.result; absence_search/judge_quote spans (which would leak the
+    engine's missing-calls) are excluded. Asserted by test_rate_context_is_blind."""
+    job = store.get(paper_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="unknown paper_id")
+    try:
+        rubric = _rubric_payload(profile)
+    except RubricProfileError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    evidence: list[dict] = []
+    where_looked: list[dict] = []
+    if job.inventory is not None:
+        for fam in job.inventory.families:
+            for hit in fam.found:
+                if hit.kind in _RATE_BLIND_EXCLUDE:  # defensive: detectors never mint these
+                    continue
+                evidence.append(
+                    {
+                        "section_id": hit.section_id,
+                        "section_title": hit.section_title,
+                        "page": hit.page,
+                        "quote": hit.quote,
+                        "family": hit.family,
+                        "detector_id": hit.detector_id,
+                        "kind": hit.kind.value,
+                    }
+                )
+        where_looked = [
+            {"section_id": s.section_id, "title": s.title, "kind": s.kind.value, "page": s.page}
+            for s in job.inventory.where_looked
+        ]
+    return {
+        "paper_id": job.id,
+        "source_label": job.source_label,
+        "source_sha256": job.content_sha256,
+        "rubric": rubric,
+        "evidence": evidence,
+        "where_looked": where_looked,
+    }
+
+
+class RateSubmit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    paper_id: str
+    rating: Rating  # validated by its own contract (relevance/class/gate + per-step grounding)
+
+
+@app.post("/api/rate/submit")
+async def rate_submit(body: RateSubmit) -> dict:
+    """Record one rater's blind ``Rating`` (append-only; A5 — never mutates engine output).
+    Assembling 2-3 ratings + a consensus into a ``HumanReport`` is the adjudication step (M7)."""
+    if store.get(body.paper_id) is None:
+        raise HTTPException(status_code=404, detail="unknown paper_id")
+    store.ratings.append(
+        {"paper_id": body.paper_id, "rating": body.rating.model_dump(mode="json")}
+    )
+    return {"recorded": True, "n_ratings": len(store.ratings)}
 
 
 @app.get("/api/calibration")
