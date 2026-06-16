@@ -19,8 +19,10 @@ data with ``pixi run demo-data``. The real run (``--real`` over ``validation/gol
 from __future__ import annotations
 
 import argparse
+from collections.abc import Callable
 from pathlib import Path
 
+from veribayes.core.cache import BlobStore, sha256_bytes
 from veribayes.core.rubric.loader import load_rubric
 from veribayes.core.schema import ScoredResult
 from veribayes.core.validation.human_report import GoldOrigin, HumanReport
@@ -29,6 +31,10 @@ from veribayes.core.validation.report import (
     build_report,
     to_markdown,
 )
+
+# An engine source produces the engine's ScoredResult for one gold-set paper. Two implementations:
+# fixtures (the demo, paired by work_id) and live (fetch the rated bytes by sha256, run the engine).
+EngineSource = Callable[[HumanReport], "ScoredResult | None"]
 
 REAL_GOLDSET_DIR = "validation/goldset"
 FAKE_GOLDSET_DIR = "validation/_fake_goldset"
@@ -49,6 +55,51 @@ class FakeDataInRealGoldset(HarnessError):
 
 class FakeDataInPublicReport(HarnessError):
     """An attempt to emit the public VALIDATION.md from demo/fake data."""
+
+
+class GoldsetVersionMismatch(HarnessError):
+    """The engine cannot be run on the exact document the rater rated (protocol §1 byte-pin): the
+    pinned sha256 is not in the blob store, or the stored bytes hash differently. A hard fail — the
+    harness never grades a substitute document."""
+
+
+# --- engine sources -------------------------------------------------------------------------------
+
+
+class FixtureEngineSource:
+    """Demo/dry-run: read pre-recorded engine ScoredResults from a directory, paired by work_id."""
+
+    def __init__(self, engine_dir: str | Path) -> None:
+        self._by_work_id = load_engine(engine_dir)
+
+    def __call__(self, human: HumanReport) -> ScoredResult | None:
+        return self._by_work_id.get(human.work_id)
+
+
+class LiveEngineSource:
+    """Real run: grade each gold-set paper with the live engine, on the exact bytes the rater rated.
+    Fetches by the pinned sha256 from the blob store and hard-fails ``GoldsetVersionMismatch`` if
+    the rated document isn't available — never grades a substitute. ``grade_fn`` (bytes ->
+    ScoredResult) is injected so this is testable without the LLM; the CLI wires the real engine via
+    ``core.engine.grade_document``."""
+
+    def __init__(self, blobs: BlobStore, grade_fn: Callable[[bytes], ScoredResult]) -> None:
+        self.blobs = blobs
+        self.grade_fn = grade_fn
+
+    def __call__(self, human: HumanReport) -> ScoredResult:
+        sha = human.source_sha256
+        if not sha or not self.blobs.exists(sha):
+            raise GoldsetVersionMismatch(
+                f"{human.work_id}: rated document {sha!r} is not in the blob store"
+            )
+        data = self.blobs.get(sha)
+        actual = sha256_bytes(data)
+        if actual != sha:  # defensive: a content-addressed store should never return other bytes
+            raise GoldsetVersionMismatch(
+                f"{human.work_id}: stored bytes hash {actual} != pinned {sha}"
+            )
+        return self.grade_fn(data)
 
 
 def load_goldset(goldset_dir: str | Path) -> list[HumanReport]:
@@ -101,6 +152,7 @@ def build(
     *,
     goldset_dir: str | Path = FAKE_GOLDSET_DIR,
     engine_dir: str | Path = FAKE_ENGINE_DIR,
+    engine_source: EngineSource | None = None,
     treat_as_real: bool | None = None,
     seed: int = 0,
     n_floor: int = 15,
@@ -108,14 +160,21 @@ def build(
     n_resamples: int = 1000,
 ) -> ValidationReport:
     """Load → firewall → build the ValidationReport (READ-ONLY; no artifacts written). Used by the
-    API to serve /api/calibration. ``treat_as_real`` defaults to 'is this the real goldset dir?'."""
+    API to serve /api/calibration. ``engine_source`` produces each paper's engine result — defaults
+    to the fixture source (demo); the real run passes a ``LiveEngineSource``. ``treat_as_real``
+    defaults to 'is this the real goldset dir?'."""
     if treat_as_real is None:
         treat_as_real = Path(goldset_dir).resolve() == Path(REAL_GOLDSET_DIR).resolve()
+    if engine_source is None:
+        engine_source = FixtureEngineSource(engine_dir)
     rubric = load_rubric(profile=profile)
     humans = load_goldset(goldset_dir)
-    engines = load_engine(engine_dir)
     is_demo, status = decide_status(humans, treat_as_real=treat_as_real)
-    pairs = [(h, engines[h.work_id]) for h in humans if h.work_id in engines]
+    pairs: list[tuple[HumanReport, ScoredResult]] = []
+    for h in humans:
+        sr = engine_source(h)  # may raise GoldsetVersionMismatch (hard fail; no substitute doc)
+        if sr is not None:
+            pairs.append((h, sr))
     engine_version = next((s.engine_version for _, s in pairs), "unknown")
     return build_report(
         pairs,
@@ -133,6 +192,7 @@ def run(
     *,
     goldset_dir: str | Path = FAKE_GOLDSET_DIR,
     engine_dir: str | Path = FAKE_ENGINE_DIR,
+    engine_source: EngineSource | None = None,
     out_dir: str | Path | None = None,
     treat_as_real: bool | None = None,
     seed: int = 0,
@@ -143,6 +203,7 @@ def run(
     report = build(
         goldset_dir=goldset_dir,
         engine_dir=engine_dir,
+        engine_source=engine_source,
         treat_as_real=treat_as_real,
         seed=seed,
         n_floor=n_floor,
@@ -161,19 +222,54 @@ def run(
     return report
 
 
+def _live_engine_source(*, profile: str) -> LiveEngineSource:  # pragma: no cover - real run, billed
+    """Build the live engine source for ``--real``: the same engine the app ships, over the rated
+    bytes in the blob store. Bills the LLM — only the deliberate M7 run reaches here."""
+    import os
+
+    from veribayes.core import config, engine
+    from veribayes.core.llm import AgentSDKClient, AnthropicClient
+    from veribayes.core.stub import ENGINE_VERSION, RUBRIC_VERSION
+
+    root = os.environ.get("VERIBAYES_DATA_DIR") or str(Path.home() / ".veribayes")
+    blobs = BlobStore(Path(root) / "blobs")
+    client = (
+        AgentSDKClient()
+        if config.llm_backend() == "agent-sdk"
+        else AnthropicClient(api_key=config.anthropic_api_key())
+    )
+    rubric = load_rubric(profile=profile)
+
+    def grade_fn(data: bytes) -> ScoredResult:
+        return engine.grade_document(
+            data,
+            blobs=blobs,
+            client=client,
+            rubric=rubric,
+            engine_version=ENGINE_VERSION,
+            rubric_version=RUBRIC_VERSION,
+        )
+
+    return LiveEngineSource(blobs, grade_fn)
+
+
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover - CLI wiring
     ap = argparse.ArgumentParser(description="VeriBayes validation harness")
     ap.add_argument("--goldset-dir", default=FAKE_GOLDSET_DIR)
     ap.add_argument("--engine-dir", default=FAKE_ENGINE_DIR)
     ap.add_argument("--out-dir", default=None)
-    ap.add_argument("--real", action="store_true", help="treat the goldset as the real, blind set")
+    ap.add_argument("--real", action="store_true", help="real run: blind goldset + live engine")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--n-floor", type=int, default=15)
     ap.add_argument("--profile", default="synthesis")
     args = ap.parse_args(argv)
+    # --real grades each paper with the LIVE engine over its pinned bytes (bills); the demo uses
+    # the recorded fixture engine results.
+    engine_source = _live_engine_source(profile=args.profile) if args.real else None
     report = run(
         goldset_dir=args.goldset_dir,
         engine_dir=args.engine_dir,
+        engine_source=engine_source,
         out_dir=args.out_dir,
         treat_as_real=True if args.real else None,
         seed=args.seed,
