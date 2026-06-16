@@ -33,7 +33,6 @@ from veribayes.core.validation.metrics import (
     absence_miss_rate,
     accuracy,
     binary_sens_spec,
-    bootstrap_ci,
     cohen_kappa,
     confusion,
     gwet_ac,
@@ -249,14 +248,17 @@ def build_report(
         if hq is not None and s.quality_score is not None:
             qual_pairs.append((hq, s.quality_score))
 
-    # === DECISION PENDING (G9) — MECHANISM IN QUESTION ===
-    # The paper-level cluster bootstrap is the most contestable statistical choice in the harness,
-    # and this is the SINGLE seam through which every κ confidence interval flows. v0 may well
-    # replace it with something simpler (point κ + n only, no CIs; a Wilson/normal approx; or rates
-    # only). Kept contained HERE so swapping it is a one-function change. Decision deferred to the
-    # G9 protocol amendment — do NOT treat the current CIs as final (see protocol.md §3).
+    # === v0 DECISION (owner, 2026-06-16): κ confidence intervals are OFF. ===
+    # This is the SINGLE seam through which every κ CI flows. At v0 n (~15-30 papers) a paper-level
+    # cluster bootstrap CI is noisy and contestable, and the uncertainties that matter most — rater
+    # coherence and engine noise — are reported SEPARATELY as the inter-expert and test-retest κ.
+    # So κ is reported as a point estimate + n + the 'preliminary (n below floor)' tag, no interval.
+    # The cluster bootstrap (`metrics.bootstrap_ci`, still unit-tested) is retained for a possible
+    # v1 re-enable once the real run has enough papers — flip this back at the G9 amendment by
+    # restoring `return bootstrap_ci(papers, lambda ps: fn(_flatten(ps)), seed=seed,
+    # n_resamples=n_resamples)` and re-importing it. seed/n_resamples are threaded for that.
     def _kappa_ci(papers, fn) -> Interval | None:
-        return bootstrap_ci(papers, lambda ps: fn(_flatten(ps)), seed=seed, n_resamples=n_resamples)
+        return None
 
     applic_k = cohen_kappa(_flatten(applic_papers))
     status_k = weighted_kappa(_flatten(status_both_papers), STATUS_ORDER)

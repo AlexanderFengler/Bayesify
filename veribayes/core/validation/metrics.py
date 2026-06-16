@@ -302,8 +302,10 @@ def bootstrap_ci[T](
     paper-level CLUSTER bootstrap (resample papers, not cells, so within-paper correlation is
     respected). Deterministic given ``seed``. A resample that can't be scored is skipped.
 
-    DECISION PENDING (G9): this cluster bootstrap is a v0 mechanism IN QUESTION — a simpler CI (or
-    none) is on the table. It's invoked from the single seam ``report._kappa_ci``; revisit there."""
+    v0 DECISION (owner, 2026-06-16): κ CIs are OFF for v0 — ``report._kappa_ci`` returns None, so
+    this is NOT currently invoked by the report (only unit-tested here). At v0 n a cluster-bootstrap
+    κ CI is noisy/contestable; κ ships as point + n. Retained for a possible v1 re-enable (flip the
+    seam back) once the real run has enough papers; revisit at the G9 amendment (protocol §3)."""
     if not units:
         return None
     rng = Random(seed)
