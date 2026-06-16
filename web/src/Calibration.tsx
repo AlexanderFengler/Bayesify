@@ -152,6 +152,7 @@ function Metrics({ rep }: { rep: CalibrationReport }) {
     rep.status_percent_agreement,
     rep.status_ac1,
     rep.inter_expert_status_kappa,
+    rep.test_retest_kappa,
     rep.absence_fpr_strict,
     rep.absence_fpr_broad,
     rep.absence_miss_rate,

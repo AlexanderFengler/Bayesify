@@ -25,7 +25,7 @@ from pathlib import Path
 from veribayes.core.cache import BlobStore, sha256_bytes
 from veribayes.core.rubric.loader import load_rubric
 from veribayes.core.schema import ScoredResult
-from veribayes.core.validation.human_report import GoldOrigin, HumanReport
+from veribayes.core.validation.human_report import GoldOrigin, GoldTier, HumanReport
 from veribayes.core.validation.report import (
     ValidationReport,
     build_report,
@@ -153,6 +153,7 @@ def build(
     goldset_dir: str | Path = FAKE_GOLDSET_DIR,
     engine_dir: str | Path = FAKE_ENGINE_DIR,
     engine_source: EngineSource | None = None,
+    engine_runs: int = 1,
     treat_as_real: bool | None = None,
     seed: int = 0,
     n_floor: int = 15,
@@ -161,8 +162,10 @@ def build(
 ) -> ValidationReport:
     """Load → firewall → build the ValidationReport (READ-ONLY; no artifacts written). Used by the
     API to serve /api/calibration. ``engine_source`` produces each paper's engine result — defaults
-    to the fixture source (demo); the real run passes a ``LiveEngineSource``. ``treat_as_real``
-    defaults to 'is this the real goldset dir?'."""
+    to the fixture source (demo); the real run passes a ``LiveEngineSource``. ``engine_runs >= 2``
+    grades each Tier-A paper a second time for test-retest κ (only meaningful with a stochastic live
+    engine — fixtures are deterministic). ``treat_as_real`` defaults to 'is this the real goldset
+    dir?'."""
     if treat_as_real is None:
         treat_as_real = Path(goldset_dir).resolve() == Path(REAL_GOLDSET_DIR).resolve()
     if engine_source is None:
@@ -171,10 +174,16 @@ def build(
     humans = load_goldset(goldset_dir)
     is_demo, status = decide_status(humans, treat_as_real=treat_as_real)
     pairs: list[tuple[HumanReport, ScoredResult]] = []
+    retest_pairs: list[tuple[ScoredResult, ScoredResult]] = []
     for h in humans:
         sr = engine_source(h)  # may raise GoldsetVersionMismatch (hard fail; no substitute doc)
-        if sr is not None:
-            pairs.append((h, sr))
+        if sr is None:
+            continue
+        pairs.append((h, sr))
+        if engine_runs >= 2 and h.tier is GoldTier.A:
+            sr2 = engine_source(h)  # a second independent run (stochastic on the live engine)
+            if sr2 is not None:
+                retest_pairs.append((sr, sr2))
     engine_version = next((s.engine_version for _, s in pairs), "unknown")
     return build_report(
         pairs,
@@ -185,6 +194,7 @@ def build(
         seed=seed,
         n_floor=n_floor,
         n_resamples=n_resamples,
+        retest_pairs=retest_pairs,
     )
 
 
@@ -193,6 +203,7 @@ def run(
     goldset_dir: str | Path = FAKE_GOLDSET_DIR,
     engine_dir: str | Path = FAKE_ENGINE_DIR,
     engine_source: EngineSource | None = None,
+    engine_runs: int = 1,
     out_dir: str | Path | None = None,
     treat_as_real: bool | None = None,
     seed: int = 0,
@@ -204,6 +215,7 @@ def run(
         goldset_dir=goldset_dir,
         engine_dir=engine_dir,
         engine_source=engine_source,
+        engine_runs=engine_runs,
         treat_as_real=treat_as_real,
         seed=seed,
         n_floor=n_floor,
@@ -270,6 +282,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - CLI wiring
         goldset_dir=args.goldset_dir,
         engine_dir=args.engine_dir,
         engine_source=engine_source,
+        engine_runs=2 if args.real else 1,  # the real run grades Tier A twice for test-retest κ
         out_dir=args.out_dir,
         treat_as_real=True if args.real else None,
         seed=args.seed,

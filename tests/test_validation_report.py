@@ -122,6 +122,43 @@ def test_human_coverage_is_derived_not_typed() -> None:
     assert rep.coverage_icc.label.startswith("coverage")  # an agreement metric, not a typed value
 
 
+def test_test_retest_kappa_from_two_engine_runs() -> None:
+    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    pairs = [(_human(sr, "w1", "aa"), sr)]
+    # identical second run → perfect test-retest (the engine agrees with itself)
+    perfect = build_report(
+        pairs, _RUBRIC, engine_version="ev", is_demo=True, status="demo_fake_data",
+        retest_pairs=[(sr, sr)], n_resamples=20,
+    )
+    assert perfect.test_retest_kappa.value == 1.0
+
+    # a noisier second run (one applicable done_well flipped to partial) → below 1.0
+    flipped = list(sr.step_assessments)
+    for i, a in enumerate(flipped):
+        if a.applicable and a.status is StepStatus.done_well:
+            flipped[i] = a.model_copy(update={"status": StepStatus.partial})
+            break
+    sr2 = sr.model_copy(update={"step_assessments": flipped})
+    noisy = build_report(
+        pairs, _RUBRIC, engine_version="ev", is_demo=True, status="demo_fake_data",
+        retest_pairs=[(sr, sr2)], n_resamples=20,
+    )
+    assert noisy.test_retest_kappa.value is not None and noisy.test_retest_kappa.value < 1.0
+
+
+def test_no_retest_pairs_leaves_kappa_unmeasured() -> None:
+    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    rep = build_report(
+        [(_human(sr, "w1", "aa"), sr)],
+        _RUBRIC,
+        engine_version="ev",
+        is_demo=True,
+        status="demo_fake_data",
+        n_resamples=20,
+    )
+    assert rep.test_retest_kappa.value is None  # the demo doesn't measure engine noise
+
+
 def test_inadmissible_papers_are_excluded_not_dropped() -> None:
     sr = ScoredResult.model_validate_json(_FIX.read_text())
     good = _human(sr, "w1", "aa")

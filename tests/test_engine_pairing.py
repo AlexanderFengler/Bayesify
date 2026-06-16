@@ -46,13 +46,13 @@ def _no_rating(rid: str, rel: RaterRelationship) -> Rating:
     )
 
 
-def _hr(work_id: str, sha: str) -> HumanReport:
+def _hr(work_id: str, sha: str, tier: GoldTier = GoldTier.B) -> HumanReport:
     return HumanReport(
         work_id=work_id,
         source_sha256=sha,
         version_label="v1",
         rubric_version="rv",
-        tier=GoldTier.B,
+        tier=tier,
         provenance=GoldProvenance(origin=GoldOrigin.fake_llm),
         ratings=[
             _no_rating("r1", RaterRelationship.independent),
@@ -107,6 +107,24 @@ def test_build_uses_the_injected_engine_source(tmp_path) -> None:
         n_resamples=20,
     )
     assert report.n_papers == 1 and report.is_demo  # the custom source paired the one paper
+
+
+def test_engine_runs_two_grades_tier_a_twice(tmp_path) -> None:
+    gold = tmp_path / "gold"
+    gold.mkdir()
+    (gold / "a.json").write_text(_hr("a", "sa", tier=GoldTier.A).model_dump_json())
+    (gold / "b.json").write_text(_hr("b", "sb", tier=GoldTier.B).model_dump_json())
+    calls: dict[str, int] = {}
+
+    def src(h: HumanReport) -> ScoredResult:
+        calls[h.work_id] = calls.get(h.work_id, 0) + 1
+        return _canned()
+
+    harness.build(
+        goldset_dir=gold, engine_source=src, engine_runs=2, treat_as_real=False, n_resamples=10
+    )
+    assert calls["a"] == 2  # Tier A graded twice → test-retest
+    assert calls["b"] == 1  # Tier B once
 
 
 # --- the shared engine (grade_document == the app's engine) ---------------------------------------

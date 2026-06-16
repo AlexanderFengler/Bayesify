@@ -122,6 +122,10 @@ class ValidationReport(_Base):
     confusion: dict[str, dict[str, int]]
     # human vs human (pairwise, blind) — explicitly NOT a ceiling
     inter_expert_status_kappa: Stat
+    # engine vs ITSELF (two runs on the same paper) — the noise floor below which engine-vs-human
+    # agreement is uninterpretable. value None when not measured (e.g. the demo: fixtures are
+    # deterministic, so it is only computed on the real run with engine_runs >= 2).
+    test_retest_kappa: Stat
 
 
 # --- builder -----------------------------------------------------------------------------------
@@ -164,9 +168,12 @@ def build_report(
     n_floor: int = 15,
     n_resamples: int = 1000,
     domain_note: str = DEFAULT_DOMAIN_NOTE,
+    retest_pairs: Sequence[tuple[ScoredResult, ScoredResult]] = (),
 ) -> ValidationReport:
     """Compute the single ``ValidationReport`` from in-memory pairs. Inadmissible human reports
-    (missing consensus, too few raters, …) are excluded and counted, never silently dropped."""
+    (missing consensus, too few raters, …) are excluded and counted, never silently dropped.
+    ``retest_pairs`` are (engine run 1, engine run 2) for the same paper → the test-retest κ noise
+    floor; empty when not measured (e.g. the demo, where fixtures are deterministic)."""
     admissible = [(h, s) for h, s in pairs if not h.validate_admissible() and h.consensus]
     n_excluded = len(pairs) - len(admissible)
     n_papers = len(admissible)
@@ -221,6 +228,10 @@ def build_report(
     applic_k = cohen_kappa(_flatten(applic_papers))
     status_k = weighted_kappa(_flatten(status_both_papers), STATUS_ORDER)
     ie_k = weighted_kappa(_flatten(inter_expert_papers), STATUS_ORDER)
+
+    # test-retest: two engine runs of the same paper, both-applicable status cells (per-paper)
+    retest_papers = [_engine_pair_cells(e1, e2) for e1, e2 in retest_pairs]
+    retest_k = weighted_kappa(_flatten(retest_papers), STATUS_ORDER) if retest_papers else None
 
     # relevance (all admissible papers) + paper-class (papers both judged relevant)
     rel_pairs = [
@@ -298,7 +309,26 @@ def build_report(
             len(_flatten(inter_expert_papers)),
             _kappa_ci(inter_expert_papers, lambda ps: weighted_kappa(ps, STATUS_ORDER)),
         ),
+        test_retest_kappa=stat(
+            "test-retest status κ (engine vs itself — the noise floor)",
+            retest_k,
+            len(_flatten(retest_papers)),
+            _kappa_ci(retest_papers, lambda ps: weighted_kappa(ps, STATUS_ORDER))
+            if retest_papers
+            else None,
+        ),
     )
+
+
+def _engine_pair_cells(e1: ScoredResult, e2: ScoredResult) -> list[tuple[StepStatus, StepStatus]]:
+    """Both-applicable status cells across two engine runs of the same paper (test-retest)."""
+    b = {a.step_id: a for a in e2.step_assessments}
+    cells: list[tuple[StepStatus, StepStatus]] = []
+    for sa in e1.step_assessments:
+        sb = b.get(sa.step_id)
+        if sb is not None and sa.applicable and sb.applicable:
+            cells.append((sa.status, sb.status))
+    return cells
 
 
 def _inter_expert_cells(hr: HumanReport) -> list[tuple[StepStatus, StepStatus]]:
@@ -374,6 +404,7 @@ def to_markdown(report: ValidationReport) -> str:
         report.status_percent_agreement,
         report.status_ac1,
         report.inter_expert_status_kappa,
+        report.test_retest_kappa,
         report.absence_fpr_strict,
         report.absence_fpr_broad,
         report.absence_miss_rate,

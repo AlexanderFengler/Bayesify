@@ -166,6 +166,7 @@ export interface CalibrationReport {
   status_percent_agreement?: MetricStat;
   status_ac1?: MetricStat;
   inter_expert_status_kappa?: MetricStat;
+  test_retest_kappa?: MetricStat;
   absence_fpr_strict?: MetricStat;
   absence_fpr_broad?: MetricStat;
   absence_miss_rate?: MetricStat;
