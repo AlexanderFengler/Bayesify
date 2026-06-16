@@ -1,6 +1,25 @@
 import type { Rubric } from "./rubric";
 import type { PaperState } from "./types";
 
+// One fetch+parse helper for every JSON endpoint. `detail: true` surfaces the API's `{detail}`
+// message (FastAPI 422s); otherwise a fixed `error` is thrown. (streamProgress uses EventSource,
+// not this.)
+async function fetchJson<T>(
+  input: RequestInfo,
+  init?: RequestInit,
+  opts?: { error?: string; detail?: boolean },
+): Promise<T> {
+  const res = await fetch(input, init);
+  if (!res.ok) {
+    if (opts?.detail) {
+      const body = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(typeof body.detail === "string" ? body.detail : (opts.error ?? "request failed"));
+    }
+    throw new Error(opts?.error ?? "request failed");
+  }
+  return (await res.json()) as T;
+}
+
 export interface SubmitInput {
   file?: File | null;
   identifier?: string; // an arXiv ID / DOI / OpenAlex ID / URL
@@ -24,19 +43,16 @@ export async function submitPaper(input: SubmitInput): Promise<string> {
   else if (input.identifier) {
     for (const [k, val] of Object.entries(classifyIdentifier(input.identifier))) form.set(k, val);
   }
-  const res = await fetch("/api/papers", { method: "POST", body: form });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(body.detail ?? "upload failed");
-  }
-  const body = await res.json();
-  return body.paper_id as string;
+  const body = await fetchJson<{ paper_id: string }>(
+    "/api/papers",
+    { method: "POST", body: form },
+    { detail: true, error: "upload failed" },
+  );
+  return body.paper_id;
 }
 
 export async function getPaper(paperId: string): Promise<PaperState> {
-  const res = await fetch(`/api/papers/${paperId}`);
-  if (!res.ok) throw new Error("could not fetch paper");
-  return (await res.json()) as PaperState;
+  return fetchJson<PaperState>(`/api/papers/${paperId}`, undefined, { error: "could not fetch paper" });
 }
 
 // Record an expert disagreement on one step (A5). Append-only; never mutates the engine output —
@@ -51,20 +67,23 @@ export async function recordOverride(
   form.set("corrected_status", correctedStatus);
   form.set("rationale", rationale);
   form.set("author", "you");
-  const res = await fetch(`/api/assessments/${paperId}/steps/${stepId}/override`, {
-    method: "POST",
-    body: form,
-  });
-  if (!res.ok) throw new Error("could not record override");
+  await fetchJson(
+    `/api/assessments/${paperId}/steps/${stepId}/override`,
+    { method: "POST", body: form },
+    { error: "could not record override" },
+  );
 }
 
 // Re-run a short-circuited paper as 'partial' (the gate-page escape hatch). Returns the paper_id.
 export async function rerun(paperId: string): Promise<string> {
   const form = new FormData();
   form.set("relevance_override", "partial");
-  const res = await fetch(`/api/papers/${paperId}/rerun`, { method: "POST", body: form });
-  if (!res.ok) throw new Error("could not re-run");
-  return (await res.json()).paper_id as string;
+  const body = await fetchJson<{ paper_id: string }>(
+    `/api/papers/${paperId}/rerun`,
+    { method: "POST", body: form },
+    { error: "could not re-run" },
+  );
+  return body.paper_id;
 }
 
 // --- Blind expert rating (V3) ---------------------------------------------------------------------
@@ -89,9 +108,9 @@ export interface RateContext {
 
 // Load the BLIND rating context (rubric + detector evidence only — never the engine's ScoredResult).
 export async function fetchRateContext(paperId: string): Promise<RateContext> {
-  const res = await fetch(`/api/rate/context/${paperId}`);
-  if (!res.ok) throw new Error("could not load rating context");
-  return (await res.json()) as RateContext;
+  return fetchJson<RateContext>(`/api/rate/context/${paperId}`, undefined, {
+    error: "could not load rating context",
+  });
 }
 
 // The Rating a blind rater builds (mirrors veribayes.core.validation.human_report.Rating).
@@ -123,15 +142,15 @@ export interface RatingInput {
 
 // Record one blind Rating. The server validates it against the contract; a 422 detail is surfaced.
 export async function submitRating(paperId: string, rating: RatingInput): Promise<void> {
-  const res = await fetch("/api/rate/submit", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ paper_id: paperId, rating }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(typeof body.detail === "string" ? body.detail : "rating rejected");
-  }
+  await fetchJson(
+    "/api/rate/submit",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paper_id: paperId, rating }),
+    },
+    { detail: true, error: "rating rejected" },
+  );
 }
 
 // One agreement/accuracy metric (mirrors core.validation.report.Stat/RateStat). `x` is present on
@@ -195,9 +214,9 @@ export interface TierCCase {
 }
 
 export async function getCalibration(): Promise<CalibrationReport> {
-  const res = await fetch("/api/calibration");
-  if (!res.ok) throw new Error("could not fetch calibration");
-  return (await res.json()) as CalibrationReport;
+  return fetchJson<CalibrationReport>("/api/calibration", undefined, {
+    error: "could not fetch calibration",
+  });
 }
 
 export interface ProgressEvent {
