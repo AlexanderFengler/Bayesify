@@ -134,18 +134,53 @@ export async function submitRating(paperId: string, rating: RatingInput): Promis
   }
 }
 
-export interface Calibration {
-  status: string; // "not_yet_validated" until the M7 validation run produces agreement metrics
-  note: string;
-  agreement?: Record<string, number> | null; // populated post-M7; absent/empty for now
+// One agreement/accuracy metric (mirrors core.validation.report.Stat/RateStat). `x` is present on
+// rate metrics (absence-FPR, sens/spec, …); `value` is null when uncomputable.
+export interface MetricStat {
+  label: string;
+  value: number | null;
+  n: number;
+  ci_lo: number | null;
+  ci_hi: number | null;
+  preliminary: boolean;
+  x?: number;
 }
 
-// Fetch the engine's calibration status. Honest by construction: pre-M7 it reports
-// "not_yet_validated" with no agreement metrics (the validation run hasn't happened yet).
-export async function getCalibration(): Promise<Calibration> {
+// The /api/calibration payload — either the not_yet_validated stub ({status, note}) or the full
+// validation report (status ∈ {demo_fake_data, development_set, holdout}). Mirrors ValidationReport.
+export interface CalibrationReport {
+  status: string;
+  is_demo?: boolean;
+  note?: string;
+  engine_version?: string;
+  rubric_version?: string;
+  rubric_profile?: string;
+  n_papers?: number;
+  n_excluded?: number;
+  tier_counts?: Record<string, number>;
+  rater_relationships?: Record<string, number>;
+  domain_note?: string;
+  validity_caveats?: string[];
+  applicability_kappa?: MetricStat;
+  status_kappa?: MetricStat;
+  status_percent_agreement?: MetricStat;
+  status_ac1?: MetricStat;
+  inter_expert_status_kappa?: MetricStat;
+  absence_fpr_strict?: MetricStat;
+  absence_fpr_broad?: MetricStat;
+  absence_miss_rate?: MetricStat;
+  coverage_icc?: MetricStat;
+  quality_icc?: MetricStat;
+  relevance_sensitivity?: MetricStat;
+  relevance_specificity?: MetricStat;
+  paper_class_accuracy?: MetricStat;
+  confusion?: Record<string, Record<string, number>>;
+}
+
+export async function getCalibration(): Promise<CalibrationReport> {
   const res = await fetch("/api/calibration");
   if (!res.ok) throw new Error("could not fetch calibration");
-  return (await res.json()) as Calibration;
+  return (await res.json()) as CalibrationReport;
 }
 
 export interface ProgressEvent {

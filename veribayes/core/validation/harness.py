@@ -97,6 +97,38 @@ def guard_public_emit(report: ValidationReport) -> None:
         )
 
 
+def build(
+    *,
+    goldset_dir: str | Path = FAKE_GOLDSET_DIR,
+    engine_dir: str | Path = FAKE_ENGINE_DIR,
+    treat_as_real: bool | None = None,
+    seed: int = 0,
+    n_floor: int = 15,
+    profile: str = "synthesis",
+    n_resamples: int = 1000,
+) -> ValidationReport:
+    """Load → firewall → build the ValidationReport (READ-ONLY; no artifacts written). Used by the
+    API to serve /api/calibration. ``treat_as_real`` defaults to 'is this the real goldset dir?'."""
+    if treat_as_real is None:
+        treat_as_real = Path(goldset_dir).resolve() == Path(REAL_GOLDSET_DIR).resolve()
+    rubric = load_rubric(profile=profile)
+    humans = load_goldset(goldset_dir)
+    engines = load_engine(engine_dir)
+    is_demo, status = decide_status(humans, treat_as_real=treat_as_real)
+    pairs = [(h, engines[h.work_id]) for h in humans if h.work_id in engines]
+    engine_version = next((s.engine_version for _, s in pairs), "unknown")
+    return build_report(
+        pairs,
+        rubric,
+        engine_version=engine_version,
+        is_demo=is_demo,
+        status=status,
+        seed=seed,
+        n_floor=n_floor,
+        n_resamples=n_resamples,
+    )
+
+
 def run(
     *,
     goldset_dir: str | Path = FAKE_GOLDSET_DIR,
@@ -107,31 +139,21 @@ def run(
     n_floor: int = 15,
     profile: str = "synthesis",
 ) -> ValidationReport:
-    """Load → firewall → build → emit. Returns the ValidationReport. ``treat_as_real`` defaults to
-    'is this the real goldset directory?'."""
-    if treat_as_real is None:
-        treat_as_real = Path(goldset_dir).resolve() == Path(REAL_GOLDSET_DIR).resolve()
-    rubric = load_rubric(profile=profile)
-    humans = load_goldset(goldset_dir)
-    engines = load_engine(engine_dir)
-    is_demo, status = decide_status(humans, treat_as_real=treat_as_real)
-
-    pairs = [(h, engines[h.work_id]) for h in humans if h.work_id in engines]
-    engine_version = next((s.engine_version for _, s in pairs), "unknown")
-    report = build_report(
-        pairs,
-        rubric,
-        engine_version=engine_version,
-        is_demo=is_demo,
-        status=status,
+    """Build the report, then WRITE the three artifacts behind the firewall. Returns the report."""
+    report = build(
+        goldset_dir=goldset_dir,
+        engine_dir=engine_dir,
+        treat_as_real=treat_as_real,
         seed=seed,
         n_floor=n_floor,
+        profile=profile,
     )
-
-    out = Path(out_dir) if out_dir else Path(FAKE_REPORTS_DIR if is_demo else REAL_REPORTS_DIR)
+    engine_version = report.engine_version
+    default_dir = FAKE_REPORTS_DIR if report.is_demo else REAL_REPORTS_DIR
+    out = Path(out_dir) if out_dir else Path(default_dir)
     out.mkdir(parents=True, exist_ok=True)
     (out / f"{engine_version}.json").write_text(report.model_dump_json(indent=2))
-    if is_demo:
+    if report.is_demo:
         (out / DEMO_MD).write_text(to_markdown(report))
     else:
         guard_public_emit(report)  # belt-and-braces: cannot reach here with demo data

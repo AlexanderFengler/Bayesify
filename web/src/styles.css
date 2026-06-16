@@ -1349,39 +1349,100 @@ main.container {
 .pm-local {
   color: var(--green);
 }
-.calib-status {
-  display: inline-block;
-  font-size: 12px;
-  font-weight: 650;
-  padding: 4px 11px;
-  border-radius: 999px;
-  margin-bottom: 14px;
+/* --- calibration view (V6) --- */
+.calib-banner {
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  font-size: 13.5px;
 }
-.calib-status.pending {
-  background: var(--amber-soft);
-  color: var(--amber);
+.calib-demo {
+  background: var(--red-soft);
+  color: var(--red);
+  border: 1px solid #f0cfc9;
 }
-.calib-status.ok {
+.calib-dev {
+  background: var(--blue-soft);
+  color: var(--blue);
+  border: 1px solid #cfe0f3;
+}
+.calib-holdout {
   background: var(--green-soft);
   color: var(--green);
+  border: 1px solid #cfe9d8;
+}
+.calib-pending {
+  background: var(--amber-soft);
+  color: var(--amber);
+  border: 1px solid #f0e0bf;
+}
+.calib-meta {
+  font-size: 13px;
+  color: var(--ink);
+  margin-bottom: 18px;
+}
+.calib-meta-sub,
+.calib-domain {
+  font-size: 12px;
+  color: var(--ink-faint);
+  margin-top: 4px;
 }
 .calib-metrics {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0;
+  margin-bottom: 20px;
 }
-.calib-metrics li {
+.calib-metric {
   display: flex;
   justify-content: space-between;
-  padding: 6px 0;
+  align-items: baseline;
+  gap: 16px;
+  padding: 7px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 14px;
+  font-size: 13.5px;
 }
-.calib-k {
+.calib-metric-label {
   color: var(--ink-soft);
 }
-.calib-v {
+.calib-metric-value {
   font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.calib-prelim .calib-metric-value {
+  color: var(--ink-faint);
+}
+.calib-prelim-tag {
+  font-family: var(--font);
+  font-size: 11px;
+  color: var(--amber);
+  margin-left: 8px;
+}
+.calib-confusion {
+  margin-bottom: 20px;
+}
+.calib-confusion table {
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+}
+.calib-confusion th,
+.calib-confusion td {
+  border: 1px solid var(--line);
+  padding: 5px 10px;
+  text-align: center;
+}
+.calib-confusion th {
+  background: var(--gray-soft);
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.calib-caveats ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+.calib-caveats li {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
 }
 
 @media (max-width: 640px) {

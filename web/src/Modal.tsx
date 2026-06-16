@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { getCalibration, type Calibration } from "./api";
+import { useEffect } from "react";
 
 // A bare overlay + card with a title and a close affordance. Escape and backdrop-click both close.
 export function Modal({
@@ -74,51 +73,6 @@ export function PrivacyModal({ onClose, firstRun }: { onClose: () => void; first
             Got it
           </button>
         </div>
-      )}
-    </Modal>
-  );
-}
-
-// Calibration view — honest about the engine not being validated yet. Pre-M7 there are no agreement
-// metrics; this renders that plainly rather than implying an accuracy it cannot back up.
-export function CalibrationModal({ onClose }: { onClose: () => void }) {
-  const [cal, setCal] = useState<Calibration | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  useEffect(() => {
-    getCalibration()
-      .then(setCal)
-      .catch((e) => setErr(e instanceof Error ? e.message : String(e)));
-  }, []);
-
-  const validated = cal != null && cal.status !== "not_yet_validated";
-  return (
-    <Modal title="Calibration" onClose={onClose}>
-      {err && <p className="modal-lead">Could not load calibration: {err}</p>}
-      {!err && cal == null && <p className="modal-lead">Loading…</p>}
-      {cal != null && (
-        <>
-          <div className={"calib-status " + (validated ? "ok" : "pending")}>
-            {validated ? "Validated" : "Not yet validated"}
-          </div>
-          <p className="modal-lead">{cal.note}</p>
-          {!validated && (
-            <p className="modal-foot">
-              Coverage and quality scores are produced today, but they have not been checked against
-              expert ratings. Until the validation run (M7) reports agreement metrics, treat every
-              report as <strong>formative, not a verdict</strong>.
-            </p>
-          )}
-          {validated && cal.agreement && (
-            <ul className="calib-metrics">
-              {Object.entries(cal.agreement).map(([k, v]) => (
-                <li key={k}>
-                  <span className="calib-k">{k}</span>
-                  <span className="calib-v">{v}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
       )}
     </Modal>
   );

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPaper, rerun, streamProgress, submitPaper } from "./api";
+import { Calibration } from "./Calibration";
 import { Inventory } from "./Inventory";
-import { CalibrationModal, PrivacyModal } from "./Modal";
+import { PrivacyModal } from "./Modal";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
 import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
 
 type Phase = "idle" | "running" | "done" | "error";
-type ModalKind = "privacy" | "calibration" | null;
+type ModalKind = "privacy" | null;
 const PRIVACY_ACK_KEY = "veribayes.privacy.ack"; // set once the first-run disclosure is acknowledged
 
 export function App() {
@@ -20,6 +21,7 @@ export function App() {
   const [paper, setPaper] = useState<PaperState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ratingPaperId, setRatingPaperId] = useState<string | null>(null); // blind-rating takeover
+  const [showCalibration, setShowCalibration] = useState(false); // calibration view takeover
   const [modal, setModal] = useState<ModalKind>(null);
   const [firstRun, setFirstRun] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -109,6 +111,8 @@ export function App() {
       <main className="container">
         {ratingPaperId ? (
           <Rate paperId={ratingPaperId} onExit={() => setRatingPaperId(null)} />
+        ) : showCalibration ? (
+          <Calibration onExit={() => setShowCalibration(false)} />
         ) : (
           <>
             {phase === "idle" && (
@@ -153,11 +157,10 @@ export function App() {
           </>
         )}
       </main>
-      <Footer onPrivacy={() => setModal("privacy")} onCalibration={() => setModal("calibration")} />
+      <Footer onPrivacy={() => setModal("privacy")} onCalibration={() => setShowCalibration(true)} />
       {modal === "privacy" && (
         <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
       )}
-      {modal === "calibration" && <CalibrationModal onClose={() => setModal(null)} />}
     </div>
   );
 }

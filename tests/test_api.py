@@ -79,10 +79,25 @@ def test_single_process_serves_ui_without_shadowing_api() -> None:
         pytest.skip("web/dist not built — single-process serving inactive")
     root = client.get("/")
     assert root.status_code == 200 and "text/html" in root.headers["content-type"]
-    assert client.get("/api/calibration").json()["status"] == "not_yet_validated"
+    cal = client.get("/api/calibration")
+    assert "application/json" in cal.headers["content-type"]  # /api reachable, not shadowed by SPA
+    assert "status" in cal.json()
 
 
-def test_calibration_is_honest_about_not_being_validated() -> None:
+def test_calibration_serves_the_demo_report_behind_the_firewall() -> None:
+    # With the committed fake goldset present, the page renders the finished surface — but the
+    # report is unmistakably a demo (status + is_demo + a FAKE-DATA caveat), not a real measurement.
+    body = client.get("/api/calibration").json()
+    assert body["status"] == "demo_fake_data" and body["is_demo"] is True
+    assert body["status_kappa"]["value"] is not None
+    assert any("FAKE DATA" in c for c in body["validity_caveats"])
+
+
+def test_calibration_is_not_yet_validated_without_a_goldset(tmp_path, monkeypatch) -> None:
+    from veribayes.core.validation import harness as harnessmod
+
+    monkeypatch.setattr(harnessmod, "FAKE_GOLDSET_DIR", str(tmp_path / "none"))
+    monkeypatch.setattr(harnessmod, "REAL_REPORTS_DIR", str(tmp_path / "none-real"))
     assert client.get("/api/calibration").json()["status"] == "not_yet_validated"
 
 

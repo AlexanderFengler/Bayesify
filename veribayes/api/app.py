@@ -15,6 +15,7 @@ unbuilt.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from functools import lru_cache
 from pathlib import Path
@@ -31,7 +32,7 @@ from veribayes.api.jobs import JobStore, event_stream, run_job
 from veribayes.core.report import fix_list
 from veribayes.core.rubric import RubricProfileError, load_rubric
 from veribayes.core.schema import EvidenceKind
-from veribayes.core.validation import Rating
+from veribayes.core.validation import Rating, harness, to_calibration_payload
 
 app = FastAPI(title="VeriBayes API", version="0.1.0")
 
@@ -316,7 +317,23 @@ async def rate_submit(body: RateSubmit) -> dict:
 
 @app.get("/api/calibration")
 async def calibration() -> dict:
-    """Pre-M7: no validation has run yet. The calibration page renders this honestly."""
+    """Serve the validation report the calibration page renders. Precedence: a real report (post-M7,
+    validation/reports/) → the committed FAKE demo report (finished page, critique-able now, behind
+    a loud DEMO banner) → ``not_yet_validated`` when neither exists. The report's own status /
+    is_demo / caveats make the demo unmistakable; the firewall guarantees it can't be a real one."""
+    real_dir = Path(harness.REAL_REPORTS_DIR)
+    real = sorted(real_dir.glob("*.json")) if real_dir.is_dir() else []
+    if real:
+        return JSONResponse(json.loads(real[-1].read_text()))  # latest real report
+    fake = Path(harness.FAKE_GOLDSET_DIR)
+    if fake.is_dir() and any(fake.glob("*.json")):
+        report = harness.build(
+            goldset_dir=harness.FAKE_GOLDSET_DIR,
+            engine_dir=harness.FAKE_ENGINE_DIR,
+            treat_as_real=False,
+            n_resamples=300,  # snappy for the API; the demo numbers are fake anyway
+        )
+        return to_calibration_payload(report)
     return {
         "status": "not_yet_validated",
         "note": "Validation (validation/protocol.md) runs at M7; no agreement metrics exist yet.",
