@@ -19,6 +19,7 @@ sides share it.)
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict
 
@@ -177,6 +178,71 @@ def _human_coverage_quality(
     return (cov.strict if cov else None), qual
 
 
+@dataclass
+class _StepCells:
+    """The pooled step-level cells the metrics need, binned per Tier-A paper. ``applic`` /
+    ``status_both`` / ``inter_expert`` are per-paper lists (the cluster unit for κ); ``all_status``
+    is flat (absence rates + confusion); ``coverage`` / ``quality`` are derived agreement pairs."""
+
+    applic: list[list[tuple[bool, bool]]] = field(default_factory=list)
+    status_both: list[list[tuple[StepStatus, StepStatus]]] = field(default_factory=list)
+    all_status: list[tuple[StepStatus, StepStatus]] = field(default_factory=list)
+    inter_expert: list[list[tuple[StepStatus, StepStatus]]] = field(default_factory=list)
+    coverage: list[tuple[float, float]] = field(default_factory=list)
+    quality: list[tuple[float, float]] = field(default_factory=list)
+
+
+def _collect_step_cells(
+    step_pairs: Sequence[tuple[HumanReport, ScoredResult]], rubric: RubricSpec
+) -> _StepCells:
+    """Align each Tier-A paper's consensus to the engine's step assessments and bin the cells the
+    pooled step metrics consume. Human coverage/quality are DERIVED here (the engine's own
+    arithmetic), never typed in — see the module docstring."""
+    c = _StepCells()
+    for h, s in step_pairs:
+        eng = {a.step_id: a for a in s.step_assessments}
+        ap: list[tuple[bool, bool]] = []
+        both: list[tuple[StepStatus, StepStatus]] = []
+        for st in h.consensus.steps:
+            e = eng.get(st.step_id)
+            if e is None:
+                continue
+            ap.append((st.applicable, e.applicable))
+            c.all_status.append((st.status, e.status))
+            if st.applicable and e.applicable:
+                both.append((st.status, e.status))
+        c.applic.append(ap)
+        c.status_both.append(both)
+        c.inter_expert.append(_inter_expert_cells(h))
+        hc, hq = _human_coverage_quality(h, rubric)
+        if hc is not None and s.coverage is not None:
+            c.coverage.append((hc, s.coverage.strict))
+        if hq is not None and s.quality_score is not None:
+            c.quality.append((hq, s.quality_score))
+    return c
+
+
+def _relevance_class_rates(
+    rate_pairs: Sequence[tuple[HumanReport, ScoredResult]],
+) -> tuple[Rate, Rate, Rate]:
+    """Relevance sensitivity/specificity (Tier A+B) and paper-class accuracy (rate-tier papers both
+    judged relevant)."""
+    rel_pairs = [
+        (
+            h.consensus.relevance_label is not RelevanceLabel.no,
+            s.relevance.label is not RelevanceLabel.no,
+        )
+        for h, s in rate_pairs
+    ]
+    sens, spec = binary_sens_spec(rel_pairs)
+    class_pairs = [
+        (h.consensus.paper_class_label.value, s.paper_class.primary.value)
+        for h, s in rate_pairs
+        if h.consensus.paper_class_label is not None and s.paper_class is not None
+    ]
+    return sens, spec, accuracy(class_pairs)
+
+
 def build_report(
     pairs: Sequence[tuple[HumanReport, ScoredResult]],
     rubric: RubricSpec,
@@ -220,34 +286,13 @@ def build_report(
         if h.tier is GoldTier.A and h.consensus.steps and s.step_assessments
     ]
 
-    applic_papers: list[list[tuple[bool, bool]]] = []
-    status_both_papers: list[list[tuple[StepStatus, StepStatus]]] = []
-    all_status: list[tuple[StepStatus, StepStatus]] = []
-    inter_expert_papers: list[list[tuple[StepStatus, StepStatus]]] = []
-    cov_pairs: list[tuple[float, float]] = []
-    qual_pairs: list[tuple[float, float]] = []
-
-    for h, s in step_pairs:
-        eng = {a.step_id: a for a in s.step_assessments}
-        cons = {st.step_id: st for st in h.consensus.steps}
-        ap, both = [], []
-        for sid, hr_step in cons.items():
-            e = eng.get(sid)
-            if e is None:
-                continue
-            ap.append((hr_step.applicable, e.applicable))
-            all_status.append((hr_step.status, e.status))
-            if hr_step.applicable and e.applicable:
-                both.append((hr_step.status, e.status))
-        applic_papers.append(ap)
-        status_both_papers.append(both)
-        inter_expert_papers.append(_inter_expert_cells(h))
-
-        hc, hq = _human_coverage_quality(h, rubric)
-        if hc is not None and s.coverage is not None:
-            cov_pairs.append((hc, s.coverage.strict))
-        if hq is not None and s.quality_score is not None:
-            qual_pairs.append((hq, s.quality_score))
+    c = _collect_step_cells(step_pairs, rubric)
+    applic_papers = c.applic
+    status_both_papers = c.status_both
+    all_status = c.all_status
+    inter_expert_papers = c.inter_expert
+    cov_pairs = c.coverage
+    qual_pairs = c.quality
 
     # === v0 DECISION (owner, 2026-06-16): κ confidence intervals are OFF. ===
     # This is the SINGLE seam through which every κ CI flows. At v0 n (~15-30 papers) a paper-level
@@ -269,26 +314,9 @@ def build_report(
     retest_papers = [_engine_pair_cells(e1, e2) for e1, e2 in retest_pairs]
     retest_k = weighted_kappa(_flatten(retest_papers), STATUS_ORDER) if retest_papers else None
 
-    # relevance (Tier A+B) + paper-class (rate-tier papers both judged relevant)
-    rel_pairs = [
-        (
-            h.consensus.relevance_label is not RelevanceLabel.no,
-            s.relevance.label is not RelevanceLabel.no,
-        )
-        for h, s in rate_pairs
-    ]
-    sens, spec = binary_sens_spec(rel_pairs)
-    class_pairs = [
-        (h.consensus.paper_class_label.value, s.paper_class.primary.value)
-        for h, s in rate_pairs
-        if h.consensus.paper_class_label is not None and s.paper_class is not None
-    ]
-    cls_acc = accuracy(class_pairs)
-
+    sens, spec, cls_acc = _relevance_class_rates(rate_pairs)
     # Tier C — each paper reported as an individual case (too few to pool into a rate)
-    tier_c_cases = [
-        _tier_c_case(h, s) for h, s in admissible if h.tier is GoldTier.C
-    ]
+    tier_c_cases = [_tier_c_case(h, s) for h, s in admissible if h.tier is GoldTier.C]
 
     return ValidationReport(
         engine_version=engine_version,
