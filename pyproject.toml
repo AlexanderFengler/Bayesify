@@ -152,6 +152,10 @@ test-parse = "pytest tests/test_parse.py -v"  # run with: pixi run -e parse test
 # Live screen/classify accuracy gates over the labeled fixture set. Needs ANTHROPIC_API_KEY and makes
 # real (paid) cheap-model calls; opt-in via this task's env so it never fires during `pixi run check`.
 eval = { cmd = "pytest tests/eval -v", env = { VERIBAYES_RUN_EVAL = "1" } }
+# Validation harness (component h). `validate` runs the demo dry-run over the committed fake goldset
+# (offline, no LLM) and writes VALIDATION.demo.md; `demo-data` regenerates the fake goldset.
+validate = "python -m veribayes.core.validation.harness"
+demo-data = "python -m veribayes.core.validation.demo_data"
 # --- App ---
 # One-process run (recommended): builds the UI and serves it + the API on one port (http://localhost:8000).
 # Run `pixi run setup-web` once first (installs node_modules).

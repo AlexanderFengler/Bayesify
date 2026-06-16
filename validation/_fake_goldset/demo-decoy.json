@@ -1,0 +1,53 @@
+{
+  "work_id": "demo-decoy",
+  "ids": {
+    "doi": null,
+    "arxiv_id": null,
+    "openalex_id": null
+  },
+  "source_sha256": "sha-decoy",
+  "version_label": "arXiv v1 (demo)",
+  "rubric_version": "0.1-draft",
+  "rubric_profile": "synthesis",
+  "tier": "B",
+  "provenance": {
+    "origin": "fake_llm",
+    "authored_by": "demo-generator",
+    "selection_seed": null,
+    "rating_guide_version": "",
+    "created_at": null
+  },
+  "ratings": [
+    {
+      "rater_id": "r1",
+      "relationship": "independent",
+      "relevance_label": "no",
+      "relevance_rationale": "frequentist paper; no Bayesian methods",
+      "paper_class_label": null,
+      "paper_class_rationale": "",
+      "gate_facts": null,
+      "steps": []
+    },
+    {
+      "rater_id": "r2",
+      "relationship": "independent",
+      "relevance_label": "no",
+      "relevance_rationale": "frequentist paper; no Bayesian methods",
+      "paper_class_label": null,
+      "paper_class_rationale": "",
+      "gate_facts": null,
+      "steps": []
+    }
+  ],
+  "consensus": {
+    "rater_id": "consensus",
+    "relationship": "consensus",
+    "relevance_label": "no",
+    "relevance_rationale": "frequentist paper; no Bayesian methods",
+    "paper_class_label": null,
+    "paper_class_rationale": "",
+    "gate_facts": null,
+    "steps": []
+  },
+  "discussion_note": ""
+}
