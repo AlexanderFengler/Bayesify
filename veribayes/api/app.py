@@ -33,6 +33,7 @@ from veribayes.core.report import fix_list
 from veribayes.core.rubric import RubricProfileError, load_rubric
 from veribayes.core.schema import EvidenceKind
 from veribayes.core.validation import Rating, harness, to_calibration_payload
+from veribayes.core.validation.rating_store import SubmittedRating
 
 app = FastAPI(title="VeriBayes API", version="0.1.0")
 
@@ -305,14 +306,22 @@ class RateSubmit(BaseModel):
 
 @app.post("/api/rate/submit")
 async def rate_submit(body: RateSubmit) -> dict:
-    """Record one rater's blind ``Rating`` (append-only; A5 — never mutates engine output).
-    Assembling 2-3 ratings + a consensus into a ``HumanReport`` is the adjudication step (M7)."""
-    if store.get(body.paper_id) is None:
+    """Record one rater's blind ``Rating`` to **durable** storage (append-only; A5 — never mutates
+    engine output), capturing the paper's sha256/version so `assemble-goldset` can pin the gold
+    record. Grouping ratings into a HumanReport with auto-consensus is `assemble-goldset`."""
+    job = store.get(body.paper_id)
+    if job is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
-    store.ratings.append(
-        {"paper_id": body.paper_id, "rating": body.rating.model_dump(mode="json")}
+    sub = SubmittedRating(
+        paper_id=body.paper_id,
+        source_sha256=job.content_sha256 or "",
+        version_label=job.version_label or "",
+        rubric_version=jobsmod._RUBRIC.rubric_version,
+        rating=body.rating,
     )
-    return {"recorded": True, "n_ratings": len(store.ratings)}
+    rstore = jobsmod._ratings_store()
+    rstore.add(sub)
+    return {"recorded": True, "n_ratings": rstore.count_for(body.paper_id)}
 
 
 @app.get("/api/calibration")

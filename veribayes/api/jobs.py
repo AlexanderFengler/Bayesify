@@ -33,6 +33,7 @@ from veribayes.core.pipeline import screen_and_classify
 from veribayes.core.rubric.loader import load_rubric
 from veribayes.core.score import ScoreMeta, score
 from veribayes.core.stub import ENGINE_VERSION, RUBRIC_VERSION, build_stub_result, cost_ledger
+from veribayes.core.validation.rating_store import RatingStore
 
 _RUBRIC = load_rubric()  # static rubric spec, loaded once
 
@@ -76,6 +77,11 @@ def _results() -> ResultCache:
     return ResultCache(_data_root() / "results")
 
 
+def _ratings_store() -> RatingStore:
+    """Durable store for blind ratings (survives restart; the in-memory job dict does not)."""
+    return RatingStore(_data_root() / "ratings")
+
+
 def _cache_enabled() -> bool:
     """Result caching is on unless VERIBAYES_NO_CACHE is set. Caching is **success-only** and the
     cache hit is surfaced (``from_cache``), so it can never silently mask a broken live run — a
@@ -91,6 +97,7 @@ class Job:
     data: bytes | None = None  # uploaded PDF bytes (local-only real pipeline); cleared after parse
     filename: str | None = None
     content_sha256: str | None = None  # set at ingest; lets the rerun escape hatch re-read the blob
+    version_label: str | None = None  # e.g. "arXiv v2" / "uploaded PDF"; pins the rated doc version
     relevance_override: str | None = None  # set by the rerun escape hatch
     status: str = "queued"  # queued | running | done | failed
     stage: str | None = None
@@ -120,10 +127,8 @@ class JobStore:
         self._jobs: dict[str, Job] = {}
         # A5 scaffolding: append-only override log, keyed by assessment id (= paper id at M1).
         self.overrides: list[dict] = []
-        # Blind expert ratings (V3): append-only, never mutates engine output. Each entry is one
-        # rater's Rating for a paper; 2-3 + consensus assemble into a HumanReport at adjudication
-        # (M7). In-memory for now — durable per-session storage lands before the first real rater.
-        self.ratings: list[dict] = []
+        # Blind ratings are persisted durably via `_ratings_store()` (M7 slice 2), not in memory —
+        # a 30-60 min expert rating must survive a restart.
 
     def create(
         self,
@@ -197,6 +202,7 @@ async def _front_half(job: Job) -> tuple[s.ParsedDoc, list[s.Evidence]]:
     job.emit({"type": "stage", "stage": "ingest", "state": "running"})
     source = await asyncio.to_thread(ingest_upload, blobs, data, filename=filename)
     job.content_sha256 = source.sha256  # the rerun escape hatch re-reads the blob by this
+    job.version_label = source.version_label  # pins which doc version a rater rated (protocol §1)
     job.data = None  # bytes are now content-addressed in the blob store; free the in-memory copy
     job.emit({"type": "stage", "stage": "ingest", "state": "done"})
 

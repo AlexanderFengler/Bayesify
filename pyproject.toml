@@ -156,6 +156,8 @@ eval = { cmd = "pytest tests/eval -v", env = { VERIBAYES_RUN_EVAL = "1" } }
 # (offline, no LLM) and writes VALIDATION.demo.md; `demo-data` regenerates the fake goldset.
 validate = "python -m veribayes.core.validation.harness"
 demo-data = "python -m veribayes.core.validation.demo_data"
+# Group captured blind ratings (durable store) into gold records (auto-consensus) -> validation/goldset/.
+assemble-goldset = "python -m veribayes.core.validation.assemble"
 # --- App ---
 # One-process run (recommended): builds the UI and serves it + the API on one port (http://localhost:8000).
 # Run `pixi run setup-web` once first (installs node_modules).

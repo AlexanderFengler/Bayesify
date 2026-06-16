@@ -6,6 +6,7 @@ human-side contracts (here) and, later, the pure metric layer + harness CLI. It 
 decoupled from the engine output shape — see ``human_report`` for why that asymmetry matters.
 """
 
+from veribayes.core.validation.assemble import assemble
 from veribayes.core.validation.consensus import (
     ConsensusResult,
     assemble_human_report,
@@ -23,6 +24,7 @@ from veribayes.core.validation.human_report import (
     StepDefectKind,
     StepRating,
 )
+from veribayes.core.validation.rating_store import RatingStore, SubmittedRating
 from veribayes.core.validation.report import (
     ValidationReport,
     build_report,
@@ -39,10 +41,13 @@ __all__ = [
     "MissingSubtag",
     "Rating",
     "RaterRelationship",
+    "RatingStore",
     "StepDefect",
     "StepDefectKind",
     "StepRating",
+    "SubmittedRating",
     "ValidationReport",
+    "assemble",
     "assemble_human_report",
     "build_report",
     "consensus_from_ratings",
