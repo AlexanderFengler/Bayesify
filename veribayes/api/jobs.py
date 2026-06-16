@@ -19,6 +19,8 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import httpx
+
 from veribayes.core import config
 from veribayes.core import schema as s
 from veribayes.core.assess import assess
@@ -26,7 +28,8 @@ from veribayes.core.cache import BlobStore, FullResultKey, ResultCache, sha256_b
 from veribayes.core.classify import classify
 from veribayes.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
 from veribayes.core.errors import IngestError
-from veribayes.core.ingest import ingest_upload
+from veribayes.core.fetcher import Fetcher
+from veribayes.core.ingest import ingest_upload, parse_input
 from veribayes.core.llm import AgentSDKClient, AnthropicClient, LLMClient
 from veribayes.core.parse import parse
 from veribayes.core.pipeline import screen_and_classify
@@ -55,9 +58,8 @@ _LOCAL_NOTICE = (
     "and where the engine looked), not a graded assessment."
 )
 _NEEDS_UPLOAD = (
-    "Fetching a paper by identifier (arXiv / DOI / OpenAlex / URL) isn't wired into the assessment "
-    "pipeline yet — the fetcher exists but isn't connected. Drop the PDF here to grade it (in "
-    "Local-only mode nothing leaves your machine)."
+    "Nothing to analyze — drop a PDF here, or paste a paper identifier (arXiv / DOI / OpenAlex / "
+    "URL) to fetch its open-access copy."
 )
 _TERMINAL = {"done", "failed"}
 _STAGE_DELAY_S = 0.45  # simulated per-stage work (stub paths) so progress is visible in the UI
@@ -97,6 +99,7 @@ class Job:
     source_label: str  # what the user gave us (filename or an ID/URL)
     data: bytes | None = None  # uploaded PDF bytes (local-only real pipeline); cleared after parse
     filename: str | None = None
+    identifier: str | None = None  # a pasted arXiv/DOI/OpenAlex/URL to fetch (no uploaded file)
     content_sha256: str | None = None  # set at ingest; lets the rerun escape hatch re-read the blob
     version_label: str | None = None  # e.g. "arXiv v2" / "uploaded PDF"; pins the rated doc version
     relevance_override: str | None = None  # set by the rerun escape hatch
@@ -138,6 +141,7 @@ class JobStore:
         source_label: str,
         data: bytes | None = None,
         filename: str | None = None,
+        identifier: str | None = None,
     ) -> Job:
         job = Job(
             id=uuid.uuid4().hex[:12],
@@ -145,12 +149,24 @@ class JobStore:
             source_label=source_label,
             data=data,
             filename=filename,
+            identifier=identifier,
         )
         self._jobs[job.id] = job
         return job
 
     def get(self, paper_id: str) -> Job | None:
         return self._jobs.get(paper_id)
+
+
+def _fetcher() -> Fetcher:
+    """The open-access fetcher for identifier submissions. A seam: tests monkeypatch this with a
+    Fetcher over an httpx ``MockTransport`` so no live network is hit."""
+    return Fetcher(
+        httpx.Client(),
+        _blobs(),
+        openalex_api_key=config.openalex_api_key(),
+        unpaywall_email=config.unpaywall_email(),
+    )
 
 
 def _llm_client() -> LLMClient:
@@ -162,20 +178,22 @@ def _llm_client() -> LLMClient:
 
 
 async def run_job(job: Job) -> None:
-    """Drive a job to completion. With uploaded bytes: local mode runs the real on-device engine
-    (ingest->parse->detect); full mode with a backend runs the full real engine (screen->classify->
-    assess->score), or falls back to the labelled stub when no credentials are configured. An
-    identifier with no bytes shows an honest 'fetch not wired yet' notice — never a fabricated
-    report for a paper we never fetched."""
+    """Drive a job to completion. An identifier with no uploaded file is fetched first (its OA PDF
+    into the blob store). Then: local mode runs the on-device engine (ingest->parse->detect); full
+    mode with a backend runs the full real engine (screen->classify->assess->score), or falls back
+    to the labelled stub when no credentials are configured."""
     try:
         job.status = "running"
         job.emit({"type": "status", "status": "running"})
+        source: s.SourceDoc | None = None
+        if job.data is None and job.identifier:
+            source = await _fetch_into(job)  # OA fetch → bytes in the blob store; sets job.data
         if job.data is None:
-            await _run_needs_upload(job)  # identifier given, but fetch-by-id isn't wired in yet
+            await _run_needs_upload(job)  # neither a file nor a fetchable identifier
         elif job.mode == "local":
-            await _run_local(job)
+            await _run_local(job, source=source)
         elif job.mode == "full" and config.llm_backend() != "none":
-            await _run_full(job)
+            await _run_full(job, source=source)
         else:
             await _run_stub(job)  # full mode, real bytes, but no credentials → the labelled stub
     except IngestError as exc:  # typed, user-facing (bad PDF, scanned, encrypted, …)
@@ -192,21 +210,38 @@ async def run_job(job: Job) -> None:
         job.emit({"type": "failed", "reason": str(exc)})
 
 
-async def _front_half(job: Job) -> tuple[s.ParsedDoc, list[s.Evidence]]:
-    """The on-device front half shared by local and full mode: ingest -> parse -> detect, with a
-    stage event around each (parse is CPU-bound, so each step runs in a worker thread). Sets the
-    job's parser + evidence inventory. ``IngestError`` propagates to ``run_job``."""
-    blobs = _blobs()
-    data, filename = job.data, job.filename
-    assert data is not None
+async def _fetch_into(job: Job) -> s.SourceDoc:
+    """Resolve an identifier to its open-access PDF (off the request path) and stage the bytes in
+    the blob store. Returns the fetched ``SourceDoc`` and sets ``job.data`` so the normal grade
+    dispatch runs. Fetch failures are ``IngestError`` subclasses → ``run_job`` surfaces them."""
+    assert job.identifier is not None
+    job.stage = "fetch"
+    job.emit({"type": "stage", "stage": "fetch", "state": "running"})
+    parsed = parse_input(job.identifier)
+    fetched = await asyncio.to_thread(_fetcher().fetch, parsed)
+    job.data = _blobs().get(fetched.source_doc.sha256)
+    job.emit({"type": "stage", "stage": "fetch", "state": "done"})
+    return fetched.source_doc
 
-    job.stage = "ingest"
-    job.emit({"type": "stage", "stage": "ingest", "state": "running"})
-    source = await asyncio.to_thread(ingest_upload, blobs, data, filename=filename)
+
+async def _front_half(
+    job: Job, *, source: s.SourceDoc | None = None
+) -> tuple[s.ParsedDoc, list[s.Evidence]]:
+    """The on-device front half shared by local and full mode: ingest -> parse -> detect, with a
+    stage event around each (parse is CPU-bound, so each step runs in a worker thread). ``source``
+    is set for already-fetched papers (bytes already in the blob, ingest skipped). Sets the job's
+    parser + evidence inventory. ``IngestError`` propagates to ``run_job``."""
+    blobs = _blobs()
+    if source is None:
+        data, filename = job.data, job.filename
+        assert data is not None
+        job.stage = "ingest"
+        job.emit({"type": "stage", "stage": "ingest", "state": "running"})
+        source = await asyncio.to_thread(ingest_upload, blobs, data, filename=filename)
+        job.emit({"type": "stage", "stage": "ingest", "state": "done"})
     job.content_sha256 = source.sha256  # the rerun escape hatch re-reads the blob by this
     job.version_label = source.version_label  # pins which doc version a rater rated (protocol §1)
     job.data = None  # bytes are now content-addressed in the blob store; free the in-memory copy
-    job.emit({"type": "stage", "stage": "ingest", "state": "done"})
 
     job.stage = "parse"
     job.emit({"type": "stage", "stage": "parse", "state": "running"})
@@ -222,15 +257,15 @@ async def _front_half(job: Job) -> tuple[s.ParsedDoc, list[s.Evidence]]:
     return parsed, evidence
 
 
-async def _run_local(job: Job) -> None:
+async def _run_local(job: Job, *, source: s.SourceDoc | None = None) -> None:
     """The real F3 local-only pipeline: ingest -> parse -> detect -> inventory, on-device."""
-    await _front_half(job)
+    await _front_half(job, source=source)
     job.local_notice = _LOCAL_NOTICE
     job.status = "done"
     job.emit({"type": "done"})
 
 
-async def _run_full(job: Job) -> None:
+async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     """Full mode (upload + credentials): the whole real engine — ingest -> parse -> detect ->
     screen -> classify -> assess -> score.
 
@@ -260,7 +295,7 @@ async def _run_full(job: Job) -> None:
             job.emit({"type": "done"})
             return
 
-    parsed, evidence = await _front_half(job)
+    parsed, evidence = await _front_half(job, source=source)
     client = _llm_client()
     job.backend = config.llm_backend()  # "agent-sdk" (subscription) | "api" — shown in the report
 

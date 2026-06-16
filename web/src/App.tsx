@@ -132,7 +132,14 @@ export function App() {
             {phase === "running" && (
               <Progress
                 stageState={stageState}
-                stages={mode === "local" ? LOCAL_STAGES : STAGES}
+                stages={
+                  // an identifier job fetches instead of ingesting an upload → swap the first step
+                  !file && identifier.trim()
+                    ? ["fetch", ...(mode === "local" ? LOCAL_STAGES : STAGES).slice(1)]
+                    : mode === "local"
+                      ? LOCAL_STAGES
+                      : STAGES
+                }
                 source={file?.name ?? identifier}
               />
             )}

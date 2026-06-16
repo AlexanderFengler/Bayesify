@@ -6,6 +6,7 @@ import asyncio
 import json
 
 import fitz  # PyMuPDF — a base dep so the API can parse in local-only mode
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -220,15 +221,15 @@ def test_run_job_emits_every_stage_then_done_and_attaches_result(monkeypatch) ->
     assert job.backend == "stub"
 
 
-def test_no_bytes_shows_honest_needs_upload_notice() -> None:
-    # An identifier (or no file) carries no bytes; fetch-by-id isn't wired, so BOTH modes must show
-    # an honest notice — never a fabricated stub report, and never simulated pipeline stages.
+def test_no_input_shows_honest_needs_upload_notice() -> None:
+    # No file AND no identifier → nothing to analyze. BOTH modes must show an honest notice — never
+    # a fabricated stub report, and never simulated pipeline stages.
     for mode in ("local", "full"):
-        job = Job(id=f"t3-{mode}", mode=mode, source_label="2011.01808")
+        job = Job(id=f"t3-{mode}", mode=mode, source_label="(none)")
         asyncio.run(run_job(job))
         assert job.status == "done"
-        assert job.result is None  # no fabricated report for a paper we never fetched
-        assert job.local_notice is not None and "wired" in job.local_notice.lower()
+        assert job.result is None  # no fabricated report for a paper we never had
+        assert job.local_notice is not None and "drop a pdf" in job.local_notice.lower()
         assert [e for e in job.events if e["type"] == "stage"] == []  # no simulated stages
 
 
@@ -262,6 +263,63 @@ def test_local_upload_skips_references_section(tmp_path, monkeypatch) -> None:
         h for fam in job.inventory.families for h in fam.found if h.section_id in ref_sections
     ]
     assert not hits_in_refs
+
+
+# --- identifier fetch (wired; offline via httpx MockTransport, no live network) ----------------
+
+
+_ARXIV_FEED = (
+    '<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom" '
+    'xmlns:arxiv="http://arxiv.org/schemas/atom"><entry>'
+    "<id>http://arxiv.org/abs/2011.01808v3</id><title>Bayesian Workflow</title>"
+    "<arxiv:license>http://creativecommons.org/licenses/by/4.0/</arxiv:license></entry></feed>"
+)
+_ARXIV_ERR = '<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"><entry><title>Error</title></entry></feed>'
+
+
+def _arxiv_transport(pdf: bytes) -> httpx.MockTransport:
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        if "/api/query" in url:
+            return httpx.Response(200, text=_ARXIV_ERR if "9999.99999" in url else _ARXIV_FEED)
+        if "arxiv.org/pdf/" in url:
+            return httpx.Response(200, content=pdf)
+        return httpx.Response(404)
+
+    return httpx.MockTransport(handler)
+
+
+def _patch_fetcher(monkeypatch, pdf: bytes) -> None:
+    from veribayes.api import jobs as jobsmod
+    from veribayes.core.fetcher import Fetcher
+
+    httpx_client = httpx.Client(transport=_arxiv_transport(pdf))
+
+    def make_fetcher() -> Fetcher:
+        return Fetcher(httpx_client, jobsmod._blobs(), openalex_api_key=None, unpaywall_email=None)
+
+    monkeypatch.setattr(jobsmod, "_fetcher", make_fetcher)
+
+
+def test_identifier_is_fetched_then_graded(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    _patch_fetcher(monkeypatch, _HDDM_PDF)
+    job = Job(id="fetch1", mode="local", source_label="2011.01808", identifier="2011.01808")
+    asyncio.run(run_job(job))
+
+    assert job.status == "done"
+    assert job.content_sha256 and job.version_label == "arXiv v3"  # fetched, not a generic upload
+    assert job.inventory is not None and job.inventory.n_hits > 0  # parsed + detected fetched PDF
+    done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
+    assert "fetch" in done and "ingest" not in done  # fetch replaces the upload-ingest step
+
+
+def test_identifier_fetch_failure_is_surfaced(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    _patch_fetcher(monkeypatch, _HDDM_PDF)
+    job = Job(id="fetch2", mode="local", source_label="9999.99999", identifier="9999.99999")
+    asyncio.run(run_job(job))
+    assert job.status == "failed" and "9999.99999" in (job.error or "")  # IngestError surfaced
 
 
 def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:

@@ -74,15 +74,16 @@ async def create_paper(
         )
     if mode not in ("full", "local"):
         raise HTTPException(status_code=422, detail="mode must be 'full' or 'local'.")
-    # Both modes need the uploaded bytes: local mode runs the on-device pipeline over them, and full
-    # mode grades them with the real engine. An identifier with no file carries data=None and gets
-    # an honest "fetch not wired yet" notice in the worker (never a fabricated report).
+    # A dropped PDF carries its bytes; a pasted identifier (no file) is fetched in the worker (the
+    # OA PDF is resolved off the request path). Both modes then grade the same way.
     data = await file.read() if file is not None else None
+    identifier = None if file is not None else (arxiv_id or doi or openalex_id or url)
     job = store.create(
         mode=mode,
         source_label=_source_label(file, arxiv_id, doi, openalex_id, url),
         data=data,
         filename=file.filename if file is not None else None,
+        identifier=identifier,
     )
     asyncio.create_task(run_job(job))
     return {"paper_id": job.id, "status": job.status}
