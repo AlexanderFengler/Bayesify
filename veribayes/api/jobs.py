@@ -54,9 +54,10 @@ _LOCAL_NOTICE = (
     "the paper text was not sent to any model. This is an evidence inventory (what was detected "
     "and where the engine looked), not a graded assessment."
 )
-_LOCAL_NEEDS_UPLOAD = (
-    "Local-only mode currently runs on an uploaded PDF (so nothing leaves your machine). Fetching "
-    "a paper by identifier in local mode is coming next — drop the PDF here, or use Full mode."
+_NEEDS_UPLOAD = (
+    "Fetching a paper by identifier (arXiv / DOI / OpenAlex / URL) isn't wired into the assessment "
+    "pipeline yet — the fetcher exists but isn't connected. Drop the PDF here to grade it (in "
+    "Local-only mode nothing leaves your machine)."
 )
 _TERMINAL = {"done", "failed"}
 _STAGE_DELAY_S = 0.45  # simulated per-stage work (stub paths) so progress is visible in the UI
@@ -164,18 +165,22 @@ def _llm_client() -> LLMClient:
 
 
 async def run_job(job: Job) -> None:
-    """Drive a job to completion. Uploads run the real front-half engine (ingest->parse->detect);
-    full mode with an API key adds screen+classify; every other path keeps the M1 stub / placeholder
-    until its component lands."""
+    """Drive a job to completion. With uploaded bytes: local mode runs the real on-device engine
+    (ingest->parse->detect); full mode with a backend runs the full real engine (screen->classify->
+    assess->score), or falls back to the labelled stub when no credentials are configured. An
+    identifier with no bytes shows an honest 'fetch not wired yet' notice — never a fabricated
+    report for a paper we never fetched."""
     try:
         job.status = "running"
         job.emit({"type": "status", "status": "running"})
-        if job.mode == "local" and job.data is not None:
+        if job.data is None:
+            await _run_needs_upload(job)  # identifier given, but fetch-by-id isn't wired in yet
+        elif job.mode == "local":
             await _run_local(job)
-        elif job.mode == "full" and job.data is not None and config.llm_backend() != "none":
+        elif job.mode == "full" and config.llm_backend() != "none":
             await _run_full(job)
         else:
-            await _run_stub(job)
+            await _run_stub(job)  # full mode, real bytes, but no credentials → the labelled stub
     except IngestError as exc:  # typed, user-facing (bad PDF, scanned, encrypted, …)
         _log.warning("job %s failed (ingest, stage=%s): %s", job.id, job.stage, exc.user_message)
         job.status = "failed"
@@ -317,20 +322,25 @@ async def _run_full(job: Job) -> None:
     job.emit({"type": "done"})
 
 
+async def _run_needs_upload(job: Job) -> None:
+    """No bytes to work on — an identifier was submitted but fetch-by-identifier isn't wired into
+    the pipeline yet (and local mode needs the bytes on-device). Show an honest notice rather than
+    simulate stages or fabricate a stub report for a paper we never fetched."""
+    job.local_notice = _NEEDS_UPLOAD
+    job.status = "done"
+    job.emit({"type": "done"})
+
+
 async def _run_stub(job: Job) -> None:
-    """The pre-component placeholder: simulate the stages, then attach the stub result (full mode)
-    or the 'upload needed' notice (local mode without a PDF)."""
-    stages = LOCAL_STAGES if job.mode == "local" else STAGES
-    for stage in stages:
+    """Full mode with real bytes but no credentials configured: simulate the stages, then attach the
+    labelled placeholder result so the UI is exercisable without an LLM (shown as 'Stub engine')."""
+    for stage in STAGES:
         job.stage = stage
         job.emit({"type": "stage", "stage": stage, "state": "running"})
         await asyncio.sleep(_STAGE_DELAY_S)
         job.emit({"type": "stage", "stage": stage, "state": "done"})
-    if job.mode == "local":
-        job.local_notice = _LOCAL_NEEDS_UPLOAD  # detection needs the bytes; nothing to show
-    else:
-        job.result = build_stub_result(job.mode)
-        job.backend = "stub"  # no credentials → the labelled placeholder engine
+    job.result = build_stub_result(job.mode)
+    job.backend = "stub"  # no credentials → the labelled placeholder engine
     job.status = "done"
     job.emit({"type": "done"})
 

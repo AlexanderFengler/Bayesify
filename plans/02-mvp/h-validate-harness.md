@@ -53,7 +53,8 @@ Tier B runs only through stage 4 (relevance); Tier C runs full but reports case 
   2026-06-12 decision); Tier-B relevance sens/spec; paper-class accuracy; test-retest engine-self κ.
 - Evidence-span audit sample: seeded random ~30 spans/run exported as an audit worksheet; the
   auditor's pass/fail comes back in as input to the report (pass-rate + CI).
-- Bootstrap CIs on every κ, binomial CIs on every rate; per-step **"insufficient data"** below the
+- Wilson CIs on every rate; **κ ships as point + n in v0** (cluster-bootstrap κ CIs deferred to a v1
+  re-enable at G9 — see protocol §3 amendment 2026-06-16); per-step **"insufficient data"** below the
   n-floor; regression comparison vs the previous report with noise-relative tolerances (protocol §3).
 
 **Outputs.**
@@ -96,8 +97,9 @@ noise tolerance cannot merge to a release branch. (The per-PR golden-paper mini-
 
 ## Definition of done
 - [ ] `veribayes validate` runs Tiers A/B/C end-to-end on the synthetic mini-goldset in CI (no LLM).
-- [ ] Every protocol-§3 metric implemented as a pure function with hand-verified unit tests; CIs on
-      all of them; insufficient-data floors honored.
+- [ ] Every protocol-§3 metric implemented as a pure function with hand-verified unit tests; Wilson
+      CIs on rates (κ as point + n in v0, cluster bootstrap deferred to G9); insufficient-data floors
+      honored.
 - [ ] sha256 pinning hard-fail + exclusion logging proven by tests.
 - [ ] Report JSON, `VALIDATION.md`, and calibration payload generated from one computation; g's
       `/api/calibration` serves it unmodified.

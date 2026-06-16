@@ -207,25 +207,60 @@ export interface ProgressEvent {
   reason?: string;
 }
 
-// Subscribe to the SSE progress stream. Returns a close() handle.
+// Subscribe to the SSE progress stream, with a polling fallback. Returns a close() handle.
 export function streamProgress(
   paperId: string,
   onEvent: (e: ProgressEvent) => void,
   onDone: () => void,
 ): () => void {
+  let finished = false;
+  let pollTimer: number | undefined;
   const es = new EventSource(`/api/papers/${paperId}/events`);
+
+  const finish = (e: ProgressEvent) => {
+    if (finished) return;
+    finished = true;
+    if (pollTimer) clearTimeout(pollTimer);
+    es.close();
+    onEvent(e);
+    onDone();
+  };
+
+  // If the SSE connection drops BEFORE a terminal event (dev-server reload during the edit loop, a
+  // proxy/idle timeout, tab backgrounding, a network blip), EventSource auto-reconnect is unreliable
+  // across the dev proxy — so poll the job until it reaches a terminal state. The server runs the job
+  // to completion regardless of whether anyone is listening, so this always resolves.
+  const poll = async () => {
+    if (finished) return;
+    try {
+      const p = await getPaper(paperId);
+      if (p.status === "done" || p.status === "failed") {
+        finish({ type: p.status === "failed" ? "failed" : "done" });
+        return;
+      }
+    } catch {
+      // transient (e.g. server mid-restart) — keep polling
+    }
+    pollTimer = window.setTimeout(poll, 1500);
+  };
+
   es.onmessage = (msg) => {
     const e = JSON.parse(msg.data) as ProgressEvent;
-    onEvent(e);
     if (e.type === "done" || e.type === "failed") {
-      es.close();
-      onDone();
+      finish(e);
+      return;
     }
+    onEvent(e);
   };
   es.onerror = () => {
-    // The stream closes itself on terminal events; an error after that is expected. If it errors
-    // before completion the polling fallback in App will still resolve the result.
+    if (finished) return; // a normal close after the terminal event — nothing to do
+    es.close(); // stop the unreliable auto-reconnect and switch to polling
+    if (pollTimer === undefined) pollTimer = window.setTimeout(poll, 1500);
+  };
+
+  return () => {
+    finished = true;
+    if (pollTimer) clearTimeout(pollTimer);
     es.close();
   };
-  return () => es.close();
 }

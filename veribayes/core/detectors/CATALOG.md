@@ -93,7 +93,8 @@ extracted, so "ESS for 4 parameters" stays a mention (precision-first); `op` def
 | `open.zenodo` | 0.1.0 | `zenodo` | |
 
 ## Changelog
-- **0.1.0** — initial catalog (M3): all five families plus the method-mention floor; numeric
+- **0.1.0** — initial catalog (M3): all six families (software, method [the d-screen relevance
+  floor], diagnostic, workflow, sampler, open_science); numeric
   extraction for R-hat / ESS / divergences / Pareto-k / chains / iterations / warmup.
 
 ## Out of scope (deferred — see c-detectors.md)

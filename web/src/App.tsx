@@ -371,7 +371,7 @@ function LocalNotice({
 }) {
   return (
     <div className="card local-notice">
-      <div className="local-badge">Local-only · detection mode</div>
+      <div className="local-badge">No analysis run yet</div>
       <h2>{source}</h2>
       <p>{notice}</p>
       <button className="btn" onClick={onReset}>

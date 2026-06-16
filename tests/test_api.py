@@ -206,24 +206,30 @@ def test_override_is_recorded_but_not_yet_learned_from() -> None:
 # --- async job machinery --------------------------------------------------------------------------
 
 
-def test_run_job_emits_every_stage_then_done_and_attaches_result() -> None:
-    job = Job(id="t1", mode="full", source_label="paper.pdf")
+def test_run_job_emits_every_stage_then_done_and_attaches_result(monkeypatch) -> None:
+    # Full mode with bytes but NO credentials → the labelled stub: all stages, then a stub result.
+    # (monkeypatch is scoped, so forcing the backend off here does not affect other tests.)
+    monkeypatch.setenv("VERIBAYES_LLM_BACKEND", "none")
+    job = Job(id="t1", mode="full", source_label="paper.pdf", data=b"%PDF-stub-bytes")
     asyncio.run(run_job(job))
     stages_done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
     assert stages_done == list(STAGES)
     assert job.events[-1]["type"] == "done"
     assert job.status == "done"
     assert job.result is not None and job.result.coverage is not None
+    assert job.backend == "stub"
 
 
-def test_local_mode_produces_no_scores_and_fewer_stages() -> None:
-    job = Job(id="t3", mode="local", source_label="paper.pdf")
-    asyncio.run(run_job(job))
-    stages_done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
-    assert stages_done == list(LOCAL_STAGES)  # detectors only — no screen/classify/assess/score
-    assert job.result is None  # no scores in local mode
-    assert job.local_notice is not None
-    assert job.status == "done"
+def test_no_bytes_shows_honest_needs_upload_notice() -> None:
+    # An identifier (or no file) carries no bytes; fetch-by-id isn't wired, so BOTH modes must show
+    # an honest notice — never a fabricated stub report, and never simulated pipeline stages.
+    for mode in ("local", "full"):
+        job = Job(id=f"t3-{mode}", mode=mode, source_label="2011.01808")
+        asyncio.run(run_job(job))
+        assert job.status == "done"
+        assert job.result is None  # no fabricated report for a paper we never fetched
+        assert job.local_notice is not None and "wired" in job.local_notice.lower()
+        assert [e for e in job.events if e["type"] == "stage"] == []  # no simulated stages
 
 
 # --- real local-only pipeline (a+b+c on-device) ---------------------------------------------------

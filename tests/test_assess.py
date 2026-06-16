@@ -102,6 +102,19 @@ def test_gate_facts_analytic() -> None:
     assert gf.inference_method is InferenceMethod.exact_analytic
 
 
+def test_loo_detector_implies_multiple_models() -> None:
+    # A PSIS-LOO / WAIC model-comparison detector firing is evidence of >=2 models, so S6 (model
+    # comparison) stays applicable — not falsely N/A "only one model" on the very paper whose LOO
+    # comparison the engine just detected.
+    mcmc = [_ev("method.mcmc", EvidenceKind.method_mention, "NUTS")]
+    assert derive_gate_facts(mcmc, _EMPIRICAL).n_models == 1  # nothing comparison-like → one model
+    loo = derive_gate_facts(
+        [_ev("diag.loo_waic", EvidenceKind.diagnostic_value, "PSIS-LOO model comparison")],
+        _EMPIRICAL,
+    )
+    assert loo.n_models >= 2  # comparison detector → multi-model → S6 applicable
+
+
 # --- gating: N/A steps cost no LLM call ----------------------------------------------------------
 
 

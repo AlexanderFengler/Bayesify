@@ -62,9 +62,9 @@ export function PrivacyModal({ onClose, firstRun }: { onClose: () => void; first
       </div>
 
       <p className="modal-foot">
-        Submitting an identifier (arXiv/DOI/OpenAlex/URL) instead of a file reveals which paper you
-        are looking up to that open-access provider. Deleting a paper purges everything derived from
-        it.
+        Fetching a paper by identifier (arXiv/DOI/OpenAlex/URL) isn&rsquo;t wired up yet &mdash; for
+        now, upload the PDF. Deleting a paper removes it from this session; the on-device cache under{" "}
+        <code>~/.veribayes</code> is not yet purged automatically.
       </p>
 
       {firstRun && (

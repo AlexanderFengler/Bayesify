@@ -1,9 +1,10 @@
 """The validation report builder (component h) — turn paired (human, engine) reports into the one
 computed ``ValidationReport`` that every artifact derives from.
 
-Pure and deterministic (the bootstrap is seeded): ``build_report`` takes in-memory
-(``HumanReport``, ``ScoredResult``) pairs and the rubric, extracts aligned label pairs, runs the
-``metrics`` engine, and returns a single object. The CLI (V5b) is the impure shell that loads the
+Pure and deterministic: ``build_report`` takes in-memory (``HumanReport``, ``ScoredResult``) pairs
+and the rubric, extracts aligned label pairs, runs the ``metrics`` engine, and returns a single
+object. Rate CIs are analytic Wilson intervals; the κ cluster-bootstrap is OFF in v0 (see the
+``_kappa_ci`` seam — κ ships as point + n). The CLI (V5b) is the impure shell that loads the
 pairs from disk and writes the three artifacts — all rendered from this one object, so the
 demo/real watermark (``is_demo`` / ``status``) is set ONCE and no surface can disagree (the
 single-computation honesty guard).

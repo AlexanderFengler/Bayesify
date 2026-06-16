@@ -107,8 +107,11 @@ _REFUTER_BUDGET = 14_000
 
 def derive_gate_facts(evidence: list[Evidence], paper_class: PaperClass) -> GateFacts:
     """Best-effort, deterministic facts that drive applicability gates (G6). n_models is not
-    reliably detectable from text in v0, so it defaults to 1 (a single-model paper); BF / prior /
-    inference come from the detectors."""
+    reliably countable from text in v0, so it defaults to 1 — EXCEPT when a model-comparison
+    detector (PSIS-LOO / WAIC / Pareto-k) fired, which is reliable evidence that >=2 models were
+    entertained; without this S6 (model comparison) is falsely marked N/A ('only one model') on the
+    very paper whose LOO comparison the engine detected. BF / prior / inference come from detectors.
+    """
     ids = {e.detector_id for e in evidence}
     if "method.analytic" in ids:
         inference = InferenceMethod.exact_analytic
@@ -118,9 +121,10 @@ def derive_gate_facts(evidence: list[Evidence], paper_class: PaperClass) -> Gate
         inference = InferenceMethod.hmc_nuts if _mentions_nuts(evidence) else InferenceMethod.mcmc
     else:
         inference = InferenceMethod.unstated
+    compared_models = "diag.loo_waic" in ids or "diag.pareto_k" in ids
     return GateFacts(
         inference_method=inference,
-        n_models=1,
+        n_models=2 if compared_models else 1,
         bf_claimed="method.bayes_factor" in ids,
         prior_informativeness=_prior_informativeness(evidence),
     )

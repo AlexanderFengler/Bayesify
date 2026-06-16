@@ -33,9 +33,13 @@ research/sources/  Annotated bibliography: one note per source (citation + how V
                    plus fetch_sources.sh to download the open-access PDFs locally.
 rubric/            Machine-readable rubric (steps.yaml) — the single source of truth for scoring.
 validation/        The A1 validation protocol (engine-vs-expert calibration) and its artifacts.
-veribayes/core/    The engine (Phase 2, in progress): stage contracts (schema.py), engine versioning,
-                   rubric loader. UI-agnostic — no web deps (enforced by an import-linter contract).
-tests/             pytest suite for veribayes-core.
+veribayes/core/    The engine (UI-agnostic, no web deps — import-linter enforced): ingest, parse,
+                   detectors, screen, classify, assess, score, report, the rubric loader + stage
+                   contracts (schema.py) + engine versioning, and validation/ (the calibration harness).
+veribayes/api/     FastAPI app: upload → job → SSE progress → report, plus the blind-rating and
+                   calibration endpoints. Serves the built web UI in one process (`pixi run app`).
+web/               React/Vite/TypeScript single-page UI (upload, report, blind rating, calibration).
+tests/             pytest suite for veribayes-core + the API.
 ```
 
 ## Development
@@ -85,8 +89,12 @@ The active path is whatever `config.llm_backend()` resolves to. Run the live acc
 
 ## Status
 
-Phase 1 (research → rubric) complete; Phase 2 (MVP) under way — see
-[`plans/02-mvp-tool-plan.md`](plans/02-mvp-tool-plan.md) §5 for the milestone/gate map. The current
-branch builds **M1 (skeleton & contracts)**: the §4.3 stage contracts, `engine_version` composition
-+ model pinning (gate G1), the `gate_facts` schema field (G6), and the rubric loader with profile
-support. See [`plans/00-master-plan.md`](plans/00-master-plan.md) for the executive summary.
+Phase 1 (research → rubric) complete; Phase 2 (MVP) is built through **M6 plus the M7 validation
+harness** — see [`plans/02-mvp-tool-plan.md`](plans/02-mvp-tool-plan.md) §5 for the milestone/gate
+map. The end-to-end flow works in both modes: upload a PDF → ingest/parse/detect → (Full mode)
+screen/classify/assess/score → an evidence-linked, per-step report with coverage and quality scores,
+downloadable as JSON/Markdown; Local-only mode runs the on-device detectors with nothing sent to a
+model. There is a blind expert-rating flow and a `/calibration` page for engine-vs-expert agreement
+(behind a FAKE-DATA firewall — no real ratings exist yet; that's the remaining M7 work: freeze the
+rubric, recruit raters, run the live validation). Fetching a paper by identifier is not yet wired —
+upload the PDF for now. See [`plans/00-master-plan.md`](plans/00-master-plan.md) for the summary.

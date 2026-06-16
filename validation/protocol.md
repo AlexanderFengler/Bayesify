@@ -80,9 +80,12 @@ level, so agreement is decomposed to mirror the engine's own architecture:
 - **Evidence-span validity:** a **seeded random sample of ~30 spans per validation run**, audited by
   someone other than the prompt author where feasible; pass-rate + CI in the report like every other
   metric — the dual-grounding promise (A3) is measured, not assumed.
-- **Uncertainty on everything:** bootstrap (or analytic) CIs on every κ, binomial CIs on every rate.
-  Per-step metrics show **"insufficient data"** below an n-floor (e.g., 15 applicable papers) instead
-  of a number.
+- **Uncertainty on everything:** analytic Wilson CIs on every rate. **v0 amendment (2026-06-16):**
+  κ ships as a point estimate + n (no CI) — at v0 n a cluster-bootstrap κ CI is noisy and
+  contestable, and the uncertainties that matter most (rater coherence, engine noise) are reported
+  separately as the inter-expert and test-retest κ. The κ cluster bootstrap is retained and tested
+  for a v1 re-enable at G9 once the real run has enough papers. Per-step metrics show **"insufficient
+  data" / "preliminary"** below an n-floor (e.g., 15 applicable papers) instead of an over-claimed CI.
 - **Regression rule:** a change that worsens absence-FPR, absence-miss-rate, or mean step-κ beyond
   the **bootstrap variability** of the metric does not ship (tolerances defined relative to noise,
   not as raw point deltas).
@@ -99,7 +102,8 @@ level, so agreement is decomposed to mirror the engine's own architecture:
    score above pairwise-human κ), absence-FPR + miss-rate with confusion matrix, coverage/quality
    score agreement, test-retest κ, gold-set size & composition per tier, last-validated date,
    engine/rubric versions (+ rubric profile — v0 validates the `synthesis` profile only),
-   override count feeding the next round — **every number with its n and CI**.
+   override count feeding the next round — **every number with its n** (and a CI where one ships:
+   Wilson on rates; κ as point + n in v0, per the §3 amendment).
 2. **A provenance footer on every report** (plan `02-mvp-tool-plan.md` §4.1): engine & rubric
    version, "development-set agreement: κ=… [CI], absence-FPR …/… , absence-miss …/…", validation
    date → `/calibration`. **Per-metric honesty:** any metric whose CI is wide or n below floor

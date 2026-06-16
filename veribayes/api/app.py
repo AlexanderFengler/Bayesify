@@ -1,8 +1,9 @@
 """VeriBayes API + single-process web server.
 
-Implements the real upload -> job -> SSE -> report flow (real on-device pipeline in local-only mode;
-stub engine for full mode until those components land), plus the endpoint surface from plans
-02-mvp/g §5. Endpoints that need later components (real calibration data, real purge) return honest
+Implements the real upload -> job -> SSE -> report flow: the on-device pipeline in local-only mode,
+and the full real engine (screen/classify/assess/score) in full mode when a backend is configured,
+falling back to a labelled stub only when no credentials are available. Plus the endpoint surface
+from plans 02-mvp/g §5. Endpoints that need later components (real calibration data) return honest
 stubs and are labelled as such.
 
 **One process serves both the API and the built UI** (`pixi run app`): the FastAPI app mounts
@@ -73,8 +74,9 @@ async def create_paper(
         )
     if mode not in ("full", "local"):
         raise HTTPException(status_code=422, detail="mode must be 'full' or 'local'.")
-    # Local-only mode runs the real on-device pipeline (a+b+c) over the uploaded bytes; carry them
-    # to the worker. (Full mode is still the stub, so the bytes are only needed for local mode.)
+    # Both modes need the uploaded bytes: local mode runs the on-device pipeline over them, and full
+    # mode grades them with the real engine. An identifier with no file carries data=None and gets
+    # an honest "fetch not wired yet" notice in the worker (never a fabricated report).
     data = await file.read() if file is not None else None
     job = store.create(
         mode=mode,
