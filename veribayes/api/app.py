@@ -351,13 +351,6 @@ async def calibration() -> dict:
     }
 
 
-@app.delete("/api/papers/{paper_id}")
-async def delete_paper(paper_id: str) -> dict:
-    if not store.delete(paper_id):
-        raise HTTPException(status_code=404, detail="unknown paper_id")
-    return {"deleted": paper_id}
-
-
 def _render_markdown(job: jobsmod.Job) -> str:
     r = job.result
     assert r is not None

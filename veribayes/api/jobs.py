@@ -152,9 +152,6 @@ class JobStore:
     def get(self, paper_id: str) -> Job | None:
         return self._jobs.get(paper_id)
 
-    def delete(self, paper_id: str) -> bool:
-        return self._jobs.pop(paper_id, None) is not None
-
 
 def _llm_client() -> LLMClient:
     """The LLM client for full mode, chosen by ``config.llm_backend()``: the Claude subscription via

@@ -102,17 +102,6 @@ body {
   color: var(--green);
 }
 
-.pill {
-  font-size: 12px;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-weight: 600;
-}
-.pill-stub {
-  background: var(--amber-soft);
-  color: var(--amber);
-}
-
 main.container {
   flex: 1;
   padding-top: 36px;

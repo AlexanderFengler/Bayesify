@@ -135,12 +135,10 @@ def weighted_kappa(
     return _kappa(pairs, order, kind)
 
 
-def gwet_ac(
-    pairs: Sequence[Pair], order: Sequence[Hashable] | None = None, *, kind: str = "nominal"
-) -> float | None:
-    """Gwet's AC1 (``kind='nominal'``) / AC2 (weighted) — prevalence-robust agreement. Unlike κ it
-    does not collapse under skewed marginals, so it is the honest companion to κ on the paradox.
-    Chance agreement uses the mean marginal probabilities; with identity weights this is AC1."""
+def gwet_ac(pairs: Sequence[Pair], order: Sequence[Hashable] | None = None) -> float | None:
+    """Gwet's AC1 — prevalence-robust agreement. Unlike κ it does not collapse under skewed
+    marginals, so it is the honest companion to κ on the paradox. Chance agreement uses the mean
+    marginal probabilities (identity weights)."""
     if not pairs:
         return None
     cats = _categories(pairs, order)
@@ -149,13 +147,11 @@ def gwet_ac(
         return 1.0  # everyone used one category and agreed
     m = _matrix(pairs, cats)
     n = len(pairs)
-    w = _weight_matrix(k, kind)
     rows = [sum(m[i]) for i in range(k)]
     cols = [sum(m[i][j] for i in range(k)) for j in range(k)]
     pi = [(rows[i] + cols[i]) / (2 * n) for i in range(k)]  # mean marginal per category
-    tw = sum(w[i][j] for i in range(k) for j in range(k))
-    pa = sum(w[i][j] * m[i][j] for i in range(k) for j in range(k)) / n
-    pe = (tw / (k * (k - 1))) * sum(p * (1 - p) for p in pi)
+    pa = sum(m[i][i] for i in range(k)) / n
+    pe = sum(p * (1 - p) for p in pi) / (k - 1)
     if pe == 1.0:
         return 1.0 if pa == 1.0 else 0.0
     return (pa - pe) / (1 - pe)
