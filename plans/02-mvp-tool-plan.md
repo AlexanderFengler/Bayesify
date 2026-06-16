@@ -227,10 +227,10 @@ lands behind the always-working stub app.
 | **M3** | Detectors → **local-only mode shippable** | [`c`](02-mvp/c-detectors.md) |
 | **M4** | Screen + classify | [`d`](02-mvp/d-screen-classify.md) |
 | **M5** | Assess (grounded + adversarial) + scoring (profile, coverage, quality) | [`e`](02-mvp/e-assess.md), [`f`](02-mvp/f-score.md) |
-| **M6** | Full report UX: the v0 report view + meta-research JSON, overrides, privacy surface, exports | [`g`](02-mvp/g-report-api-ui.md) |
-| **M7** | `veribayes validate` harness built; protocol executed; calibration page + footer + `VALIDATION.md` | [`h`](02-mvp/h-validate-harness.md) (harness) per [`validation/protocol.md`](../validation/protocol.md) (procedure) |
+| **M6** | Full report UX (`g`) **+ the validation capstone built fake-harness-first** (V0–V6): the human-report contract, pure metric engine, report builder + 3-artifact emitter, harness + honesty firewall, blind rating producer, and calibration view — all shippable + critique-able on fabricated data **[done 2026-06-16]** | [`g`](02-mvp/g-report-api-ui.md), [`h`](02-mvp/h-validate-harness.md) |
+| **M7** | The *live* validation run + its prerequisites: **auto-consensus assembly** (no human adjudication UI — see `h` revisions), real-engine pairing + sha256 hard-fail, test-retest κ, durable rating persistence, selection provenance (seeded draw), then **execute the protocol** over the real gold set → first `VALIDATION.md`. **Gated on rater recruitment (G4), not code.** | [`h`](02-mvp/h-validate-harness.md) per [`validation/protocol.md`](../validation/protocol.md) |
 
-**v0 is not "done" until M7 runs.**
+**v0 is not "done" until M7's live run executes.** The M6 fake-harness build means the engineering for M7 is mostly in place; the binding constraint is the human pipeline (recruit raters → blind-rate → assemble → run).
 
 ### Build gates (2026-06-12 three-lens review — [full report](reviews/2026-06-12-three-lens-review.md))
 
@@ -249,7 +249,7 @@ and milestones stand.*
 | G1 | **M1** contract freeze | Define `engine_version` composition; **pin judge/cheap-tier model snapshot IDs** into it (or the cache key + `ScoredResult`); protocol rule: model change invalidates `VALIDATION.md` |
 | G2 | **M2**, before cache.py | Cache key gains parser identity (or degraded-parser runs aren't cached) and a rerun-override dimension |
 | G3 | **M2**, first fixture commit | Fixture licensing: committed fixtures CC-BY/CC0 with license manifest; everything else fetch-by-script + sha256 pin (incl. derived full-text fixtures) |
-| G4 | **start by M2** (gates M7) | Name validation owner + expert-hours budget; **begin rater recruitment now** (months of lead time); prompt author rates only a minority, never adjudicates own disagreements |
+| G4 | **start by M2** (gates M7) | Name validation owner + expert-hours budget; **begin rater recruitment now** (months of lead time); ≥1 independent rater per paper; prompt author rates only a minority. (Consensus is now derived mechanically — no human adjudication — so the "never adjudicates own disagreements" rule is moot; the firewall against engine-anchoring is structural, not procedural.) |
 | G5 | **M5** hard gate (start at M1) | Author the rubric machine-half: scoring block, machine-evaluable `na_when`/`mandatory_when` predicates, synonym lists, step→detector map |
 | G6 | **M5** (schema field at M1/M2) | Evidence-conditioned essentialness (BF claim ⇒ S6/S8 mandatory) via a compact `gate_facts` object in §4.3 consumed by `score()` |
 | G7 | **M5** / rubric freeze | VI-specific S4 criteria (ELBO convergence, PSIS k-hat — Yao et al. 2018, SBC sub-branch) so VI papers aren't wrongly Failed |
