@@ -159,6 +159,37 @@ def test_no_retest_pairs_leaves_kappa_unmeasured() -> None:
     assert rep.test_retest_kappa.value is None  # the demo doesn't measure engine noise
 
 
+def test_tier_c_papers_are_cased_not_pooled() -> None:
+    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    a = _human(sr, "w1", "aa")  # Tier A → pooled
+    c = _human(sr, "w2", "bb").model_copy(update={"tier": GoldTier.C})  # Tier C → cased
+    rep = build_report(
+        [(a, sr), (c, sr)],
+        _RUBRIC,
+        engine_version="ev",
+        is_demo=True,
+        status="demo_fake_data",
+        n_resamples=20,
+    )
+    assert rep.n_papers == 2  # both admissible and counted
+    assert [x.work_id for x in rep.tier_c_cases] == ["w2"]  # only the Tier-C paper is cased
+
+    # the Tier-C paper did NOT inflate the pooled step κ: only the Tier-A paper's cells count
+    a_only = build_report(
+        [(a, sr)],
+        _RUBRIC,
+        engine_version="ev",
+        is_demo=True,
+        status="demo_fake_data",
+        n_resamples=20,
+    )
+    assert rep.status_kappa.n == a_only.status_kappa.n
+
+    case = rep.tier_c_cases[0]  # the case records the per-step consensus-vs-engine comparison
+    assert case.steps and all(s.consensus and s.engine for s in case.steps)
+    assert "Tier-C special cases" in to_markdown(rep)
+
+
 def test_inadmissible_papers_are_excluded_not_dropped() -> None:
     sr = ScoredResult.model_validate_json(_FIX.read_text())
     good = _human(sr, "w1", "aa")

@@ -176,6 +176,22 @@ export interface CalibrationReport {
   relevance_specificity?: MetricStat;
   paper_class_accuracy?: MetricStat;
   confusion?: Record<string, Record<string, number>>;
+  tier_c_cases?: TierCCase[];
+}
+
+// A Tier-C special case — reported individually, never pooled into a rate (n too small).
+export interface TierCStep {
+  step_id: string;
+  consensus: string;
+  engine: string;
+  agree: boolean;
+}
+
+export interface TierCCase {
+  work_id: string;
+  relevance_consensus: string;
+  relevance_engine: string;
+  steps: TierCStep[];
 }
 
 export async function getCalibration(): Promise<CalibrationReport> {

@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict
 from veribayes.core.rubric.models import RubricSpec
 from veribayes.core.schema import RelevanceLabel, ScoredResult, StepStatus
 from veribayes.core.score import StepCalc, coverage_quality_from_weighted_steps, step_weight
-from veribayes.core.validation.human_report import HumanReport
+from veribayes.core.validation.human_report import GoldTier, HumanReport
 from veribayes.core.validation.metrics import (
     STATUS_ORDER,
     Interval,
@@ -93,6 +93,23 @@ class RateStat(_Base):
     preliminary: bool = False
 
 
+class TierCStep(_Base):
+    step_id: str
+    consensus: str
+    engine: str
+    agree: bool
+
+
+class TierCCase(_Base):
+    """A Tier-C paper reported as an individual case, not pooled into a rate (n is too small for a
+    rate to mean anything). E.g. an analytic paper: did the engine correctly mark S4 N/A?"""
+
+    work_id: str
+    relevance_consensus: str
+    relevance_engine: str
+    steps: list[TierCStep]
+
+
 class ValidationReport(_Base):
     engine_version: str
     rubric_version: str
@@ -126,6 +143,9 @@ class ValidationReport(_Base):
     # agreement is uninterpretable. value None when not measured (e.g. the demo: fixtures are
     # deterministic, so it is only computed on the real run with engine_runs >= 2).
     test_retest_kappa: Stat
+    # Tier-C special cases — reported individually (analytic-N/A gating, figure-only diagnostics);
+    # too few to pool into a rate, so they never enter the metrics above.
+    tier_c_cases: list[TierCCase]
 
 
 # --- builder -----------------------------------------------------------------------------------
@@ -190,8 +210,15 @@ def build_report(
             label=label, x=r.x, n=r.n, value=r.value, ci_lo=lo, ci_hi=hi, preliminary=prelim
         )
 
-    # papers the engine actually graded step-by-step (both sides have steps)
-    step_pairs = [(h, s) for h, s in admissible if h.consensus.steps and s.step_assessments]
+    # Tier routing. Tier A (full grade) feeds the pooled STEP metrics; Tier A+B (the rate tiers)
+    # feed relevance/paper-class; Tier C is reported per-case (below), never pooled into a rate.
+    rate_pairs = [(h, s) for h, s in admissible if h.tier in (GoldTier.A, GoldTier.B)]
+    # papers the engine actually graded step-by-step (Tier A, both sides have steps)
+    step_pairs = [
+        (h, s)
+        for h, s in admissible
+        if h.tier is GoldTier.A and h.consensus.steps and s.step_assessments
+    ]
 
     applic_papers: list[list[tuple[bool, bool]]] = []
     status_both_papers: list[list[tuple[StepStatus, StepStatus]]] = []
@@ -239,21 +266,26 @@ def build_report(
     retest_papers = [_engine_pair_cells(e1, e2) for e1, e2 in retest_pairs]
     retest_k = weighted_kappa(_flatten(retest_papers), STATUS_ORDER) if retest_papers else None
 
-    # relevance (all admissible papers) + paper-class (papers both judged relevant)
+    # relevance (Tier A+B) + paper-class (rate-tier papers both judged relevant)
     rel_pairs = [
         (
             h.consensus.relevance_label is not RelevanceLabel.no,
             s.relevance.label is not RelevanceLabel.no,
         )
-        for h, s in admissible
+        for h, s in rate_pairs
     ]
     sens, spec = binary_sens_spec(rel_pairs)
     class_pairs = [
         (h.consensus.paper_class_label.value, s.paper_class.primary.value)
-        for h, s in admissible
+        for h, s in rate_pairs
         if h.consensus.paper_class_label is not None and s.paper_class is not None
     ]
     cls_acc = accuracy(class_pairs)
+
+    # Tier C — each paper reported as an individual case (too few to pool into a rate)
+    tier_c_cases = [
+        _tier_c_case(h, s) for h, s in admissible if h.tier is GoldTier.C
+    ]
 
     return ValidationReport(
         engine_version=engine_version,
@@ -323,6 +355,32 @@ def build_report(
             if retest_papers
             else None,
         ),
+        tier_c_cases=tier_c_cases,
+    )
+
+
+def _tier_c_case(hr: HumanReport, s: ScoredResult) -> TierCCase:
+    """A single Tier-C paper, consensus vs engine, step by step — the honest unit when n is too
+    small for a rate (e.g. 'did the engine correctly mark S4 N/A on this analytic paper?')."""
+    eng = {a.step_id: a for a in s.step_assessments}
+    steps: list[TierCStep] = []
+    for st in hr.consensus.steps if hr.consensus else []:
+        e = eng.get(st.step_id)
+        e_status = e.status.value if e is not None else "—"
+        steps.append(
+            TierCStep(
+                step_id=st.step_id,
+                consensus=st.status.value,
+                engine=e_status,
+                agree=e is not None and st.status is e.status,
+            )
+        )
+    rel_c = hr.consensus.relevance_label.value if hr.consensus else "—"
+    return TierCCase(
+        work_id=hr.work_id,
+        relevance_consensus=rel_c,
+        relevance_engine=s.relevance.label.value,
+        steps=steps,
     )
 
 
@@ -421,6 +479,22 @@ def to_markdown(report: ValidationReport) -> str:
         report.paper_class_accuracy,
     ]
     lines += [f"- **{m.label}:** {_fmt(m)}" for m in metrics]
+    if report.tier_c_cases:
+        lines += [
+            "",
+            "## Tier-C special cases (reported individually — too few to pool)",
+            "",
+        ]
+        for c in report.tier_c_cases:
+            lines += [
+                f"### {c.work_id} — relevance: consensus `{c.relevance_consensus}` / "
+                f"engine `{c.relevance_engine}`",
+            ]
+            lines += [
+                f"- {st.step_id}: consensus `{st.consensus}` / engine `{st.engine}` "
+                f"{'✓' if st.agree else '✗'}"
+                for st in c.steps
+            ]
     lines += ["", "## Read this carefully"]
     lines += [f"- {c}" for c in report.validity_caveats]
     return "\n".join(lines)

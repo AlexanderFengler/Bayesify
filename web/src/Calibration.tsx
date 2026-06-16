@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { type CalibrationReport, getCalibration, type MetricStat } from "./api";
+import { type CalibrationReport, getCalibration, type MetricStat, type TierCCase } from "./api";
 
 // The full calibration view: it renders the validation report the harness produced — honestly. The
 // status drives a per-state banner; the demo state gets a loud, non-dismissable FAKE-DATA banner so
@@ -59,6 +59,9 @@ export function Calibration({ onExit }: { onExit: () => void }) {
           <MetaLine rep={rep} />
           <Metrics rep={rep} />
           {rep.confusion && <Confusion table={rep.confusion} />}
+          {rep.tier_c_cases && rep.tier_c_cases.length > 0 && (
+            <TierCCases cases={rep.tier_c_cases} />
+          )}
           <Caveats caveats={rep.validity_caveats ?? []} />
         </>
       )}
@@ -198,6 +201,51 @@ function Confusion({ table }: { table: Record<string, Record<string, number>> })
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function TierCCases({ cases }: { cases: TierCCase[] }) {
+  return (
+    <div className="calib-tierc">
+      <div className="grounding-label">
+        Tier-C special cases — reported individually (too few to pool into a rate)
+      </div>
+      {cases.map((c) => (
+        <div className="calib-tierc-case" key={c.work_id}>
+          <div className="calib-tierc-head">
+            <strong>{c.work_id}</strong>
+            <span className="calib-tierc-rel">
+              relevance: consensus <code>{c.relevance_consensus}</code> / engine{" "}
+              <code>{c.relevance_engine}</code>
+            </span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>step</th>
+                <th>consensus</th>
+                <th>engine</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {c.steps.map((s) => (
+                <tr key={s.step_id} className={s.agree ? "" : "calib-tierc-disagree"}>
+                  <th>{s.step_id}</th>
+                  <td>
+                    <code>{s.consensus}</code>
+                  </td>
+                  <td>
+                    <code>{s.engine}</code>
+                  </td>
+                  <td>{s.agree ? "✓" : "✗"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
     </div>
   );
 }

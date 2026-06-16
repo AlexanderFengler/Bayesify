@@ -32,11 +32,11 @@ def _blindify(humans: list[HumanReport]) -> list[HumanReport]:
 
 def test_demo_run_is_watermarked(tmp_path) -> None:
     g, e, o = tmp_path / "gold", tmp_path / "engine", tmp_path / "out"
-    assert write_demo_dataset(str(g), str(e)) == 4
+    assert write_demo_dataset(str(g), str(e)) == 5
 
     rep = run(goldset_dir=g, engine_dir=e, out_dir=o, treat_as_real=False, seed=1)
 
-    assert rep.is_demo and rep.status == "demo_fake_data" and rep.n_papers == 4
+    assert rep.is_demo and rep.status == "demo_fake_data" and rep.n_papers == 5
     assert (o / "VALIDATION.demo.md").exists()
     assert not (o / "VALIDATION.md").exists()  # the public report is NEVER written from demo data
     assert list(o.glob("*.json"))  # the report JSON (the /api/calibration payload)
@@ -44,6 +44,9 @@ def test_demo_run_is_watermarked(tmp_path) -> None:
     assert rep.absence_fpr_strict.x == 1 and rep.absence_fpr_strict.n == 1
     md = (o / "VALIDATION.demo.md").read_text()
     assert "FAKE DATA" in md
+    # the Tier-C analytic paper is reported as a case, not pooled into the rates
+    assert "Tier-C special cases" in md and "demo-analytic" in md
+    assert rep.tier_counts.get("C") == 1 and len(rep.tier_c_cases) == 1
 
 
 def test_fake_data_in_real_goldset_raises() -> None:

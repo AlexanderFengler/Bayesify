@@ -1435,6 +1435,46 @@ main.container {
   color: var(--ink-soft);
   font-weight: 600;
 }
+.calib-tierc {
+  margin-bottom: 20px;
+}
+.calib-tierc-case {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+.calib-tierc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.calib-tierc-rel {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.calib-tierc table {
+  border-collapse: collapse;
+  font-size: 13px;
+  width: 100%;
+}
+.calib-tierc th,
+.calib-tierc td {
+  border: 1px solid var(--line);
+  padding: 4px 10px;
+  text-align: left;
+}
+.calib-tierc thead th {
+  background: var(--gray-soft);
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.calib-tierc-disagree {
+  background: var(--warn-soft, #fff4f0);
+}
 .calib-caveats ul {
   margin: 8px 0 0;
   padding-left: 18px;

@@ -21,6 +21,7 @@ from veribayes.core.schema import (
     EvidenceKind,
     EvidenceSpan,
     GateFacts,
+    InferenceMethod,
     PaperClass,
     PaperClassLabel,
     Relevance,
@@ -44,6 +45,7 @@ from veribayes.core.validation.human_report import (
 _RUBRIC = load_rubric()
 _PRESENT = (StepStatus.done_well, StepStatus.partial)
 _DEFAULT_GATE = GateFacts()  # mcmc/unstated, 1 model, no BF, unstated priors
+_ANALYTIC_GATE = GateFacts(inference_method=InferenceMethod.exact_analytic)  # → S4 N/A (G6)
 _SPAN = EvidenceSpan(section_id="s01", quote="a demonstration span")
 
 
@@ -153,6 +155,7 @@ def _human(
     primary: PaperClassLabel,
     gate: GateFacts,
     consensus_overrides: dict[str, StepStatus],
+    tier: GoldTier = GoldTier.A,
 ) -> HumanReport:
     # two independent blind raters who agree with each other, plus the adjudicated consensus.
     r1 = _rating(primary, gate, consensus_overrides, "r1", RaterRelationship.independent)
@@ -163,7 +166,7 @@ def _human(
         source_sha256=sha,
         version_label="arXiv v1 (demo)",
         rubric_version=RUBRIC_VERSION,
-        tier=GoldTier.A,
+        tier=tier,
         provenance=GoldProvenance(origin=GoldOrigin.fake_llm, authored_by="demo-generator"),
         ratings=[r1, r2],
         consensus=cons,
@@ -206,7 +209,7 @@ def _decoy(work_id: str, sha: str) -> DemoPaper:
 
 
 def build_demo_dataset() -> list[DemoPaper]:
-    """Four fabricated papers exercising the metric surfaces. Deterministic."""
+    """Five fabricated papers exercising the metric surfaces. Deterministic."""
     empirical = PaperClassLabel.empirical
     numerical = PaperClassLabel.numerical_experiment
     return [
@@ -239,6 +242,16 @@ def build_demo_dataset() -> list[DemoPaper]:
         ),
         # 4) a relevance='no' decoy (Tier B)
         _decoy("demo-decoy", "sha-decoy"),
+        # 5) Tier-C special case: an analytic-posterior paper. S4 (convergence) has no sampler to
+        #    diagnose → N/A by the G6 gate; reported as an individual case, never pooled.
+        DemoPaper(
+            "demo-analytic",
+            "sha-analytic",
+            _human(
+                "demo-analytic", "sha-analytic", empirical, _ANALYTIC_GATE, {}, tier=GoldTier.C
+            ),
+            _engine(empirical, _ANALYTIC_GATE, {}),
+        ),
     ]
 
 
