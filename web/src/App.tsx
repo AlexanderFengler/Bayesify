@@ -170,8 +170,7 @@ function Header({ mode }: { mode: "full" | "local" }) {
     <header className="topbar">
       <div className="container topbar-inner">
         <div className="brand">
-          <span className="brand-mark">β</span>
-          <span className="brand-name">VeriBayes</span>
+          <img className="brand-logo" src="/logo.png" alt="VeriBayes" />
         </div>
         <span className="brand-tag">Bayesian-workflow report</span>
         <ModeIndicator mode={mode} />
