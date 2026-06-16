@@ -300,7 +300,10 @@ def bootstrap_ci[T](
     """Percentile bootstrap CI for any statistic. ``units`` is the resampling unit — pass PAPERS
     (each carrying its cells) and a ``stat`` that flattens them, to get the protocol §3 / G9
     paper-level CLUSTER bootstrap (resample papers, not cells, so within-paper correlation is
-    respected). Deterministic given ``seed``. A resample that can't be scored is skipped."""
+    respected). Deterministic given ``seed``. A resample that can't be scored is skipped.
+
+    DECISION PENDING (G9): this cluster bootstrap is a v0 mechanism IN QUESTION — a simpler CI (or
+    none) is on the table. It's invoked from the single seam ``report._kappa_ci``; revisit there."""
     if not units:
         return None
     rng = Random(seed)

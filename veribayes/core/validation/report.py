@@ -222,6 +222,12 @@ def build_report(
         if hq is not None and s.quality_score is not None:
             qual_pairs.append((hq, s.quality_score))
 
+    # === DECISION PENDING (G9) — MECHANISM IN QUESTION ===
+    # The paper-level cluster bootstrap is the most contestable statistical choice in the harness,
+    # and this is the SINGLE seam through which every κ confidence interval flows. v0 may well
+    # replace it with something simpler (point κ + n only, no CIs; a Wilson/normal approx; or rates
+    # only). Kept contained HERE so swapping it is a one-function change. Decision deferred to the
+    # G9 protocol amendment — do NOT treat the current CIs as final (see protocol.md §3).
     def _kappa_ci(papers, fn) -> Interval | None:
         return bootstrap_ci(papers, lambda ps: fn(_flatten(ps)), seed=seed, n_resamples=n_resamples)
 
