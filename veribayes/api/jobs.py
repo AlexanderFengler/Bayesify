@@ -36,6 +36,7 @@ from veribayes.core.pipeline import screen_and_classify
 from veribayes.core.rubric.loader import load_rubric
 from veribayes.core.score import ScoreMeta, score
 from veribayes.core.stub import ENGINE_VERSION, RUBRIC_VERSION, build_stub_result, cost_ledger
+from veribayes.core.validation.override_store import OverrideStore
 from veribayes.core.validation.rating_store import RatingStore
 
 _RUBRIC = load_rubric()  # static rubric spec, loaded once
@@ -85,6 +86,11 @@ def _ratings_store() -> RatingStore:
     return RatingStore(_data_root() / "ratings")
 
 
+def _overrides_store() -> OverrideStore:
+    """Durable A5 override/rerun log (survives restart; the in-memory job dict does not)."""
+    return OverrideStore(_data_root())
+
+
 def _cache_enabled() -> bool:
     """Result caching is on unless VERIBAYES_NO_CACHE is set. Caching is **success-only** and the
     cache hit is surfaced (``from_cache``), so it can never silently mask a broken live run — a
@@ -129,10 +135,8 @@ class Job:
 class JobStore:
     def __init__(self) -> None:
         self._jobs: dict[str, Job] = {}
-        # A5 scaffolding: append-only override log, keyed by assessment id (= paper id at M1).
-        self.overrides: list[dict] = []
-        # Blind ratings are persisted durably via `_ratings_store()` (M7 slice 2), not in memory —
-        # a 30-60 min expert rating must survive a restart.
+        # Blind ratings and A5 overrides are persisted durably via `_ratings_store()` /
+        # `_overrides_store()`, not in memory — they must survive a restart.
 
     def create(
         self,

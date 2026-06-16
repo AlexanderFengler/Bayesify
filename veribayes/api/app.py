@@ -34,6 +34,7 @@ from veribayes.core.report import fix_list
 from veribayes.core.rubric import RubricProfileError, load_rubric
 from veribayes.core.schema import EvidenceKind
 from veribayes.core.validation import Rating, harness, to_calibration_payload
+from veribayes.core.validation.override_store import Override
 from veribayes.core.validation.rating_store import SubmittedRating
 
 app = FastAPI(title="VeriBayes API", version="0.1.0")
@@ -213,8 +214,8 @@ async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dic
     job.from_cache = False
     job.force_fresh = True  # an explicit rerun always bypasses the cache (verify the live path)
     job.events.clear()
-    store.overrides.append(
-        {"assessment_id": paper_id, "kind": "relevance_rerun", "value": relevance_override}
+    jobsmod._overrides_store().add(
+        Override(paper_id=paper_id, kind="relevance_rerun", value=relevance_override)
     )
     asyncio.create_task(run_job(job))
     return {"paper_id": job.id, "status": job.status}
@@ -230,14 +231,16 @@ async def record_override(
 ) -> dict:
     """A5 scaffolding: record an expert correction. Append-only; never mutates engine output, and
     (honestly) not yet used to change judgments."""
-    record = {
-        "assessment_id": assessment_id,
-        "step_id": step_id,
-        "corrected_status": corrected_status,
-        "rationale": rationale,
-        "author": author,
-    }
-    store.overrides.append(record)
+    jobsmod._overrides_store().add(
+        Override(
+            paper_id=assessment_id,
+            kind="step_status",
+            step_id=step_id,
+            corrected_status=corrected_status,
+            rationale=rationale,
+            author=author,
+        )
+    )
     return {
         "recorded": True,
         "note": "recorded for the v1 learning loop — not yet used to change judgments",
@@ -246,7 +249,8 @@ async def record_override(
 
 @app.get("/api/overrides/export")
 async def export_overrides() -> PlainTextResponse:
-    body = "\n".join(__import__("json").dumps(o) for o in store.overrides)
+    """The durable A5 override/rerun log as NDJSON (one correction per line)."""
+    body = "\n".join(o.model_dump_json() for o in jobsmod._overrides_store().all())
     return PlainTextResponse(body, media_type="application/x-ndjson")
 
 

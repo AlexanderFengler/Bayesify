@@ -194,7 +194,8 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
     assert r.status_code == 422
 
 
-def test_override_is_recorded_but_not_yet_learned_from() -> None:
+def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
     r = client.post(
         "/api/assessments/abc/steps/S4/override",
         data={"corrected_status": "partial", "rationale": "supplement has it"},
@@ -202,6 +203,12 @@ def test_override_is_recorded_but_not_yet_learned_from() -> None:
     body = r.json()
     assert body["recorded"] is True
     assert "not yet used" in body["note"]
+    # durable: a fresh store (a "restart") still sees the correction
+    from veribayes.core.validation.override_store import OverrideStore
+
+    saved = OverrideStore(tmp_path).all()
+    assert [o.paper_id for o in saved] == ["abc"]
+    assert saved[0].step_id == "S4" and saved[0].corrected_status == "partial"
 
 
 # --- async job machinery --------------------------------------------------------------------------
