@@ -44,6 +44,7 @@ def grade_parsed(
             relevance=relevance,
             engine_version=engine_version,
             rubric_version=rubric_version,
+            rubric_profile=rubric.profile,
             cost_ledger=cost_ledger(costs),
         )
     if paper_class.primary is PaperClassLabel.review:  # discusses the workflow, doesn't apply it
@@ -53,6 +54,7 @@ def grade_parsed(
             paper_class=paper_class,
             engine_version=engine_version,
             rubric_version=rubric_version,
+            rubric_profile=rubric.profile,
             cost_ledger=cost_ledger(costs),
         )
     assessments, gate_facts, assess_costs = assess(

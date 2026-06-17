@@ -345,7 +345,7 @@ class ScoredResult(_Base):
         rubric_version: str,
         reason: str = "not_bayesian",
         paper_class: PaperClass | None = None,
-        rubric_profile: str = "synthesis",
+        rubric_profile: str = "synthesis",  # the chosen rubric (registry id)
         cost_ledger: CostLedger | None = None,
         validation_ref: str = "unvalidated",
     ) -> ScoredResult:

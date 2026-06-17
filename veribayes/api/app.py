@@ -31,7 +31,7 @@ from sse_starlette.sse import EventSourceResponse
 from veribayes.api import jobs as jobsmod
 from veribayes.api.jobs import JobStore, event_stream, run_job
 from veribayes.core.report import fix_list
-from veribayes.core.rubric import RubricProfileError, load_rubric
+from veribayes.core.rubric import RubricProfileError, available_rubrics, load_rubric
 from veribayes.core.schema import EvidenceKind
 from veribayes.core.validation import Rating, harness, to_calibration_payload
 from veribayes.core.validation.override_store import Override
@@ -62,6 +62,7 @@ def _source_label(file: UploadFile | None, arxiv_id, doi, openalex_id, url) -> s
 @app.post("/api/papers")
 async def create_paper(
     mode: str = Form("full"),
+    profile: str = Form("synthesis"),
     file: UploadFile | None = File(None),
     arxiv_id: str | None = Form(None),
     doi: str | None = Form(None),
@@ -75,6 +76,10 @@ async def create_paper(
         )
     if mode not in ("full", "local"):
         raise HTTPException(status_code=422, detail="mode must be 'full' or 'local'.")
+    try:
+        load_rubric(profile=profile)  # validate the chosen rubric exists (registry)
+    except RubricProfileError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     # A dropped PDF carries its bytes; a pasted identifier (no file) is fetched in the worker (the
     # OA PDF is resolved off the request path). Both modes then grade the same way.
     data = await file.read() if file is not None else None
@@ -85,6 +90,7 @@ async def create_paper(
         data=data,
         filename=file.filename if file is not None else None,
         identifier=identifier,
+        profile=profile,
     )
     asyncio.create_task(run_job(job))
     return {"paper_id": job.id, "status": job.status}
@@ -168,6 +174,8 @@ def _rubric_payload(profile: str) -> dict:
     return {
         "rubric_version": spec.rubric_version,
         "rubric_profile": spec.profile,
+        "label": spec.label,
+        "summary": spec.summary,  # the preamble shown on the report + rating form
         "status_values": spec.status_values,
         "steps": [
             {
@@ -186,12 +194,18 @@ def _rubric_payload(profile: str) -> dict:
 
 @app.get("/api/rubric")
 async def get_rubric(profile: str = "synthesis") -> dict:
-    """Serve the compiled rubric so the UI never hardcodes step names/prose (they'd drift from
-    rubric/steps.yaml). ``profile`` defaults to the merged 'synthesis' standard; unknown -> 422."""
+    """Serve the compiled rubric so the UI never hardcodes step names/prose (they'd drift from the
+    rubric files). ``profile`` defaults to the 'synthesis' rubric; an unknown id -> 422."""
     try:
         return _rubric_payload(profile)
     except RubricProfileError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/rubrics")
+async def get_rubrics() -> list[dict]:
+    """List available rubrics (id, label, summary, version) for the analysis + rating pickers."""
+    return [r.model_dump(mode="json") for r in available_rubrics()]
 
 
 @app.post("/api/papers/{paper_id}/rerun")

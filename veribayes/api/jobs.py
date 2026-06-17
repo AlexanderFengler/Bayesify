@@ -35,7 +35,7 @@ from veribayes.core.parse import parse
 from veribayes.core.pipeline import screen_and_classify
 from veribayes.core.rubric.loader import load_rubric
 from veribayes.core.score import ScoreMeta, score
-from veribayes.core.stub import ENGINE_VERSION, RUBRIC_VERSION, build_stub_result, cost_ledger
+from veribayes.core.stub import ENGINE_VERSION, build_stub_result, cost_ledger
 from veribayes.core.validation.override_store import OverrideStore
 from veribayes.core.validation.rating_store import RatingStore
 
@@ -106,6 +106,7 @@ class Job:
     data: bytes | None = None  # uploaded PDF bytes (local-only real pipeline); cleared after parse
     filename: str | None = None
     identifier: str | None = None  # a pasted arXiv/DOI/OpenAlex/URL to fetch (no uploaded file)
+    profile: str = "synthesis"  # which rubric to grade against (registry id; default synthesis)
     content_sha256: str | None = None  # set at ingest; lets the rerun escape hatch re-read the blob
     version_label: str | None = None  # e.g. "arXiv v2" / "uploaded PDF"; pins the rated doc version
     relevance_override: str | None = None  # rerun escape hatch: force a relevance (not-Bayesian)
@@ -147,6 +148,7 @@ class JobStore:
         data: bytes | None = None,
         filename: str | None = None,
         identifier: str | None = None,
+        profile: str = "synthesis",
     ) -> Job:
         job = Job(
             id=uuid.uuid4().hex[:12],
@@ -155,6 +157,7 @@ class JobStore:
             data=data,
             filename=filename,
             identifier=identifier,
+            profile=profile,
         )
         self._jobs[job.id] = job
         return job
@@ -281,13 +284,15 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     change busts it), the hit is labelled ``from_cache`` in the UI, and ``force_fresh`` /
     ``VERIBAYES_NO_CACHE`` bypass it entirely to force a real run.
     """
+    rubric = load_rubric(profile=job.profile)  # the chosen rubric (default synthesis)
     key = FullResultKey(
         content_sha256=sha256_bytes(job.data),  # computed before _front_half clears job.data
         engine_version=ENGINE_VERSION,
-        rubric_version=RUBRIC_VERSION,
+        rubric_version=rubric.rubric_version,
         mode="full",
         relevance_override=job.relevance_override,
         force_grade=job.force_grade,
+        rubric_profile=job.profile,
     )
     if _cache_enabled() and not job.force_fresh:
         cached = _results().get(key)
@@ -331,7 +336,8 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
         job.result = s.ScoredResult.short_circuit(
             relevance=relevance,
             engine_version=ENGINE_VERSION,
-            rubric_version=RUBRIC_VERSION,
+            rubric_version=rubric.rubric_version,
+            rubric_profile=job.profile,
             cost_ledger=cost_ledger(costs),
         )
     elif review and not job.force_grade:  # discusses the workflow, doesn't apply it → rubric N/A
@@ -340,7 +346,8 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             reason="not_an_application",
             paper_class=paper_class,
             engine_version=ENGINE_VERSION,
-            rubric_version=RUBRIC_VERSION,
+            rubric_version=rubric.rubric_version,
+            rubric_profile=job.profile,
             cost_ledger=cost_ledger(costs),
         )
     else:
@@ -353,14 +360,14 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
         job.stage = "assess"
         job.emit({"type": "stage", "stage": "assess", "state": "running"})
         assessments, gate_facts, assess_costs = await asyncio.to_thread(
-            assess, parsed, evidence, relevance, paper_class, _RUBRIC, client=client
+            assess, parsed, evidence, relevance, paper_class, rubric, client=client
         )
         job.emit({"type": "stage", "stage": "assess", "state": "done"})
         job.stage = "score"
         job.emit({"type": "stage", "stage": "score", "state": "running"})
         ledger = cost_ledger(costs + assess_costs)
         meta = ScoreMeta(engine_version=ENGINE_VERSION, cost_ledger=ledger)
-        job.result = score(relevance, paper_class, assessments, gate_facts, _RUBRIC, meta)
+        job.result = score(relevance, paper_class, assessments, gate_facts, rubric, meta)
         job.emit({"type": "stage", "stage": "score", "state": "done"})
 
     # Cache only on success (we reached here without raising) — never mask a broken run.
