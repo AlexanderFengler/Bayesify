@@ -195,6 +195,8 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
 
 
 def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeypatch) -> None:
+    # Degraded path: no live job for "abc" (e.g. it expired) — the correction is still recorded,
+    # never dropped, with the client-sent/defaulted provenance.
     monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
     r = client.post(
         "/api/assessments/abc/steps/S4/override",
@@ -209,6 +211,37 @@ def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeyp
     saved = OverrideStore(tmp_path).all()
     assert [o.paper_id for o in saved] == ["abc"]
     assert saved[0].step_id == "S4" and saved[0].corrected_status == "partial"
+    assert saved[0].rubric_profile == "synthesis"  # default when no live job / no client fallback
+
+
+def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch) -> None:
+    # Enriched path: a live job is the authoritative source for what was overridden (the engine's
+    # status for that step), the rubric, and the durable paper sha — all recorded with the fix.
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("VERIBAYES_LLM_BACKEND", "none")  # billing-safe: the labelled stub
+    job = Job(id="ovr1", mode="full", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
+    store._jobs[job.id] = job
+    asyncio.run(run_job(job))  # labelled stub → a full ScoredResult with step_assessments
+    job.content_sha256 = "ab" * 32  # real full mode sets this in _front_half; the stub skips ingest
+    assert job.result is not None and job.result.step_assessments
+    step = job.result.step_assessments[3]  # a graded step (S4)
+
+    r = client.post(
+        f"/api/assessments/{job.id}/steps/{step.step_id}/override",
+        data={"corrected_status": "done_well", "rationale": "supplement has it"},
+    )
+    assert r.json()["recorded"] is True
+
+    from veribayes.core.validation.override_store import OverrideStore
+
+    saved = OverrideStore(tmp_path).all()
+    assert len(saved) == 1
+    o = saved[0]
+    assert o.paper_id == job.id and o.step_id == step.step_id
+    assert o.corrected_status == "done_well"
+    assert o.original_status == step.status.value  # WHAT WAS OVERRIDDEN (engine verdict)
+    assert o.rubric_profile == job.profile == "synthesis"  # which rubric the correction is against
+    assert o.source_sha256 == job.content_sha256  # durable paper identity, not the ephemeral job id
 
 
 # --- async job machinery --------------------------------------------------------------------------
@@ -561,6 +594,13 @@ def test_rerun_endpoint_force_grades_a_review_result(tmp_path, monkeypatch) -> N
     assert client.post(f"/api/papers/{job.id}/rerun").status_code == 200
     after = store.get(job.id)
     assert after.force_grade is True and after.relevance_override is None
+    # the rerun override records what it overrode (the short-circuit) + the rubric, not just value
+    from veribayes.core.validation.override_store import OverrideStore
+
+    o = OverrideStore(tmp_path).all()[-1]
+    assert o.kind == "relevance_rerun" and o.value == "force_grade"
+    assert o.original_status == "not_an_application"  # the short-circuit it overrode
+    assert o.rubric_profile == "synthesis"
 
 
 def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatch) -> None:

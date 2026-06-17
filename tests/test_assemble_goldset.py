@@ -66,15 +66,31 @@ def _sub(paper_id: str, rater_id: str, **over) -> SubmittedRating:
 
 def test_rating_store_round_trips_and_groups(tmp_path) -> None:
     store = RatingStore(tmp_path / "ratings")
-    store.add(_sub("p1", "r1"))
+    store.add(_sub("p1", "r1"))  # source_sha256 == "sha-p1"
     store.add(_sub("p1", "r2"))
     store.add(_sub("p2", "r1"))
-    assert store.count_for("p1") == 2
+    # buckets are keyed by the durable (sha, rubric), not the ephemeral paper_id
+    assert store.count_for("sha-p1", "synthesis") == 2
     grouped = store.by_paper()
-    assert set(grouped) == {"p1", "p2"}
-    assert {s.rating.rater_id for s in grouped["p1"]} == {"r1", "r2"}
+    assert set(grouped) == {"sha-p1__synthesis", "sha-p2__synthesis"}
+    assert {s.rating.rater_id for s in grouped["sha-p1__synthesis"]} == {"r1", "r2"}
     # survives a fresh store instance (it's on disk, not in memory)
-    assert RatingStore(tmp_path / "ratings").count_for("p1") == 2
+    assert RatingStore(tmp_path / "ratings").count_for("sha-p1", "synthesis") == 2
+
+
+def test_same_paper_across_sessions_groups_into_one_bucket(tmp_path) -> None:
+    store = RatingStore(tmp_path / "ratings")
+    # two sessions (different ephemeral job ids) rate the SAME paper (same content sha): the durable
+    # key groups them into one consensus instead of two single-rater papers that never assemble.
+    store.add(_sub("sessionA", "r1", source_sha256="sha-x"))
+    store.add(_sub("sessionB", "r2", source_sha256="sha-x"))
+    grouped = store.by_paper()
+    assert set(grouped) == {"sha-x__synthesis"}
+    assert {s.rating.rater_id for s in grouped["sha-x__synthesis"]} == {"r1", "r2"}
+    assert store.count_for("sha-x") == 2
+    # the same rater re-rating in yet another session overwrites — never double-counted
+    store.add(_sub("sessionC", "r1", source_sha256="sha-x"))
+    assert store.count_for("sha-x") == 2
 
 
 def test_assemble_writes_admissible_record(tmp_path) -> None:
@@ -85,24 +101,29 @@ def test_assemble_writes_admissible_record(tmp_path) -> None:
     written, skipped = assemble(
         ratings_dir=tmp_path / "ratings", out_dir=out, origin=GoldOrigin.blind_human
     )
-    assert written == ["p1"] and skipped == []
-    hr = HumanReport.model_validate_json((out / "p1.json").read_text())
+    assert written == ["sha-p1__synthesis"] and skipped == []
+    hr = HumanReport.model_validate_json((out / "sha-p1__synthesis.json").read_text())
     assert hr.consensus is not None and hr.source_sha256 == "sha-p1"
+    assert hr.work_id == "sha-p1__synthesis"
     assert hr.provenance.origin is GoldOrigin.blind_human
     assert hr.validate_admissible() == []
 
 
-def test_assemble_records_profile_and_skips_mixed_rubric(tmp_path) -> None:
+def test_assemble_separates_one_paper_rated_under_two_rubrics(tmp_path) -> None:
     store = RatingStore(tmp_path / "ratings")
-    store.add(_sub("g1", "r1", rubric_profile="gelman"))
-    store.add(_sub("g1", "r2", rubric_profile="gelman"))  # both gelman → one record, profile gelman
-    store.add(_sub("mix", "r1", rubric_profile="synthesis"))
-    store.add(_sub("mix", "r2", rubric_profile="gelman"))  # mixed rubrics → can't form one record
+    # the SAME paper (sha-dual), rated under two rubrics by two raters each, becomes TWO clean gold
+    # records — one per rubric — that share the paper identity but never get conflated.
+    store.add(_sub("dual", "r1", source_sha256="sha-dual", rubric_profile="synthesis"))
+    store.add(_sub("dual", "r2", source_sha256="sha-dual", rubric_profile="synthesis"))
+    store.add(_sub("dual", "r1", source_sha256="sha-dual", rubric_profile="gelman"))
+    store.add(_sub("dual", "r2", source_sha256="sha-dual", rubric_profile="gelman"))
     out = tmp_path / "goldset"
     written, skipped = assemble(ratings_dir=tmp_path / "ratings", out_dir=out)
-    assert written == ["g1"] and skipped == ["mix"]
-    hr = HumanReport.model_validate_json((out / "g1.json").read_text())
-    assert hr.rubric_profile == "gelman"  # provenance: the gold record knows its rubric
+    assert set(written) == {"sha-dual__synthesis", "sha-dual__gelman"} and skipped == []
+    syn = HumanReport.model_validate_json((out / "sha-dual__synthesis.json").read_text())
+    gel = HumanReport.model_validate_json((out / "sha-dual__gelman.json").read_text())
+    assert syn.rubric_profile == "synthesis" and gel.rubric_profile == "gelman"
+    assert syn.source_sha256 == gel.source_sha256 == "sha-dual"  # same paper, cleanly separated
 
 
 def test_assemble_skips_single_rater_and_no_consensus(tmp_path) -> None:
@@ -113,7 +134,7 @@ def test_assemble_skips_single_rater_and_no_consensus(tmp_path) -> None:
     out = tmp_path / "goldset"
     written, skipped = assemble(ratings_dir=tmp_path / "ratings", out_dir=out)
     assert written == []
-    assert set(skipped) == {"solo", "split"}
+    assert set(skipped) == {"sha-solo__synthesis", "sha-split__synthesis"}
     assert not list(out.glob("*.json"))  # nothing written
 
 
@@ -140,10 +161,11 @@ def test_submit_persists_durably_and_assembles(tmp_path, monkeypatch) -> None:
 
     assert client.post("/api/rate/submit", json=payload("r1")).json()["recorded"] is True
     assert client.post("/api/rate/submit", json=payload("r2")).json()["n_ratings"] == 2
-    # it's on disk, captured the paper's sha, and assembles into one gold record
-    assert jobsmod._ratings_store().count_for(job.id) == 2
+    # it's on disk under the durable (sha, rubric) bucket, and assembles into one gold record
+    bucket = f"{job.content_sha256}__synthesis"
+    assert jobsmod._ratings_store().count_for(job.content_sha256 or "", "synthesis") == 2
     written, _ = assemble(ratings_dir=tmp_path / "ratings", out_dir=tmp_path / "goldset")
-    assert written == [job.id]
+    assert written == [bucket]
 
 
 def _pdf(lines: list[str]) -> bytes:

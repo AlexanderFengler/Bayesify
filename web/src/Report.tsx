@@ -64,7 +64,14 @@ export function Report({
             stepName={stepNames[a.step_id] ?? a.step_id}
             overridden={overrides[a.step_id]}
             onOverride={async (status, rationale) => {
-              await recordOverride(paper.paper_id, a.step_id, status, rationale);
+              await recordOverride(
+                paper.paper_id,
+                a.step_id,
+                status,
+                rationale,
+                a.status,
+                r.rubric_profile,
+              );
               setOverrides((prev) => ({ ...prev, [a.step_id]: status }));
             }}
           />

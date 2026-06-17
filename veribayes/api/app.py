@@ -217,6 +217,9 @@ async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dic
     if job is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
     is_review = bool(job.result and job.result.not_applicable_reason == "not_an_application")
+    # Capture what the rerun overrides BEFORE job.result is cleared below: the short-circuit reason
+    # (e.g. "not_bayesian" / "not_an_application") is the verdict the user is overriding.
+    overridden = job.result.not_applicable_reason if job.result else None
     # Restore the upload bytes (the worker freed them after the first ingest) so the rerun can
     # actually re-run the pipeline rather than fall back to the stub.
     if job.data is None and job.content_sha256:
@@ -238,6 +241,10 @@ async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dic
         Override(
             paper_id=paper_id,
             kind="relevance_rerun",
+            original_status=overridden,  # the short-circuit the user is overriding
+            rubric_profile=job.profile,
+            source_sha256=job.content_sha256 or "",
+            version_label=job.version_label or "",
             value="force_grade" if is_review else relevance_override,
         )
     )
@@ -252,15 +259,41 @@ async def record_override(
     corrected_status: str = Form(...),
     rationale: str = Form(""),
     author: str = Form("anonymous"),
+    original_status: str = Form(""),  # client fallback for what was overridden (if job expired)
+    rubric_profile: str = Form("synthesis"),  # client fallback for the rubric (if job expired)
 ) -> dict:
     """A5 scaffolding: record an expert correction. Append-only; never mutates engine output, and
-    (honestly) not yet used to change judgments."""
+    (honestly) not yet used to change judgments.
+
+    We record the correction *and what it overrode*: the live job is the authoritative source for
+    the engine's original status, the rubric, and the durable paper sha. When the job has expired
+    we still record the correction (never dropped), using the client-sent fallbacks for the
+    status/rubric so a disagreement is never lost."""
+    job = store.get(assessment_id)
+    overridden = original_status or None
+    profile = rubric_profile
+    source_sha256 = ""
+    version_label = ""
+    if job is not None:
+        profile = job.profile
+        source_sha256 = job.content_sha256 or ""
+        version_label = job.version_label or ""
+        if job.result is not None:  # authoritative: the engine verdict for this very step
+            engine_status = next(
+                (a.status.value for a in job.result.step_assessments if a.step_id == step_id), None
+            )
+            if engine_status is not None:
+                overridden = engine_status
     jobsmod._overrides_store().add(
         Override(
             paper_id=assessment_id,
             kind="step_status",
             step_id=step_id,
             corrected_status=corrected_status,
+            original_status=overridden,
+            rubric_profile=profile,
+            source_sha256=source_sha256,
+            version_label=version_label,
             rationale=rationale,
             author=author,
         )
@@ -358,7 +391,8 @@ async def rate_submit(body: RateSubmit) -> dict:
     )
     rstore = jobsmod._ratings_store()
     rstore.add(sub)
-    return {"recorded": True, "n_ratings": rstore.count_for(body.paper_id)}
+    n = rstore.count_for(sub.source_sha256, sub.rubric_profile, sub.paper_id)
+    return {"recorded": True, "n_ratings": n}
 
 
 @app.get("/api/calibration")

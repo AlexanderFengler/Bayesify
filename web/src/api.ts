@@ -76,11 +76,15 @@ export async function recordOverride(
   stepId: string,
   correctedStatus: string,
   rationale: string,
+  originalStatus?: string, // the engine verdict being disagreed with (what was overridden)
+  rubricProfile?: string, // which rubric this report was graded under
 ): Promise<void> {
   const form = new FormData();
   form.set("corrected_status", correctedStatus);
   form.set("rationale", rationale);
   form.set("author", "you");
+  if (originalStatus) form.set("original_status", originalStatus);
+  if (rubricProfile) form.set("rubric_profile", rubricProfile);
   await fetchJson(
     `/api/assessments/${paperId}/steps/${stepId}/override`,
     { method: "POST", body: form },

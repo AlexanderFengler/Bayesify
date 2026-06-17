@@ -38,15 +38,12 @@ def assemble(
     out.mkdir(parents=True, exist_ok=True)
     written: list[str] = []
     skipped: list[str] = []
-    for paper_id, subs in store.by_paper().items():
+    # Each bucket is one paper under one rubric (the store keys by <sha>__<profile>), so a gold
+    # record is single-rubric by construction — one paper under two rubrics becomes two records.
+    for bucket, subs in store.by_paper().items():
         first = subs[0]
-        # A gold record is single-rubric: ratings under different rubrics can't form one consensus,
-        # so skip-and-report a paper whose ratings mix rubrics (re-run per rubric to recover them).
-        if len({s.rubric_profile for s in subs}) > 1:
-            skipped.append(paper_id)
-            continue
         report = assemble_human_report(
-            work_id=paper_id,
+            work_id=bucket,
             source_sha256=first.source_sha256,
             version_label=first.version_label,
             rubric_version=first.rubric_version,
@@ -58,10 +55,10 @@ def assemble(
         # Skip-and-report (never silently drop): no paper-level consensus, or not structurally
         # admissible (e.g. <2 raters, no independent rater) — the gold set takes only ready records.
         if report is None or report.validate_admissible():
-            skipped.append(paper_id)
+            skipped.append(bucket)
             continue
-        (out / f"{paper_id}.json").write_text(report.model_dump_json(indent=2))
-        written.append(paper_id)
+        (out / f"{bucket}.json").write_text(report.model_dump_json(indent=2))
+        written.append(bucket)
     return written, skipped
 
 
