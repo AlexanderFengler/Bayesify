@@ -477,6 +477,27 @@ def test_grading_under_gelman_uses_the_gelman_rubric(tmp_path, monkeypatch) -> N
     assert [a.step_id for a in r.step_assessments] == [f"G{i}" for i in range(1, 11)]
 
 
+def test_grading_under_schad_uses_the_schad_rubric(tmp_path, monkeypatch) -> None:
+    """A third rubric needed no new code — choosing 'schad' grades against its SC1..SC7 stages and
+    stamps the result with that profile (the registry abstraction carries it)."""
+    from veribayes.api import jobs as jobsmod
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: _full_fake())
+
+    job = Job(
+        id="sc1", mode="full", source_label="x.pdf", data=_HDDM_PDF, filename="x.pdf",
+        profile="schad",
+    )
+    asyncio.run(run_job(job))
+
+    r = job.result
+    assert job.status == "done" and r is not None
+    assert r.rubric_profile == "schad" and r.rubric_version == "0.1-schad"
+    assert [a.step_id for a in r.step_assessments] == [f"SC{i}" for i in range(1, 8)]
+
+
 def test_review_paper_short_circuits(tmp_path, monkeypatch) -> None:
     """A review/opinion piece is Bayesian-relevant but the per-step rubric doesn't apply: classify
     returns 'review' → short-circuit before assess (reason='not_an_application'), nothing graded."""

@@ -30,10 +30,11 @@ def test_thresholds_carry_verified_status() -> None:
     assert s4.thresholds["rhat_modern"].verified is False
 
 
-def test_registry_lists_synthesis_first_and_includes_gelman() -> None:
+def test_registry_lists_synthesis_first_and_includes_gelman_and_schad() -> None:
     infos = available_rubrics()
     ids = [r.id for r in infos]
-    assert ids[0] == "synthesis" and "gelman" in ids  # default first; Gelman registered
+    assert ids[0] == "synthesis"  # default first
+    assert {"gelman", "schad"} <= set(ids)  # the contained rubrics are registered
     syn = next(r for r in infos if r.id == "synthesis")
     assert syn.label and syn.summary and syn.rubric_version == "0.1-draft"
 
@@ -45,6 +46,15 @@ def test_gelman_is_a_self_contained_single_source_rubric() -> None:
     assert g.sources == ["gelman2020"]  # single source...
     assert all(not s.citations for s in g.steps)  # ...so no per-step "Standard applied"
     assert g.label and g.summary  # carries a preamble
+
+
+def test_schad_is_a_self_contained_single_source_rubric() -> None:
+    s = load_rubric("schad")
+    assert s.profile == "schad" and s.rubric_version == "0.1-schad"
+    assert [st.id for st in s.steps] == [f"SC{i}" for i in range(1, 8)]  # its own SC1..SC7 stages
+    assert s.sources == ["schad2021"]  # single source...
+    assert all(not st.citations for st in s.steps)  # ...so no per-step "Standard applied"
+    assert s.label and s.summary  # carries a preamble
 
 
 def test_unknown_rubric_raises() -> None:
