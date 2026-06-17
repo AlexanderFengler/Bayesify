@@ -6,6 +6,26 @@
 **Contract:** consumes `validation/goldset/*.json` (labels + pinned sha256) + engine `ScoredResult`s → produces `validation/reports/<engine_version>.json`, auto-generated `VALIDATION.md`, and the `/api/calibration` payload   (types: ../02-mvp-tool-plan.md §4.3)
 **Depends on / stubs:** the full a–f chain for *live* runs; all metric computation is developed and unit-tested against **hand-authored `ScoredResult` + goldset-label fixtures** (no engine, no LLM, no network). [`g-report-api-ui`](g-report-api-ui.md) consumes the report via `GET /api/calibration` (fixture-fed pre-M7).
 
+## Status & v0 revisions (2026-06-16) — built fake-harness-first
+
+The M6 capstone built this component **fake-harness-first**: everything except the live run was implemented and shipped against fabricated data, so the finished product can be critiqued before any rater exists. **Built (slices V0–V6):** the human-report contract (`core/validation/human_report.py`), the pure metric engine (`core/validation/metrics.py`), the report builder + three-artifact emitter (`core/validation/report.py`), the harness + honesty firewall (`core/validation/harness.py`), the blind rating producer (`web/src/Rate.tsx` + `/api/rate/*`), and the calibration view (`web/src/Calibration.tsx` + `/api/calibration`). `pixi run validate` runs the demo dry-run over a committed **fake** goldset (`validation/_fake_goldset/`, `origin=fake_llm`) behind the firewall.
+
+Two revisions to the design below:
+
+1. **Location.** The harness/metrics/report live in `veribayes/core/validation/` (not `tests/eval/`) for clean imports + reuse by `/api/calibration`; the CLI is `pixi run validate` (`python -m veribayes.core.validation.harness`).
+
+2. **Consensus is AUTOMATED — no human adjudication UI (v0).** Instead of a side-by-side adjudication screen, a pure `consensus_from_ratings()` derives the consensus mechanically: a per-step status is the consensus iff a **strict majority** of raters chose it; otherwise the cell is **"no consensus" — excluded from the engine-vs-consensus metrics, but counted**. A thin assembly step (`pixi run assemble-goldset`) groups the captured ratings by paper and writes the `HumanReport` (`ratings=[the originals]`, `consensus=auto`). This is *more* defensible than a human adjudicator, not less: a mechanical consensus **cannot be engine-anchored**, so the "consensus-before-engine-inspection" leak guard and the "prompt-author-can't-adjudicate-own-disagreement" rule become moot. Original ratings are retained, so inter-rater agreement is unaffected. (Human adjudication is a possible v1 upgrade.)
+
+**What remains for M7** (engineering; rater recruitment is the separate, months-long critical path):
+- `consensus_from_ratings()` + the `assemble-goldset` CLI (the automated replacement for adjudication).
+- Real-run pairing: run the **live** engine per goldset paper (fetched by sha256) + the sha256 hard-fail (`GoldsetVersionMismatch`) — the demo pairs by `work_id` from fixtures.
+- test-retest κ (run the engine twice on Tier A) + the evidence-span audit (needs a human auditor; likely v1).
+- `validate --check` regression gate (needs a baseline → post-first-run hardening).
+- Durable rating persistence (ratings are in-memory today; required before the first real rater).
+- Selection provenance: a committed candidate-frame manifest + seeded draw (mostly process; the `selection_seed` field + publish-time check exist).
+- Tier-C case-reporting (Tiers A+B can ship first).
+- **Moot in v0:** the few-shot exemplar-leakage guard — the v0 prompts are zero-shot (no paper exemplars to leak).
+
 ## Purpose
 Build `veribayes validate`: the CLI + library that runs the engine over the gold set, computes every
 metric in protocol §3, and emits the three surfacing artifacts (versioned report JSON, public
@@ -33,7 +53,8 @@ Tier B runs only through stage 4 (relevance); Tier C runs full but reports case 
   2026-06-12 decision); Tier-B relevance sens/spec; paper-class accuracy; test-retest engine-self κ.
 - Evidence-span audit sample: seeded random ~30 spans/run exported as an audit worksheet; the
   auditor's pass/fail comes back in as input to the report (pass-rate + CI).
-- Bootstrap CIs on every κ, binomial CIs on every rate; per-step **"insufficient data"** below the
+- Wilson CIs on every rate; **κ ships as point + n in v0** (cluster-bootstrap κ CIs deferred to a v1
+  re-enable at G9 — see protocol §3 amendment 2026-06-16); per-step **"insufficient data"** below the
   n-floor; regression comparison vs the previous report with noise-relative tolerances (protocol §3).
 
 **Outputs.**
@@ -76,8 +97,9 @@ noise tolerance cannot merge to a release branch. (The per-PR golden-paper mini-
 
 ## Definition of done
 - [ ] `veribayes validate` runs Tiers A/B/C end-to-end on the synthetic mini-goldset in CI (no LLM).
-- [ ] Every protocol-§3 metric implemented as a pure function with hand-verified unit tests; CIs on
-      all of them; insufficient-data floors honored.
+- [ ] Every protocol-§3 metric implemented as a pure function with hand-verified unit tests; Wilson
+      CIs on rates (κ as point + n in v0, cluster bootstrap deferred to G9); insufficient-data floors
+      honored.
 - [ ] sha256 pinning hard-fail + exclusion logging proven by tests.
 - [ ] Report JSON, `VALIDATION.md`, and calibration payload generated from one computation; g's
       `/api/calibration` serves it unmodified.
@@ -86,6 +108,8 @@ noise tolerance cannot merge to a release branch. (The per-PR golden-paper mini-
       published; calibration page live — **this closes v0**.
 
 ## Out of scope (deferred)
+- **Human adjudication UI** — v0 derives consensus mechanically (see the revisions above); a
+  side-by-side human-adjudication screen, if a reviewer ever demands one, is a v1 upgrade.
 - **Sealed-holdout management** — arrives with the v1 gold-set growth (protocol §4); the report
   schema already reserves a `holdout` block so its addition is additive.
 - **Confidence-calibration audit** (reliability diagrams, Brier scores) — improvements **H1** (v1);

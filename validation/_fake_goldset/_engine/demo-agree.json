@@ -1,0 +1,360 @@
+{
+  "relevance": {
+    "label": "yes",
+    "confidence": 0.9,
+    "rationale": "Bayesian",
+    "evidence_refs": [
+      0
+    ],
+    "overridden": false
+  },
+  "paper_class": {
+    "primary": "empirical",
+    "secondary": null,
+    "confidence": 0.9,
+    "rationale": "demo",
+    "evidence_refs": [
+      0
+    ]
+  },
+  "gate_facts": {
+    "inference_method": "unstated",
+    "n_models": 1,
+    "bf_claimed": false,
+    "prior_informativeness": "unstated"
+  },
+  "step_assessments": [
+    {
+      "step_id": "S1",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "detector_id": "demo",
+          "detector_version": "0",
+          "kind": "judge_quote",
+          "value": null,
+          "span": {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        }
+      ],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S2",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "detector_id": "demo",
+          "detector_version": "0",
+          "kind": "judge_quote",
+          "value": null,
+          "span": {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        }
+      ],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S3",
+      "applicable": true,
+      "applicability_reason": "Recommended for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "detector_id": "demo",
+          "detector_version": "0",
+          "kind": "judge_quote",
+          "value": null,
+          "span": {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        }
+      ],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S4",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "detector_id": "demo",
+          "detector_version": "0",
+          "kind": "judge_quote",
+          "value": null,
+          "span": {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        }
+      ],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S5",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "detector_id": "demo",
+          "detector_version": "0",
+          "kind": "judge_quote",
+          "value": null,
+          "span": {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        }
+      ],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S6",
+      "applicable": false,
+      "applicability_reason": "Only one model entertained and no Bayes factor reported.",
+      "status": "not_applicable",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S7",
+      "applicable": true,
+      "applicability_reason": "Recommended for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "detector_id": "demo",
+          "detector_version": "0",
+          "kind": "judge_quote",
+          "value": null,
+          "span": {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        }
+      ],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S8",
+      "applicable": true,
+      "applicability_reason": "Recommended for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "detector_id": "demo",
+          "detector_version": "0",
+          "kind": "judge_quote",
+          "value": null,
+          "span": {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        }
+      ],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S9",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "detector_id": "demo",
+          "detector_version": "0",
+          "kind": "judge_quote",
+          "value": null,
+          "span": {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        }
+      ],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S10",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [
+        {
+          "detector_id": "demo",
+          "detector_version": "0",
+          "kind": "judge_quote",
+          "value": null,
+          "span": {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        }
+      ],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    }
+  ],
+  "profile": {
+    "steps": [
+      {
+        "step_id": "S1",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S2",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S3",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "recommended"
+      },
+      {
+        "step_id": "S4",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S5",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S6",
+        "applicable": false,
+        "status": "not_applicable",
+        "sub_score": null,
+        "weight": 1.0,
+        "tier": "none"
+      },
+      {
+        "step_id": "S7",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "recommended"
+      },
+      {
+        "step_id": "S8",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "recommended"
+      },
+      {
+        "step_id": "S9",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S10",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      }
+    ],
+    "n_applicable": 9,
+    "n_na": 1,
+    "n_uncertain": 0
+  },
+  "coverage": {
+    "present": 9,
+    "applicable": 9,
+    "strict": 1.0,
+    "lenient": 1.0
+  },
+  "quality_score": 1.0,
+  "score_impacts": [],
+  "engine_version": "pkg=0.1.0;prompts=18c4bd7aae9a;detectors=1585d08ace1f;models=claude-opus-4-8",
+  "rubric_version": "0.1-draft",
+  "rubric_profile": "synthesis",
+  "cost_ledger": {
+    "entries": [],
+    "total_tokens": 0,
+    "total_cost_usd": 0.0
+  },
+  "validation_ref": "unvalidated"
+}

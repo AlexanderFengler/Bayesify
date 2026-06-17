@@ -1,0 +1,95 @@
+{
+  "parser": "docling",
+  "parser_version": "docling-2.x",
+  "sections": [
+    {
+      "id": "s01",
+      "kind": "abstract",
+      "page_spans": [
+        {
+          "doc_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "page_end": 1,
+          "page_start": 1
+        }
+      ],
+      "text": "We fit a hierarchical drift-diffusion model to response-time data using Bayesian inference in Stan. Posterior predictive checks reproduced the observed RT distributions, and all R-hat < 1.01.",
+      "title": "Abstract"
+    },
+    {
+      "id": "s02",
+      "kind": "body",
+      "page_spans": [
+        {
+          "doc_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "page_end": 3,
+          "page_start": 3
+        }
+      ],
+      "text": "Each participant's drift rate was given a weakly-informative prior. We drew samples from the posterior distribution with the NUTS sampler, running 4 chains of 2000 iterations after 1000 warm-up draws with a fixed random seed. Convergence was assessed with R-hat and bulk-ESS (minimum ESS was 1,200); there were no divergent transitions.",
+      "title": "Methods"
+    },
+    {
+      "id": "s03",
+      "kind": "body",
+      "page_spans": [
+        {
+          "doc_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "page_end": 5,
+          "page_start": 5
+        }
+      ],
+      "text": "Model comparison used PSIS-LOO and WAIC. All Pareto-k values were < 0.7, indicating reliable estimates. A prior sensitivity analysis confirmed the conclusions were robust.",
+      "title": "Results"
+    },
+    {
+      "id": "s04",
+      "kind": "caption",
+      "page_spans": [
+        {
+          "doc_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "page_end": 6,
+          "page_start": 6
+        }
+      ],
+      "text": "Figure 2: Posterior predictive checks overlaid on the empirical RT distribution for each condition.",
+      "title": "Figure 2"
+    },
+    {
+      "id": "s05",
+      "kind": "supplement",
+      "page_spans": [
+        {
+          "doc_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "page_end": 12,
+          "page_start": 12
+        }
+      ],
+      "text": "Analysis code is available at github.com/lab/ddm-paper and archived on Zenodo. We also report trace plots for every parameter.",
+      "title": "Supplementary Methods"
+    },
+    {
+      "id": "s06",
+      "kind": "references",
+      "page_spans": [
+        {
+          "doc_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "page_end": 14,
+          "page_start": 14
+        }
+      ],
+      "text": "Carpenter B et al. Stan: A probabilistic programming language. Vehtari A et al. Practical Bayesian model evaluation using leave-one-out cross-validation; all R-hat < 1.0.",
+      "title": "References"
+    }
+  ],
+  "source": {
+    "fetched_at": "2026-01-15T09:30:00",
+    "ids": {
+      "arxiv_id": null,
+      "doi": null,
+      "openalex_id": null
+    },
+    "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "source": "upload",
+    "version_label": "uploaded PDF"
+  }
+}

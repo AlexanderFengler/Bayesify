@@ -1,0 +1,143 @@
+# VeriBayes rubric — Gelman "Bayesian Workflow"
+# A self-contained rubric grounded SOLELY in:
+#   Gelman, Vehtari, Simpson, Margossian, Carpenter, Yao, Kennedy, Gabry, Bürkner & Modrák (2020).
+#   "Bayesian Workflow." arXiv:2011.01808.
+# IMPORTANT (verified 2026-06-17 against the paper): the paper does NOT print a numbered list of
+# steps — it presents a deliberately non-linear, branching workflow (Fig. 1) across its sections,
+# and frames five broad activities in the abstract. These ten steps are therefore VeriBayes'
+# step-level DECOMPOSITION of the paper's workflow-activity sections (§2–§9), not the paper's own
+# enumeration. The § references below point at the paper's actual sections:
+#   §2 Before fitting a model (model building; priors; prior predictive §2.4)
+#   §3 Fitting a model (computation & convergence diagnostics)
+#   §4 Using constructed data to find/understand problems (fake-data §4.1; SBC §4.2)
+#   §5 Addressing computational problems
+#   §6 Evaluating and using a fitted model (posterior predictive §6.1; cross-validation/LOO §6.2)
+#   §7 Modifying a model
+#   §8 Understanding and comparing multiple models
+#   §9 Modeling as software development
+# Single-source: steps carry NO per-step citation — the source lives in the preamble below.
+# applicability gating: paper_class ∈ {empirical, numerical_experiment, methodological}
+# status values emitted by the engine: done_well | partial | missing | not_applicable
+
+rubric_version: "0.1-gelman"
+label: "Gelman — Bayesian Workflow"
+summary: >
+  Graded solely against Gelman, Vehtari, Simpson, Margossian, Carpenter, Yao, Kennedy, Gabry, Bürkner
+  & Modrák (2020), "Bayesian Workflow" (arXiv:2011.01808). The paper presents a branching, non-linear
+  workflow rather than a numbered recipe, so these ten steps are VeriBayes' step-level decomposition
+  of its workflow sections (§2–§9): model building, prior predictive checks, computation diagnostics,
+  fake-data simulation & SBC, addressing computational problems, posterior predictive checks,
+  cross-validation & influence, iterative model expansion, comparing multiple models (and the
+  multiverse), and modeling-as-software. Because it rests on a single paper, steps carry no separate
+  per-step citation.
+status_values: [done_well, partial, missing, not_applicable]
+scoring_rule: >
+  Same machine scoring as the synthesis rubric: coverage = present/applicable (present =
+  done_well|partial; N/A excluded; low-confidence absences widen the range), quality = weighted mean
+  sub-score over applicable steps. essential_for sets the expectation tier (severity), not a verdict.
+  v0 weights are uniform (a documented placeholder).
+
+scoring:
+  sub_score: { done_well: 1.0, partial: 0.5, missing: 0.0 }   # not_applicable is excluded
+  low_confidence_threshold: 0.6
+  weight_default: 1.0
+  weights:
+    empirical: {}
+    numerical_experiment: {}
+    methodological: {}
+  mixing_rule: max
+
+steps:
+  - id: S1
+    name: Model building & justification
+    essential_for: [empirical, numerical_experiment, methodological]
+    why: "The workflow starts from an explicit generative model; every later check, diagnostic and comparison is only interpretable relative to a model that was actually justified."
+    done_well: "An initial generative model is stated and justified from domain knowledge and the question; structure built modularly, with assumptions explicit (§2)."
+    done_poorly: "A model appears with no rationale; assumptions unstated; no sense of how it was arrived at."
+
+  - id: S2
+    name: Prior specification & prior predictive checks
+    essential_for: [empirical, numerical_experiment, methodological]
+    why: "Priors are part of the model; simulating from them before fitting reveals what they imply and catches implausible assumptions before the data are touched."
+    done_well: "Priors stated; their implications examined by simulating from the prior (prior predictive / pushforward) BEFORE seeing the data, and revised when implausible (§2.4)."
+    done_poorly: "'Default priors' with no statement; no prior predictive reasoning; priors tuned to the data."
+
+  - id: S3
+    name: Fitting & computational diagnostics
+    essential_for: [empirical, numerical_experiment]
+    recommended_for: [methodological]
+    why: "Diagnostics establish that the computation actually approximated the posterior; an undiagnosed fit can make every later result an artifact of broken sampling."
+    na_when: "Exact/analytic posterior — no sampler to diagnose. Mark not_applicable, do not penalize."
+    gate:
+      na_when_inference: [exact_analytic]
+    inference_scope: [mcmc, hmc_nuts, variational]
+    done_well: "Convergence checked and reported — R-hat, effective sample size, zero divergences, E-BFMI, with chains/iterations/warmup stated and adequate run length (§3)."
+    done_poorly: "No convergence diagnostics; single chain; divergences ignored; run length not justified."
+    thresholds:
+      rhat: { value: "R-hat near 1 (clear separation from 1 flags non-convergence)", source: gelman2020, verified: false }
+      divergences: { value: "divergent transitions should be 0; any are investigated", source: gelman2020, verified: false }
+      ess: { value: "effective sample size adequate for the quantities reported", source: gelman2020, verified: false }
+
+  - id: S4
+    name: Constructed-data simulation & SBC
+    essential_for: [methodological, numerical_experiment]
+    recommended_for: [empirical]
+    why: "Fitting to data simulated from known parameters (and SBC) shows the model+algorithm can recover truth — the only way to trust inference before drawing real-data conclusions."
+    done_well: "Fake-data simulation: the model is fit to data simulated from known parameters and recovers them; for inferential claims about the algorithm, simulation-based calibration (rank uniformity) is shown (§4)."
+    done_poorly: "A new model/method with no recovery study or calibration evidence."
+
+  - id: S5
+    name: Addressing computational problems
+    recommended_for: [empirical, numerical_experiment, methodological]
+    why: "Computational pathologies are information about the model; diagnosing and fixing them (the 'folk theorem') is part of the workflow, not a nuisance to paper over."
+    na_when: "Exact/analytic posterior, or computation raised no problems to address."
+    gate:
+      na_when_inference: [exact_analytic]
+    done_well: "Where fitting struggled, problems are diagnosed and addressed — simpler starting models, reparameterization, better priors/data, stacking for non-mixing (the 'folk theorem') — and the steps are described (§5)."
+    done_poorly: "Fitting problems papered over or ignored; pathologies left unaddressed without comment."
+
+  - id: S6
+    name: Posterior predictive checking
+    essential_for: [empirical]
+    recommended_for: [numerical_experiment, methodological]
+    why: "Posterior predictive checks are the central test of model adequacy — whether the fitted model can reproduce the features of the data it is meant to explain."
+    done_well: "Posterior predictive checks shown (graphical overlays and/or test quantities); discrepancies between model and data discussed and acted on (§6.1)."
+    done_poorly: "No posterior predictive check; fit asserted without checking; obvious misfit ignored."
+    note: "PPC discrepancies are signals to investigate, not auto-diagnoses of a specific defect."
+
+  - id: S7
+    name: Cross-validation & influence
+    recommended_for: [empirical, numerical_experiment, methodological]
+    why: "Cross-validation with honest uncertainty (and influence checks) shows how well the model actually predicts, not merely how well it fit the data it already saw."
+    done_well: "Predictive performance assessed with cross-validation (e.g. PSIS-LOO) reported with uncertainty; importance-sampling reliability checked and influential observations examined (§6.2)."
+    done_poorly: "Predictive claims with no validation; unreliable importance sampling unmonitored; influential points unexamined."
+    thresholds:
+      pareto_k: { value: "PSIS Pareto-k flagged when large (unreliable LOO)", source: gelman2020, verified: false }
+
+  - id: S8
+    name: Model modification & expansion
+    recommended_for: [empirical, numerical_experiment, methodological]
+    why: "Bayesian workflow is iterative: shortcomings found in checking should drive a documented expansion of the model, not be quietly accepted."
+    done_well: "The model is treated as iterative: shortcomings found in checking drive a documented expansion/modification (or a justified decision to stop) (§7)."
+    done_poorly: "A single model is fit once with no iteration, despite checks suggesting problems."
+
+  - id: S9
+    name: Comparing multiple models & the multiverse
+    why: "When several models are reasonable, comparing them with uncertainty — and acknowledging the multiverse of forking paths — guards against over-reading one arbitrary choice."
+    na_when: "Only one model entertained and no formal comparison reported."
+    essential_for: []   # conditionally essential only when >= 2 models are compared
+    gate:
+      na_when_single_model_no_bf: true
+      essential_when_models_gte: 2
+    done_well: "Multiple models compared honestly (cross-validation / stacking / averaging) with uncertainty; awareness of the multiverse of reasonable specifications and the forking-paths risk (§8)."
+    done_poorly: "A model chosen with no comparison or an inappropriate criterion; comparison reported without uncertainty; forking paths unacknowledged."
+
+  - id: S10
+    name: Reproducibility & modeling as software
+    essential_for: [empirical, numerical_experiment, methodological]
+    why: "Treating the analysis as software — versioned code, settings and data — is what makes a Bayesian result reproducible and trustworthy to others."
+    done_well: "The analysis is reproducible and treated as software — model, priors, software + versions, sampler settings, and data/code shared; modeling decisions documented (§9)."
+    done_poorly: "Opaque 'we fit a Bayesian model'; missing settings; no data or code; undocumented decisions."
+
+citations:
+  gelman2020: "Gelman, Vehtari, Simpson, Margossian, Carpenter, Yao, Kennedy, Gabry, Bürkner & Modrák 2020. Bayesian Workflow. arXiv:2011.01808."

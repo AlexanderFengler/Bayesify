@@ -1,0 +1,617 @@
+[
+  {
+    "expect_primary": "empirical",
+    "expect_relevance": "yes",
+    "expect_secondary": null,
+    "id": "emp1",
+    "note": "clear empirical Bayesian fit",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We fit a hierarchical Bayesian drift-diffusion model to reaction-time data.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "Inference used Stan with 4 chains of 2000 iterations; all R-hat < 1.01 and posterior predictive checks reproduced the data.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": "empirical",
+    "expect_relevance": "yes",
+    "expect_secondary": null,
+    "id": "emp2",
+    "note": "empirical, software+method",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We estimate a Bayesian regression of crop yield on rainfall using PyMC.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "We report posterior means with 95% credible intervals; weakly-informative priors were used throughout.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": "empirical",
+    "expect_relevance": "yes",
+    "expect_secondary": null,
+    "id": "emp3",
+    "note": "empirical, diagnostics",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "A Bayesian hierarchical model of clinical outcomes fit with brms.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "We summarise the posterior distribution and report bulk-ESS and R-hat for every parameter.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": "numerical_experiment",
+    "expect_relevance": "yes",
+    "expect_secondary": null,
+    "id": "num1",
+    "note": "method comparison on simulated data",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We benchmark NUTS against variational inference on simulated data with known parameters.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "Parameter recovery was assessed across 100 simulated datasets; R-hat and divergent transitions were monitored.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": "numerical_experiment",
+    "expect_relevance": "yes",
+    "expect_secondary": null,
+    "id": "num2",
+    "note": "sampler benchmark, software+diagnostics",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We evaluate a new sampler implemented in Stan on synthetic benchmarks.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "We measure effective sample size per gradient evaluation and the number of divergent transitions; no real data are used.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": "numerical_experiment",
+    "expect_relevance": "yes",
+    "expect_secondary": null,
+    "id": "num3",
+    "note": "SBC validation study",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We validate a posterior approximation via simulation-based calibration in NumPyro.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "Across 1000 simulated datasets we check calibration of the posterior; rank plots are reported.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": "methodological",
+    "expect_relevance": "yes",
+    "expect_secondary": null,
+    "id": "meth1",
+    "note": "analytic methodological \u2014 method family only",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We propose a new weakly-informative prior for hierarchical variance parameters.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "We derive properties of the resulting posterior distribution and study posterior contraction.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": "methodological",
+    "expect_relevance": "yes",
+    "expect_secondary": null,
+    "id": "meth2",
+    "note": "new algorithm + diagnostics",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We introduce a new MCMC algorithm and a convergence diagnostic.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "We implement it in Stan and demonstrate improved effective sample size and lower R-hat on standard models.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": "methodological",
+    "expect_relevance": "yes",
+    "expect_secondary": "empirical",
+    "id": "meth3",
+    "note": "mixed: method contribution + real-data application",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We develop a new prior for spatial models and apply it to real census data.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "Using PyMC we fit the model; posterior predictive checks and 95% credible intervals are reported for the census application.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": null,
+    "expect_relevance": "partial",
+    "expect_secondary": null,
+    "id": "part1",
+    "note": "lone Bayes factor in a frequentist paper",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "A primarily frequentist ANOVA study of memory performance.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "As a supplementary analysis we additionally report a Bayes factor for the main contrast.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": null,
+    "expect_relevance": "partial",
+    "expect_secondary": null,
+    "id": "part2",
+    "note": "one Bayesian robustness check",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We analyse survey data with frequentist mixed-effects models.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "As a robustness check, we refit the key model in a Bayesian framework with a weakly-informative prior.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": null,
+    "expect_relevance": "partial",
+    "expect_secondary": null,
+    "id": "part3",
+    "note": "peripheral Bayesian sub-analysis",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "Main analyses are frequentist regressions of housing prices.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "A single Bayesian logistic regression with priors on the coefficients appears in the appendix.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": null,
+    "expect_relevance": "no",
+    "expect_secondary": null,
+    "id": "dec1",
+    "note": "frequentist OLS; only open-science hit",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We estimate the effect of schooling on wages using ordinary least squares.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "We report p-values and 95% confidence intervals. Code at github.com/lab/wages.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": null,
+    "expect_relevance": "no",
+    "expect_secondary": null,
+    "id": "dec2",
+    "note": "decoy: 'Bayes' only in the reference list",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "A randomized controlled trial of a new drug analysed with mixed-effects models.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "Significance was assessed at alpha = 0.05 with Bonferroni correction.",
+          "title": "Methods"
+        },
+        {
+          "id": "s03",
+          "kind": "references",
+          "page_spans": [],
+          "text": "Gelman A, Carlin J. Bayesian Data Analysis. CRC Press, 2013.",
+          "title": "References"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": null,
+    "expect_relevance": "no",
+    "expect_secondary": null,
+    "id": "dec3",
+    "note": "ML paper, no Bayesian statistics",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We train a convolutional neural network for image classification.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "The model was optimised with stochastic gradient descent; test accuracy reached 92 percent.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  },
+  {
+    "expect_primary": null,
+    "expect_relevance": "no",
+    "expect_secondary": null,
+    "id": "dec4",
+    "note": "classical statistics, no Bayesian content",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We examine the association between sleep and academic performance.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "Pearson correlation coefficients and two-sample t-tests were computed across cohorts.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      }
+    }
+  }
+]

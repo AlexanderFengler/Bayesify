@@ -1,0 +1,563 @@
+{
+  "work_id": "demo-status",
+  "ids": {
+    "doi": null,
+    "arxiv_id": null,
+    "openalex_id": null
+  },
+  "source_sha256": "sha-status",
+  "version_label": "arXiv v1 (demo)",
+  "rubric_version": "0.1-draft",
+  "rubric_profile": "synthesis",
+  "tier": "A",
+  "provenance": {
+    "origin": "fake_llm",
+    "authored_by": "demo-generator",
+    "selection_seed": null,
+    "rating_guide_version": "",
+    "created_at": null
+  },
+  "ratings": [
+    {
+      "rater_id": "r1",
+      "relationship": "independent",
+      "relevance_label": "yes",
+      "relevance_rationale": "fits a Bayesian model",
+      "paper_class_label": "numerical_experiment",
+      "paper_class_rationale": "",
+      "gate_facts": {
+        "inference_method": "unstated",
+        "n_models": 1,
+        "bf_claimed": false,
+        "prior_informativeness": "unstated"
+      },
+      "steps": [
+        {
+          "step_id": "S1",
+          "applicable": true,
+          "status": "partial",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S2",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S3",
+          "applicable": true,
+          "status": "partial",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S4",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S5",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S6",
+          "applicable": false,
+          "status": "not_applicable",
+          "confidence": 0.85,
+          "evidence": [],
+          "applicability_reason": "",
+          "rationale": "",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S7",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S8",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S9",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S10",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        }
+      ]
+    },
+    {
+      "rater_id": "r2",
+      "relationship": "independent",
+      "relevance_label": "yes",
+      "relevance_rationale": "fits a Bayesian model",
+      "paper_class_label": "numerical_experiment",
+      "paper_class_rationale": "",
+      "gate_facts": {
+        "inference_method": "unstated",
+        "n_models": 1,
+        "bf_claimed": false,
+        "prior_informativeness": "unstated"
+      },
+      "steps": [
+        {
+          "step_id": "S1",
+          "applicable": true,
+          "status": "partial",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S2",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S3",
+          "applicable": true,
+          "status": "partial",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S4",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S5",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S6",
+          "applicable": false,
+          "status": "not_applicable",
+          "confidence": 0.85,
+          "evidence": [],
+          "applicability_reason": "",
+          "rationale": "",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S7",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S8",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S9",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        },
+        {
+          "step_id": "S10",
+          "applicable": true,
+          "status": "done_well",
+          "confidence": 0.85,
+          "evidence": [
+            {
+              "section_id": "s01",
+              "page": null,
+              "quote": "a demonstration span"
+            }
+          ],
+          "applicability_reason": "",
+          "rationale": "rater note",
+          "missing_subtag": null,
+          "step_defect": null
+        }
+      ]
+    }
+  ],
+  "consensus": {
+    "rater_id": "consensus",
+    "relationship": "consensus",
+    "relevance_label": "yes",
+    "relevance_rationale": "fits a Bayesian model",
+    "paper_class_label": "numerical_experiment",
+    "paper_class_rationale": "",
+    "gate_facts": {
+      "inference_method": "unstated",
+      "n_models": 1,
+      "bf_claimed": false,
+      "prior_informativeness": "unstated"
+    },
+    "steps": [
+      {
+        "step_id": "S1",
+        "applicable": true,
+        "status": "partial",
+        "confidence": 0.85,
+        "evidence": [
+          {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        ],
+        "applicability_reason": "",
+        "rationale": "rater note",
+        "missing_subtag": null,
+        "step_defect": null
+      },
+      {
+        "step_id": "S2",
+        "applicable": true,
+        "status": "done_well",
+        "confidence": 0.85,
+        "evidence": [
+          {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        ],
+        "applicability_reason": "",
+        "rationale": "rater note",
+        "missing_subtag": null,
+        "step_defect": null
+      },
+      {
+        "step_id": "S3",
+        "applicable": true,
+        "status": "partial",
+        "confidence": 0.85,
+        "evidence": [
+          {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        ],
+        "applicability_reason": "",
+        "rationale": "rater note",
+        "missing_subtag": null,
+        "step_defect": null
+      },
+      {
+        "step_id": "S4",
+        "applicable": true,
+        "status": "done_well",
+        "confidence": 0.85,
+        "evidence": [
+          {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        ],
+        "applicability_reason": "",
+        "rationale": "rater note",
+        "missing_subtag": null,
+        "step_defect": null
+      },
+      {
+        "step_id": "S5",
+        "applicable": true,
+        "status": "done_well",
+        "confidence": 0.85,
+        "evidence": [
+          {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        ],
+        "applicability_reason": "",
+        "rationale": "rater note",
+        "missing_subtag": null,
+        "step_defect": null
+      },
+      {
+        "step_id": "S6",
+        "applicable": false,
+        "status": "not_applicable",
+        "confidence": 0.85,
+        "evidence": [],
+        "applicability_reason": "",
+        "rationale": "",
+        "missing_subtag": null,
+        "step_defect": null
+      },
+      {
+        "step_id": "S7",
+        "applicable": true,
+        "status": "done_well",
+        "confidence": 0.85,
+        "evidence": [
+          {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        ],
+        "applicability_reason": "",
+        "rationale": "rater note",
+        "missing_subtag": null,
+        "step_defect": null
+      },
+      {
+        "step_id": "S8",
+        "applicable": true,
+        "status": "done_well",
+        "confidence": 0.85,
+        "evidence": [
+          {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        ],
+        "applicability_reason": "",
+        "rationale": "rater note",
+        "missing_subtag": null,
+        "step_defect": null
+      },
+      {
+        "step_id": "S9",
+        "applicable": true,
+        "status": "done_well",
+        "confidence": 0.85,
+        "evidence": [
+          {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        ],
+        "applicability_reason": "",
+        "rationale": "rater note",
+        "missing_subtag": null,
+        "step_defect": null
+      },
+      {
+        "step_id": "S10",
+        "applicable": true,
+        "status": "done_well",
+        "confidence": 0.85,
+        "evidence": [
+          {
+            "section_id": "s01",
+            "page": null,
+            "quote": "a demonstration span"
+          }
+        ],
+        "applicability_reason": "",
+        "rationale": "rater note",
+        "missing_subtag": null,
+        "step_defect": null
+      }
+    ]
+  },
+  "discussion_note": ""
+}

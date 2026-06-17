@@ -38,8 +38,14 @@
    confidence; plus relevance and paper-class labels. For `missing`, raters optionally sub-tag
    **not-done vs not-reported(-suspected)** — v0 metrics collapse these, but the sub-label is stored
    so the v1 rigor-vs-reporting split (improvements B5) won't require relabeling everything.
-3. **Adjudication:** disagreements resolved in a recorded discussion → **consensus label**; both
-   original ratings are retained (never overwritten).
+3. **Consensus (v0: automated, 2026-06-16 amendment):** the consensus label is derived
+   **mechanically** from the raters — a per-step status is the consensus iff a **strict majority**
+   chose it; otherwise the cell is **"no consensus"**, excluded from the engine-vs-consensus metrics
+   but **counted**. No human adjudication step. Both original ratings are retained (never
+   overwritten), so inter-rater agreement is unaffected. Rationale: a mechanical consensus cannot be
+   engine-anchored, which removes the "form consensus before inspecting engine output" leak risk and
+   the "prompt author must not adjudicate their own disagreements" rule entirely. (A human
+   *recorded-discussion* adjudication remains the v1 upgrade if a reviewer requires it.)
 4. **Versioning & leakage rules:** the protocol and guide are frozen per `rubric_version`;
    relabeling is triggered only by rubric changes that alter step semantics. Gold-set papers are
    **ineligible as few-shot exemplars** in any prompt (no leakage from the measuring stick into the
@@ -74,9 +80,12 @@ level, so agreement is decomposed to mirror the engine's own architecture:
 - **Evidence-span validity:** a **seeded random sample of ~30 spans per validation run**, audited by
   someone other than the prompt author where feasible; pass-rate + CI in the report like every other
   metric — the dual-grounding promise (A3) is measured, not assumed.
-- **Uncertainty on everything:** bootstrap (or analytic) CIs on every κ, binomial CIs on every rate.
-  Per-step metrics show **"insufficient data"** below an n-floor (e.g., 15 applicable papers) instead
-  of a number.
+- **Uncertainty on everything:** analytic Wilson CIs on every rate. **v0 amendment (2026-06-16):**
+  κ ships as a point estimate + n (no CI) — at v0 n a cluster-bootstrap κ CI is noisy and
+  contestable, and the uncertainties that matter most (rater coherence, engine noise) are reported
+  separately as the inter-expert and test-retest κ. The κ cluster bootstrap is retained and tested
+  for a v1 re-enable at G9 once the real run has enough papers. Per-step metrics show **"insufficient
+  data" / "preliminary"** below an n-floor (e.g., 15 applicable papers) instead of an over-claimed CI.
 - **Regression rule:** a change that worsens absence-FPR, absence-miss-rate, or mean step-κ beyond
   the **bootstrap variability** of the metric does not ship (tolerances defined relative to noise,
   not as raw point deltas).
@@ -93,7 +102,8 @@ level, so agreement is decomposed to mirror the engine's own architecture:
    score above pairwise-human κ), absence-FPR + miss-rate with confusion matrix, coverage/quality
    score agreement, test-retest κ, gold-set size & composition per tier, last-validated date,
    engine/rubric versions (+ rubric profile — v0 validates the `synthesis` profile only),
-   override count feeding the next round — **every number with its n and CI**.
+   override count feeding the next round — **every number with its n** (and a CI where one ships:
+   Wilson on rates; κ as point + n in v0, per the §3 amendment).
 2. **A provenance footer on every report** (plan `02-mvp-tool-plan.md` §4.1): engine & rubric
    version, "development-set agreement: κ=… [CI], absence-FPR …/… , absence-miss …/…", validation
    date → `/calibration`. **Per-metric honesty:** any metric whose CI is wide or n below floor

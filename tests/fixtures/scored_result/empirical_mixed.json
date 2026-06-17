@@ -1,0 +1,333 @@
+{
+  "relevance": {
+    "label": "yes",
+    "confidence": 0.95,
+    "rationale": "Bayesian",
+    "evidence_refs": [
+      0
+    ],
+    "overridden": false
+  },
+  "paper_class": {
+    "primary": "empirical",
+    "secondary": null,
+    "confidence": 0.9,
+    "rationale": "real RT data",
+    "evidence_refs": [
+      0
+    ]
+  },
+  "gate_facts": {
+    "inference_method": "hmc_nuts",
+    "n_models": 1,
+    "bf_claimed": false,
+    "prior_informativeness": "weakly_informative"
+  },
+  "step_assessments": [
+    {
+      "step_id": "S1",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [
+        "States a hierarchical drift-diffusion generative model (§s02)."
+      ],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S2",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S3",
+      "applicable": true,
+      "applicability_reason": "Recommended for empirical papers.",
+      "status": "partial",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [
+        {
+          "severity": "info",
+          "text": "Add a prior predictive check.",
+          "how_to": "Simulate from the prior and overlay on plausible ranges.",
+          "ease": "medium"
+        }
+      ],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S4",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [
+        "Reports \"all R-hat < 1.01\" and ESS for every parameter (§s02)."
+      ],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S5",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "missing",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [
+        {
+          "severity": "error",
+          "text": "Add posterior predictive checks.",
+          "how_to": "Overlay replicated datasets on the observed RT distribution.",
+          "ease": "medium"
+        }
+      ],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S6",
+      "applicable": false,
+      "applicability_reason": "Only one model entertained and no Bayes factor reported.",
+      "status": "not_applicable",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S7",
+      "applicable": true,
+      "applicability_reason": "Recommended for empirical papers.",
+      "status": "missing",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [
+        {
+          "severity": "warning",
+          "text": "Add a parameter-recovery study.",
+          "how_to": "Fit simulated data with known parameters and check recovery.",
+          "ease": "high"
+        }
+      ],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S8",
+      "applicable": true,
+      "applicability_reason": "Expected: (weakly-)informative priors are used.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S9",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "partial",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [
+        {
+          "severity": "warning",
+          "text": "State the software version and seed.",
+          "how_to": "Report Stan/cmdstanr versions and the RNG seed.",
+          "ease": "low"
+        }
+      ],
+      "adversarial_verdict": null
+    },
+    {
+      "step_id": "S10",
+      "applicable": true,
+      "applicability_reason": "Expected for empirical papers.",
+      "status": "done_well",
+      "confidence": 0.9,
+      "evidence": [],
+      "standards": [],
+      "did_well": [],
+      "suggestions": [],
+      "adversarial_verdict": null
+    }
+  ],
+  "profile": {
+    "steps": [
+      {
+        "step_id": "S1",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S2",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S3",
+        "applicable": true,
+        "status": "partial",
+        "sub_score": 0.5,
+        "weight": 1.0,
+        "tier": "recommended"
+      },
+      {
+        "step_id": "S4",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S5",
+        "applicable": true,
+        "status": "missing",
+        "sub_score": 0.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S6",
+        "applicable": false,
+        "status": "not_applicable",
+        "sub_score": null,
+        "weight": 1.0,
+        "tier": "none"
+      },
+      {
+        "step_id": "S7",
+        "applicable": true,
+        "status": "missing",
+        "sub_score": 0.0,
+        "weight": 1.0,
+        "tier": "recommended"
+      },
+      {
+        "step_id": "S8",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S9",
+        "applicable": true,
+        "status": "partial",
+        "sub_score": 0.5,
+        "weight": 1.0,
+        "tier": "expected"
+      },
+      {
+        "step_id": "S10",
+        "applicable": true,
+        "status": "done_well",
+        "sub_score": 1.0,
+        "weight": 1.0,
+        "tier": "expected"
+      }
+    ],
+    "n_applicable": 9,
+    "n_na": 1,
+    "n_uncertain": 0
+  },
+  "coverage": {
+    "present": 7,
+    "applicable": 9,
+    "strict": 0.7777777777777778,
+    "lenient": 0.7777777777777778
+  },
+  "quality_score": 0.6666666666666666,
+  "score_impacts": [
+    {
+      "step_id": "S3",
+      "from_status": "partial",
+      "to_status": "done_well",
+      "coverage_delta": 0.0,
+      "quality_delta": 0.05555555555555558
+    },
+    {
+      "step_id": "S5",
+      "from_status": "missing",
+      "to_status": "done_well",
+      "coverage_delta": 0.11111111111111105,
+      "quality_delta": 0.11111111111111116
+    },
+    {
+      "step_id": "S7",
+      "from_status": "missing",
+      "to_status": "done_well",
+      "coverage_delta": 0.11111111111111105,
+      "quality_delta": 0.11111111111111116
+    },
+    {
+      "step_id": "S9",
+      "from_status": "partial",
+      "to_status": "done_well",
+      "coverage_delta": 0.0,
+      "quality_delta": 0.05555555555555558
+    }
+  ],
+  "not_applicable_reason": null,
+  "engine_version": "pkg=0.1.0;fixture",
+  "rubric_version": "0.1-draft",
+  "rubric_profile": "synthesis",
+  "cost_ledger": {
+    "entries": [
+      {
+        "stage": "screen",
+        "step_id": null,
+        "pass_label": null,
+        "model": "claude-opus-4-8",
+        "input_tokens": 4000,
+        "output_tokens": 200,
+        "cost_usd": 0.025
+      },
+      {
+        "stage": "assess",
+        "step_id": null,
+        "pass_label": null,
+        "model": "claude-opus-4-8",
+        "input_tokens": 40000,
+        "output_tokens": 5000,
+        "cost_usd": 0.325
+      }
+    ],
+    "total_tokens": 49200,
+    "total_cost_usd": 0.35
+  },
+  "validation_ref": "unvalidated"
+}
