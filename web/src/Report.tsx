@@ -46,8 +46,10 @@ export function Report({
       )}
 
       <SummaryBand r={r} />
+      <StepStrip steps={r.step_assessments} stepNames={stepNames} />
       <RelevanceLine r={r} />
 
+      <h2 className="section-title">Full report</h2>
       <div className="steps">
         {r.step_assessments.map((a) => (
           <StepCard
@@ -170,6 +172,71 @@ function SummarySection({ r, fixes }: { r: ScoredResult; fixes: FixItem[] | null
   );
 }
 
+const COVERAGE_HELP =
+  "Coverage = the share of APPLICABLE steps that are present at all (done well or partial). " +
+  "N/A steps are excluded from the denominator. The range (e.g. 6–7) reflects low-confidence " +
+  "absences: the low end counts them absent, the high end counts them present.";
+
+const QUALITY_HELP =
+  "Quality = average credit across the applicable steps: done well = 1, partial = ½, missing = 0 " +
+  "(N/A excluded), as a weighted mean (v0 weights every step equally). It measures how WELL each " +
+  "step was done, so it sits at or below coverage — partial steps count toward coverage but only " +
+  "score ½ here, and missing steps score 0.";
+
+// A small hover/focus tooltip (native title) for explaining a metric in place.
+function InfoDot({ text }: { text: string }) {
+  return (
+    <span className="info-dot" tabIndex={0} role="note" aria-label={text} title={text}>
+      &#9432;
+    </span>
+  );
+}
+
+const STATUS_GLYPH: Record<StepStatus, string> = {
+  done_well: "✓",
+  partial: "◐",
+  missing: "✗",
+  not_applicable: "–",
+};
+const STRIP_LEGEND: StepStatus[] = ["done_well", "partial", "missing", "not_applicable"];
+
+// Item 1: a 2-second pictorial of every step's status — colour-coded cells, click to jump to a step.
+function StepStrip({
+  steps,
+  stepNames,
+}: {
+  steps: StepAssessment[];
+  stepNames: Record<string, string>;
+}) {
+  if (steps.length === 0) return null;
+  return (
+    <div className="step-strip">
+      <div className="grounding-label">Steps at a glance</div>
+      <div className="strip-row">
+        {steps.map((a) => (
+          <a
+            key={a.step_id}
+            href={`#step-${a.step_id}`}
+            className={"strip-cell status-" + a.status}
+            title={`${a.step_id} · ${stepNames[a.step_id] ?? a.step_id} — ${STATUS_LABEL[a.status]}`}
+          >
+            <span className="strip-id">{a.step_id}</span>
+            <span className="strip-glyph">{STATUS_GLYPH[a.status]}</span>
+          </a>
+        ))}
+      </div>
+      <div className="strip-legend">
+        {STRIP_LEGEND.map((s) => (
+          <span key={s} className="lg">
+            <span className={"dot status-" + s} />
+            {STATUS_LABEL[s]}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // The model's own relevance verdict + rationale — for a live run this reflects THIS paper; the stub
 // always shows its fixed HDDM sentence, so this is how you see the screen stage actually ran.
 function RelevanceLine({ r }: { r: ScoredResult }) {
@@ -207,7 +274,10 @@ function SummaryBand({ r }: { r: ScoredResult }) {
           {coverageText}
           {cov && <span className="metric-denom">/ {cov.applicable}</span>}
         </div>
-        <div className="metric-label">applicable steps present</div>
+        <div className="metric-label">
+          applicable steps present
+          <InfoDot text={COVERAGE_HELP} />
+        </div>
         {cov && naCount > 0 && (
           <div className="metric-note">
             {naCount} of {total} steps not applicable (excluded from the denominator)
@@ -217,7 +287,10 @@ function SummaryBand({ r }: { r: ScoredResult }) {
       </div>
       <div className="metric">
         <div className="metric-value">{quality == null ? "—" : quality.toFixed(2)}</div>
-        <div className="metric-label">quality score</div>
+        <div className="metric-label">
+          quality score
+          <InfoDot text={QUALITY_HELP} />
+        </div>
         {quality != null && (
           <div className="qbar">
             <span style={{ width: `${Math.round(quality * 100)}%` }} />
@@ -259,6 +332,7 @@ function StepCard({
       stepId={a.step_id}
       stepName={stepName}
       sectionClass={"status-" + a.status}
+      sectionId={"step-" + a.step_id}
       pill={<span className={"status-pill status-" + a.status}>{STATUS_LABEL[a.status]}</span>}
       headerRight={na ? undefined : <Confidence value={a.confidence} />}
     >

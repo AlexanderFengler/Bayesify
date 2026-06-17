@@ -12,6 +12,7 @@ export function StepCardShell({
   stepId,
   stepName,
   sectionClass,
+  sectionId,
   pill,
   headerRight,
   children,
@@ -19,12 +20,13 @@ export function StepCardShell({
   stepId: string;
   stepName: string;
   sectionClass?: string;
+  sectionId?: string;
   pill?: ReactNode;
   headerRight?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className={"step-card" + (sectionClass ? " " + sectionClass : "")}>
+    <section id={sectionId} className={"step-card" + (sectionClass ? " " + sectionClass : "")}>
       <header className="step-card-head">
         {pill}
         <div className="step-heading">
