@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPaper, rerun, streamProgress, submitPaper } from "./api";
 import { Calibration } from "./Calibration";
+import { Guide } from "./Guide";
 import { Inventory } from "./Inventory";
 import { PrivacyModal } from "./Modal";
 import { Rate } from "./Rate";
@@ -22,6 +23,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [ratingPaperId, setRatingPaperId] = useState<string | null>(null); // blind-rating takeover
   const [showCalibration, setShowCalibration] = useState(false); // calibration view takeover
+  const [showGuide, setShowGuide] = useState(false); // user-guide view takeover
   const [modal, setModal] = useState<ModalKind>(null);
   const [firstRun, setFirstRun] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -130,6 +132,8 @@ export function App() {
           <Rate paperId={ratingPaperId} onExit={() => setRatingPaperId(null)} />
         ) : showCalibration ? (
           <Calibration onExit={() => setShowCalibration(false)} />
+        ) : showGuide ? (
+          <Guide onExit={() => setShowGuide(false)} />
         ) : (
           <>
             {phase === "idle" && (
@@ -181,7 +185,11 @@ export function App() {
           </>
         )}
       </main>
-      <Footer onPrivacy={() => setModal("privacy")} onCalibration={() => setShowCalibration(true)} />
+      <Footer
+        onGuide={() => setShowGuide(true)}
+        onPrivacy={() => setModal("privacy")}
+        onCalibration={() => setShowCalibration(true)}
+      />
       {modal === "privacy" && (
         <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
       )}
@@ -221,7 +229,15 @@ function ModeIndicator({ mode }: { mode: "full" | "local" }) {
   );
 }
 
-function Footer({ onPrivacy, onCalibration }: { onPrivacy: () => void; onCalibration: () => void }) {
+function Footer({
+  onGuide,
+  onPrivacy,
+  onCalibration,
+}: {
+  onGuide: () => void;
+  onPrivacy: () => void;
+  onCalibration: () => void;
+}) {
   return (
     <footer className="footer">
       <div className="container footer-inner">
@@ -230,6 +246,9 @@ function Footer({ onPrivacy, onCalibration }: { onPrivacy: () => void; onCalibra
           practice, not a pass/fail.
         </span>
         <span className="footer-links">
+          <button className="link-btn" onClick={onGuide}>
+            Guide
+          </button>
           <button className="link-btn" onClick={onPrivacy}>
             Privacy
           </button>
