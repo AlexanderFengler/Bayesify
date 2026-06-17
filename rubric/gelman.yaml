@@ -1,0 +1,122 @@
+# VeriBayes rubric — Gelman "Bayesian Workflow"
+# A self-contained rubric grounded SOLELY in:
+#   Gelman, Vehtari, Simpson, Carpenter, Kennedy, Gabry, Bürkner & Modrák (2020).
+#   "Bayesian Workflow." arXiv:2011.01808.
+# Its ten stages follow that paper's own structure (§3 building & prior predictive; §4 fitting &
+# diagnostics; §5 constructed-data simulation & SBC; §6 addressing computational problems; §7
+# posterior predictive checks + cross-validation/influence; §8 model modification/expansion; §9
+# comparing multiple models & multiverse; §10 modeling-as-software / reproducibility).
+# Single-source: steps carry NO per-step citation — the source lives in the preamble below.
+# applicability gating: paper_class ∈ {empirical, numerical_experiment, methodological}
+# status values emitted by the engine: done_well | partial | missing | not_applicable
+
+rubric_version: "0.1-gelman"
+label: "Gelman — Bayesian Workflow"
+summary: >
+  Graded solely against Gelman, Vehtari, Simpson, Carpenter, Kennedy, Gabry, Bürkner & Modrák (2020),
+  "Bayesian Workflow" (arXiv:2011.01808). Ten stages follow the paper's own structure — model
+  building, prior predictive checks, computation diagnostics, fake-data simulation & SBC, addressing
+  computational problems, posterior predictive checks, cross-validation & influence, iterative model
+  expansion, comparing multiple models (and the multiverse), and modeling-as-software. Because it
+  rests on a single paper, steps carry no separate per-step citation.
+status_values: [done_well, partial, missing, not_applicable]
+scoring_rule: >
+  Same machine scoring as the synthesis rubric: coverage = present/applicable (present =
+  done_well|partial; N/A excluded; low-confidence absences widen the range), quality = weighted mean
+  sub-score over applicable steps. essential_for sets the expectation tier (severity), not a verdict.
+  v0 weights are uniform (a documented placeholder).
+
+scoring:
+  sub_score: { done_well: 1.0, partial: 0.5, missing: 0.0 }   # not_applicable is excluded
+  low_confidence_threshold: 0.6
+  weight_default: 1.0
+  weights:
+    empirical: {}
+    numerical_experiment: {}
+    methodological: {}
+  mixing_rule: max
+
+steps:
+  - id: G1
+    name: Model building & justification
+    essential_for: [empirical, numerical_experiment, methodological]
+    done_well: "An initial generative model is stated and justified from domain knowledge and the question; structure built modularly, with assumptions explicit (§3.1–3.3)."
+    done_poorly: "A model appears with no rationale; assumptions unstated; no sense of how it was arrived at."
+
+  - id: G2
+    name: Prior specification & prior predictive checks
+    essential_for: [empirical, numerical_experiment, methodological]
+    done_well: "Priors stated; their implications examined by simulating from the prior (prior predictive / pushforward) BEFORE seeing the data, and revised when implausible (§3.4)."
+    done_poorly: "'Default priors' with no statement; no prior predictive reasoning; priors tuned to the data."
+
+  - id: G3
+    name: Fitting & computational diagnostics
+    essential_for: [empirical, numerical_experiment]
+    recommended_for: [methodological]
+    na_when: "Exact/analytic posterior — no sampler to diagnose. Mark not_applicable, do not penalize."
+    gate:
+      na_when_inference: [exact_analytic]
+    inference_scope: [mcmc, hmc_nuts, variational]
+    done_well: "Convergence checked and reported — R-hat, effective sample size, zero divergences, E-BFMI, with chains/iterations/warmup stated and adequate run length (§4)."
+    done_poorly: "No convergence diagnostics; single chain; divergences ignored; run length not justified."
+    thresholds:
+      rhat: { value: "R-hat near 1 (clear separation from 1 flags non-convergence)", source: gelman2020, verified: false }
+      divergences: { value: "divergent transitions should be 0; any are investigated", source: gelman2020, verified: false }
+      ess: { value: "effective sample size adequate for the quantities reported", source: gelman2020, verified: false }
+
+  - id: G4
+    name: Constructed-data simulation & SBC
+    essential_for: [methodological, numerical_experiment]
+    recommended_for: [empirical]
+    done_well: "Fake-data simulation: the model is fit to data simulated from known parameters and recovers them; for inferential claims about the algorithm, simulation-based calibration (rank uniformity) is shown (§5)."
+    done_poorly: "A new model/method with no recovery study or calibration evidence."
+
+  - id: G5
+    name: Addressing computational problems
+    recommended_for: [empirical, numerical_experiment, methodological]
+    na_when: "Exact/analytic posterior, or computation raised no problems to address."
+    gate:
+      na_when_inference: [exact_analytic]
+    done_well: "Where fitting struggled, problems are diagnosed and addressed — simpler starting models, reparameterization, better priors/data, stacking for non-mixing (the 'folk theorem') — and the steps are described (§6)."
+    done_poorly: "Fitting problems papered over or ignored; pathologies left unaddressed without comment."
+
+  - id: G6
+    name: Posterior predictive checking
+    essential_for: [empirical]
+    recommended_for: [numerical_experiment, methodological]
+    done_well: "Posterior predictive checks shown (graphical overlays and/or test quantities); discrepancies between model and data discussed and acted on (§7.1)."
+    done_poorly: "No posterior predictive check; fit asserted without checking; obvious misfit ignored."
+    note: "PPC discrepancies are signals to investigate, not auto-diagnoses of a specific defect."
+
+  - id: G7
+    name: Cross-validation & influence
+    recommended_for: [empirical, numerical_experiment, methodological]
+    done_well: "Predictive performance assessed with cross-validation (e.g. PSIS-LOO) reported with uncertainty; importance-sampling reliability checked and influential observations examined (§7.2–7.3)."
+    done_poorly: "Predictive claims with no validation; unreliable importance sampling unmonitored; influential points unexamined."
+    thresholds:
+      pareto_k: { value: "PSIS Pareto-k flagged when large (unreliable LOO)", source: gelman2020, verified: false }
+
+  - id: G8
+    name: Model modification & expansion
+    recommended_for: [empirical, numerical_experiment, methodological]
+    done_well: "The model is treated as iterative: shortcomings found in checking drive a documented expansion/modification (or a justified decision to stop) (§8)."
+    done_poorly: "A single model is fit once with no iteration, despite checks suggesting problems."
+
+  - id: G9
+    name: Comparing multiple models & the multiverse
+    na_when: "Only one model entertained and no formal comparison reported."
+    essential_for: []   # conditionally essential only when >= 2 models are compared
+    gate:
+      na_when_single_model_no_bf: true
+      essential_when_models_gte: 2
+    done_well: "Multiple models compared honestly (cross-validation / stacking / averaging) with uncertainty; awareness of the multiverse of reasonable specifications and the forking-paths risk (§9)."
+    done_poorly: "A model chosen with no comparison or an inappropriate criterion; comparison reported without uncertainty; forking paths unacknowledged."
+
+  - id: G10
+    name: Reproducibility & modeling as software
+    essential_for: [empirical, numerical_experiment, methodological]
+    done_well: "The analysis is reproducible and treated as software — model, priors, software + versions, sampler settings, and data/code shared; modeling decisions documented (§10)."
+    done_poorly: "Opaque 'we fit a Bayesian model'; missing settings; no data or code; undocumented decisions."
+
+citations:
+  gelman2020: "Gelman, Vehtari, Simpson, Carpenter, Kennedy, Gabry, Bürkner & Modrák 2020. Bayesian Workflow. arXiv:2011.01808."
