@@ -92,6 +92,19 @@ def test_assemble_writes_admissible_record(tmp_path) -> None:
     assert hr.validate_admissible() == []
 
 
+def test_assemble_records_profile_and_skips_mixed_rubric(tmp_path) -> None:
+    store = RatingStore(tmp_path / "ratings")
+    store.add(_sub("g1", "r1", rubric_profile="gelman"))
+    store.add(_sub("g1", "r2", rubric_profile="gelman"))  # both gelman → one record, profile gelman
+    store.add(_sub("mix", "r1", rubric_profile="synthesis"))
+    store.add(_sub("mix", "r2", rubric_profile="gelman"))  # mixed rubrics → can't form one record
+    out = tmp_path / "goldset"
+    written, skipped = assemble(ratings_dir=tmp_path / "ratings", out_dir=out)
+    assert written == ["g1"] and skipped == ["mix"]
+    hr = HumanReport.model_validate_json((out / "g1.json").read_text())
+    assert hr.rubric_profile == "gelman"  # provenance: the gold record knows its rubric
+
+
 def test_assemble_skips_single_rater_and_no_consensus(tmp_path) -> None:
     store = RatingStore(tmp_path / "ratings")
     store.add(_sub("solo", "r1"))  # only 1 rater → not admissible

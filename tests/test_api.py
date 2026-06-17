@@ -456,6 +456,27 @@ def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch
     assert fake.calls[0] == "Relevance" and "PaperClass" in fake.calls  # screen + forced classify
 
 
+def test_grading_under_gelman_uses_the_gelman_rubric(tmp_path, monkeypatch) -> None:
+    """Choosing the Gelman rubric grades against ITS stages (G1..G10), not synthesis (S1..S10), and
+    stamps the result + cache key with that profile (separate cache entry from synthesis)."""
+    from veribayes.api import jobs as jobsmod
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: _full_fake())
+
+    job = Job(
+        id="gel1", mode="full", source_label="x.pdf", data=_HDDM_PDF, filename="x.pdf",
+        profile="gelman",
+    )
+    asyncio.run(run_job(job))
+
+    r = job.result
+    assert job.status == "done" and r is not None
+    assert r.rubric_profile == "gelman" and r.rubric_version == "0.1-gelman"
+    assert [a.step_id for a in r.step_assessments] == [f"G{i}" for i in range(1, 11)]
+
+
 def test_review_paper_short_circuits(tmp_path, monkeypatch) -> None:
     """A review/opinion piece is Bayesian-relevant but the per-step rubric doesn't apply: classify
     returns 'review' → short-circuit before assess (reason='not_an_application'), nothing graded."""

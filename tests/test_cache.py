@@ -37,6 +37,8 @@ def test_full_result_key_changes_with_every_dimension() -> None:
     assert _key(engine_version="ev2").digest() != base  # engine
     assert _key(rubric_version="1.0").digest() != base  # rubric
     assert _key(relevance_override="partial").digest() != base  # G2: rerun dimension
+    assert _key(force_grade=True).digest() != base  # forced-grade dimension
+    assert _key(rubric_profile="gelman").digest() != base  # different rubrics grade differently
 
 
 def test_rerun_override_does_not_collide_with_short_circuit() -> None:
