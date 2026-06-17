@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { fetchRateContext, type RateContext, type RatingInput, submitRating } from "./api";
+import {
+  fetchRateContext,
+  fetchRubrics,
+  type RateContext,
+  type RatingInput,
+  type RubricSummary,
+  submitRating,
+} from "./api";
 import { STATUS_LABEL, STATUS_OPTIONS } from "./rubric";
 import { StepCardShell } from "./StepCard";
 import type { StepStatus } from "./types";
@@ -30,6 +37,8 @@ const CLASSES: { v: PaperClass; label: string }[] = [
 export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void }) {
   const [ctx, setCtx] = useState<RateContext | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [profile, setProfile] = useState("synthesis"); // which rubric the rater rates against
+  const [rubrics, setRubrics] = useState<RubricSummary[]>([]);
   const [raterId, setRaterId] = useState("rater-1");
   const [relationship, setRelationship] = useState("independent");
   const [relevance, setRelevance] = useState<Relevance>("");
@@ -48,10 +57,18 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    fetchRateContext(paperId)
+    fetchRubrics()
+      .then(setRubrics)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setCtx(null);
+    setPerStep({}); // a different rubric has different steps — clear stale per-step drafts
+    fetchRateContext(paperId, profile)
       .then(setCtx)
       .catch((e) => setLoadErr(e instanceof Error ? e.message : String(e)));
-  }, [paperId]);
+  }, [paperId, profile]);
 
   const draft = (id: string) => perStep[id] ?? EMPTY;
   const setStep = (id: string, patch: Partial<StepDraft>) =>
@@ -120,7 +137,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
     setFormError(null);
     setSubmitting(true);
     try {
-      await submitRating(paperId, r);
+      await submitRating(paperId, r, profile);
       setDone(true);
     } catch (e) {
       setFormError(e instanceof Error ? e.message : String(e));
@@ -180,6 +197,20 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
       </div>
 
       <div className="card rate-gate">
+        <div className="rate-field">
+          <label>
+            Rubric
+            <select value={profile} onChange={(e) => setProfile(e.target.value)}>
+              {(rubrics.length ? rubrics : [{ id: profile, label: profile }]).map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {ctx.rubric.summary && <p className="rubric-preamble">{ctx.rubric.summary}</p>}
+
         <div className="rate-field">
           <label>
             Rater id

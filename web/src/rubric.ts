@@ -25,6 +25,8 @@ export interface RubricStepInfo {
 export interface Rubric {
   rubric_version: string;
   rubric_profile: string;
+  label: string;
+  summary: string; // the preamble: what this rubric is and its properties
   status_values: string[];
   steps: RubricStepInfo[];
 }
@@ -52,8 +54,25 @@ export async function fetchRubric(profile = "synthesis"): Promise<Rubric> {
   return p;
 }
 
-// Step-id -> display name, from the rubric (replaces the hardcoded map that could drift from
-// rubric/steps.yaml). Empty until loaded; the engine step_id is the fallback.
+// The full rubric for a profile (cached). null until loaded — used for the report preamble.
+export function useRubric(profile = "synthesis"): Rubric | null {
+  const [rubric, setRubric] = useState<Rubric | null>(() => _cache.get(profile) ?? null);
+  useEffect(() => {
+    let alive = true;
+    fetchRubric(profile)
+      .then((r) => {
+        if (alive) setRubric(r);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [profile]);
+  return rubric;
+}
+
+// Step-id -> display name, from the rubric (replaces the hardcoded map that could drift from the
+// rubric files). Empty until loaded; the engine step_id is the fallback.
 export function useStepNames(profile = "synthesis"): Record<string, string> {
   const [names, setNames] = useState<Record<string, string>>(() => {
     const c = _cache.get(profile);

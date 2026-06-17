@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { recordOverride } from "./api";
-import { STATUS_LABEL, STATUS_OPTIONS, useStepNames } from "./rubric";
+import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import { EvidenceBlock, StepCardShell } from "./StepCard";
 import type { FixItem, PaperState, ScoredResult, StepAssessment, StepStatus } from "./types";
 
@@ -17,7 +17,8 @@ export function Report({
   // Records of expert disagreements made this session (step_id -> corrected status). Purely a UI
   // indicator; the engine output is never mutated (A5).
   const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
-  const stepNames = useStepNames();
+  const rubric = useRubric(r.rubric_profile); // the rubric this paper was graded against
+  const stepNames = useStepNames(r.rubric_profile);
   if (r.relevance.label === "no" || r.not_applicable_reason) {
     return <NotApplicable paper={paper} onReset={onReset} onRerun={onRerun} />;
   }
@@ -45,6 +46,11 @@ export function Report({
         </div>
       )}
 
+      {rubric && (
+        <p className="rubric-preamble">
+          <strong>{rubric.label}.</strong> {rubric.summary}
+        </p>
+      )}
       <SummaryBand r={r} />
       <StepStrip steps={r.step_assessments} stepNames={stepNames} />
       <RelevanceLine r={r} />

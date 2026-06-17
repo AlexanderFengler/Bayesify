@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getPaper, rerun, streamProgress, submitPaper } from "./api";
+import { fetchRubrics, getPaper, rerun, type RubricSummary, streamProgress, submitPaper } from "./api";
 import { Calibration } from "./Calibration";
 import { Guide } from "./Guide";
 import { Inventory } from "./Inventory";
@@ -15,6 +15,8 @@ const PRIVACY_ACK_KEY = "veribayes.privacy.ack"; // set once the first-run discl
 export function App() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [mode, setMode] = useState<"full" | "local">("full");
+  const [profile, setProfile] = useState("synthesis"); // which rubric to grade against
+  const [rubrics, setRubrics] = useState<RubricSummary[]>([]);
   const [identifier, setIdentifier] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -41,6 +43,13 @@ export function App() {
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("rate");
     if (id) setRatingPaperId(id);
+  }, []);
+
+  // The available rubrics for the analysis picker (synthesis default; Gelman, etc.).
+  useEffect(() => {
+    fetchRubrics()
+      .then(setRubrics)
+      .catch(() => {});
   }, []);
 
   const ackPrivacy = useCallback(() => {
@@ -100,14 +109,14 @@ export function App() {
       setStageState({});
       setError(null);
       try {
-        const paperId = await submitPaper({ file, identifier, mode: runMode });
+        const paperId = await submitPaper({ file, identifier, mode: runMode, profile });
         track(paperId, { rateOnDone: intent === "rate" });
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));
         setPhase("error");
       }
     },
-    [file, identifier, mode, track],
+    [file, identifier, mode, profile, track],
   );
 
   // Gate-page escape hatch: re-run a short-circuited paper as 'partial' so it gets fully graded.
@@ -140,6 +149,9 @@ export function App() {
               <UploadCard
                 mode={mode}
                 setMode={setMode}
+                profile={profile}
+                setProfile={setProfile}
+                rubrics={rubrics}
                 identifier={identifier}
                 setIdentifier={setIdentifier}
                 file={file}
@@ -264,6 +276,9 @@ function Footer({
 interface UploadProps {
   mode: "full" | "local";
   setMode: (m: "full" | "local") => void;
+  profile: string;
+  setProfile: (p: string) => void;
+  rubrics: RubricSummary[];
   identifier: string;
   setIdentifier: (s: string) => void;
   file: File | null;
@@ -342,6 +357,22 @@ function UploadCard(p: UploadProps) {
         onChange={(e) => p.setIdentifier(e.target.value)}
         disabled={!!p.file}
       />
+
+      <div className="rubric-select">
+        <label>
+          Rubric
+          <select value={p.profile} onChange={(e) => p.setProfile(e.target.value)}>
+            {(p.rubrics.length ? p.rubrics : [{ id: p.profile, label: p.profile }]).map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {p.rubrics.find((r) => r.id === p.profile)?.summary && (
+          <p className="rubric-preamble">{p.rubrics.find((r) => r.id === p.profile)?.summary}</p>
+        )}
+      </div>
 
       <div className="controls">
         <ModeToggle mode={p.mode} setMode={p.setMode} />

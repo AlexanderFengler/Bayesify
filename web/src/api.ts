@@ -24,6 +24,19 @@ export interface SubmitInput {
   file?: File | null;
   identifier?: string; // an arXiv ID / DOI / OpenAlex ID / URL
   mode: "full" | "local";
+  profile?: string; // which rubric to grade against (registry id; default synthesis)
+}
+
+// One available rubric, for the pickers (GET /api/rubrics).
+export interface RubricSummary {
+  id: string;
+  label: string;
+  summary: string;
+  rubric_version: string;
+}
+
+export async function fetchRubrics(): Promise<RubricSummary[]> {
+  return fetchJson<RubricSummary[]>("/api/rubrics", undefined, { error: "could not load rubrics" });
 }
 
 // Decide which form field an identifier belongs in (a thin client-side guess; the real resolver is
@@ -39,6 +52,7 @@ function classifyIdentifier(raw: string): Record<string, string> {
 export async function submitPaper(input: SubmitInput): Promise<string> {
   const form = new FormData();
   form.set("mode", input.mode);
+  form.set("profile", input.profile || "synthesis");
   if (input.file) form.set("file", input.file);
   else if (input.identifier) {
     for (const [k, val] of Object.entries(classifyIdentifier(input.identifier))) form.set(k, val);
@@ -107,10 +121,15 @@ export interface RateContext {
 }
 
 // Load the BLIND rating context (rubric + detector evidence only — never the engine's ScoredResult).
-export async function fetchRateContext(paperId: string): Promise<RateContext> {
-  return fetchJson<RateContext>(`/api/rate/context/${paperId}`, undefined, {
-    error: "could not load rating context",
-  });
+export async function fetchRateContext(
+  paperId: string,
+  profile = "synthesis",
+): Promise<RateContext> {
+  return fetchJson<RateContext>(
+    `/api/rate/context/${paperId}?profile=${encodeURIComponent(profile)}`,
+    undefined,
+    { error: "could not load rating context" },
+  );
 }
 
 // The Rating a blind rater builds (mirrors veribayes.core.validation.human_report.Rating).
@@ -141,13 +160,17 @@ export interface RatingInput {
 }
 
 // Record one blind Rating. The server validates it against the contract; a 422 detail is surfaced.
-export async function submitRating(paperId: string, rating: RatingInput): Promise<void> {
+export async function submitRating(
+  paperId: string,
+  rating: RatingInput,
+  profile = "synthesis",
+): Promise<void> {
   await fetchJson(
     "/api/rate/submit",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paper_id: paperId, rating }),
+      body: JSON.stringify({ paper_id: paperId, profile, rating }),
     },
     { detail: true, error: "rating rejected" },
   );
