@@ -16,7 +16,13 @@ from veribayes.core.llm import LLMClient
 from veribayes.core.parse import parse
 from veribayes.core.pipeline import screen_and_classify
 from veribayes.core.rubric.models import RubricSpec
-from veribayes.core.schema import Evidence, ParsedDoc, RelevanceLabel, ScoredResult
+from veribayes.core.schema import (
+    Evidence,
+    PaperClassLabel,
+    ParsedDoc,
+    RelevanceLabel,
+    ScoredResult,
+)
 from veribayes.core.score import ScoreMeta, score
 from veribayes.core.stub import cost_ledger
 
@@ -36,6 +42,15 @@ def grade_parsed(
     if relevance.label is RelevanceLabel.no or paper_class is None:
         return ScoredResult.short_circuit(
             relevance=relevance,
+            engine_version=engine_version,
+            rubric_version=rubric_version,
+            cost_ledger=cost_ledger(costs),
+        )
+    if paper_class.primary is PaperClassLabel.review:  # discusses the workflow, doesn't apply it
+        return ScoredResult.short_circuit(
+            relevance=relevance,
+            reason="not_an_application",
+            paper_class=paper_class,
             engine_version=engine_version,
             rubric_version=rubric_version,
             cost_ledger=cost_ledger(costs),

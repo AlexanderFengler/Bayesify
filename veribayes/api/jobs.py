@@ -108,7 +108,8 @@ class Job:
     identifier: str | None = None  # a pasted arXiv/DOI/OpenAlex/URL to fetch (no uploaded file)
     content_sha256: str | None = None  # set at ingest; lets the rerun escape hatch re-read the blob
     version_label: str | None = None  # e.g. "arXiv v2" / "uploaded PDF"; pins the rated doc version
-    relevance_override: str | None = None  # set by the rerun escape hatch
+    relevance_override: str | None = None  # rerun escape hatch: force a relevance (not-Bayesian)
+    force_grade: bool = False  # rerun escape hatch: grade a review/opinion piece anyway (advisory)
     status: str = "queued"  # queued | running | done | failed
     stage: str | None = None
     result: s.ScoredResult | None = None  # None in local mode (no scores)
@@ -286,6 +287,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
         rubric_version=RUBRIC_VERSION,
         mode="full",
         relevance_override=job.relevance_override,
+        force_grade=job.force_grade,
     )
     if _cache_enabled() and not job.force_fresh:
         cached = _results().get(key)
@@ -324,9 +326,19 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             }
         )
 
+    review = paper_class is not None and paper_class.primary is s.PaperClassLabel.review
     if relevance.label is s.RelevanceLabel.no:
         job.result = s.ScoredResult.short_circuit(
             relevance=relevance,
+            engine_version=ENGINE_VERSION,
+            rubric_version=RUBRIC_VERSION,
+            cost_ledger=cost_ledger(costs),
+        )
+    elif review and not job.force_grade:  # discusses the workflow, doesn't apply it → rubric N/A
+        job.result = s.ScoredResult.short_circuit(
+            relevance=relevance,
+            reason="not_an_application",
+            paper_class=paper_class,
             engine_version=ENGINE_VERSION,
             rubric_version=RUBRIC_VERSION,
             cost_ledger=cost_ledger(costs),

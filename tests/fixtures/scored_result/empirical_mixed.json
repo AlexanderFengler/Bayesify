@@ -301,6 +301,7 @@
       "quality_delta": 0.05555555555555558
     }
   ],
+  "not_applicable_reason": null,
   "engine_version": "pkg=0.1.0;fixture",
   "rubric_version": "0.1-draft",
   "rubric_profile": "synthesis",

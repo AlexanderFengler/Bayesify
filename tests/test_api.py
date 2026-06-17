@@ -337,7 +337,9 @@ def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:
     assert "PDF" in (job.error or "")  # the typed NotAPdfError user_message
 
 
-def _full_fake(relevance: str = "yes", judge_status: str = "done_well"):
+def _full_fake(
+    relevance: str = "yes", judge_status: str = "done_well", paper_class: str = "empirical"
+):
     """A schema-aware fake for the whole full pipeline: Relevance for screen, PaperClass for
     classify, StepJudgment for each assess judge call, RefuterVerdict for refuters. Records the
     schema name of every call so tests can assert what ran."""
@@ -361,7 +363,7 @@ def _full_fake(relevance: str = "yes", judge_status: str = "done_well"):
                 )
             elif schema.__name__ == "PaperClass":
                 p = PaperClass(
-                    primary=PaperClassLabel.empirical,
+                    primary=PaperClassLabel(paper_class),
                     confidence=0.8,
                     rationale="r",
                     evidence_refs=[0],
@@ -452,6 +454,71 @@ def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch
     assert len(r.step_assessments) == 10  # fully graded, not short-circuited
     assert r.coverage is not None and r.quality_score is not None
     assert fake.calls[0] == "Relevance" and "PaperClass" in fake.calls  # screen + forced classify
+
+
+def test_review_paper_short_circuits(tmp_path, monkeypatch) -> None:
+    """A review/opinion piece is Bayesian-relevant but the per-step rubric doesn't apply: classify
+    returns 'review' → short-circuit before assess (reason='not_an_application'), nothing graded."""
+    from veribayes.api import jobs as jobsmod
+    from veribayes.core.schema import PaperClassLabel, RelevanceLabel
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
+    fake = _full_fake(paper_class="review")
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
+
+    job = Job(id="rev1", mode="full", source_label="op.pdf", data=_HDDM_PDF, filename="op.pdf")
+    asyncio.run(run_job(job))
+
+    r = job.result
+    assert job.status == "done" and r is not None
+    assert r.not_applicable_reason == "not_an_application"
+    assert r.relevance.label is RelevanceLabel.yes  # Bayesian-relevant...
+    assert r.paper_class.primary is PaperClassLabel.review and not r.step_assessments  # not graded
+    assert "StepJudgment" not in fake.calls  # assess never ran
+
+
+def test_force_grade_reruns_a_review_paper(tmp_path, monkeypatch) -> None:
+    """The escape hatch sets force_grade → the review piece is graded anyway (advisory)."""
+    from veribayes.api import jobs as jobsmod
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
+    fake = _full_fake(paper_class="review")
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
+
+    job = Job(
+        id="rev2", mode="full", source_label="op.pdf", data=_HDDM_PDF, filename="op.pdf",
+        force_grade=True,
+    )
+    asyncio.run(run_job(job))
+
+    r = job.result
+    assert job.status == "done" and r is not None and r.not_applicable_reason is None
+    assert len(r.step_assessments) == 10 and "StepJudgment" in fake.calls  # graded despite review
+
+
+def test_rerun_endpoint_force_grades_a_review_result(tmp_path, monkeypatch) -> None:
+    """The rerun endpoint picks the mechanism from the prior short-circuit reason: a review result
+    sets force_grade (relevance is already 'yes'), not relevance_override."""
+    from veribayes.core import schema as sm
+
+    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    job = store.create(mode="full", source_label="op.pdf")
+    job.result = sm.ScoredResult.short_circuit(
+        relevance=sm.Relevance(
+            label=sm.RelevanceLabel.yes, confidence=0.9, rationale="x", evidence_refs=[0]
+        ),
+        reason="not_an_application",
+        paper_class=sm.PaperClass(
+            primary=sm.PaperClassLabel.review, confidence=0.8, rationale="x", evidence_refs=[0]
+        ),
+        engine_version="ev",
+        rubric_version="rv",
+    )
+    assert client.post(f"/api/papers/{job.id}/rerun").status_code == 200
+    after = store.get(job.id)
+    assert after.force_grade is True and after.relevance_override is None
 
 
 def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatch) -> None:

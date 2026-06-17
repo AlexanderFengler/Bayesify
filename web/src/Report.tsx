@@ -18,7 +18,7 @@ export function Report({
   // indicator; the engine output is never mutated (A5).
   const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
   const stepNames = useStepNames();
-  if (r.relevance.label === "no") {
+  if (r.relevance.label === "no" || r.not_applicable_reason) {
     return <NotApplicable paper={paper} onReset={onReset} onRerun={onRerun} />;
   }
   return (
@@ -411,12 +411,16 @@ function NotApplicable({
 }) {
   const r = paper.result!;
   const [busy, setBusy] = useState(false);
+  // Two short-circuit reasons share this page: a not-Bayesian paper (the relevance gate) and a
+  // review/opinion piece the per-step rubric doesn't apply to.
+  const isReview = r.not_applicable_reason === "not_an_application";
   return (
     <div className="report">
       <div className="report-head">
         <div>
           <div className="report-eyebrow">
-            Relevance gate <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
+            {isReview ? "Paper type" : "Relevance gate"}{" "}
+            <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
           </div>
           <h1 className="report-title">{paper.source_label}</h1>
         </div>
@@ -426,20 +430,39 @@ function NotApplicable({
       </div>
 
       <div className="card na-card">
-        <div className="na-badge">This doesn&rsquo;t appear to apply</div>
+        <div className="na-badge">
+          {isReview ? "The per-step rubric doesn’t apply here" : "This doesn’t appear to apply"}
+        </div>
         <p className="na-lead">
-          The relevance gate found no Bayesian statistical methodology to assess, so no per-step
-          report was produced &mdash; <strong>nothing was graded</strong>.
+          {isReview ? (
+            <>
+              This reads as a review / opinion / perspective piece <em>about</em> the Bayesian
+              workflow. The per-step rubric grades papers that <strong>apply</strong> a workflow to
+              data, so it doesn&rsquo;t directly apply &mdash; <strong>nothing was graded</strong>.
+            </>
+          ) : (
+            <>
+              The relevance gate found no Bayesian statistical methodology to assess, so no per-step
+              report was produced &mdash; <strong>nothing was graded</strong>.
+            </>
+          )}
         </p>
         <div className="na-why">
           <div className="grounding-label">Why</div>
-          <p>{r.relevance.rationale}</p>
-          <div className="na-conf">gate confidence {Math.round(r.relevance.confidence * 100)}%</div>
+          <p>{(isReview && r.paper_class?.rationale) || r.relevance.rationale}</p>
+          <div className="na-conf">
+            {isReview && r.paper_class
+              ? `classified ${r.paper_class.primary} · ${Math.round(r.paper_class.confidence * 100)}%`
+              : `gate confidence ${Math.round(r.relevance.confidence * 100)}%`}
+          </div>
         </div>
         <div className="na-escape">
           <p className="na-foot">
-            If you believe this is a Bayesian paper, you can override the gate and grade it anyway.
-            The override is recorded; coverage and quality will be marked provisional.
+            {isReview
+              ? "If you want the per-step grade anyway, you can run it as an advisory assessment. " +
+                "It's recorded; coverage and quality will be marked provisional."
+              : "If you believe this is a Bayesian paper, you can override the gate and grade it " +
+                "anyway. The override is recorded; coverage and quality will be marked provisional."}
           </p>
           <button
             className="btn btn-primary"

@@ -75,6 +75,7 @@ export interface ScoredResult {
   step_assessments: StepAssessment[];
   coverage: Coverage | null;
   quality_score: number | null;
+  not_applicable_reason: string | null; // "not_bayesian" | "not_an_application" when not graded
   engine_version: string;
   rubric_version: string;
   rubric_profile: string;

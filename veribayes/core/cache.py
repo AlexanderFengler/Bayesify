@@ -38,6 +38,7 @@ class FullResultKey:
     rubric_version: str
     mode: str  # "full" | "local"
     relevance_override: str | None = None  # G2: a rerun under a forced relevance is a distinct key
+    force_grade: bool = False  # a forced grade of a review/opinion piece is a distinct key
 
     def digest(self) -> str:
         return _key_digest(
@@ -47,6 +48,7 @@ class FullResultKey:
                 self.rubric_version,
                 self.mode,
                 self.relevance_override or "",
+                "force" if self.force_grade else "",
             )
         )
 

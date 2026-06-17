@@ -47,6 +47,10 @@ Choose exactly one primary type:
 - "numerical_experiment": evaluates methods/models on simulated or benchmark data where the ground \
 truth is known or controlled.
 - "methodological": proposes or analyses a new model, prior, algorithm, or diagnostic.
+- "review": a review, opinion, perspective, tutorial, or commentary that DISCUSSES Bayesian/statistical \
+methodology or workflow without carrying out an original analysis of its own that could be graded \
+step by step. Choose this when the contribution is discussion/synthesis rather than an applied or a \
+developed-and-validated model — the per-step workflow rubric does not apply to such a paper.
 
 A secondary type is allowed ONLY when the paper genuinely does both and there is evidence for it \
 (e.g. a methods paper with a real-data application section → primary "methodological", secondary \

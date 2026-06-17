@@ -196,17 +196,23 @@ async def get_rubric(profile: str = "synthesis") -> dict:
 
 @app.post("/api/papers/{paper_id}/rerun")
 async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dict:
-    """Gate-page escape hatch: re-run treating relevance as the override (A5-recorded)."""
+    """Escape hatch: grade a short-circuited paper anyway. A not-Bayesian paper is graded under a
+    forced relevance; a review/opinion piece is force-graded as advisory (the right mechanism is
+    chosen from the prior short-circuit reason, not the caller). A5-recorded."""
     job = store.get(paper_id)
     if job is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
+    is_review = bool(job.result and job.result.not_applicable_reason == "not_an_application")
     # Restore the upload bytes (the worker freed them after the first ingest) so the rerun can
     # actually re-run the pipeline rather than fall back to the stub.
     if job.data is None and job.content_sha256:
         blobs = jobsmod._blobs()
         if blobs.exists(job.content_sha256):
             job.data = blobs.get(job.content_sha256)
-    job.relevance_override = relevance_override
+    if is_review:
+        job.force_grade = True  # relevance is already 'yes'; just grade the rubric as advisory
+    else:
+        job.relevance_override = relevance_override  # not-Bayesian: force a gradeable relevance
     job.status = "queued"
     job.stage = None
     job.result = None
@@ -215,7 +221,11 @@ async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dic
     job.force_fresh = True  # an explicit rerun always bypasses the cache (verify the live path)
     job.events.clear()
     jobsmod._overrides_store().add(
-        Override(paper_id=paper_id, kind="relevance_rerun", value=relevance_override)
+        Override(
+            paper_id=paper_id,
+            kind="relevance_rerun",
+            value="force_grade" if is_review else relevance_override,
+        )
     )
     asyncio.create_task(run_job(job))
     return {"paper_id": job.id, "status": job.status}

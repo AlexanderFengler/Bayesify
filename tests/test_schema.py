@@ -125,10 +125,17 @@ def test_short_circuit_nulls_scores_and_requires_no_label() -> None:
     assert result.step_assessments == []
 
 
-def test_short_circuit_rejects_non_no_label() -> None:
-    with pytest.raises(ValueError):
-        s.ScoredResult.short_circuit(
-            relevance=_relevance(s.RelevanceLabel.partial),
-            engine_version="ev",
-            rubric_version="0.1-draft",
-        )
+def test_short_circuit_carries_its_reason() -> None:
+    # not-Bayesian (default) keeps the 'no' label; a review piece keeps relevance=yes + paper_class.
+    nb = s.ScoredResult.short_circuit(
+        relevance=_relevance(s.RelevanceLabel.no), engine_version="ev", rubric_version="0.1-draft"
+    )
+    assert nb.not_applicable_reason == "not_bayesian" and not nb.step_assessments
+    rev = s.ScoredResult.short_circuit(
+        relevance=_relevance(s.RelevanceLabel.yes),
+        reason="not_an_application",
+        engine_version="ev",
+        rubric_version="0.1-draft",
+    )
+    assert rev.not_applicable_reason == "not_an_application"
+    assert rev.relevance.label is s.RelevanceLabel.yes and not rev.step_assessments

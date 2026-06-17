@@ -61,6 +61,7 @@ class PaperClassLabel(StrEnum):
     empirical = "empirical"
     numerical_experiment = "numerical_experiment"
     methodological = "methodological"
+    review = "review"  # review / opinion / perspective / tutorial — discusses, doesn't apply
 
 
 class StepStatus(StrEnum):
@@ -325,6 +326,10 @@ class ScoredResult(_Base):
     coverage: Coverage | None = None
     quality_score: float | None = None
     score_impacts: list[ScoreImpact] = Field(default_factory=list)
+    # Why the per-step rubric was not run (None when graded): "not_bayesian" (relevance gate said
+    # no) or "not_an_application" (a review/opinion piece — Bayesian-relevant, but the rubric grades
+    # papers that *apply* a workflow to data).
+    not_applicable_reason: str | None = None
     engine_version: str
     rubric_version: str
     rubric_profile: str = "synthesis"  # synthesis | schad2021 | ...
@@ -338,16 +343,19 @@ class ScoredResult(_Base):
         relevance: Relevance,
         engine_version: str,
         rubric_version: str,
+        reason: str = "not_bayesian",
+        paper_class: PaperClass | None = None,
         rubric_profile: str = "synthesis",
         cost_ledger: CostLedger | None = None,
         validation_ref: str = "unvalidated",
     ) -> ScoredResult:
-        """Construct the result for a relevance-``no`` short-circuit: scores null, no assessments.
-        f is never invoked on irrelevant papers; the g job loop persists this directly from d."""
-        if relevance.label is not RelevanceLabel.no:
-            raise ValueError("short_circuit is only for relevance.label == 'no'")
+        """Construct a no-grade result: scores null, no assessments. ``reason`` distinguishes a
+        relevance-``no`` paper ("not_bayesian") from a review/opinion piece the rubric doesn't apply
+        to ("not_an_application", which keeps relevance=yes + the review paper_class)."""
         return cls(
             relevance=relevance,
+            paper_class=paper_class,
+            not_applicable_reason=reason,
             engine_version=engine_version,
             rubric_version=rubric_version,
             rubric_profile=rubric_profile,

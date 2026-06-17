@@ -95,8 +95,14 @@ def test_s8_escalates_to_expected_under_bf_claim() -> None:
 # --- ungated steps: tier follows the class -------------------------------------------------------
 
 
-def test_s1_expected_for_every_class() -> None:
-    for pc in PaperClassLabel:
+def test_s1_expected_for_every_graded_class() -> None:
+    # `review` papers short-circuit (the rubric doesn't apply); a forced grade is advisory, so steps
+    # are not "expected" for it — the per-step rubric is expected only for the graded classes.
+    for pc in (
+        PaperClassLabel.empirical,
+        PaperClassLabel.numerical_experiment,
+        PaperClassLabel.methodological,
+    ):
         assert _ap("S1", pc).tier is ExpectationTier.expected
 
 
