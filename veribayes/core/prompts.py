@@ -93,7 +93,8 @@ Return:
 - refuted = true ONLY if you find real, verbatim evidence the step was done; include the rescuing \
 quote (an exact substring) and the upgraded_status it now deserves ("partial" or "done_well").
 - refuted = false if the step is genuinely absent — do not invent or stretch evidence (no yes-machine).
-Always explain briefly in notes.
+Explain your reasoning in `notes`, kept to AT MOST 2 sentences (~40 words) and ending on a complete \
+sentence — be concise, do not trail off.
 """
 
 # --- registry -------------------------------------------------------------------------------------

@@ -115,6 +115,20 @@ def test_loo_detector_implies_multiple_models() -> None:
     assert loo.n_models >= 2  # comparison detector → multi-model → S6 applicable
 
 
+def test_trim_to_sentence_never_cuts_mid_word() -> None:
+    short = "Step done; see §3."
+    assert A._trim_to_sentence(short) == short  # under the limit → untouched
+
+    # multi-sentence overflow → cut on a sentence boundary, no dangling fragment
+    long = ("The caption shows the SBC histograms. " * 20).strip()
+    out = A._trim_to_sentence(long, limit=120)
+    assert len(out) <= 120 and out.endswith(".") and "…" not in out
+
+    # a run-on with no terminator in-window → word-boundary cut + ellipsis, never mid-word
+    out2 = A._trim_to_sentence("evidence " * 50, limit=50)
+    assert len(out2) <= 51 and out2.endswith("…") and out2.replace("…", "").endswith("evidence")
+
+
 # --- gating: N/A steps cost no LLM call ----------------------------------------------------------
 
 

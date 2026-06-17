@@ -317,10 +317,25 @@ def _to_assessment(
     )
 
 
+def _trim_to_sentence(text: str, limit: int = 400) -> str:
+    """Trim to <= ``limit`` chars WITHOUT cutting mid-word: prefer the last sentence terminator in
+    the window, else the last word boundary (marked with an ellipsis). Replaces a blind character
+    slice that produced dangling fragments — a safety net under the prompt's own brevity request."""
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    window = text[:limit]
+    end = max(window.rfind("."), window.rfind("!"), window.rfind("?"))
+    if end >= limit // 2:  # a sentence ends reasonably far in → cut there, keep the terminator
+        return window[: end + 1]
+    cut = window.rfind(" ")
+    return (window[:cut] if cut > 0 else window) + "…"
+
+
 def _apply_refutation(
     assessment: StepAssessment, verdict: RefuterVerdict, parsed
 ) -> StepAssessment:
-    notes = verdict.notes.strip()[:600]
+    notes = _trim_to_sentence(verdict.notes)
     if not verdict.refuted:
         survived = AdversarialVerdict(challenged=True, refuted=False, notes=notes)
         return assessment.model_copy(update={"adversarial_verdict": survived})
