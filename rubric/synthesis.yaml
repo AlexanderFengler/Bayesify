@@ -14,6 +14,12 @@
 #   profile compiled by filtering steps/thresholds on `citations` provenance (first: `schad2021`).
 
 rubric_version: "0.1-draft"
+label: "Synthesis (merged gold standard)"
+summary: >
+  The default VeriBayes rubric: a merged, provenance-tracked standard drawing on the major
+  Bayesian-workflow sources (Gelman 2020, Schad 2021, BARG, WAMBS, Vehtari R-hat/LOO, Betancourt,
+  and more). Each step is grounded in one or more of those sources, so the report cites the specific
+  standard applied per step. Ten steps spanning model specification through reporting.
 status_values: [done_well, partial, missing, not_applicable]
 scoring_rule: >
   (2026-06-12 decision — no categorical badge.) Primary output = per-step profile.

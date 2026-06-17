@@ -18,6 +18,7 @@ from collections.abc import Iterable
 from veribayes.core import schema as s
 from veribayes.core.detectors import catalog_fingerprint
 from veribayes.core.prompts import prompt_set_fingerprint
+from veribayes.core.rubric import load_rubric
 from veribayes.core.versioning import compute_engine_version
 
 # Fold the real detector catalog and prompt set into the engine version (G1): a detector or prompt
@@ -25,7 +26,7 @@ from veribayes.core.versioning import compute_engine_version
 _ENGINE_VERSION = compute_engine_version(
     detector_catalog=catalog_fingerprint(), prompt_set=prompt_set_fingerprint()
 ).compact
-_RUBRIC_VERSION = "0.1-draft"
+_RUBRIC_VERSION = load_rubric().rubric_version  # the default (synthesis) rubric's version
 
 # Public aliases — the real engine version / rubric version the screened pipeline (M4) stamps onto
 # its results and short-circuits.

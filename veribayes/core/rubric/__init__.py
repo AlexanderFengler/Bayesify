@@ -1,29 +1,25 @@
-"""Rubric loading and compilation.
+"""Rubric loading.
 
-``rubric/steps.yaml`` is the single source of truth (B2). This package loads it into typed models
-(``models.py``) and selects a **rubric profile** (``loader.py``): ``synthesis`` (the whole file, the
-default that we develop into the gold standard) or a source-pure profile such as ``schad2021``,
-compiled by filtering steps/thresholds on their ``citations`` provenance (PR-#1 decision; plans 02
-§2.3).
-
-This is the M1 half of gate **G5**: it pins the YAML *shape* so the loader isn't finalized against
-an undefined schema. The full scoring block (sub-score map, per-class weights, low-confidence
-threshold, mixing rule) is authored before M5 — the models below already reserve a place for it
-(``RubricSpec.scoring``), defaulting to ``None`` until then.
+Each ``rubric/<id>.yaml`` is one self-contained rubric (``synthesis`` is the default; ``gelman`` is
+solely the Gelman 2020 workflow). ``loader.py`` is the registry over that directory:
+``load_rubric(id)`` loads one, ``available_rubrics()`` lists them for the pickers. ``models.py`` has
+the typed shape (``RubricSpec``: steps, the G5 ``scoring`` block, per-step ``citations``, and a
+``label`` + ``summary`` preamble). Adding a rubric = dropping a yaml; nothing is hardcoded.
 """
 
 from veribayes.core.rubric.loader import (
-    DEFAULT_RUBRIC_PATH,
     RubricProfileError,
+    available_rubrics,
     load_rubric,
 )
-from veribayes.core.rubric.models import RubricSpec, RubricStep, ThresholdEntry
+from veribayes.core.rubric.models import RubricInfo, RubricSpec, RubricStep, ThresholdEntry
 
 __all__ = [
-    "DEFAULT_RUBRIC_PATH",
+    "RubricInfo",
     "RubricProfileError",
     "RubricSpec",
     "RubricStep",
     "ThresholdEntry",
+    "available_rubrics",
     "load_rubric",
 ]

@@ -71,11 +71,20 @@ class RubricSpec(_Base):
     status_values: list[str]
     steps: list[RubricStep]
     citations: dict[str, str] = Field(default_factory=dict)
+    # Human-facing identity of this rubric (shown in the picker + as the report preamble).
+    label: str = ""
+    summary: str = ""  # the preamble: what this rubric is and its properties
     # Prose summary (documentation) alongside the structured machine scoring block (G5).
     scoring_rule: str | None = None
     scoring: ScoringBlock | None = None  # the G5 machine scoring block
-    # Which profile produced this spec (set by the loader): "synthesis" or a source id.
+    # Which rubric this spec is (set by the loader from the registry id): "synthesis" | "gelman" | …
     profile: str = "synthesis"
+
+    @property
+    def sources(self) -> list[str]:
+        """Source ids this rubric draws on (its citations table). len == 1 ⇒ single-source, so steps
+        carry no per-step citation and the source lives in the preamble instead."""
+        return sorted(self.citations)
 
     def step(self, step_id: str) -> RubricStep:
         for s in self.steps:
@@ -85,3 +94,12 @@ class RubricSpec(_Base):
 
     def citation(self, source_id: str) -> str:
         return self.citations[source_id]
+
+
+class RubricInfo(_Base):
+    """A registry entry for the rubric pickers (one per available rubric)."""
+
+    id: str
+    label: str
+    summary: str
+    rubric_version: str

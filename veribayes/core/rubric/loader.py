@@ -1,14 +1,11 @@
-"""Load and profile-filter ``rubric/steps.yaml``.
+"""Load a rubric from the registry of self-contained rubric files in ``rubric/``.
 
-``load_rubric(path, profile=...)`` returns a validated :class:`RubricSpec`:
+Each ``rubric/<id>.yaml`` is one complete, self-contained rubric (its own steps, scoring block,
+citations, version, label and preamble ``summary``). The registry is the directory: drop a new
+``rubric/<id>.yaml`` and it is available as ``load_rubric("<id>")`` — no code change. ``synthesis``
+is the default. ``available_rubrics()`` lists them for the pickers.
 
-- ``profile="synthesis"`` (default) — the whole rubric; our merged, provenance-tracked standard.
-- a **source id** present in the rubric's ``citations`` table (e.g. ``"schad2021"``) — a
-  *source-pure* profile: only the steps and thresholds grounded in that source, all else filtered
-  (plans 02 §2.3, PR-#1 point 3). A step survives if it cites the source; within a surviving step,
-  thresholds not attributed to the source are dropped.
-
-A profile that names a source the rubric doesn't know raises :class:`RubricProfileError`.
+An unknown rubric id raises :class:`RubricProfileError`.
 """
 
 from __future__ import annotations
@@ -18,47 +15,47 @@ from typing import Any
 
 import yaml
 
-from veribayes.core.rubric.models import RubricSpec, RubricStep
+from veribayes.core.rubric.models import RubricInfo, RubricSpec
 
-# Repo-root ``rubric/steps.yaml`` (this file lives at veribayes/core/rubric/loader.py).
-DEFAULT_RUBRIC_PATH = Path(__file__).resolve().parents[3] / "rubric" / "steps.yaml"
+# Repo-root ``rubric/`` (this file lives at veribayes/core/rubric/loader.py).
+RUBRIC_DIR = Path(__file__).resolve().parents[3] / "rubric"
 
 SYNTHESIS = "synthesis"
 
 
 class RubricProfileError(ValueError):
-    """Raised when a requested rubric profile names a source not present in the rubric."""
+    """Raised when a requested rubric id is not in the registry."""
 
 
-def load_rubric(
-    path: str | Path | None = None,
-    *,
-    profile: str = SYNTHESIS,
-) -> RubricSpec:
-    raw_path = Path(path) if path is not None else DEFAULT_RUBRIC_PATH
-    data: dict[str, Any] = yaml.safe_load(raw_path.read_text(encoding="utf-8"))
-    spec = RubricSpec.model_validate(data)
-    spec = spec.model_copy(update={"profile": SYNTHESIS})
-    if profile == SYNTHESIS:
-        return spec
-    return _apply_source_profile(spec, profile)
+def _registry() -> dict[str, Path]:
+    """Map rubric id (file stem) -> path for every ``rubric/<id>.yaml``."""
+    return {p.stem: p for p in sorted(RUBRIC_DIR.glob("*.yaml"))}
 
 
-def _apply_source_profile(spec: RubricSpec, source_id: str) -> RubricSpec:
-    if source_id not in spec.citations:
+def load_rubric(profile: str = SYNTHESIS) -> RubricSpec:
+    """Load the rubric registered under ``profile`` (its file stem). Unknown id -> error."""
+    registry = _registry()
+    path = registry.get(profile)
+    if path is None:
         raise RubricProfileError(
-            f"unknown rubric profile {source_id!r}; known source ids: {sorted(spec.citations)}"
+            f"unknown rubric {profile!r}; available: {sorted(registry)}"
         )
-    filtered_steps: list[RubricStep] = []
-    for step in spec.steps:
-        if source_id not in step.citations:
-            continue  # this step is not grounded in the named source -> excluded from the profile
-        kept_thresholds = {name: t for name, t in step.thresholds.items() if t.source == source_id}
-        filtered_steps.append(step.model_copy(update={"thresholds": kept_thresholds}))
-    return spec.model_copy(
-        update={
-            "steps": filtered_steps,
-            "citations": {source_id: spec.citations[source_id]},
-            "profile": source_id,
-        }
-    )
+    data: dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8"))
+    spec = RubricSpec.model_validate(data)
+    return spec.model_copy(update={"profile": profile})
+
+
+def available_rubrics() -> list[RubricInfo]:
+    """Every registered rubric (for the pickers), synthesis first then the rest alphabetically."""
+    infos = [
+        RubricInfo(
+            id=rid,
+            label=spec.label or rid,
+            summary=spec.summary,
+            rubric_version=spec.rubric_version,
+        )
+        for rid in sorted(_registry())
+        for spec in (load_rubric(rid),)
+    ]
+    infos.sort(key=lambda r: (r.id != SYNTHESIS, r.id))
+    return infos
