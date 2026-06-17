@@ -28,6 +28,7 @@ class SubmittedRating(_Base):
     source_sha256: str = ""
     version_label: str = ""
     rubric_version: str = ""
+    rubric_profile: str = "synthesis"  # which rubric the rater rated against (registry id)
     rating: Rating
 
 

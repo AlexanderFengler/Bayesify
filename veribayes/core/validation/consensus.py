@@ -178,10 +178,12 @@ def assemble_human_report(
     tier: GoldTier,
     ratings: Sequence[Rating],
     origin: GoldOrigin,
+    rubric_profile: str = "synthesis",
     ids: PaperIds | None = None,
 ) -> HumanReport | None:
-    """Group one paper's blind ratings into a gold record with an auto-derived consensus. Returns
-    None when there is no paper-level consensus (the caller logs it as excluded-and-counted)."""
+    """Group one paper's blind ratings into a gold record with an auto-derived consensus. A gold
+    record is single-rubric: ``rubric_profile`` is the rubric all these ratings used. Returns None
+    when there is no paper-level consensus (the caller logs it as excluded-and-counted)."""
     result = consensus_from_ratings(ratings)
     if result.consensus is None:
         return None
@@ -191,6 +193,7 @@ def assemble_human_report(
         source_sha256=source_sha256,
         version_label=version_label,
         rubric_version=rubric_version,
+        rubric_profile=rubric_profile,
         tier=tier,
         provenance=GoldProvenance(origin=origin),
         ratings=list(ratings),

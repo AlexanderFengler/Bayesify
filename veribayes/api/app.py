@@ -332,6 +332,7 @@ async def rate_context(paper_id: str, profile: str = "synthesis") -> dict:
 class RateSubmit(BaseModel):
     model_config = ConfigDict(extra="forbid")
     paper_id: str
+    profile: str = "synthesis"  # which rubric the rater rated against (registry id)
     rating: Rating  # validated by its own contract (relevance/class/gate + per-step grounding)
 
 
@@ -343,11 +344,16 @@ async def rate_submit(body: RateSubmit) -> dict:
     job = store.get(body.paper_id)
     if job is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
+    try:
+        rubric = load_rubric(profile=body.profile)  # the rubric the rater rated against
+    except RubricProfileError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     sub = SubmittedRating(
         paper_id=body.paper_id,
         source_sha256=job.content_sha256 or "",
         version_label=job.version_label or "",
-        rubric_version=jobsmod._RUBRIC.rubric_version,
+        rubric_version=rubric.rubric_version,
+        rubric_profile=body.profile,
         rating=body.rating,
     )
     rstore = jobsmod._ratings_store()

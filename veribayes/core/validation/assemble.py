@@ -40,11 +40,17 @@ def assemble(
     skipped: list[str] = []
     for paper_id, subs in store.by_paper().items():
         first = subs[0]
+        # A gold record is single-rubric: ratings under different rubrics can't form one consensus,
+        # so skip-and-report a paper whose ratings mix rubrics (re-run per rubric to recover them).
+        if len({s.rubric_profile for s in subs}) > 1:
+            skipped.append(paper_id)
+            continue
         report = assemble_human_report(
             work_id=paper_id,
             source_sha256=first.source_sha256,
             version_label=first.version_label,
             rubric_version=first.rubric_version,
+            rubric_profile=first.rubric_profile,
             tier=tier,
             ratings=[s.rating for s in subs],
             origin=origin,
