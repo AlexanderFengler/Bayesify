@@ -219,6 +219,15 @@ main.container {
   justify-content: space-between;
   margin-top: 22px;
 }
+.start-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.rate-cta:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
 .mode {
   display: inline-flex;
   background: var(--gray-soft);
@@ -599,6 +608,15 @@ main.container {
   font-weight: 600;
   margin-bottom: 6px;
 }
+/* "In the paper" is a collapsed <details>; the label is the clickable summary. */
+.grounding > summary {
+  cursor: pointer;
+  width: fit-content;
+  user-select: none;
+}
+.grounding:not([open]) > summary {
+  margin-bottom: 0;
+}
 .evidence {
   margin: 0 0 6px;
   padding: 8px 12px;
@@ -754,6 +772,19 @@ main.container {
 }
 
 /* --- D2 priority fix-list --- */
+.report-summary {
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.summary-recap {
+  font-size: 14px;
+  color: var(--ink);
+  margin: 6px 0 16px;
+}
+.report-summary .fixes {
+  margin-bottom: 0;
+}
 .fixes {
   margin: 0 0 22px;
 }

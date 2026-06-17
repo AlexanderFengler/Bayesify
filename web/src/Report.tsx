@@ -47,7 +47,6 @@ export function Report({
 
       <SummaryBand r={r} />
       <RelevanceLine r={r} />
-      <PriorityFixes fixes={paper.fix_list} />
 
       <div className="steps">
         {r.step_assessments.map((a) => (
@@ -64,6 +63,7 @@ export function Report({
         ))}
       </div>
 
+      <SummarySection r={r} fixes={paper.fix_list} />
       <ProvenanceFooter r={r} />
     </div>
   );
@@ -127,6 +127,49 @@ function PriorityFixes({ fixes }: { fixes: FixItem[] | null }) {
   );
 }
 
+// End-of-report recap: a one-line takeaway built from the same data, then the prioritized fixes
+// (moved here from the top — the fixes are the closing "what to do", not the opening).
+function SummarySection({ r, fixes }: { r: ScoredResult; fixes: FixItem[] | null }) {
+  const cov = r.coverage;
+  const needsAttention = r.step_assessments.filter(
+    (a) => a.status === "missing" || a.status === "partial",
+  ).length;
+  const quality = r.quality_score;
+  return (
+    <div className="report-summary">
+      <div className="grounding-label">Summary</div>
+      <p className="summary-recap">
+        {cov ? (
+          <>
+            <strong>
+              {cov.present} of {cov.applicable}
+            </strong>{" "}
+            applicable steps present
+            {quality != null && (
+              <>
+                {" · quality "}
+                <strong>{quality.toFixed(2)}</strong>
+              </>
+            )}
+            {needsAttention > 0 ? (
+              <>
+                {" · "}
+                <strong>{needsAttention}</strong> step{needsAttention === 1 ? "" : "s"} to improve
+              </>
+            ) : (
+              " · nothing flagged"
+            )}
+            .
+          </>
+        ) : (
+          "No applicable steps to summarize."
+        )}
+      </p>
+      <PriorityFixes fixes={fixes} />
+    </div>
+  );
+}
+
 // The model's own relevance verdict + rationale — for a live run this reflects THIS paper; the stub
 // always shows its fixed HDDM sentence, so this is how you see the screen stage actually ran.
 function RelevanceLine({ r }: { r: ScoredResult }) {
@@ -155,6 +198,8 @@ function SummaryBand({ r }: { r: ScoredResult }) {
     rangeNote = lo === hi ? null : "range reflects low-confidence absences";
   }
   const quality = r.quality_score;
+  const total = r.step_assessments.length;
+  const naCount = cov ? total - cov.applicable : 0;
   return (
     <div className="summary">
       <div className="metric metric-primary">
@@ -163,6 +208,11 @@ function SummaryBand({ r }: { r: ScoredResult }) {
           {cov && <span className="metric-denom">/ {cov.applicable}</span>}
         </div>
         <div className="metric-label">applicable steps present</div>
+        {cov && naCount > 0 && (
+          <div className="metric-note">
+            {naCount} of {total} steps not applicable (excluded from the denominator)
+          </div>
+        )}
         {rangeNote && <div className="metric-note">{rangeNote}</div>}
       </div>
       <div className="metric">

@@ -57,7 +57,8 @@ export function App() {
   };
 
   // Stream one paper_id to completion and load the final result. Shared by a fresh run and a rerun.
-  const track = useCallback((paperId: string) => {
+  // `rateOnDone` opens the blind rating form once the paper is ingested (the rate-from-landing flow).
+  const track = useCallback((paperId: string, opts?: { rateOnDone?: boolean }) => {
     setPhase("running");
     setStageState({});
     setError(null);
@@ -70,26 +71,42 @@ export function App() {
       },
       async () => {
         const result = await getPaper(paperId);
+        if (result.status === "failed") {
+          setPaper(result);
+          setError(result.error ?? "assessment failed");
+          setPhase("error");
+          return;
+        }
+        if (opts?.rateOnDone) {
+          setRatingPaperId(paperId); // the paper is ingested → open the blind form directly
+          setPhase("idle");
+          return;
+        }
         setPaper(result);
-        setPhase(result.status === "failed" ? "error" : "done");
-        if (result.status === "failed") setError(result.error ?? "assessment failed");
+        setPhase("done");
       },
     );
   }, []);
 
-  const start = useCallback(async () => {
-    if (!file && !identifier.trim()) return;
-    setPhase("running");
-    setStageState({});
-    setError(null);
-    try {
-      const paperId = await submitPaper({ file, identifier, mode });
-      track(paperId);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      setPhase("error");
-    }
-  }, [file, identifier, mode, track]);
+  // `intent="rate"` runs the on-device front half (detect only, no LLM) and then opens the blind
+  // rating form — so a rater can self-rate straight from the landing page, not only after Analyze.
+  const start = useCallback(
+    async (intent: "analyze" | "rate" = "analyze") => {
+      if (!file && !identifier.trim()) return;
+      const runMode = intent === "rate" ? "local" : mode;
+      setPhase("running");
+      setStageState({});
+      setError(null);
+      try {
+        const paperId = await submitPaper({ file, identifier, mode: runMode });
+        track(paperId, { rateOnDone: intent === "rate" });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+        setPhase("error");
+      }
+    },
+    [file, identifier, mode, track],
+  );
 
   // Gate-page escape hatch: re-run a short-circuited paper as 'partial' so it gets fully graded.
   const rerunPaper = useCallback(
@@ -235,7 +252,7 @@ interface UploadProps {
   dragging: boolean;
   setDragging: (b: boolean) => void;
   fileInput: React.RefObject<HTMLInputElement>;
-  onStart: () => void;
+  onStart: (intent?: "analyze" | "rate") => void;
 }
 
 function UploadCard(p: UploadProps) {
@@ -309,9 +326,19 @@ function UploadCard(p: UploadProps) {
 
       <div className="controls">
         <ModeToggle mode={p.mode} setMode={p.setMode} />
-        <button className="btn btn-primary" disabled={!canStart} onClick={p.onStart}>
-          Analyze
-        </button>
+        <div className="start-actions">
+          <button
+            className="link-btn rate-cta"
+            disabled={!canStart}
+            title="Rate this paper yourself against the rubric, blind to the engine's verdict"
+            onClick={() => p.onStart("rate")}
+          >
+            Rate it yourself (blind)
+          </button>
+          <button className="btn btn-primary" disabled={!canStart} onClick={() => p.onStart("analyze")}>
+            Analyze
+          </button>
+        </div>
       </div>
     </div>
   );

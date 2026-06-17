@@ -38,7 +38,8 @@ export function StepCardShell({
   );
 }
 
-// The "In the paper" evidence panel over verbatim spans. Renders nothing when empty.
+// The "In the paper" evidence panel over verbatim spans — collapsed by default (it's supporting
+// detail, not the headline). Renders nothing when empty.
 export function EvidenceBlock({
   spans,
   label = "In the paper",
@@ -48,8 +49,10 @@ export function EvidenceBlock({
 }) {
   if (spans.length === 0) return null;
   return (
-    <div className="grounding">
-      <div className="grounding-label">{label}</div>
+    <details className="grounding">
+      <summary className="grounding-label">
+        {label} ({spans.length})
+      </summary>
       {spans.map((s, i) => (
         <blockquote key={i} className="evidence">
           &ldquo;{s.quote}&rdquo;
@@ -59,6 +62,6 @@ export function EvidenceBlock({
           </cite>
         </blockquote>
       ))}
-    </div>
+    </details>
   );
 }
