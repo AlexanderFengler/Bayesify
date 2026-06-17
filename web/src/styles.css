@@ -68,7 +68,8 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 56px;
+  min-height: 56px;
+  padding: 8px 0;
 }
 .brand {
   display: flex;
@@ -84,6 +85,14 @@ body {
 .brand-tag {
   color: var(--ink-faint);
   font-size: 13px;
+  line-height: 1.3;
+}
+/* The value-prop tagline needs room; show it only once the container is at full width (where it
+   fits on one line beside the logo + mode pill), hide it on narrower screens. */
+@media (max-width: 880px) {
+  .brand-tag {
+    display: none;
+  }
 }
 .mode-indicator {
   margin-left: auto;

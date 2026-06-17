@@ -196,7 +196,7 @@ function Header({ mode }: { mode: "full" | "local" }) {
         <div className="brand">
           <img className="brand-logo" src="/logo.png" alt="VeriBayes" />
         </div>
-        <span className="brand-tag">Bayesian-workflow report</span>
+        <span className="brand-tag">Measure your Bayesian Workflow against the gold standard</span>
         <ModeIndicator mode={mode} />
       </div>
     </header>
