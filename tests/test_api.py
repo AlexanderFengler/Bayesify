@@ -490,8 +490,8 @@ def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch
 
 
 def test_grading_under_gelman_uses_the_gelman_rubric(tmp_path, monkeypatch) -> None:
-    """Choosing the Gelman rubric grades against ITS stages (G1..G10), not synthesis (S1..S10), and
-    stamps the result + cache key with that profile (separate cache entry from synthesis)."""
+    """Choosing the Gelman rubric grades against ITS ten steps (S1..S10, but the Gelman version +
+    names, not synthesis), and stamps the result + cache key with that profile (separate entry)."""
     from veribayes.api import jobs as jobsmod
 
     monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
@@ -507,12 +507,12 @@ def test_grading_under_gelman_uses_the_gelman_rubric(tmp_path, monkeypatch) -> N
     r = job.result
     assert job.status == "done" and r is not None
     assert r.rubric_profile == "gelman" and r.rubric_version == "0.1-gelman"
-    assert [a.step_id for a in r.step_assessments] == [f"G{i}" for i in range(1, 11)]
+    assert [a.step_id for a in r.step_assessments] == [f"S{i}" for i in range(1, 11)]
 
 
 def test_grading_under_schad_uses_the_schad_rubric(tmp_path, monkeypatch) -> None:
-    """A third rubric needed no new code — choosing 'schad' grades against its SC1..SC7 stages and
-    stamps the result with that profile (the registry abstraction carries it)."""
+    """A third rubric needed no new code — choosing 'schad' grades against its seven steps (S1..S7,
+    Schad version + names) and stamps the result with that profile (the registry carries it)."""
     from veribayes.api import jobs as jobsmod
 
     monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
@@ -528,7 +528,7 @@ def test_grading_under_schad_uses_the_schad_rubric(tmp_path, monkeypatch) -> Non
     r = job.result
     assert job.status == "done" and r is not None
     assert r.rubric_profile == "schad" and r.rubric_version == "0.1-schad"
-    assert [a.step_id for a in r.step_assessments] == [f"SC{i}" for i in range(1, 8)]
+    assert [a.step_id for a in r.step_assessments] == [f"S{i}" for i in range(1, 8)]
 
 
 def test_review_paper_short_circuits(tmp_path, monkeypatch) -> None:

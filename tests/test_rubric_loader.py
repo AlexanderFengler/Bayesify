@@ -42,7 +42,9 @@ def test_registry_lists_synthesis_first_and_includes_gelman_and_schad() -> None:
 def test_gelman_is_a_self_contained_single_source_rubric() -> None:
     g = load_rubric("gelman")
     assert g.profile == "gelman" and g.rubric_version == "0.1-gelman"
-    assert [s.id for s in g.steps] == [f"G{i}" for i in range(1, 11)]  # its own stages, not S1..S10
+    # Step ids are S1..S10 (S = Step, shared across rubrics); Gelman's names/version distinguish it.
+    assert [s.id for s in g.steps] == [f"S{i}" for i in range(1, 11)]
+    assert g.steps[0].name == "Model building & justification"  # Gelman's stage, not synthesis's
     assert g.sources == ["gelman2020"]  # single source...
     assert all(not s.citations for s in g.steps)  # ...so no per-step "Standard applied"
     assert g.label and g.summary  # carries a preamble
@@ -51,10 +53,18 @@ def test_gelman_is_a_self_contained_single_source_rubric() -> None:
 def test_schad_is_a_self_contained_single_source_rubric() -> None:
     s = load_rubric("schad")
     assert s.profile == "schad" and s.rubric_version == "0.1-schad"
-    assert [st.id for st in s.steps] == [f"SC{i}" for i in range(1, 8)]  # its own SC1..SC7 stages
+    assert [st.id for st in s.steps] == [f"S{i}" for i in range(1, 8)]  # S1..S7 (S = Step)
+    assert s.steps[1].name == "Prior predictive checks"  # Schad's own stage
     assert s.sources == ["schad2021"]  # single source...
     assert all(not st.citations for st in s.steps)  # ...so no per-step "Standard applied"
     assert s.label and s.summary  # carries a preamble
+
+
+def test_every_step_explains_why_it_matters() -> None:
+    # #3: each step carries a one-line "why this matters" shown atop the report card.
+    for profile in ("synthesis", "gelman", "schad"):
+        spec = load_rubric(profile)
+        assert all(s.why for s in spec.steps), f"{profile}: a step is missing its `why`"
 
 
 def test_unknown_rubric_raises() -> None:

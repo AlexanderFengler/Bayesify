@@ -181,6 +181,7 @@ def _rubric_payload(profile: str) -> dict:
             {
                 "id": s.id,
                 "name": s.name,
+                "why": s.why,
                 "essential_for": s.essential_for,
                 "recommended_for": s.recommended_for,
                 "done_well": s.done_well,

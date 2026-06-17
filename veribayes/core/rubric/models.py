@@ -59,6 +59,7 @@ class RubricStep(_Base):
     gate: GateRule | None = None  # machine-evaluable applicability gate (G5/G6)
     requires: list[str] = Field(default_factory=list)  # e.g. S6 -> [S8]
     inference_scope: list[str] = Field(default_factory=list)  # e.g. [mcmc, hmc_nuts, variational]
+    why: str | None = None  # one line: why this step matters for the workflow (shown atop the card)
     done_well: str | None = None
     done_poorly: str | None = None
     note: str | None = None

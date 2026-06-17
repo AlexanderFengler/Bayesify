@@ -45,6 +45,7 @@ steps:
   - id: S1
     name: Model specification & justification
     essential_for: [empirical, numerical_experiment, methodological]
+    why: "The generative model is the foundation every later check is run against — an unstated or unjustified model makes every downstream diagnostic uninterpretable."
     done_well: "Explicit generative/likelihood model; assumptions stated; structure justified by question/data."
     done_poorly: "Model appears with no rationale; key assumptions unstated."
     citations: [gelman2020, schad2021]
@@ -55,6 +56,7 @@ steps:
     # v0: S2 is always applicable (no na_when) — priors are always expected to be reported, so the
     # engine and a blind rater gate it identically. The immaterial-priors nuance is a `note`, not an
     # N/A path; depth of justification may be relaxed there, but reporting is still required.
+    why: "Priors are part of the model and shape the posterior; leaving them unstated hides assumptions and makes the analysis impossible to reproduce or critique."
     note: "When the likelihood fully dominates and priors are immaterial, the depth of justification may be relaxed — but the priors must still be reported (silence remains a defect)."
     done_well: "Every prior listed and justified (weakly-informative vs informative, and why); informative priors sourced."
     done_poorly: "'Default priors' with no statement of what they are; priors absent; unexamined flat priors."
@@ -64,6 +66,7 @@ steps:
     name: Prior predictive / prior pushforward checks
     essential_for: [methodological]
     recommended_for: [empirical, numerical_experiment]
+    why: "Simulating from the prior before seeing data catches implausible assumptions while they are still cheap to fix, and before the data can bias the prior choice."
     done_well: "Simulations from prior(+likelihood) shown/described BEFORE data; implausible implications caught & priors revised."
     done_poorly: "No prior predictive reasoning; priors never sanity-checked; priors set from the data (uses data twice)."
     citations: [gabry2019, betancourt_workflow, schad2021]
@@ -75,6 +78,7 @@ steps:
     gate:
       na_when_inference: [exact_analytic]   # no sampler to diagnose → not_applicable (G6)
     inference_scope: [mcmc, hmc_nuts, variational]
+    why: "Convergence diagnostics tell you whether the sampler actually approximated the posterior; without them, every number reported could be an artifact of a broken fit."
     done_well: "Reports R-hat AND ESS for every parameter (BARG); divergences=0; warmup/iters/chains stated; treedepth/E-FMI/MCSE as relevant."
     done_poorly: "No convergence diagnostics; single chain; ignored divergences; only one of R-hat/ESS."
     thresholds:
@@ -93,6 +97,7 @@ steps:
     name: Posterior predictive (retrodictive) checks
     essential_for: [empirical]
     recommended_for: [numerical_experiment, methodological]
+    why: "Comparing the fitted model's predictions back to the observed data is the main test of whether the model is actually adequate for the question."
     done_well: "PPCs shown (graphical overlays and/or test quantities); discrepancies discussed and acted on."
     done_poorly: "No PPC; fit asserted without checking; obvious misfit ignored."
     note: "PPC discrepancies are signals to investigate, NOT auto-diagnoses of a specific defect."
@@ -106,6 +111,7 @@ steps:
       na_when_single_model_no_bf: true
       essential_when_models_gte: 2
       essential_when_bf_claimed: true
+    why: "When more than one model is in play, an honest comparison carrying uncertainty prevents cherry-picking the specification that merely happened to look best."
     done_well: "PSIS-LOO/WAIC with SE and Pareto-k reported, interpreted with uncertainty. For BF: robust BF sub-workflow (verify priors, bridge-sample >=2x, SBC-check BF accuracy)."
     done_poorly: "Model chosen with no comparison / inappropriate criterion; high Pareto-k ignored; BF reported without prior justification, stability, or SBC."
     thresholds:
@@ -119,6 +125,7 @@ steps:
     essential_for: [methodological, numerical_experiment]
     recommended_for: [empirical]
     na_when: "Routine fit with reliable self-diagnostics (S4) on a simple/standard model — may be done once per research program."
+    why: "Calibration / recovery studies show the inference machinery itself is trustworthy on this model — essential for a new method, before any real-data claim is believed."
     done_well: "SBC (rank-uniformity) or parameter-recovery study reported; for BF, SBC of BF estimates."
     done_poorly: "New method/model with no recovery or calibration evidence."
     citations: [talts2018, modrak2023, schad2022_bf]
@@ -132,6 +139,7 @@ steps:
     gate:               # G6: informative priors or a BF claim escalate S8 to expected (any class)
       essential_when_prior_informative: true
       essential_when_bf_claimed: true
+    why: "Checking whether conclusions survive reasonable changes to the priors/specification distinguishes a robust finding from an artifact of one arbitrary choice."
     done_well: "Alternative priors/specifications tried; robustness (or lack of) reported regardless of outcome."
     done_poorly: "Single specification; no sensitivity check despite influential priors/BF."
     citations: [wambs2017, vandeschoot2021, gelman2020, schad2022_bf]
@@ -139,6 +147,7 @@ steps:
   - id: S9
     name: Reporting & reproducibility
     essential_for: [empirical, numerical_experiment, methodological]
+    why: "A Bayesian result is only usable if others can see and rerun the model, priors, settings, and data — opacity makes the analysis impossible to verify or build on."
     done_well: "Model, priors, software+version, sampler settings (chains/iters/warmup/seed), diagnostics, data/code availability all reported (BARG 6 steps)."
     done_poorly: "Opaque 'we fit a Bayesian model'; missing settings; point estimates with no uncertainty; no data/code."
     citations: [barg2021, wambs2017]
@@ -146,6 +155,7 @@ steps:
   - id: S10
     name: Posterior summary & inference communication
     essential_for: [empirical, numerical_experiment, methodological]
+    why: "How the posterior is summarized and claimed is where the analysis meets the science — dropping uncertainty or over-claiming undoes the careful work upstream."
     done_well: "Point + interval (CrI/HDI, defined) with uncertainty; claims tied to posterior quantities; no over-claiming."
     done_poorly: "Point estimates only; significance-style misreadings; intervals undefined."
     citations: [barg2021, vandeschoot2021]

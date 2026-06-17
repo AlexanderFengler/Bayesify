@@ -16,6 +16,7 @@ export const STATUS_LABEL: Record<StepStatus, string> = {
 export interface RubricStepInfo {
   id: string;
   name: string;
+  why: string | null; // one line: why this step matters for the workflow
   essential_for: string[];
   recommended_for: string[];
   done_well: string | null;

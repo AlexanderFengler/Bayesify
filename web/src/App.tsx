@@ -6,6 +6,8 @@ import { Inventory } from "./Inventory";
 import { PrivacyModal } from "./Modal";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
+import { RubricAbout } from "./RubricAbout";
+import { useRubric } from "./rubric";
 import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
 
 type Phase = "idle" | "running" | "done" | "error";
@@ -291,6 +293,7 @@ interface UploadProps {
 
 function UploadCard(p: UploadProps) {
   const canStart = !!p.file || p.identifier.trim().length > 0;
+  const rubric = useRubric(p.profile); // full rubric (with step names) for the explanation below
   return (
     <div className="card upload">
       <h1 className="lead">How well does this paper follow the Bayesian workflow?</h1>
@@ -369,9 +372,7 @@ function UploadCard(p: UploadProps) {
             ))}
           </select>
         </label>
-        {p.rubrics.find((r) => r.id === p.profile)?.summary && (
-          <p className="rubric-preamble">{p.rubrics.find((r) => r.id === p.profile)?.summary}</p>
-        )}
+        {rubric && <RubricAbout rubric={rubric} />}
       </div>
 
       <div className="controls">

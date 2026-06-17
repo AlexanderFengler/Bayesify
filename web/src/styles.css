@@ -256,7 +256,49 @@ main.container {
   font-size: 12.5px;
   color: var(--ink-soft);
   line-height: 1.55;
-  margin: 8px 0 14px;
+  margin: 8px 0 10px;
+}
+/* The report's rubric block gets a small-caps header (matching "Steps at a glance"). */
+.rubric-about {
+  margin-bottom: 14px;
+}
+.rubric-about .grounding-label {
+  margin-bottom: 6px;
+}
+/* Explicit step-name list under the rubric explanation, so the bare S1/S2 codes in the
+   at-a-glance strip have real names attached. */
+.rubric-steplist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 18px;
+}
+.rubric-steplist li {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+.rubric-steplist-id {
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+}
+@media (max-width: 560px) {
+  .rubric-steplist {
+    grid-template-columns: 1fr;
+  }
+}
+/* Why this step matters — a one-line intro at the top of each report section. */
+.step-why {
+  margin: 11px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.5;
 }
 .rate-cta:disabled {
   opacity: 0.5;

@@ -1,8 +1,14 @@
 import { useState } from "react";
 import { recordOverride } from "./api";
+import { RubricAbout } from "./RubricAbout";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import { EvidenceBlock, StepCardShell } from "./StepCard";
 import type { FixItem, PaperState, ScoredResult, StepAssessment, StepStatus } from "./types";
+
+// "error"-severity findings are shown as "omission" (a missing/incomplete workflow step) — it names
+// what's wrong without reading as an accusation of a mistake. Class stays `sev-error` for colour.
+const SEV_LABEL: Record<string, string> = { error: "omission", warning: "warning", info: "info" };
+const sevLabel = (sev: string): string => SEV_LABEL[sev] ?? sev;
 
 export function Report({
   paper,
@@ -19,6 +25,9 @@ export function Report({
   const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
   const rubric = useRubric(r.rubric_profile); // the rubric this paper was graded against
   const stepNames = useStepNames(r.rubric_profile);
+  const stepWhy: Record<string, string> = Object.fromEntries(
+    (rubric?.steps ?? []).flatMap((s) => (s.why ? [[s.id, s.why]] : [])),
+  );
   if (r.relevance.label === "no" || r.not_applicable_reason) {
     return <NotApplicable paper={paper} onReset={onReset} onRerun={onRerun} />;
   }
@@ -46,11 +55,7 @@ export function Report({
         </div>
       )}
 
-      {rubric && (
-        <p className="rubric-preamble">
-          <strong>{rubric.label}.</strong> {rubric.summary}
-        </p>
-      )}
+      {rubric && <RubricAbout rubric={rubric} showHeader />}
       <SummaryBand r={r} />
       <StepStrip steps={r.step_assessments} stepNames={stepNames} />
       <RelevanceLine r={r} />
@@ -62,6 +67,7 @@ export function Report({
             key={a.step_id}
             a={a}
             stepName={stepNames[a.step_id] ?? a.step_id}
+            why={stepWhy[a.step_id]}
             overridden={overrides[a.step_id]}
             onOverride={async (status, rationale) => {
               await recordOverride(
@@ -123,7 +129,7 @@ function PriorityFixes({ fixes }: { fixes: FixItem[] | null }) {
       {fixes.map((f, i) => (
         <div key={i} className={"fix sev-" + f.severity}>
           <div className="fix-head">
-            <span className={"sev-tag sev-" + f.severity}>{f.severity}</span>
+            <span className={"sev-tag sev-" + f.severity}>{sevLabel(f.severity)}</span>
             <span className="fix-step">{f.step_id}</span>
             <span className="fix-text">{f.text}</span>
             <span className="ease" title="estimated effort">
@@ -331,11 +337,13 @@ function Chip({ k, v }: { k: string; v: string }) {
 function StepCard({
   a,
   stepName,
+  why,
   overridden,
   onOverride,
 }: {
   a: StepAssessment;
   stepName: string;
+  why?: string;
   overridden?: StepStatus;
   onOverride: (status: StepStatus, rationale: string) => Promise<void>;
 }) {
@@ -349,6 +357,7 @@ function StepCard({
       pill={<span className={"status-pill status-" + a.status}>{STATUS_LABEL[a.status]}</span>}
       headerRight={na ? undefined : <Confidence value={a.confidence} />}
     >
+      {why && <p className="step-why">{why}</p>}
       {na ? (
         <p className="na-reason">{a.applicability_reason}</p>
       ) : (
@@ -367,7 +376,7 @@ function StepCard({
           {a.suggestions.map((sug, i) => (
             <div key={i} className={"suggestion sev-" + sug.severity}>
               <div className="suggestion-head">
-                <span className={"sev-tag sev-" + sug.severity}>{sug.severity}</span>
+                <span className={"sev-tag sev-" + sug.severity}>{sevLabel(sug.severity)}</span>
                 <span className="suggestion-text">{sug.text}</span>
                 <span className="ease" title="estimated effort to fix">
                   {sug.ease} effort
