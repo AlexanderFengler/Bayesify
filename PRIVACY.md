@@ -4,7 +4,7 @@
 path must be stated plainly. This document is the source of truth; the in-app privacy surface
 (first-run disclosure, mode indicator, per-paper delete) is completed at milestone M6.*
 
-VeriBayes is **local-first**: it runs on your machine, and all storage — the SQLite database, parsed
+Bayesify is **local-first**: it runs on your machine, and all storage — the SQLite database, parsed
 artifacts, cached results, and exported reports — stays on your machine. There is **no telemetry** and
 no account.
 
@@ -14,7 +14,7 @@ There are two analysis modes, chosen per paper:
 
 ### Full mode
 
-To make per-step judgments, VeriBayes sends **extracted text from your document** (and, later, figure
+To make per-step judgments, Bayesify sends **extracted text from your document** (and, later, figure
 captions) to the Anthropic API. Nothing else leaves the machine — not the PDF file itself, not your
 identity, not the results. This is the only outbound data flow in full mode.
 
@@ -33,7 +33,7 @@ in this mode, because scoring requires the model's judgment.
 
 ## Identifiers (arXiv / DOI / OpenAlex / URL)
 
-When you submit an identifier instead of a file, VeriBayes contacts the corresponding open-access
+When you submit an identifier instead of a file, Bayesify contacts the corresponding open-access
 provider (arXiv, OpenAlex, Unpaywall, Crossref) to fetch the paper. That request necessarily reveals
 which paper you are looking up to that provider. (Identifier fetching arrives at milestone M2; at M1
 the identifier is accepted but not yet resolved.)

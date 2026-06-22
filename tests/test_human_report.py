@@ -12,15 +12,15 @@ import pathlib
 import pytest
 from pydantic import ValidationError
 
-from veribayes.core.schema import (
+from bayesify.core.schema import (
     EvidenceSpan,
     GateFacts,
     PaperClassLabel,
     RelevanceLabel,
     StepStatus,
 )
-from veribayes.core.validation import human_report as hr
-from veribayes.core.validation.human_report import (
+from bayesify.core.validation import human_report as hr
+from bayesify.core.validation.human_report import (
     GoldOrigin,
     GoldProvenance,
     GoldTier,

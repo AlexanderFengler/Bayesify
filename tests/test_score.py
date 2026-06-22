@@ -9,9 +9,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from veribayes.core.rubric.applicability import step_applicability
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import (
+from bayesify.core.rubric.applicability import step_applicability
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import (
     CostLedger,
     ExpectationTier,
     GateFacts,
@@ -24,7 +24,7 @@ from veribayes.core.schema import (
     StepAssessment,
     StepStatus,
 )
-from veribayes.core.score import (
+from bayesify.core.score import (
     ContractError,
     ScoreMeta,
     StepCalc,

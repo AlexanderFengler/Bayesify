@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from veribayes.core.rubric.applicability import step_applicability
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import (
+from bayesify.core.rubric.applicability import step_applicability
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import (
     ExpectationTier,
     GateFacts,
     InferenceMethod,

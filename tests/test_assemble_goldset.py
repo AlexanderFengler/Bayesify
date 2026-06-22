@@ -8,22 +8,22 @@ from __future__ import annotations
 
 import fitz  # PyMuPDF — a tiny Bayesian PDF so local ingest yields detector evidence
 
-from veribayes.core.schema import (
+from bayesify.core.schema import (
     EvidenceSpan,
     GateFacts,
     PaperClassLabel,
     RelevanceLabel,
     StepStatus,
 )
-from veribayes.core.validation.assemble import assemble
-from veribayes.core.validation.human_report import (
+from bayesify.core.validation.assemble import assemble
+from bayesify.core.validation.human_report import (
     GoldOrigin,
     HumanReport,
     RaterRelationship,
     Rating,
     StepRating,
 )
-from veribayes.core.validation.rating_store import RatingStore, SubmittedRating
+from bayesify.core.validation.rating_store import RatingStore, SubmittedRating
 
 _SPAN = EvidenceSpan(section_id="s01", quote="a span")
 
@@ -143,12 +143,12 @@ def test_submit_persists_durably_and_assembles(tmp_path, monkeypatch) -> None:
 
     from fastapi.testclient import TestClient
 
-    from veribayes.api import jobs as jobsmod
-    from veribayes.api.app import app, store
-    from veribayes.api.jobs import Job, run_job
+    from bayesify.api import jobs as jobsmod
+    from bayesify.api.app import app, store
+    from bayesify.api.jobs import Job, run_job
 
     client = TestClient(app)
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     # ingest a paper locally so it has a content_sha256/version_label the submit captures
     job = Job(id="rate-persist", mode="local", source_label="x.pdf", data=_HDDM, filename="x.pdf")
     store._jobs[job.id] = job

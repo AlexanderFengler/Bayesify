@@ -136,7 +136,7 @@ export async function fetchRateContext(
   );
 }
 
-// The Rating a blind rater builds (mirrors veribayes.core.validation.human_report.Rating).
+// The Rating a blind rater builds (mirrors bayesify.core.validation.human_report.Rating).
 export interface RatingStepInput {
   step_id: string;
   applicable: boolean;

@@ -15,7 +15,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from veribayes.core.schema import ParsedDoc, Section, SectionKind, SourceDoc
+from bayesify.core.schema import ParsedDoc, Section, SectionKind, SourceDoc
 
 _OUT = Path(__file__).parent / "screen" / "cases.json"
 _WHEN = datetime(2026, 1, 10, 12, 0, 0)

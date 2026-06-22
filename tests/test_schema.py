@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from veribayes.core import schema as s
+from bayesify.core import schema as s
 
 
 def _relevance(label: s.RelevanceLabel) -> s.Relevance:

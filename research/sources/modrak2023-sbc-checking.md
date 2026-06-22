@@ -8,14 +8,14 @@
 ## What it is
 A peer-reviewed Bayesian Analysis paper by Modrák, Moon, Kim, Bürkner, Huurre, Faltejsková, Gelman, and Vehtari that refines simulation-based calibration (SBC) checking, the rank-uniformity procedure introduced by Talts et al. (2018). It is the current methodological reference on which quantities SBC should be run over, with theory, multivariate-normal and HMC case studies, and an accompanying R package (SBC). Several of the authors overlap with the original SBC paper, making this the de facto successor recommendation from the Stan/Bayesian-workflow community.
 
-## Key content for VeriBayes
+## Key content for Bayesify
 - Shows SBC's sensitivity depends critically on the test quantities checked: SBC over individual parameters alone can miss serious failures — in the extreme, a "posterior" equal to the prior passes parameter-only SBC.
 - Recommends adding data-dependent test quantities; the joint log likelihood of the data is singled out as a particularly useful default that, combined with parameter quantities, can in principle detect any discrepancy from the correct posterior.
 - Provides theoretical analysis of what SBC can and cannot detect for a given set of test quantities, upgrading SBC from a heuristic to a check with characterized power.
 - Demonstrates the recommendations on multivariate normal examples and Hamiltonian Monte Carlo implementations; tooling is packaged in the SBC R package.
 - Positions SBC as validation of the whole inference pipeline (model implementation + algorithm), not just the sampler.
 
-## How VeriBayes uses it
+## How Bayesify uses it
 - Grounds rubric S7 (rubric/steps.yaml): "Simulation-based calibration / algorithm validation" — essential for methodological and numerical-experiment papers, recommended for empirical ones — as the modern companion to Talts et al. 2018 (see research/sources/talts2018-sbc.md).
 - Sharpens the S7 "done well" criterion (SBC rank-uniformity or parameter-recovery study reported): state-of-the-art SBC should include data-dependent test quantities such as the joint log likelihood, not parameter ranks alone.
 - Supports treating parameter-only SBC as weaker evidence than SBC with well-chosen test quantities when scoring S7.

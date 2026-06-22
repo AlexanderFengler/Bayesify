@@ -12,7 +12,7 @@ import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
 
 type Phase = "idle" | "running" | "done" | "error";
 type ModalKind = "privacy" | null;
-const PRIVACY_ACK_KEY = "veribayes.privacy.ack"; // set once the first-run disclosure is acknowledged
+const PRIVACY_ACK_KEY = "bayesify.privacy.ack"; // set once the first-run disclosure is acknowledged
 
 export function App() {
   const [phase, setPhase] = useState<Phase>("idle");
@@ -216,7 +216,7 @@ function Header({ mode }: { mode: "full" | "local" }) {
     <header className="topbar">
       <div className="container topbar-inner">
         <div className="brand">
-          <img className="brand-logo" src="/logo.png" alt="VeriBayes" />
+          <img className="brand-logo" src="/logo.png" alt="Bayesify" />
         </div>
         <span className="brand-tag">Measure your Bayesian Workflow against the gold standard</span>
         <ModeIndicator mode={mode} />
@@ -256,7 +256,7 @@ function Footer({
     <footer className="footer">
       <div className="container footer-inner">
         <span>
-          Formative report, not a verdict. The badge concept was dropped — VeriBayes reports per-step
+          Formative report, not a verdict. The badge concept was dropped — Bayesify reports per-step
           practice, not a pass/fail.
         </span>
         <span className="footer-links">

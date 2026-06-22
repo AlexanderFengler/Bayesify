@@ -1,4 +1,4 @@
-# e. Assess (grounded + adversarial) — VeriBayes v0 component
+# e. Assess (grounded + adversarial) — Bayesify v0 component
 
 **Milestone:** M5
 **v0 items covered:** A3 (dual grounding — paper evidence *and* methodological sources), A4 (adversarial self-verification)

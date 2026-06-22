@@ -13,10 +13,10 @@ import pytest
 
 fitz = pytest.importorskip("fitz")  # PyMuPDF — skips the module in the light default env
 
-from veribayes.core import parse as P  # noqa: E402
-from veribayes.core.cache import BlobStore  # noqa: E402
-from veribayes.core.errors import UnparseableDocument  # noqa: E402
-from veribayes.core.ingest import ingest_upload  # noqa: E402
+from bayesify.core import parse as P  # noqa: E402
+from bayesify.core.cache import BlobStore  # noqa: E402
+from bayesify.core.errors import UnparseableDocument  # noqa: E402
+from bayesify.core.ingest import ingest_upload  # noqa: E402
 
 _BODY = [
     "Bayesian Workflow Methods",

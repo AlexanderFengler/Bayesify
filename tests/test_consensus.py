@@ -6,15 +6,15 @@ consensus is None (the paper is excluded-and-counted downstream). Pure, determin
 
 from __future__ import annotations
 
-from veribayes.core.schema import (
+from bayesify.core.schema import (
     EvidenceSpan,
     GateFacts,
     PaperClassLabel,
     RelevanceLabel,
     StepStatus,
 )
-from veribayes.core.validation.consensus import assemble_human_report, consensus_from_ratings
-from veribayes.core.validation.human_report import (
+from bayesify.core.validation.consensus import assemble_human_report, consensus_from_ratings
+from bayesify.core.validation.human_report import (
     GoldOrigin,
     GoldTier,
     RaterRelationship,

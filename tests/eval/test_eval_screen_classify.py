@@ -1,7 +1,7 @@
 """Live screen/classify accuracy gates over the labeled fixture set (M4 slice 4).
 
 Makes real, paid cheap-model calls, so it is **opt-in**: it skips unless both ANTHROPIC_API_KEY is
-set and VERIBAYES_RUN_EVAL=1 (the `pixi run eval` task sets the latter). It never runs during
+set and BAYESIFY_RUN_EVAL=1 (the `pixi run eval` task sets the latter). It never runs during
 `pixi run check`. These thresholds gate development only; the release measurement is the validation
 protocol (validation/protocol.md §3, M7) and the numbers here are never quoted publicly.
 """
@@ -14,13 +14,13 @@ from pathlib import Path
 
 import pytest
 
-from veribayes.core.detectors import run_detectors
-from veribayes.core.llm import AnthropicClient
-from veribayes.core.pipeline import screen_and_classify
-from veribayes.core.schema import ParsedDoc, RelevanceLabel
+from bayesify.core.detectors import run_detectors
+from bayesify.core.llm import AnthropicClient
+from bayesify.core.pipeline import screen_and_classify
+from bayesify.core.schema import ParsedDoc, RelevanceLabel
 
 pytestmark = pytest.mark.skipif(
-    not (os.environ.get("ANTHROPIC_API_KEY") and os.environ.get("VERIBAYES_RUN_EVAL") == "1"),
+    not (os.environ.get("ANTHROPIC_API_KEY") and os.environ.get("BAYESIFY_RUN_EVAL") == "1"),
     reason="live eval — set ANTHROPIC_API_KEY and run via `pixi run eval`",
 )
 

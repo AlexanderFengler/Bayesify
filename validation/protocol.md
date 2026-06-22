@@ -1,4 +1,4 @@
-# VeriBayes Validation Protocol (A1)
+# Bayesify Validation Protocol (A1)
 
 **Status:** Protocol v0 (extracted from `plans/02-mvp-tool-plan.md` §7; content unchanged)
 **Executed at:** Phase-2 milestone M7 — *v0 is not "done" until this protocol has run*
@@ -23,7 +23,7 @@
   frame** per class; the list is frozen with date + criteria recorded *prior to the first engine run
   on it*, and any exclusion is logged. No hand-picking after seeing engine output.
 - **Version pinning:** each `validation/goldset/<work_id>.json` stores paper identifiers, labels,
-  **and the `sha256` of the exact rated document bytes** (+ version, e.g. arXiv v2). `veribayes
+  **and the `sha256` of the exact rated document bytes** (+ version, e.g. arXiv v2). `bayesify
   validate` verifies the hash of what it fetches and **hard-fails on mismatch** — metrics are never
   silently computed against a different version than the raters saw. PDFs themselves are never
   committed.
@@ -52,7 +52,7 @@
    instrument). Override-nominated papers (plan `02-mvp/g-report-api-ui.md`) enter only after full
    blind re-rating under §2 — override labels themselves are engine-anchored and never imported.
 
-## 3. Metrics (computed by `veribayes validate`, written to `validation/reports/<engine_version>.json`)
+## 3. Metrics (computed by `bayesify validate`, written to `validation/reports/<engine_version>.json`)
 **Two-stage agreement** — `not_applicable` is a different *kind* of judgment, not a fourth ordinal
 level, so agreement is decomposed to mirror the engine's own architecture:
 - **Stage 1 — applicability agreement:** binary applicable-vs-N/A over *all* step×paper cells:

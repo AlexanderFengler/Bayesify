@@ -1,4 +1,4 @@
-# VeriBayes rubric — draft v0.1
+# Bayesify rubric — draft v0.1
 # Source of truth for the Phase-2 engine (compiled into prompts + deterministic checks) and the
 # Phase-3 corpus scoring. Grounded in research/bayesian-workflow-gold-standards.md (deep-research
 # synthesis, 2026-06-10). Every threshold is attributed to its source; do NOT collapse to one number.
@@ -16,7 +16,7 @@
 rubric_version: "0.1-draft"
 label: "Synthesis (merged gold standard)"
 summary: >
-  The default VeriBayes rubric: a merged, provenance-tracked standard drawing on the major
+  The default Bayesify rubric: a merged, provenance-tracked standard drawing on the major
   Bayesian-workflow sources (Gelman 2020, Schad 2021, BARG, WAMBS, Vehtari R-hat/LOO, Betancourt,
   and more). Each step is grounded in one or more of those sources, so the report cites the specific
   standard applied per step. Ten steps spanning model specification through reporting.

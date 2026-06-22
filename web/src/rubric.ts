@@ -12,7 +12,7 @@ export const STATUS_LABEL: Record<StepStatus, string> = {
 };
 
 // The compiled rubric served by GET /api/rubric — the single source of truth for step names + the
-// per-step prose a rater is guided by (used in V3). Mirrors veribayes.core.rubric.models.RubricStep.
+// per-step prose a rater is guided by (used in V3). Mirrors bayesify.core.rubric.models.RubricStep.
 export interface RubricStepInfo {
   id: string;
   name: string;

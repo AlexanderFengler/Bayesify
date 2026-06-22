@@ -11,14 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from veribayes.core.detectors import (
+from bayesify.core.detectors import (
     catalog_fingerprint,
     evidence_inventory,
     evidence_json,
     run_detectors,
 )
-from veribayes.core.detectors.catalog import CATALOG, DETECTOR_FAMILY
-from veribayes.core.schema import EvidenceKind, ParsedDoc, Section, SectionKind, SourceDoc
+from bayesify.core.detectors.catalog import CATALOG, DETECTOR_FAMILY
+from bayesify.core.schema import EvidenceKind, ParsedDoc, Section, SectionKind, SourceDoc
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from veribayes.core.report import fix_list, uncited_praise
-from veribayes.core.schema import (
+from bayesify.core.report import fix_list, uncited_praise
+from bayesify.core.schema import (
     CostLedger,
     Coverage,
     Ease,

@@ -6,7 +6,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
       <div className="report-head">
         <div>
           <div className="report-eyebrow">Guide</div>
-          <h1 className="report-title">How VeriBayes works</h1>
+          <h1 className="report-title">How Bayesify works</h1>
         </div>
         <button className="btn" onClick={onExit}>
           Back
@@ -14,7 +14,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
       </div>
 
       <p className="guide-intro">
-        VeriBayes checks how well a paper follows the <strong>Bayesian workflow</strong> &mdash; model
+        Bayesify checks how well a paper follows the <strong>Bayesian workflow</strong> &mdash; model
         specification, priors, predictive checks, convergence diagnostics, and so on &mdash; against a
         rubric of community best practices, with every finding grounded in the paper and in the
         methodological literature. Scores are <strong>formative, not a verdict</strong>. There are two
@@ -29,7 +29,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
         <ol className="guide-steps">
           <li>
             <strong>Add the paper.</strong> Drop a PDF, or paste an identifier (arXiv ID, DOI,
-            OpenAlex ID, or URL) and VeriBayes fetches the open-access copy.
+            OpenAlex ID, or URL) and Bayesify fetches the open-access copy.
           </li>
           <li>
             <strong>Pick a mode.</strong> <em>Full</em> sends the extracted text to Anthropic and
@@ -85,7 +85,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
       </section>
 
       <p className="guide-foot">
-        VeriBayes runs locally and is honest about its limits: the engine is not yet validated against
+        Bayesify runs locally and is honest about its limits: the engine is not yet validated against
         expert ratings &mdash; which is exactly what blind rating contributes to. See the{" "}
         <strong>Calibration</strong> link in the footer for the current agreement metrics.
       </p>

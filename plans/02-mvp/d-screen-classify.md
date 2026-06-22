@@ -1,4 +1,4 @@
-# d. Screen & classify — VeriBayes v0 component
+# d. Screen & classify — Bayesify v0 component
 
 **Milestone:** M4
 **v0 items covered:** D5 (relevance gate up front) + the baseline paper-type classifier (spine §2.2)
@@ -47,7 +47,7 @@ Stages 4–5 of the pipeline: decide *whether* the paper should be graded as Bay
 - **Fixtures recorded for downstream:** `Relevance`/`PaperClass` outputs for one paper per class + one mixed + one `partial` + one short-circuit, committed for [`e-assess`](e-assess.md), [`f-score`](f-score.md), and [`g-report-api-ui`](g-report-api-ui.md) to build against.
 
 ## Definition of done
-- [ ] `core/screen.py` + `core/classify.py` in `veribayes-core` (no web deps), coded verbatim against `schema.py` `Relevance`/`PaperClass`.
+- [ ] `core/screen.py` + `core/classify.py` in `bayesify-core` (no web deps), coded verbatim against `schema.py` `Relevance`/`PaperClass`.
 - [ ] Detector floor implemented and unit-tested; `no`-rationales enumerate searched-and-not-found kinds.
 - [ ] `evidence_refs` discipline enforced at schema level; refs resolve against fixture `Evidence[]`.
 - [ ] Screen runs before classify and both before assess; `no` short-circuits with classify skipped; "Run full assessment anyway" path re-enters as `partial`.

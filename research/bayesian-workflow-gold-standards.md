@@ -1,7 +1,7 @@
 # Bayesian-Workflow Gold Standards — Research Synthesis
 
 **Purpose:** Establish the methodological gold standard for the Bayesian workflow and decompose it
-into discrete, assessable steps for the VeriBayes rubric.
+into discrete, assessable steps for the Bayesify rubric.
 **Method:** Executed via the deep-research harness (fan-out web search → 24 primary sources fetched →
 falsifiable-claim extraction → 3-vote adversarial verification → cited synthesis). **24 of 25
 verified claims confirmed** (1 killed). Date: 2026-06-10.
@@ -182,7 +182,7 @@ Two verified routes:
 
 This directly grounds a rubric that **conditions step weight on model complexity and on paper type**
 (empirical data analysis vs. methodological/simulation work) — the applicability gating in the
-VeriBayes rubric. *(Corroboration caveat: this rests substantially on the Nicenboim textbook; would be
+Bayesify rubric. *(Corroboration caveat: this rests substantially on the Nicenboim textbook; would be
 stronger with Gelman et al. 2020's own discussion of when steps apply.)*
 
 ---

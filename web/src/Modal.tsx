@@ -36,14 +36,14 @@ export function PrivacyModal({ onClose, firstRun }: { onClose: () => void; first
   return (
     <Modal title={firstRun ? "Before you start" : "Privacy & data handling"} onClose={onClose}>
       <p className="modal-lead">
-        VeriBayes is <strong>local-first</strong>: storage stays on this machine, there is no
+        Bayesify is <strong>local-first</strong>: storage stays on this machine, there is no
         account, and no telemetry. There are two analysis modes, chosen per paper.
       </p>
 
       <div className="privacy-mode">
         <div className="privacy-mode-head pm-full">Full mode</div>
         <p>
-          To make per-step judgments, VeriBayes sends the <strong>extracted text</strong> of your
+          To make per-step judgments, Bayesify sends the <strong>extracted text</strong> of your
           document to Anthropic (via your Claude subscription or API key). Nothing else leaves the
           machine — not the PDF file, not your identity, not the results. If a manuscript is
           confidential or embargoed, treat this as &ldquo;this text will be sent to a third-party API

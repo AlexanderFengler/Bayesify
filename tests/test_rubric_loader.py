@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from veribayes.core.rubric import RubricProfileError, available_rubrics, load_rubric
+from bayesify.core.rubric import RubricProfileError, available_rubrics, load_rubric
 
 
 def test_loads_the_synthesis_rubric_with_ten_steps() -> None:

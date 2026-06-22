@@ -7,10 +7,10 @@ from pathlib import Path
 import httpx
 import pytest
 
-from veribayes.core.cache import BlobStore
-from veribayes.core.errors import IdNotFoundError, NoOpenAccessError, NotAPdfError
-from veribayes.core.fetcher import Fetcher
-from veribayes.core.ingest import parse_input
+from bayesify.core.cache import BlobStore
+from bayesify.core.errors import IdNotFoundError, NoOpenAccessError, NotAPdfError
+from bayesify.core.fetcher import Fetcher
+from bayesify.core.ingest import parse_input
 
 PDF = b"%PDF-1.5\n%mock pdf\n"
 

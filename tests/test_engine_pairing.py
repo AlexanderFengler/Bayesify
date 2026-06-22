@@ -7,17 +7,17 @@ from __future__ import annotations
 import fitz
 import pytest
 
-from veribayes.core.cache import BlobStore
-from veribayes.core.engine import grade_document
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import Relevance, RelevanceLabel, ScoredResult
-from veribayes.core.validation import harness
-from veribayes.core.validation.harness import (
+from bayesify.core.cache import BlobStore
+from bayesify.core.engine import grade_document
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import Relevance, RelevanceLabel, ScoredResult
+from bayesify.core.validation import harness
+from bayesify.core.validation.harness import (
     FixtureEngineSource,
     GoldsetVersionMismatch,
     LiveEngineSource,
 )
-from veribayes.core.validation.human_report import (
+from bayesify.core.validation.human_report import (
     GoldOrigin,
     GoldProvenance,
     GoldTier,
@@ -134,9 +134,9 @@ class _FakeLLM:
     """Schema-aware fake driving the full grade path, no real LLM (mirrors test_api._full_fake)."""
 
     def complete(self, *, model, system, user, schema, max_tokens=1024):
-        from veribayes.core.assess import RefuterVerdict, StepJudgment
-        from veribayes.core.llm import LLMResponse
-        from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+        from bayesify.core.assess import RefuterVerdict, StepJudgment
+        from bayesify.core.llm import LLMResponse
+        from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
 
         name = schema.__name__
         if name == "Relevance":

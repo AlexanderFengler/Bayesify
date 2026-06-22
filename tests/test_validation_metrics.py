@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from veribayes.core.schema import StepStatus as S
-from veribayes.core.validation.metrics import (
+from bayesify.core.schema import StepStatus as S
+from bayesify.core.validation.metrics import (
     STATUS_ORDER,
     Rate,
     absence_fpr,
