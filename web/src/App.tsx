@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRubrics, getPaper, rerun, type RubricSummary, streamProgress, submitPaper } from "./api";
+import { Analyzing } from "./Analyzing";
 import { Calibration } from "./Calibration";
 import { Guide } from "./Guide";
-import { Inventory } from "./Inventory";
+import { Inventory, LocalNotice } from "./Inventory";
+import { Landing } from "./Landing";
 import { PrivacyModal } from "./Modal";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
-import { RubricAbout } from "./RubricAbout";
-import { useRubric } from "./rubric";
 import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
 
 type Phase = "idle" | "running" | "done" | "error";
@@ -135,6 +135,71 @@ export function App() {
     [track],
   );
 
+  // The immersive landing (idle + no takeover view) is fully MUI and renders edge-to-edge — it does
+  // not use the legacy .page/.container chrome. Every other state still uses the old chrome for now;
+  // they'll migrate page by page.
+  const isLanding = !ratingPaperId && !showCalibration && !showGuide && phase === "idle";
+  if (isLanding) {
+    return (
+      <>
+        <Landing
+          mode={mode}
+          setMode={setMode}
+          profile={profile}
+          setProfile={setProfile}
+          rubrics={rubrics}
+          identifier={identifier}
+          setIdentifier={setIdentifier}
+          file={file}
+          setFile={setFile}
+          dragging={dragging}
+          setDragging={setDragging}
+          fileInput={fileInput}
+          onStart={start}
+          onGuide={() => setShowGuide(true)}
+          onPrivacy={() => setModal("privacy")}
+          onCalibration={() => setShowCalibration(true)}
+        />
+        {modal === "privacy" && (
+          <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
+        )}
+      </>
+    );
+  }
+
+  // The "Analyzing" page is equally immersive (same hero, no card) — render it full-bleed too.
+  const isAnalyzing = !ratingPaperId && !showCalibration && !showGuide && phase === "running";
+  if (isAnalyzing) {
+    // an identifier job fetches instead of ingesting an upload → swap the first step
+    const stages =
+      !file && identifier.trim()
+        ? ["fetch", ...(mode === "local" ? LOCAL_STAGES : STAGES).slice(1)]
+        : mode === "local"
+          ? LOCAL_STAGES
+          : STAGES;
+    return (
+      <Analyzing
+        stageState={stageState}
+        stages={stages}
+        source={file?.name ?? identifier}
+        mode={mode}
+      />
+    );
+  }
+
+  // The done-state result pages are each their own full-bleed page (own top bar) — render directly.
+  if (!ratingPaperId && !showCalibration && !showGuide && phase === "done" && paper) {
+    if (paper.result) {
+      return <Report paper={paper} mode={mode} onReset={reset} onRerun={rerunPaper} />;
+    }
+    if (paper.inventory) {
+      return <Inventory paper={paper} onReset={reset} onRate={setRatingPaperId} />;
+    }
+    if (paper.local_notice) {
+      return <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={reset} />;
+    }
+  }
+
   return (
     <div className="page">
       <Header mode={mode} />
@@ -146,57 +211,15 @@ export function App() {
         ) : showGuide ? (
           <Guide onExit={() => setShowGuide(false)} />
         ) : (
-          <>
-            {phase === "idle" && (
-              <UploadCard
-                mode={mode}
-                setMode={setMode}
-                profile={profile}
-                setProfile={setProfile}
-                rubrics={rubrics}
-                identifier={identifier}
-                setIdentifier={setIdentifier}
-                file={file}
-                setFile={setFile}
-                dragging={dragging}
-                setDragging={setDragging}
-                fileInput={fileInput}
-                onStart={start}
-              />
-            )}
-            {phase === "running" && (
-              <Progress
-                stageState={stageState}
-                stages={
-                  // an identifier job fetches instead of ingesting an upload → swap the first step
-                  !file && identifier.trim()
-                    ? ["fetch", ...(mode === "local" ? LOCAL_STAGES : STAGES).slice(1)]
-                    : mode === "local"
-                      ? LOCAL_STAGES
-                      : STAGES
-                }
-                source={file?.name ?? identifier}
-              />
-            )}
-            {phase === "error" && (
-              <div className="card error-card">
-                <h2>Something went wrong</h2>
-                <p>{error}</p>
-                <button className="btn" onClick={reset}>
-                  Try again
-                </button>
-              </div>
-            )}
-            {phase === "done" && paper?.result && (
-              <Report paper={paper} onReset={reset} onRerun={rerunPaper} />
-            )}
-            {phase === "done" && paper && !paper.result && paper.inventory && (
-              <Inventory paper={paper} onReset={reset} onRate={setRatingPaperId} />
-            )}
-            {phase === "done" && paper && !paper.result && !paper.inventory && paper.local_notice && (
-              <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={reset} />
-            )}
-          </>
+          phase === "error" && (
+            <div className="card error-card">
+              <h2>Something went wrong</h2>
+              <p>{error}</p>
+              <button className="btn" onClick={reset}>
+                Try again
+              </button>
+            </div>
+          )
         )}
       </main>
       <Footer
@@ -275,192 +298,3 @@ function Footer({
   );
 }
 
-interface UploadProps {
-  mode: "full" | "local";
-  setMode: (m: "full" | "local") => void;
-  profile: string;
-  setProfile: (p: string) => void;
-  rubrics: RubricSummary[];
-  identifier: string;
-  setIdentifier: (s: string) => void;
-  file: File | null;
-  setFile: (f: File | null) => void;
-  dragging: boolean;
-  setDragging: (b: boolean) => void;
-  fileInput: React.RefObject<HTMLInputElement>;
-  onStart: (intent?: "analyze" | "rate") => void;
-}
-
-function UploadCard(p: UploadProps) {
-  const canStart = !!p.file || p.identifier.trim().length > 0;
-  const rubric = useRubric(p.profile); // full rubric (with step names) for the explanation below
-  return (
-    <div className="card upload">
-      <h1 className="lead">How well does this paper follow the Bayesian workflow?</h1>
-      <p className="sub">
-        Drop a PDF or paste an identifier. You&rsquo;ll get a per-step report with a coverage and a
-        quality score — every finding grounded in the paper and in the methodological literature.
-      </p>
-
-      <div
-        className={"dropzone" + (p.dragging ? " dragging" : "") + (p.file ? " has-file" : "")}
-        onDragOver={(e) => {
-          e.preventDefault();
-          p.setDragging(true);
-        }}
-        onDragLeave={() => p.setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          p.setDragging(false);
-          const f = e.dataTransfer.files?.[0];
-          if (f) p.setFile(f);
-        }}
-        onClick={() => p.fileInput.current?.click()}
-      >
-        <input
-          ref={p.fileInput}
-          type="file"
-          accept="application/pdf"
-          hidden
-          onChange={(e) => p.setFile(e.target.files?.[0] ?? null)}
-        />
-        {p.file ? (
-          <div className="dropzone-file">
-            <span className="file-icon">PDF</span>
-            <span className="file-name">{p.file.name}</span>
-            <button
-              className="link-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                p.setFile(null);
-              }}
-            >
-              remove
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="dropzone-icon">⬆</div>
-            <div className="dropzone-title">Drop a PDF here</div>
-            <div className="dropzone-hint">or click to choose a file</div>
-          </>
-        )}
-      </div>
-
-      <div className="or-row">
-        <span className="or-line" />
-        <span className="or-text">or paste an identifier</span>
-        <span className="or-line" />
-      </div>
-
-      <input
-        className="text-input"
-        placeholder="arXiv ID, DOI, OpenAlex ID, or URL"
-        value={p.identifier}
-        onChange={(e) => p.setIdentifier(e.target.value)}
-        disabled={!!p.file}
-      />
-
-      <div className="rubric-select">
-        <label>
-          Rubric
-          <select value={p.profile} onChange={(e) => p.setProfile(e.target.value)}>
-            {(p.rubrics.length ? p.rubrics : [{ id: p.profile, label: p.profile }]).map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {rubric && <RubricAbout rubric={rubric} />}
-      </div>
-
-      <div className="controls">
-        <ModeToggle mode={p.mode} setMode={p.setMode} />
-        <div className="start-actions">
-          <button
-            className="link-btn rate-cta"
-            disabled={!canStart}
-            title="Rate this paper yourself against the rubric, blind to the engine's verdict"
-            onClick={() => p.onStart("rate")}
-          >
-            Rate it yourself (blind)
-          </button>
-          <button className="btn btn-primary" disabled={!canStart} onClick={() => p.onStart("analyze")}>
-            Analyze
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ModeToggle({ mode, setMode }: { mode: "full" | "local"; setMode: (m: "full" | "local") => void }) {
-  return (
-    <div className="mode" role="group" aria-label="analysis mode">
-      <button
-        className={"mode-btn" + (mode === "full" ? " active" : "")}
-        onClick={() => setMode("full")}
-        title="LLM judgment + deterministic checks. Extracted text is sent to the model."
-      >
-        Full
-      </button>
-      <button
-        className={"mode-btn" + (mode === "local" ? " active" : "")}
-        onClick={() => setMode("local")}
-        title="Detectors only — no LLM, no scores. Nothing leaves the machine."
-      >
-        Local-only
-      </button>
-    </div>
-  );
-}
-
-function Progress({
-  stageState,
-  stages,
-  source,
-}: {
-  stageState: Record<string, "running" | "done">;
-  stages: readonly string[];
-  source?: string;
-}) {
-  return (
-    <div className="card progress-card">
-      <h2 className="progress-title">Analyzing</h2>
-      {source && <p className="progress-source">{source}</p>}
-      <ol className="stepper">
-        {stages.map((stage) => {
-          const state = stageState[stage];
-          return (
-            <li key={stage} className={"step " + (state ?? "pending")}>
-              <span className="step-dot" />
-              <span className="step-label">{stage}</span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
-
-function LocalNotice({
-  notice,
-  source,
-  onReset,
-}: {
-  notice: string;
-  source: string;
-  onReset: () => void;
-}) {
-  return (
-    <div className="card local-notice">
-      <div className="local-badge">No analysis run yet</div>
-      <h2>{source}</h2>
-      <p>{notice}</p>
-      <button className="btn" onClick={onReset}>
-        Analyze another
-      </button>
-    </div>
-  );
-}
