@@ -1,4 +1,4 @@
-# Pixi (env dir is local; pixi.lock IS committed for reproducibility)
+# Pixi (env dir is local)
 .pixi/
 
 # Python

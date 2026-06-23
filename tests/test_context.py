@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from veribayes.core.context import build_user, evidence_digest, excerpt_context
-from veribayes.core.schema import (
+from bayesify.core.context import build_user, evidence_digest, excerpt_context
+from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
     EvidenceSpan,

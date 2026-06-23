@@ -75,14 +75,14 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
 - **What:** the likelihood/data-generating model and its structure are stated and motivated by the
   scientific question and data.
 - **Done well:** explicit generative model; assumptions stated; structure justified by domain/theory.
-- **Done poorly:** model appears with no rationale; key assumptions unstated.
+- **Missing:** model appears with no rationale; key assumptions unstated.
 - **Applicability:** essential everywhere.
 
 ### S2. Prior specification *(essential when priors are non-trivial)*
 - **What:** priors stated for all parameters, with justification (weakly-informative vs informative,
   and why).
 - **Done well:** every prior listed; choice justified; informative priors sourced; scale considered.
-- **Done poorly:** "we used default priors" with no statement of what they are; priors absent;
+- **Missing:** "we used default priors" with no statement of what they are; priors absent;
   implausible flat priors used unexamined.
 - **Applicability:** essential when priors materially affect inference; lighter for large-data
   empirical fits where the likelihood dominates (still report).
@@ -92,7 +92,7 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
   plausible **before** seeing data.
 - **Done well:** prior predictive simulations shown/described; implausible implications caught and
   priors revised.
-- **Done poorly:** no prior predictive reasoning; priors never sanity-checked.
+- **Missing:** no prior predictive reasoning; priors never sanity-checked.
 - **Citation:** Gabry et al. 2019; Gelman et al. 2020.
 - **Applicability:** high for methodological/new-model and weak-data settings; optional for routine
   large-data fits.
@@ -101,7 +101,7 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
 - **What:** evidence the inference algorithm actually worked.
 - **Done well (MCMC/HMC-NUTS):** reports **R-hat**, **ESS**, **divergent transitions** (count, ideally
   zero), and treedepth/E-FMI/MCSE as relevant; multiple chains; warmup/iterations stated.
-- **Done poorly:** no convergence diagnostics; single chain; ignored divergences.
+- **Missing:** no convergence diagnostics; single chain; ignored divergences.
 - **Thresholds — attributed per source (each carries different provenance/stringency; do not collapse):**
   - **R-hat:** modern pass line **< 1.01** (Vehtari et al. 2021, rank-normalized split-R-hat — *fetched
     but not independently verified in this run; cite directly when freezing*). Historical line
@@ -125,7 +125,7 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
 - **What:** does the fitted model reproduce salient features of the observed data?
 - **Done well:** PPCs shown (graphical overlays and/or test quantities); discrepancies discussed and
   acted on.
-- **Done poorly:** no PPC; model fit asserted without checking; obvious misfit ignored.
+- **Missing:** no PPC; model fit asserted without checking; obvious misfit ignored.
 - **Citation:** Gabry et al. 2019; Gelman et al. 2020.
 - **Applicability:** essential for empirical data analysis; for methodological work, calibration
   (S7) may substitute.
@@ -138,7 +138,7 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
   estimate BFs via bridge sampling **≥ twice** on the same data, **run SBC to check BF accuracy**, and
   only report empirical BFs if SBC supports reliability. Because BFs depend on priors *more* than the
   posterior does, **prior sensitivity (S8) is mandatory for any BF claim.**
-- **Done poorly:** model chosen with no comparison, or by an inappropriate criterion; high Pareto-k
+- **Missing:** model chosen with no comparison, or by an inappropriate criterion; high Pareto-k
   values ignored; BFs reported without prior justification, stability, or SBC.
 - **Thresholds — ⚠️ FILL FROM PRIMARY SOURCE before freezing:** the LOO/WAIC/Pareto-k numbers
   (elpd differences **with** SE; Pareto-**k > 0.5** "monitor", **k > 0.7** "bad") are widely used but
@@ -151,7 +151,7 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
 ### S7. Simulation-based calibration / algorithm validation *(essential for methodological; optional for applied)*
 - **What:** verify the inference recovers known parameters / is calibrated, on simulated data.
 - **Done well:** SBC (rank-uniformity) or parameter-recovery study reported.
-- **Done poorly:** new method/model with no recovery or calibration evidence.
+- **Missing:** new method/model with no recovery or calibration evidence.
 - **Citation:** Talts et al. 2018; Modrák et al. 2023.
 - **Applicability:** **essential for methodological & numerical-experiment papers**; optional for
   routine empirical fits.
@@ -159,7 +159,7 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
 ### S8. Prior / model sensitivity analysis *(context-dependent, often essential)*
 - **What:** how much do conclusions depend on prior or modeling choices?
 - **Done well:** alternative priors/specifications tried; robustness (or lack of) reported.
-- **Done poorly:** single specification; no sensitivity check despite influential priors.
+- **Missing:** single specification; no sensitivity check despite influential priors.
 - **Citation:** WAMBS; van de Schoot et al. 2021; Gelman et al. 2020.
 - **Applicability:** essential when priors/structure are influential (small data, informative
   priors); lighter when likelihood clearly dominates.
@@ -169,7 +169,7 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
   warmup, seed), data/code availability, and the diagnostics above reported in text/tables.
 - **Done well (per BARG):** model, priors, software/version, sampler settings, convergence
   diagnostics, and posterior summaries with uncertainty all reported; data/code shared.
-- **Done poorly:** opaque "we fit a Bayesian model"; missing settings; point estimates with no
+- **Missing:** opaque "we fit a Bayesian model"; missing settings; point estimates with no
   uncertainty.
 - **Citation:** Kruschke 2021 (BARG); WAMBS.
 - **Applicability:** essential everywhere.
@@ -178,7 +178,7 @@ draft rubric in §3 is updated to match before `rubric/steps.yaml` is frozen.
 - **What:** posteriors summarized honestly with uncertainty; claims matched to evidence.
 - **Done well:** point + interval (CrI/HDI) with the interval defined; decisions tied to posterior
   quantities; no over-claiming beyond the posterior.
-- **Done poorly:** point estimates only; "significance"-style misreadings; intervals undefined.
+- **Missing:** point estimates only; "significance"-style misreadings; intervals undefined.
 - **Citation:** BARG; van de Schoot et al. 2021.
 
 > **Cross-cutting applicability matrix** (paper-type × step) and the exact threshold values are

@@ -1,8 +1,8 @@
-# VeriBayes
+# Bayesify
 
 **A tool for assessing how well academic papers follow Bayesian workflow best practices.**
 
-VeriBayes ingests an academic paper (PDF) and produces a structured, evidence-linked report
+Bayesify ingests an academic paper (PDF) and produces a structured, evidence-linked report
 that grades the paper against a rubric of Bayesian-workflow components derived from the
 methodological literature (Gelman et al. *Bayesian Workflow*; Schad, Betancourt & Vasishth;
 Kruschke's BARG; the WAMBS checklist; van de Schoot et al.; and the diagnostics literature on
@@ -29,17 +29,17 @@ plans/             Planning documents. See plans/00-master-plan.md for the execu
 plans/02-mvp/      Phase-2 component subplans (a-ingest … h-validate-harness) — one per pipeline
                    seam, each independently testable; plans/02-mvp-tool-plan.md is the spine.
 research/          Output of the Phase-1 deep research (cited synthesis).
-research/sources/  Annotated bibliography: one note per source (citation + how VeriBayes uses it),
+research/sources/  Annotated bibliography: one note per source (citation + how Bayesify uses it),
                    plus fetch_sources.sh to download the open-access PDFs locally.
 rubric/            Machine-readable rubric (steps.yaml) — the single source of truth for scoring.
 validation/        The A1 validation protocol (engine-vs-expert calibration) and its artifacts.
-veribayes/core/    The engine (UI-agnostic, no web deps — import-linter enforced): ingest, parse,
+bayesify/core/    The engine (UI-agnostic, no web deps — import-linter enforced): ingest, parse,
                    detectors, screen, classify, assess, score, report, the rubric loader + stage
                    contracts (schema.py) + engine versioning, and validation/ (the calibration harness).
-veribayes/api/     FastAPI app: upload → job → SSE progress → report, plus the blind-rating and
+bayesify/api/     FastAPI app: upload → job → SSE progress → report, plus the blind-rating and
                    calibration endpoints. Serves the built web UI in one process (`pixi run app`).
 web/               React/Vite/TypeScript single-page UI (upload, report, blind rating, calibration).
-tests/             pytest suite for veribayes-core + the API.
+tests/             pytest suite for bayesify-core + the API.
 ```
 
 ## Development
@@ -75,8 +75,8 @@ Docling parser (layout, tables, captions).
 
 ### LLM backend (Full mode)
 
-Full mode (relevance + paper-type, with grading from M5) needs a model. VeriBayes picks a backend
-automatically (override with `VERIBAYES_LLM_BACKEND=agent-sdk|api|none`):
+Full mode (relevance + paper-type, with grading from M5) needs a model. Bayesify picks a backend
+automatically (override with `BAYESIFY_LLM_BACKEND=agent-sdk|api|none`):
 
 1. **Claude subscription** via the Claude Agent SDK — used when the `claude` CLI is installed and
    logged in (`claude login`). **No API key**; bills your Pro/Max plan. To use it, make sure

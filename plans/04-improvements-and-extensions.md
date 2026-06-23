@@ -1,13 +1,13 @@
-# Improvements & Extensions — VeriBayes
+# Improvements & Extensions — Bayesify
 
-This is my (Claude's) running list of suggestions to make VeriBayes excellent rather than merely
+This is my (Claude's) running list of suggestions to make Bayesify excellent rather than merely
 functional. It is opinionated on purpose. Items are tagged **[v0 — committed]** (in Phase-2 MVP
 scope; `02-mvp-tool-plan.md` is authoritative for those — the twelve promoted by decision on
 2026-06-12 carry a pointer blockquote to their spec there, while B1/B2/C1/C3 were committed from the
 start), **[v1]** (near-term, high leverage), **[v2]** (after the corpus exists), or **[moonshot]**. Each item says *why* it matters and *how* to
 approach it. The single most important meta-point:
 
-> **VeriBayes is itself a measurement instrument, and it should be held to the same standard it
+> **Bayesify is itself a measurement instrument, and it should be held to the same standard it
 > holds papers to.** A tool that grades Bayesian rigor while being itself un-validated, over-confident,
 > and un-auditable would be self-refuting. Several suggestions below exist to avoid that irony.
 
@@ -215,7 +215,7 @@ community governance first.)* Guard against misuse (F1).
 ### E3. Generalize beyond the Bayesian workflow **[moonshot]**
 The architecture (declarative rubric spec + hybrid engine + corpus pipeline) is **workflow-agnostic**.
 The same machine could score adherence to frequentist reporting standards, causal-inference
-workflows, or ML-reproducibility checklists. VeriBayes is a first instance of a general
+workflows, or ML-reproducibility checklists. Bayesify is a first instance of a general
 "methodology-conformance" instrument. Keep the core decoupled from the Bayesian specifics so this
 stays reachable.
 
@@ -322,7 +322,7 @@ corpus at near-zero extra cost.
 ### H6. Harden "asserted-but-not-evidenced" into a detector class **[v1–v2]**
 F1 (v0) states the policy; this builds the instrument: detectors that specifically look for
 *named-but-unshown* practices ("we performed posterior predictive checks" with no figure, value, or
-supplement reference) and feed a dedicated `asserted_not_evidenced` flag per step. As VeriBayes-like
+supplement reference) and feed a dedicated `asserted_not_evidenced` flag per step. As Bayesify-like
 tools become known, this is the gaming vector that will actually be probed — invest before it's
 needed, and report its prevalence in Phase-3 corpus stats (it is itself an interesting
 meta-research finding).
@@ -331,7 +331,7 @@ meta-research finding).
 The gaming surface in F1/H6 models *honest-language* gaming (magic words). The more potent attack on
 an LLM judge reading author-controlled text is **embedded instructions targeting the judge**:
 white-font text, PDF-comment payloads, "system:"-style strings in supplements coercing `done_well`
-statuses or suppressing the adversarial pass. Once a VeriBayes score is worth anything, this is the
+statuses or suppressing the adversarial pass. Once a Bayesify score is worth anything, this is the
 attack that will actually be tried. Build: (a) **injection red-teaming** — adversarial gold-set
 variants with embedded instructions and an injection-success metric in the validation harness;
 (b) mitigations — strict instruction/data separation in prompts, and the parser flags

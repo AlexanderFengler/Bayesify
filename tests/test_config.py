@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from veribayes.core import config
+from bayesify.core import config
 
 
 def test_estimate_cost_uses_per_mtok_pricing() -> None:
@@ -37,20 +37,20 @@ def test_zero_tokens_zero_cost() -> None:
 
 
 def test_backend_respects_explicit_override(monkeypatch) -> None:
-    monkeypatch.setenv("VERIBAYES_LLM_BACKEND", "api")
+    monkeypatch.setenv("BAYESIFY_LLM_BACKEND", "api")
     monkeypatch.setattr(config, "claude_code_available", lambda: True)  # would otherwise win
     assert config.llm_backend() == "api"
 
 
 def test_backend_prefers_subscription_when_cli_present(monkeypatch) -> None:
-    monkeypatch.delenv("VERIBAYES_LLM_BACKEND", raising=False)
+    monkeypatch.delenv("BAYESIFY_LLM_BACKEND", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setattr(config, "claude_code_available", lambda: True)
     assert config.llm_backend() == "agent-sdk"
 
 
 def test_backend_falls_back_to_api_key(monkeypatch) -> None:
-    monkeypatch.delenv("VERIBAYES_LLM_BACKEND", raising=False)
+    monkeypatch.delenv("BAYESIFY_LLM_BACKEND", raising=False)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr(config, "claude_code_available", lambda: False)
@@ -66,7 +66,7 @@ def test_backend_falls_back_to_openai_key(monkeypatch) -> None:
 
 
 def test_backend_none_when_no_credentials(monkeypatch) -> None:
-    monkeypatch.delenv("VERIBAYES_LLM_BACKEND", raising=False)
+    monkeypatch.delenv("BAYESIFY_LLM_BACKEND", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr(config, "claude_code_available", lambda: False)

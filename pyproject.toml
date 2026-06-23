@@ -1,5 +1,5 @@
 [project]
-name = "veribayes"
+name = "bayesify"
 version = "0.1.0"
 description = "Assess how well academic papers follow Bayesian-workflow best practices."
 readme = "README.md"
@@ -33,7 +33,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["veribayes"]
+packages = ["bayesify"]
 
 [tool.ruff]
 line-length = 100
@@ -44,13 +44,13 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
 # The M1 stub engine is hand-authored prose fixture data; long readable strings are fine there.
-"veribayes/core/stub.py" = ["E501"]
+"bayesify/core/stub.py" = ["E501"]
 # The detector catalog is regex-pattern data (the C1 review surface); patterns read best unwrapped.
-"veribayes/core/detectors/catalog.py" = ["E501"]
+"bayesify/core/detectors/catalog.py" = ["E501"]
 # The fixture generators are hand-authored prose (sample paper text); long readable strings are fine.
 "tests/fixtures/*.py" = ["E501"]
 # The prompt set is LLM prompt-text data (the G1 review surface); prompts read best unwrapped.
-"veribayes/core/prompts.py" = ["E501"]
+"bayesify/core/prompts.py" = ["E501"]
 
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI dependency markers are designed to be called in argument defaults (not a B008 smell).
@@ -60,18 +60,18 @@ extend-immutable-calls = ["fastapi.File", "fastapi.Form", "fastapi.Query", "fast
 testpaths = ["tests"]
 pythonpath = ["."]
 
-# --- Architectural seam (review gate, plans 02 §3.2): veribayes.core must stay web-free ---
+# --- Architectural seam (review gate, plans 02 §3.2): bayesify.core must stay web-free ---
 # core depends only on stdlib + pydantic + pyyaml (+ httpx later for the fetcher). It must never
 # import the FastAPI app or any web framework, so Phase 3's batch pipeline can import it unchanged.
 [tool.importlinter]
-root_package = "veribayes"
+root_package = "bayesify"
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "core is web-free"
 type = "forbidden"
-source_modules = ["veribayes.core"]
-forbidden_modules = ["veribayes.api", "fastapi", "starlette", "uvicorn"]
+source_modules = ["bayesify.core"]
+forbidden_modules = ["bayesify.api", "fastapi", "starlette", "uvicorn"]
 
 # f-score is a pure, deterministic function (f-score.md DoD): no LLM, no network, no IO.
 [[tool.importlinter.contracts]]
@@ -87,7 +87,7 @@ forbidden_modules = ["veribayes.core.llm", "veribayes.llm", "anthropic", "claude
 [[tool.importlinter.contracts]]
 name = "human-report contract is engine-free"
 type = "forbidden"
-source_modules = ["veribayes.core.validation.human_report"]
+source_modules = ["bayesify.core.validation.human_report"]
 forbidden_modules = [
     "veribayes.core.score",
     "veribayes.core.assess",
@@ -103,7 +103,7 @@ forbidden_modules = [
 [[tool.importlinter.contracts]]
 name = "validation metrics is pure"
 type = "forbidden"
-source_modules = ["veribayes.core.validation.metrics"]
+source_modules = ["bayesify.core.validation.metrics"]
 forbidden_modules = [
     "veribayes.core.llm",
     "veribayes.llm",
@@ -131,7 +131,7 @@ nodejs = "22.*"  # frontend toolchain (web/), pixi-managed for reproducibility
 pymupdf = ">=1.24"
 
 [tool.pixi.pypi-dependencies]
-veribayes = { path = ".", editable = true }
+bayesify = { path = ".", editable = true }
 
 # Heavy parser dep (component b) — conda-forge, not pypi: conda builds carry correct platform tags,
 # avoiding the locally-built-wheel macOS-version mismatch. Only installed in the `parse` environment,
@@ -153,27 +153,27 @@ parse = { features = ["dev", "api", "parse"] }
 
 [tool.pixi.tasks]
 test = "pytest -q"
-lint = "ruff check veribayes tests"
-fmt = "ruff format veribayes tests"
+lint = "ruff check bayesify tests"
+fmt = "ruff format bayesify tests"
 imports = "lint-imports"
 check = { depends-on = ["lint", "imports", "test"] }
 test-parse = "pytest tests/test_parse.py -v"  # run with: pixi run -e parse test-parse
 # Live screen/classify accuracy gates over the labeled fixture set. Needs ANTHROPIC_API_KEY and makes
 # real (paid) cheap-model calls; opt-in via this task's env so it never fires during `pixi run check`.
-eval = { cmd = "pytest tests/eval -v", env = { VERIBAYES_RUN_EVAL = "1" } }
+eval = { cmd = "pytest tests/eval -v", env = { BAYESIFY_RUN_EVAL = "1" } }
 # Validation harness (component h). `validate` runs the demo dry-run over the committed fake goldset
 # (offline, no LLM) and writes VALIDATION.demo.md; `demo-data` regenerates the fake goldset.
-validate = "python -m veribayes.core.validation.harness"
-demo-data = "python -m veribayes.core.validation.demo_data"
+validate = "python -m bayesify.core.validation.harness"
+demo-data = "python -m bayesify.core.validation.demo_data"
 # Group captured blind ratings (durable store) into gold records (auto-consensus) -> validation/goldset/.
-assemble-goldset = "python -m veribayes.core.validation.assemble"
+assemble-goldset = "python -m bayesify.core.validation.assemble"
 # --- App ---
 # One-process run (recommended): builds the UI and serves it + the API on one port (http://localhost:8000).
 # Run `pixi run setup-web` once first (installs node_modules).
-app = { cmd = "uvicorn veribayes.api.app:app --port 8000", depends-on = ["web-build"] }
+app = { cmd = "uvicorn bayesify.api.app:app --port 8000", depends-on = ["web-build"] }
 # Hot-reload dev: run `pixi run api` and, in another terminal, `pixi run web` (Vite on :5173 proxies
 # /api to :8000 and hot-reloads the UI). The static mount is absent here (web/dist need not exist).
-api = "uvicorn veribayes.api.app:app --reload --port 8000"
+api = "uvicorn bayesify.api.app:app --reload --port 8000"
 setup-web = { cmd = "npm install", cwd = "web" }
 web = { cmd = "npm run dev", cwd = "web" }
 web-build = { cmd = "npm run build", cwd = "web" }

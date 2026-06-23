@@ -1,7 +1,7 @@
-// TypeScript mirror of the fields of veribayes.core.schema.ScoredResult that the report renders.
+// TypeScript mirror of the fields of bayesify.core.schema.ScoredResult that the report renders.
 // The contract is owned by core/schema.py (§4.3); this is the read-side view.
 
-export type StepStatus = "done_well" | "partial" | "missing" | "not_applicable";
+export type StepStatus = "adequate" | "partial" | "missing" | "not_applicable";
 export type Severity = "error" | "warning" | "info";
 export type Ease = "low" | "medium" | "high";
 
@@ -129,6 +129,8 @@ export interface PaperState {
   stage: string | null;
   mode: string;
   source_label: string;
+  paper_title: string | null; // best-effort title from parsing; falls back to source_label for display
+
   relevance_override: string | null; // set when the user forced a short-circuited paper to be graded
   result: ScoredResult | null;
   fix_list: FixItem[] | null;

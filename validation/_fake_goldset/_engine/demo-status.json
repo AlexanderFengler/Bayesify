@@ -28,7 +28,7 @@
       "step_id": "S1",
       "applicable": true,
       "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -52,7 +52,7 @@
       "step_id": "S2",
       "applicable": true,
       "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -76,7 +76,7 @@
       "step_id": "S3",
       "applicable": true,
       "applicability_reason": "Recommended for numerical_experiment papers.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -100,7 +100,7 @@
       "step_id": "S4",
       "applicable": true,
       "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -124,7 +124,7 @@
       "step_id": "S5",
       "applicable": true,
       "applicability_reason": "Recommended for numerical_experiment papers.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -160,7 +160,7 @@
       "step_id": "S7",
       "applicable": true,
       "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -184,7 +184,7 @@
       "step_id": "S8",
       "applicable": true,
       "applicability_reason": "Recommended for numerical_experiment papers.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -208,7 +208,7 @@
       "step_id": "S9",
       "applicable": true,
       "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -232,7 +232,7 @@
       "step_id": "S10",
       "applicable": true,
       "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -258,7 +258,7 @@
       {
         "step_id": "S1",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -266,7 +266,7 @@
       {
         "step_id": "S2",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -274,7 +274,7 @@
       {
         "step_id": "S3",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "recommended"
@@ -282,7 +282,7 @@
       {
         "step_id": "S4",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -290,7 +290,7 @@
       {
         "step_id": "S5",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "recommended"
@@ -306,7 +306,7 @@
       {
         "step_id": "S7",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -314,7 +314,7 @@
       {
         "step_id": "S8",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "recommended"
@@ -322,7 +322,7 @@
       {
         "step_id": "S9",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -330,7 +330,7 @@
       {
         "step_id": "S10",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"

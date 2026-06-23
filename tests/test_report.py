@@ -5,8 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from veribayes.core.report import fix_list, uncited_praise
-from veribayes.core.schema import (
+from bayesify.core.report import fix_list, uncited_praise
+from bayesify.core.schema import (
     CostLedger,
     Coverage,
     Ease,
@@ -110,7 +110,7 @@ def test_fix_list_carries_score_impact() -> None:
     assert fixes  # the fixture has suggestions
     s5 = next(f for f in fixes if f.step_id == "S5")  # missing expected step
     assert s5.severity is Severity.error
-    assert s5.coverage_delta > 0  # bringing a missing step to done_well lifts coverage
+    assert s5.coverage_delta > 0  # bringing a missing step to adequate lifts coverage
 
 
 # --- D3 praise lint ------------------------------------------------------------------------------
@@ -118,11 +118,11 @@ def test_fix_list_carries_score_impact() -> None:
 
 def test_uncited_praise_is_flagged() -> None:
     cited = StepAssessment(
-        step_id="S1", applicable=True, applicability_reason="", status=StepStatus.done_well,
+        step_id="S1", applicable=True, applicability_reason="", status=StepStatus.adequate,
         confidence=0.9, did_well=['Reports R-hat (§s02).'],
     )
     generic = StepAssessment(
-        step_id="S4", applicable=True, applicability_reason="", status=StepStatus.done_well,
+        step_id="S4", applicable=True, applicability_reason="", status=StepStatus.adequate,
         confidence=0.9, did_well=["The analysis is rigorous and well done."],
     )
     result = _result([cited, generic], [_profile("S1", 1.0), _profile("S4", 1.0)])

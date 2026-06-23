@@ -1,4 +1,4 @@
-# b. Parse — VeriBayes v0 component
+# b. Parse — Bayesify v0 component
 
 **Milestone:** M2
 **v0 items covered:** C3 (structure-aware parsing incl. supplements)

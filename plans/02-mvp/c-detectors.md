@@ -1,4 +1,4 @@
-# c. Deterministic detectors — VeriBayes v0 component
+# c. Deterministic detectors — Bayesify v0 component
 
 **Milestone:** M3
 **v0 items covered:** C1 (library of deterministic detectors)

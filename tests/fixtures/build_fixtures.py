@@ -13,15 +13,15 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from veribayes.core.detectors import evidence_json, run_detectors
-from veribayes.core.schema import ParsedDoc, Section, SectionKind, SourceDoc
+from bayesify.core.detectors import evidence_json, run_detectors
+from bayesify.core.schema import ParsedDoc, Section, SectionKind, SourceDoc
 
 _HERE = Path(__file__).parent
 _WHEN = datetime(2026, 1, 15, 9, 30, 0)
 
 
 def _section(idx: int, kind: SectionKind, title: str, text: str, page: int) -> Section:
-    from veribayes.core.schema import PageSpan
+    from bayesify.core.schema import PageSpan
 
     return Section(
         id=f"s{idx:02d}",

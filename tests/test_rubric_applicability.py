@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from veribayes.core.rubric.applicability import step_applicability
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import (
+from bayesify.core.rubric.applicability import step_applicability
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import (
     ExpectationTier,
     GateFacts,
     InferenceMethod,
@@ -36,7 +36,7 @@ def _ap(step_id: str, paper_class: PaperClassLabel, **facts):
 def test_scoring_block_loads() -> None:
     sc = _RUBRIC.scoring
     assert sc is not None
-    assert sc.sub_score == {"done_well": 1.0, "partial": 0.5, "missing": 0.0}
+    assert sc.sub_score == {"adequate": 1.0, "partial": 0.5, "missing": 0.0}
     assert 0.0 < sc.low_confidence_threshold < 1.0
     assert sc.mixing_rule == "max"
 

@@ -13,11 +13,11 @@ from pathlib import Path
 
 import pytest
 
-from veribayes.core import classify as C
-from veribayes.core import screen as S
-from veribayes.core.detectors import run_detectors
-from veribayes.core.llm import FakeLLMClient
-from veribayes.core.schema import (
+from bayesify.core import classify as C
+from bayesify.core import screen as S
+from bayesify.core.detectors import run_detectors
+from bayesify.core.llm import FakeLLMClient
+from bayesify.core.schema import (
     PaperClass,
     PaperClassLabel,
     ParsedDoc,

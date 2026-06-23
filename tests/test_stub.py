@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from veribayes.core import schema as s
-from veribayes.core.stub import build_stub_result
+from bayesify.core import schema as s
+from bayesify.core.stub import build_stub_result
 
 
 def test_stub_is_schema_valid_and_round_trips() -> None:
@@ -14,7 +14,7 @@ def test_stub_is_schema_valid_and_round_trips() -> None:
 def test_stub_coverage_and_quality() -> None:
     r = build_stub_result()
     assert r.coverage is not None and r.profile is not None
-    # 8 applicable steps (S6, S7 are N/A); 6 present (done_well|partial); 1 uncertain (low-conf S3).
+    # 8 applicable steps (S6, S7 are N/A); 6 present (adequate|partial); 1 uncertain (low-conf S3).
     assert r.coverage.applicable == 8
     assert r.coverage.present == 6
     assert r.profile.n_na == 2
@@ -33,7 +33,7 @@ def test_stub_carries_dual_grounding_and_severities() -> None:
 
 
 def test_stub_engine_version_pins_models() -> None:
-    from veribayes.core import config
+    from bayesify.core import config
 
     r = build_stub_result()
     assert config.JUDGE_MODEL in r.engine_version

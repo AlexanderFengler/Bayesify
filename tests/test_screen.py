@@ -9,10 +9,10 @@ from datetime import datetime
 
 import pytest
 
-from veribayes.core import config
-from veribayes.core import screen as S
-from veribayes.core.llm import FakeLLMClient, LLMError, LLMTransientError
-from veribayes.core.schema import (
+from bayesify.core import config
+from bayesify.core import screen as S
+from bayesify.core.llm import FakeLLMClient, LLMError, LLMTransientError
+from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
     EvidenceSpan,

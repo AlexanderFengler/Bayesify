@@ -3,23 +3,23 @@ import type { StepStatus } from "./types";
 
 // The status vocabulary — single source shared by the report view and (V3) the blind rating form, so
 // the two never drift.
-export const STATUS_OPTIONS: StepStatus[] = ["done_well", "partial", "missing", "not_applicable"];
+export const STATUS_OPTIONS: StepStatus[] = ["adequate", "partial", "missing", "not_applicable"];
 export const STATUS_LABEL: Record<StepStatus, string> = {
-  done_well: "done well",
+  adequate: "adequate",
   partial: "partial",
   missing: "missing",
   not_applicable: "not applicable",
 };
 
 // The compiled rubric served by GET /api/rubric — the single source of truth for step names + the
-// per-step prose a rater is guided by (used in V3). Mirrors veribayes.core.rubric.models.RubricStep.
+// per-step prose a rater is guided by (used in V3). Mirrors bayesify.core.rubric.models.RubricStep.
 export interface RubricStepInfo {
   id: string;
   name: string;
   why: string | null; // one line: why this step matters for the workflow
   essential_for: string[];
   recommended_for: string[];
-  done_well: string | null;
+  adequate: string | null;
   done_poorly: string | null;
   citations: string[];
 }

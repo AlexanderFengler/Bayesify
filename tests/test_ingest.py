@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from veribayes.core.cache import BlobStore
-from veribayes.core.errors import NotAPdfError, UnrecognizedInputError
-from veribayes.core.ingest import ingest_upload, parse_input, to_paper_ids
+from bayesify.core.cache import BlobStore
+from bayesify.core.errors import NotAPdfError, UnrecognizedInputError
+from bayesify.core.ingest import ingest_upload, parse_input, to_paper_ids
 
 
 @pytest.mark.parametrize(
