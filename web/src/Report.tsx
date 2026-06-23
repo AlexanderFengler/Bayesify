@@ -215,6 +215,8 @@ function SummaryColumn({
 
       <ScoreMetrics r={r} />
 
+      <RelevanceGate r={r} />
+
       {r.relevance.overridden && (
         <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "warning.light", color: "text.primary", fontSize: "0.875rem" }}>
           Graded on request. The relevance gate did not classify this as a Bayesian paper; you asked
@@ -228,6 +230,22 @@ function SummaryColumn({
           Analyze another
         </Button>
       </Box>
+    </Box>
+  );
+}
+
+// The relevance-gate description: why the gate landed on its verdict (the value itself is in the Stat
+// row above), with the gate's confidence.
+function RelevanceGate({ r }: { r: ScoredResult }) {
+  if (!r.relevance.rationale) return null;
+  return (
+    <Box>
+      <Typography variant="overline" color="text.secondary">
+        Relevance gate · {Math.round(r.relevance.confidence * 100)}% conf.
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+        {r.relevance.rationale}
+      </Typography>
     </Box>
   );
 }
