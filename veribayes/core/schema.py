@@ -26,9 +26,6 @@ class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-# --- Enums ----------------------------------------------------------------------------------------
-
-
 class SectionKind(StrEnum):
     body = "body"
     abstract = "abstract"
@@ -58,14 +55,17 @@ class RelevanceLabel(StrEnum):
 
 
 class PaperClassLabel(StrEnum):
-    empirical = "empirical"
-    numerical_experiment = "numerical_experiment"
-    methodological = "methodological"
-    review = "review"  # review / opinion / perspective / tutorial — discusses, doesn't apply
+    model_development = "model development"
+    method_development = "method_development"
+    software_development = "software_development"
+    data_analysis = "data_analysis"
+    numerical_analysis = "numerical_analysis"
+    theoretical_analysis = "theoretical_analysis"
+    review = "review"
 
 
 class StepStatus(StrEnum):
-    done_well = "done_well"
+    adequate = "adequate"
     partial = "partial"
     missing = "missing"
     not_applicable = "not_applicable"
@@ -75,6 +75,7 @@ class InferenceMethod(StrEnum):
     mcmc = "mcmc"
     hmc_nuts = "hmc_nuts"
     variational = "variational"
+    sbi = "sbi"
     exact_analytic = "exact_analytic"
     unstated = "unstated"
 
@@ -106,9 +107,6 @@ class ExpectationTier(StrEnum):
     expected = "expected"  # tier-1: missing => error severity
     recommended = "recommended"  # tier-2: missing => warning/info
     none = "none"  # not expected for this paper class
-
-
-# --- Ingest / parse / detect ----------------------------------------------------------------------
 
 
 class PaperIds(_Base):
@@ -159,9 +157,6 @@ class Evidence(_Base):
     # structured payload (e.g. {metric, op?, number}); None for pure mentions
     value: dict[str, object] | None = None
     span: EvidenceSpan
-
-
-# --- Screen / classify ----------------------------------------------------------------------------
 
 
 class Relevance(_Base):
@@ -218,9 +213,6 @@ class GateFacts(_Base):
     prior_informativeness: PriorInformativeness = PriorInformativeness.unstated
 
 
-# --- Assess ---------------------------------------------------------------------------------------
-
-
 class StandardRef(_Base):
     """The second grounding (A3): the methodological standard behind a judgment — "says who?".
     Compiled from ``rubric/steps.yaml`` provenance, carrying its verified/unverified status."""
@@ -257,9 +249,6 @@ class StepAssessment(_Base):
     did_well: list[str] = Field(default_factory=list)  # D3: specific, evidence-cited praise
     suggestions: list[Suggestion] = Field(default_factory=list)  # D2
     adversarial_verdict: AdversarialVerdict | None = None
-
-
-# --- Score (no badge; coverage + quality + profile) -----------------------------------------------
 
 
 class StepProfile(_Base):
