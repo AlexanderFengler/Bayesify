@@ -1,7 +1,10 @@
+import { Box, Fade } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useOutlet } from "react-router-dom";
+import { SwitchTransition } from "react-transition-group";
 import { fetchRubrics, getPaper, rerun, type RubricSummary, streamProgress, submitPaper } from "./api";
 import { AppContext, type AppState } from "./AppContext";
+import { Header } from "./Header";
 import { PrivacyModal } from "./Modal";
 import type { PaperState } from "./types";
 
@@ -174,10 +177,30 @@ export function Layout() {
 
   return (
     <AppContext.Provider value={value}>
-      <Outlet />
+      <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
+        <Header />
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <FadingOutlet />
+        </Box>
+      </Box>
       {modal === "privacy" && (
         <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
       )}
     </AppContext.Provider>
+  );
+}
+
+// Cross-fades the routed content (and only the content — Header sits above this, permanent). Keyed on
+// the path, SwitchTransition's "out-in" mode fades the old page out, then the new page in. The Box is
+// the single ref-forwarding child MUI's Fade needs, and flex-fills so hero pages occupy the area.
+function FadingOutlet() {
+  const { pathname } = useLocation();
+  const outlet = useOutlet();
+  return (
+    <SwitchTransition mode="out-in">
+      <Fade key={pathname} timeout={200} appear>
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>{outlet}</Box>
+      </Fade>
+    </SwitchTransition>
   );
 }

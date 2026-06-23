@@ -14,15 +14,13 @@ export function Analyzing({
   stageState,
   stages,
   source,
-  mode,
 }: {
   stageState: Record<string, "running" | "done">;
   stages: readonly string[];
   source?: string;
-  mode: "full" | "local";
 }) {
   return (
-    <HeroShell mode={mode}>
+    <HeroShell>
       <Box sx={{ textAlign: "center", maxWidth: 760, mx: "auto" }}>
         <Typography variant="h3" sx={{ fontWeight: 700, letterSpacing: "-0.02em", fontSize: { xs: "1.75rem", md: "2.25rem" } }}>
           Analyzing

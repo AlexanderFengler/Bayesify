@@ -51,7 +51,6 @@ export function Landing(p: LandingProps) {
 
   return (
     <HeroShell
-      mode={p.mode}
       footer={
         <Box component="footer" sx={{ bgcolor: "background.paper", borderTop: 1, borderColor: "divider" }}>
           <Container maxWidth="lg">

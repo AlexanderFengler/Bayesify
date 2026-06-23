@@ -24,7 +24,6 @@ import {
   type RubricSummary,
   submitRating,
 } from "./api";
-import { TopBar } from "./HeroShell";
 import { STATUS_LABEL, STATUS_OPTIONS } from "./rubric";
 import { StepCardShell } from "./StepCard";
 import type { StepStatus } from "./types";
@@ -57,35 +56,20 @@ const CHIP_COLOR: Record<StepStatus, "success" | "warning" | "error" | "default"
   not_applicable: "default",
 };
 
-// Full-bleed page shell shared by every state of the rating flow (loading / error / done / form), so
-// the top bar and width stay constant. Mirrors Report/Inventory's `Box > TopBar > Container` chrome.
-function RateShell({ mode, children }: { mode: "full" | "local"; children: React.ReactNode }) {
+// Width-constrained shell shared by every state of the rating flow (loading / error / done / form),
+// so the column width stays constant. The header is permanent (Layout) and lives above this.
+function RateShell({ children }: { children: React.ReactNode }) {
   return (
-    <Box
-      sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}
-    >
-      <TopBar mode={mode} />
-      <Box sx={{ flex: 1 }}>
-        <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
-          {children}
-        </Container>
-      </Box>
-    </Box>
+    <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
+      {children}
+    </Container>
   );
 }
 
 // The blind rating form: a rater walks the same rubric the engine walks and authors a Rating,
 // WITHOUT ever seeing the engine's verdict (the context endpoint serves no ScoredResult). Statuses
 // start blank — nothing is pre-filled from the engine or the gate resolver, so the rater judges cold.
-export function Rate({
-  paperId,
-  mode,
-  onExit,
-}: {
-  paperId: string;
-  mode: "full" | "local";
-  onExit: () => void;
-}) {
+export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void }) {
   const [ctx, setCtx] = useState<RateContext | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [profile, setProfile] = useState("synthesis"); // which rubric the rater rates against
@@ -199,7 +183,7 @@ export function Rate({
 
   if (loadErr) {
     return (
-      <RateShell mode={mode}>
+      <RateShell>
         <Alert
           severity="error"
           action={
@@ -216,7 +200,7 @@ export function Rate({
   }
   if (!ctx) {
     return (
-      <RateShell mode={mode}>
+      <RateShell>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary", py: 6 }}>
           <CircularProgress size={20} />
           <Typography>Loading the rating context…</Typography>
@@ -227,7 +211,7 @@ export function Rate({
 
   if (done) {
     return (
-      <RateShell mode={mode}>
+      <RateShell>
         <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 }, borderRadius: 3, textAlign: "center" }}>
           <Chip color="success" label="Rating recorded" sx={{ mb: 2, fontWeight: 600 }} />
           <Typography sx={{ maxWidth: 520, mx: "auto", color: "text.secondary" }}>
@@ -247,7 +231,7 @@ export function Rate({
   const ratedCount = ctx.rubric.steps.filter((s) => draft(s.id).status).length;
 
   return (
-    <RateShell mode={mode}>
+    <RateShell>
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
         <Box>
           <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>

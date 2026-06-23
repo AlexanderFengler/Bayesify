@@ -1,6 +1,5 @@
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import { Box, Button, Chip, Container, Link, Typography } from "@mui/material";
-import { TopBar } from "./HeroShell";
 import type { EvidenceInventory, InventoryFamily, InventoryHit, PaperState } from "./types";
 
 const FAMILY_NAMES: Record<string, string> = {
@@ -42,38 +41,33 @@ export function Inventory({
   const inv = paper.inventory!;
   const families = inv.families.filter((f) => f.found.length > 0 || f.not_detected.length > 0);
   return (
-    <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
-      <TopBar mode="local" />
-      <Box sx={{ flex: 1 }}>
-        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              gap: { xs: 4, md: 6 },
-              alignItems: "flex-start",
-            }}
-          >
-            {/* LEFT: detection summary + where the engine looked */}
-            <Box sx={{ flex: { md: "0 0 38%" }, width: "100%", position: { md: "sticky" }, top: { md: 88 } }}>
-              <SummaryColumn paper={paper} inv={inv} onReset={onReset} onRate={onRate} />
-            </Box>
+    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          gap: { xs: 4, md: 6 },
+          alignItems: "flex-start",
+        }}
+      >
+        {/* LEFT: detection summary + where the engine looked */}
+        <Box sx={{ flex: { md: "0 0 38%" }, width: "100%", position: { md: "sticky" }, top: { md: 88 } }}>
+          <SummaryColumn paper={paper} inv={inv} onReset={onReset} onRate={onRate} />
+        </Box>
 
-            {/* RIGHT: the detections, by family */}
-            <Box sx={{ flex: "1 1 0", width: "100%", minWidth: 0 }}>
-              <Typography variant="overline" color="text.secondary">
-                Detections by family
-              </Typography>
-              <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 3 }}>
-                {families.map((f) => (
-                  <FamilySection key={f.family} f={f} />
-                ))}
-              </Box>
-            </Box>
+        {/* RIGHT: the detections, by family */}
+        <Box sx={{ flex: "1 1 0", width: "100%", minWidth: 0 }}>
+          <Typography variant="overline" color="text.secondary">
+            Detections by family
+          </Typography>
+          <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+            {families.map((f) => (
+              <FamilySection key={f.family} f={f} />
+            ))}
           </Box>
-        </Container>
+        </Box>
       </Box>
-    </Box>
+    </Container>
   );
 }
 
@@ -220,21 +214,16 @@ export function LocalNotice({
   onReset: () => void;
 }) {
   return (
-    <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
-      <TopBar mode="local" />
-      <Box sx={{ flex: 1 }}>
-        <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
-          <Chip size="small" variant="outlined" label="No analysis run yet" sx={{ mb: 1.5 }} />
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            {source}
-          </Typography>
-          <Typography sx={{ mt: 1.5, color: "text.secondary" }}>{notice}</Typography>
-          <Button variant="contained" disableElevation onClick={onReset} sx={{ mt: 3 }}>
-            Analyze another
-          </Button>
-        </Container>
-      </Box>
-    </Box>
+    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+      <Chip size="small" variant="outlined" label="No analysis run yet" sx={{ mb: 1.5 }} />
+      <Typography variant="h5" sx={{ fontWeight: 700 }}>
+        {source}
+      </Typography>
+      <Typography sx={{ mt: 1.5, color: "text.secondary" }}>{notice}</Typography>
+      <Button variant="contained" disableElevation onClick={onReset} sx={{ mt: 3 }}>
+        Analyze another
+      </Button>
+    </Container>
   );
 }
 

@@ -17,20 +17,14 @@ import {
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { type CalibrationReport, getCalibration, type MetricStat, type TierCCase } from "./api";
-import { TopBar } from "./HeroShell";
 
-// Page shell shared by every state of the calibration view (loading / error / report), so the top
-// bar and width stay constant. Mirrors Report/Rate's `Box > TopBar > Container` chrome.
-function CalibrationShell({ mode, children }: { mode: "full" | "local"; children: React.ReactNode }) {
+// Width-constrained shell shared by every state of the calibration view (loading / error / report),
+// so the column width stays constant. The header is permanent (Layout) and lives above this.
+function CalibrationShell({ children }: { children: React.ReactNode }) {
   return (
-    <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
-      <TopBar mode={mode} />
-      <Box sx={{ flex: 1 }}>
-        <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
-          {children}
-        </Container>
-      </Box>
-    </Box>
+    <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
+      {children}
+    </Container>
   );
 }
 
@@ -49,7 +43,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 // The full calibration view: it renders the validation report the harness produced — honestly. The
 // status drives a per-state banner; the demo state gets a loud, non-dismissable FAKE-DATA banner so
 // fabricated numbers can never be mistaken for a real measurement.
-export function Calibration({ mode, onExit }: { mode: "full" | "local"; onExit: () => void }) {
+export function Calibration({ onExit }: { onExit: () => void }) {
   const [rep, setRep] = useState<CalibrationReport | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -60,7 +54,7 @@ export function Calibration({ mode, onExit }: { mode: "full" | "local"; onExit: 
 
   if (err) {
     return (
-      <CalibrationShell mode={mode}>
+      <CalibrationShell>
         <Alert
           severity="error"
           action={
@@ -77,7 +71,7 @@ export function Calibration({ mode, onExit }: { mode: "full" | "local"; onExit: 
   }
   if (!rep) {
     return (
-      <CalibrationShell mode={mode}>
+      <CalibrationShell>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary", py: 6 }}>
           <CircularProgress size={20} />
           <Typography>Loading calibration…</Typography>
@@ -87,7 +81,7 @@ export function Calibration({ mode, onExit }: { mode: "full" | "local"; onExit: 
   }
 
   return (
-    <CalibrationShell mode={mode}>
+    <CalibrationShell>
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
         <Box>
           <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>

@@ -7,7 +7,6 @@ import { useApp } from "./AppContext";
 import { Calibration } from "./Calibration";
 import { Cover } from "./Cover";
 import { Guide } from "./Guide";
-import { TopBar } from "./HeroShell";
 import { Inventory, LocalNotice } from "./Inventory";
 import { Landing } from "./Landing";
 import { Layout } from "./Layout";
@@ -39,9 +38,8 @@ export function App() {
 }
 
 function CoverRoute() {
-  const { mode } = useApp();
   const navigate = useNavigate();
-  return <Cover mode={mode} onGetStarted={() => navigate("/start")} />;
+  return <Cover onGetStarted={() => navigate("/start")} />;
 }
 
 function LandingRoute() {
@@ -72,22 +70,20 @@ function LandingRoute() {
 function ProcessingRoute() {
   const { running, error, stageState, file, identifier, mode, reset } = useApp();
   const navigate = useNavigate();
-  if (error) return <ErrorPage mode={mode} error={error} onRetry={reset} />;
+  if (error) return <ErrorPage error={error} onRetry={reset} />;
   // A direct hit / refresh on /processing has no run in flight. We show an idle panel rather than
   // redirecting — a render-time <Navigate> here would fire during the completion transition (when
   // running briefly reads false on the old location) and bounce an in-flight run back to /start.
   if (!running) {
     return (
-      <PageShell mode={mode}>
-        <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 }, textAlign: "center" }}>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            No analysis is in progress.
-          </Typography>
-          <Button variant="contained" disableElevation onClick={() => navigate("/start")}>
-            Start an analysis
-          </Button>
-        </Container>
-      </PageShell>
+      <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 }, textAlign: "center" }}>
+        <Typography color="text.secondary" sx={{ mb: 2 }}>
+          No analysis is in progress.
+        </Typography>
+        <Button variant="contained" disableElevation onClick={() => navigate("/start")}>
+          Start an analysis
+        </Button>
+      </Container>
     );
   }
   // an identifier job fetches instead of ingesting an upload → swap the first step
@@ -97,7 +93,7 @@ function ProcessingRoute() {
       : mode === "local"
         ? LOCAL_STAGES
         : STAGES;
-  return <Analyzing stageState={stageState} stages={stages} source={file?.name ?? identifier} mode={mode} />;
+  return <Analyzing stageState={stageState} stages={stages} source={file?.name ?? identifier} />;
 }
 
 // Dispatches a paper by payload (report / inventory / local notice / failed). Uses the in-memory
@@ -121,13 +117,13 @@ function PaperRoute() {
       .catch((e) => setErr(e instanceof Error ? e.message : String(e)));
   }, [id, fromState]);
 
-  if (err) return <ErrorPage mode={app.mode} error={err} onRetry={app.reset} />;
-  if (!paper) return <LoadingPage mode={app.mode} label="Loading paper…" />;
+  if (err) return <ErrorPage error={err} onRetry={app.reset} />;
+  if (!paper) return <LoadingPage label="Loading paper…" />;
   if (paper.status === "failed") {
-    return <ErrorPage mode={app.mode} error={paper.error ?? "assessment failed"} onRetry={app.reset} />;
+    return <ErrorPage error={paper.error ?? "assessment failed"} onRetry={app.reset} />;
   }
   if (paper.result) {
-    return <Report paper={paper} mode={app.mode} onReset={app.reset} onRerun={app.rerunPaper} />;
+    return <Report paper={paper} onReset={app.reset} onRerun={app.rerunPaper} />;
   }
   if (paper.inventory) {
     return <Inventory paper={paper} onReset={app.reset} onRate={(pid) => navigate(`/rate/${pid}`)} />;
@@ -135,69 +131,54 @@ function PaperRoute() {
   if (paper.local_notice) {
     return <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={app.reset} />;
   }
-  return <LoadingPage mode={app.mode} label="Preparing…" />;
+  return <LoadingPage label="Preparing…" />;
 }
 
 function RateRoute() {
   const { id } = useParams();
-  const { mode } = useApp();
   const navigate = useNavigate();
   if (!id) return <Navigate to="/start" replace />;
-  return <Rate paperId={id} mode={mode} onExit={() => navigate(-1)} />;
+  return <Rate paperId={id} onExit={() => navigate(-1)} />;
 }
 
 function CalibrationRoute() {
-  const { mode } = useApp();
   const navigate = useNavigate();
-  return <Calibration mode={mode} onExit={() => navigate(-1)} />;
+  return <Calibration onExit={() => navigate(-1)} />;
 }
 
 function GuideRoute() {
-  const { mode } = useApp();
   const navigate = useNavigate();
-  return <Guide mode={mode} onExit={() => navigate(-1)} />;
+  return <Guide onExit={() => navigate(-1)} />;
 }
 
-// --- shared full-bleed status pages (loading / error), top-barred like the result pages ----------
+// --- shared status pages (loading / error). The permanent header is supplied by Layout; these just
+// fill the routed content area. ---------------------------------------------------------------------
 
-function PageShell({ mode, children }: { mode: "full" | "local"; children: React.ReactNode }) {
+function LoadingPage({ label }: { label: string }) {
   return (
-    <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
-      <TopBar mode={mode} />
-      <Box sx={{ flex: 1 }}>{children}</Box>
+    <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary" }}>
+        <CircularProgress size={20} />
+        <Typography>{label}</Typography>
+      </Box>
     </Box>
   );
 }
 
-function LoadingPage({ mode, label }: { mode: "full" | "local"; label: string }) {
+function ErrorPage({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
-    <PageShell mode={mode}>
-      <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary" }}>
-          <CircularProgress size={20} />
-          <Typography>{label}</Typography>
-        </Box>
-      </Box>
-    </PageShell>
-  );
-}
-
-function ErrorPage({ mode, error, onRetry }: { mode: "full" | "local"; error: string; onRetry: () => void }) {
-  return (
-    <PageShell mode={mode}>
-      <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 } }}>
-        <Alert
-          severity="error"
-          action={
-            <Button color="inherit" size="small" onClick={onRetry}>
-              Try again
-            </Button>
-          }
-        >
-          <AlertTitle>Something went wrong</AlertTitle>
-          {error}
-        </Alert>
-      </Container>
-    </PageShell>
+    <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 } }}>
+      <Alert
+        severity="error"
+        action={
+          <Button color="inherit" size="small" onClick={onRetry}>
+            Try again
+          </Button>
+        }
+      >
+        <AlertTitle>Something went wrong</AlertTitle>
+        {error}
+      </Alert>
+    </Container>
   );
 }

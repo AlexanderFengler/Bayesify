@@ -1,44 +1,12 @@
-import LockIcon from "@mui/icons-material/Lock";
-import PublicIcon from "@mui/icons-material/Public";
-import { AppBar, Box, Chip, Container, Toolbar, Typography } from "@mui/material";
-import { Link as RouterLink } from "react-router-dom";
+import { Box, Container } from "@mui/material";
 
-// The brand wordmark, a link to the home route. Shared by the hero header and the content top bar so
-// the affordance is identical everywhere.
-function Wordmark() {
+// The immersive aurora band shared by the full-bleed screens (cover, landing, analyzing): a bold
+// accent gradient that fills the routed content area, with the page's content centered inside and an
+// optional footer slot below. The header is NOT here — it lives in <Header>, rendered permanently by
+// Layout so it doesn't fade during page transitions. This shell fills the area beneath that header.
+export function HeroShell({ children, footer }: { children: React.ReactNode; footer?: React.ReactNode }) {
   return (
-    <Typography
-      variant="h6"
-      component={RouterLink}
-      to="/"
-      sx={{
-        fontWeight: 700,
-        letterSpacing: "-0.01em",
-        color: "inherit",
-        textDecoration: "none",
-        "&:hover": { opacity: 0.85 },
-      }}
-    >
-      Bayesify
-    </Typography>
-  );
-}
-
-// The immersive page shell shared by every full-bleed screen (landing, analyzing, …): a bold accent
-// gradient band that fills the viewport, with the brand wordmark + the always-on mode indicator at
-// the top and the page's content centered beneath. An optional footer slot sits below the hero.
-// Centralizing it keeps the migrated screens visually identical and DRY.
-export function HeroShell({
-  mode,
-  children,
-  footer,
-}: {
-  mode: "full" | "local";
-  children: React.ReactNode;
-  footer?: React.ReactNode;
-}) {
-  return (
-    <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+    <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
       <Box
         sx={{
           flex: 1,
@@ -74,21 +42,7 @@ export function HeroShell({
           "@media (prefers-reduced-motion: reduce)": { animation: "none" },
         }}
       >
-        {/* the title + mode live in a transparent header bar pinned to the top of the hero */}
-        <AppBar
-          component="header"
-          position="static"
-          elevation={0}
-          sx={{ background: "transparent", color: "common.white" }}
-        >
-          <Container maxWidth="lg">
-            <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
-              <Wordmark />
-              <ModeChip mode={mode} />
-            </Toolbar>
-          </Container>
-        </AppBar>
-        {/* page content, centered in the space below the header */}
+        {/* page content, centered in the space below the (permanent) header */}
         <Box sx={{ flex: 1, display: "flex", alignItems: "center" }}>
           <Container maxWidth="lg" sx={{ py: { xs: 4, md: 6 } }}>
             {children}
@@ -97,50 +51,5 @@ export function HeroShell({
       </Box>
       {footer}
     </Box>
-  );
-}
-
-// The sticky top bar for content pages (report, inventory): brand + mode on a static teal gradient,
-// since those pages sit on a light surface rather than the animated hero.
-export function TopBar({ mode }: { mode: "full" | "local" }) {
-  return (
-    <AppBar
-      component="header"
-      position="sticky"
-      elevation={0}
-      sx={{ color: "common.white", backgroundImage: "linear-gradient(130deg, #15435f 0%, #007396 100%)" }}
-    >
-      <Container maxWidth="lg">
-        <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
-          <Wordmark />
-          <ModeChip mode={mode} />
-        </Toolbar>
-      </Container>
-    </AppBar>
-  );
-}
-
-// Always-visible reminder of the outbound data path for the current mode (PRIVACY.md F3), styled to
-// sit on the bold hero.
-export function ModeChip({ mode }: { mode: "full" | "local" }) {
-  const sx = {
-    bgcolor: "rgba(255,255,255,0.16)",
-    color: "common.white",
-    "& .MuiChip-icon": { color: "inherit" },
-  } as const;
-  return mode === "local" ? (
-    <Chip
-      icon={<LockIcon sx={{ fontSize: 16 }} />}
-      label="Local-only · nothing leaves this machine"
-      size="small"
-      sx={sx}
-    />
-  ) : (
-    <Chip
-      icon={<PublicIcon sx={{ fontSize: 16 }} />}
-      label="Full · text sent to Anthropic"
-      size="small"
-      sx={sx}
-    />
   );
 }

@@ -1,15 +1,11 @@
 import { Box, Button, Container, Paper, Typography } from "@mui/material";
-import { TopBar } from "./HeroShell";
 
 // A short in-app user guide reached from the footer. Two audiences, two flows: get a paper rated
 // (authors/readers) and rate a paper blind (domain experts, the calibration gold standard).
-export function Guide({ mode, onExit }: { mode: "full" | "local"; onExit: () => void }) {
+export function Guide({ onExit }: { onExit: () => void }) {
   return (
-    <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
-      <TopBar mode={mode} />
-      <Box sx={{ flex: 1 }}>
-        <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
-          <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+    <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
             <Box>
               <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
                 Guide
@@ -87,9 +83,7 @@ export function Guide({ mode, onExit }: { mode: "full" | "local"; onExit: () => 
             against expert ratings &mdash; which is exactly what blind rating contributes to. See the{" "}
             <strong>Calibration</strong> link for the current agreement metrics.
           </Typography>
-        </Container>
-      </Box>
-    </Box>
+    </Container>
   );
 }
 

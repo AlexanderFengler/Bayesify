@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { recordOverride } from "./api";
-import { TopBar } from "./HeroShell";
 import { RubricAbout } from "./RubricAbout";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import type {
@@ -79,12 +78,10 @@ function cellColors(status: StepStatus): { bg: string; fg: string } {
 
 export function Report({
   paper,
-  mode,
   onReset,
   onRerun,
 }: {
   paper: PaperState;
-  mode: "full" | "local";
   onReset: () => void;
   onRerun: (paperId: string) => void;
 }) {
@@ -103,14 +100,13 @@ export function Report({
   );
 
   if (r.relevance.label === "no" || r.not_applicable_reason) {
-    return <NotApplicable paper={paper} mode={mode} onReset={onReset} onRerun={onRerun} />;
+    return <NotApplicable paper={paper} onReset={onReset} onRerun={onRerun} />;
   }
 
   const selectedStep = r.step_assessments.find((a) => a.step_id === selected) ?? null;
 
   return (
-    <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
-      <TopBar mode={mode} />
+    <>
       <Box sx={{ flex: 1 }}>
         <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
           <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
@@ -173,7 +169,7 @@ export function Report({
         </Container>
       </Box>
       <ProvenanceFooter r={r} />
-    </Box>
+    </>
   );
 }
 
@@ -795,12 +791,10 @@ function FixesPage({ r, fixes }: { r: ScoredResult; fixes: FixItem[] | null }) {
 
 function NotApplicable({
   paper,
-  mode,
   onReset,
   onRerun,
 }: {
   paper: PaperState;
-  mode: "full" | "local";
   onReset: () => void;
   onRerun: (paperId: string) => void;
 }) {
@@ -808,8 +802,7 @@ function NotApplicable({
   const [busy, setBusy] = useState(false);
   const isReview = r.not_applicable_reason === "not_an_application";
   return (
-    <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
-      <TopBar mode={mode} />
+    <>
       <Box sx={{ flex: 1 }}>
         <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, mb: 3 }}>
@@ -882,7 +875,7 @@ function NotApplicable({
         </Container>
       </Box>
       <ProvenanceFooter r={r} />
-    </Box>
+    </>
   );
 }
 

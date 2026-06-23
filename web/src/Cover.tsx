@@ -4,10 +4,11 @@ import { HeroShell } from "./HeroShell";
 
 // The first screen: a full-bleed hero that fronts the slogan and a single call to action. "Get
 // Started" hands off to the landing page (upload / analyze). It reuses HeroShell so the brand band,
-// wordmark, and animated aurora are identical to every other immersive screen.
-export function Cover({ mode, onGetStarted }: { mode: "full" | "local"; onGetStarted: () => void }) {
+// wordmark, and animated aurora are identical to every other immersive screen. The cover starts no
+// analysis, so it omits the mode chip and lets the header span the full viewport width.
+export function Cover({ onGetStarted }: { onGetStarted: () => void }) {
   return (
-    <HeroShell mode={mode}>
+    <HeroShell>
       <Box
         sx={{
           display: "flex",
@@ -28,7 +29,7 @@ export function Cover({ mode, onGetStarted }: { mode: "full" | "local"; onGetSta
             maxWidth: 900,
           }}
         >
-          Measure your Bayesian Workflow against the gold standard
+          Bring your Bayesian workflow to the gold standard
         </Typography>
         <Typography
           sx={{
@@ -37,8 +38,8 @@ export function Cover({ mode, onGetStarted }: { mode: "full" | "local"; onGetSta
             maxWidth: 620,
           }}
         >
-          A per-step report on how well a paper follows the Bayesian workflow — every finding grounded
-          in the paper and in the methodological literature.
+          See exactly where your paper&rsquo;s Bayesian workflow shines — and where it slips. Every
+          call grounded in the paper and the methods literature.
         </Typography>
         <Button
           variant="contained"
