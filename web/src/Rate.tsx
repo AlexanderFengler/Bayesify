@@ -361,7 +361,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                   )}
                   {s.done_poorly && (
                     <p className="rate-guide rate-guide-poor">
-                      <strong>Done poorly:</strong> {s.done_poorly}
+                      <strong>Missing:</strong> {s.done_poorly}
                     </p>
                   )}
 
