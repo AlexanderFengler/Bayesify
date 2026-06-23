@@ -1,0 +1,183 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
+import { fetchRubrics, getPaper, rerun, type RubricSummary, streamProgress, submitPaper } from "./api";
+import { AppContext, type AppState } from "./AppContext";
+import { PrivacyModal } from "./Modal";
+import type { PaperState } from "./types";
+
+const PRIVACY_ACK_KEY = "bayesify.privacy.ack"; // set once the first-run disclosure is acknowledged
+
+// The root layout: it owns the app-wide state (mode, the upload draft, the streaming lifecycle, the
+// privacy modal) and exposes it through AppContext. It sits inside the Router, so its actions can
+// navigate. Every route renders into <Outlet />.
+export function Layout() {
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<"full" | "local">("full");
+  const [profile, setProfile] = useState("synthesis");
+  const [rubrics, setRubrics] = useState<RubricSummary[]>([]);
+  const [identifier, setIdentifier] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [stageState, setStageState] = useState<Record<string, "running" | "done">>({});
+  const [running, setRunning] = useState(false);
+  const [paper, setPaper] = useState<PaperState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [modal, setModal] = useState<"privacy" | null>(null);
+  const [firstRun, setFirstRun] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  // First visit: show the privacy/mode disclosure before anything is uploaded (PRIVACY.md, F3).
+  useEffect(() => {
+    if (!localStorage.getItem(PRIVACY_ACK_KEY)) {
+      setFirstRun(true);
+      setModal("privacy");
+    }
+  }, []);
+
+  // The available rubrics for the analysis picker (synthesis default; Gelman, etc.).
+  useEffect(() => {
+    fetchRubrics()
+      .then(setRubrics)
+      .catch(() => {});
+  }, []);
+
+  const ackPrivacy = useCallback(() => {
+    localStorage.setItem(PRIVACY_ACK_KEY, "1");
+    setFirstRun(false);
+    setModal(null);
+  }, []);
+
+  const reset = useCallback(() => {
+    setIdentifier("");
+    setFile(null);
+    setStageState({});
+    setPaper(null);
+    setError(null);
+    setRunning(false);
+    navigate("/start");
+  }, [navigate]);
+
+  // Stream one paper_id to completion and route to its result. Shared by a fresh run and a rerun.
+  // `rateOnDone` opens the blind rating form once the paper is ingested (the rate-from-landing flow).
+  const track = useCallback(
+    (paperId: string, opts?: { rateOnDone?: boolean }) => {
+      setStageState({});
+      setError(null);
+      setRunning(true);
+      streamProgress(
+        paperId,
+        (e) => {
+          if (e.type === "stage" && e.stage) {
+            setStageState((prev) => ({ ...prev, [e.stage!]: e.state ?? "running" }));
+          }
+        },
+        async () => {
+          const result = await getPaper(paperId);
+          setPaper(result);
+          if (result.status === "failed") {
+            setError(result.error ?? "assessment failed");
+          }
+          // The paper page dispatches by payload (report / inventory / local notice / failed); the
+          // rate flow jumps straight to the blind form once the paper is ingested. We deliberately
+          // do NOT clear `running` here: react-router navigation is a concurrent transition, so an
+          // urgent setRunning(false) would render /processing for one frame with running=false and
+          // trip its idle state mid-flight. `running` is cleared only by reset()/the next run.
+          navigate(opts?.rateOnDone ? `/rate/${paperId}` : `/paper/${paperId}`);
+        },
+      );
+    },
+    [navigate],
+  );
+
+  // `intent="rate"` runs the on-device front half (detect only, no LLM) and then opens the blind
+  // rating form — so a rater can self-rate straight from the landing page, not only after Analyze.
+  const start = useCallback(
+    async (intent: "analyze" | "rate" = "analyze") => {
+      if (!file && !identifier.trim()) return;
+      const runMode = intent === "rate" ? "local" : mode;
+      setStageState({});
+      setError(null);
+      setRunning(true);
+      navigate("/processing");
+      try {
+        const paperId = await submitPaper({ file, identifier, mode: runMode, profile });
+        track(paperId, { rateOnDone: intent === "rate" });
+      } catch (err) {
+        // Stay on /processing and surface the error there. Keep `running` set so the route's error
+        // branch (checked before the !running redirect) wins without a race. reset() clears it.
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [file, identifier, mode, profile, track, navigate],
+  );
+
+  // Gate-page escape hatch: re-run a short-circuited paper as 'partial' so it gets fully graded.
+  const rerunPaper = useCallback(
+    async (paperId: string) => {
+      setError(null);
+      setRunning(true); // mark a run active BEFORE navigating, or /processing redirects to /start
+      navigate("/processing");
+      try {
+        await rerun(paperId);
+        track(paperId);
+      } catch (err) {
+        // Keep `running` set (see start's catch) so the error shows on /processing without a race.
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    },
+    [track, navigate],
+  );
+
+  const openPrivacy = useCallback(() => setModal("privacy"), []);
+
+  const value = useMemo<AppState>(
+    () => ({
+      mode,
+      setMode,
+      profile,
+      setProfile,
+      rubrics,
+      identifier,
+      setIdentifier,
+      file,
+      setFile,
+      dragging,
+      setDragging,
+      fileInput,
+      running,
+      stageState,
+      paper,
+      setPaper,
+      error,
+      start,
+      rerunPaper,
+      reset,
+      openPrivacy,
+    }),
+    [
+      mode,
+      profile,
+      rubrics,
+      identifier,
+      file,
+      dragging,
+      running,
+      stageState,
+      paper,
+      error,
+      start,
+      rerunPaper,
+      reset,
+      openPrivacy,
+    ],
+  );
+
+  return (
+    <AppContext.Provider value={value}>
+      <Outlet />
+      {modal === "privacy" && (
+        <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
+      )}
+    </AppContext.Provider>
+  );
+}

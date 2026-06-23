@@ -498,7 +498,28 @@ def _render_inventory_markdown(job: jobsmod.Job) -> str:
 # --- Static frontend (single-process mode) --------------------------------------------------------
 # Mounted LAST so it never shadows the /api routes above. Present only when web/dist exists (built
 # by `pixi run app`); absent in the Vite dev flow. Override the location via BAYESIFY_WEB_DIST.
+from starlette.exceptions import HTTPException as _StarletteHTTPException  # noqa: E402
+
+
+class _SPAStaticFiles(StaticFiles):
+    """Serve the built SPA, falling back to index.html for client-side routes (react-router).
+
+    A hard refresh / bookmark / shared link on a deep route like ``/paper/<id>`` has no matching
+    file on disk; without this it would 404. We rewrite those misses to index.html so the SPA boots
+    and resolves the route in the browser. Unknown ``/api/*`` paths still 404 (they are never SPA
+    routes), so genuine API mistakes don't silently return HTML.
+    """
+
+    async def get_response(self, path: str, scope):  # type: ignore[override]
+        try:
+            return await super().get_response(path, scope)
+        except _StarletteHTTPException as exc:
+            if exc.status_code == 404 and not path.startswith("api"):
+                return await super().get_response("index.html", scope)
+            raise
+
+
 _default_dist = Path(__file__).resolve().parents[2] / "web" / "dist"
 _web_dist = Path(os.environ.get("BAYESIFY_WEB_DIST", str(_default_dist)))
 if _web_dist.is_dir():
-    app.mount("/", StaticFiles(directory=str(_web_dist), html=True), name="web")
+    app.mount("/", _SPAStaticFiles(directory=str(_web_dist), html=True), name="web")

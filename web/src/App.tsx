@@ -1,259 +1,203 @@
-import { Alert, AlertTitle, Box, Button, Container } from "@mui/material";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchRubrics, getPaper, rerun, type RubricSummary, streamProgress, submitPaper } from "./api";
+import { Alert, AlertTitle, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { getPaper } from "./api";
 import { Analyzing } from "./Analyzing";
+import { useApp } from "./AppContext";
 import { Calibration } from "./Calibration";
 import { Cover } from "./Cover";
 import { Guide } from "./Guide";
 import { TopBar } from "./HeroShell";
 import { Inventory, LocalNotice } from "./Inventory";
 import { Landing } from "./Landing";
-import { PrivacyModal } from "./Modal";
+import { Layout } from "./Layout";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
-import { LOCAL_STAGES, STAGES, type PaperState } from "./types";
+import { LOCAL_STAGES, type PaperState, STAGES } from "./types";
 
-type Phase = "idle" | "running" | "done" | "error";
-type ModalKind = "privacy" | null;
-const PRIVACY_ACK_KEY = "bayesify.privacy.ack"; // set once the first-run disclosure is acknowledged
-
+// The whole app is client-side routed: a single Layout holds the app-wide state (mode, the upload
+// draft, the streaming lifecycle, the privacy modal) and every URL renders a page into its <Outlet />.
+// The thin *Route wrappers below bridge router params + AppContext to each page's prop interface, so
+// the page components themselves stay router-agnostic.
 export function App() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [mode, setMode] = useState<"full" | "local">("full");
-  const [profile, setProfile] = useState("synthesis"); // which rubric to grade against
-  const [rubrics, setRubrics] = useState<RubricSummary[]>([]);
-  const [identifier, setIdentifier] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [stageState, setStageState] = useState<Record<string, "running" | "done">>({});
-  const [paper, setPaper] = useState<PaperState | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [ratingPaperId, setRatingPaperId] = useState<string | null>(null); // blind-rating takeover
-  const [showCalibration, setShowCalibration] = useState(false); // calibration view takeover
-  const [showGuide, setShowGuide] = useState(false); // user-guide view takeover
-  const [modal, setModal] = useState<ModalKind>(null);
-  const [firstRun, setFirstRun] = useState(false);
-  const [showCover, setShowCover] = useState(true); // the slogan cover precedes the landing page
-  const fileInput = useRef<HTMLInputElement>(null);
-
-  // First visit: show the privacy/mode disclosure before anything is uploaded (PRIVACY.md, F3).
-  useEffect(() => {
-    if (!localStorage.getItem(PRIVACY_ACK_KEY)) {
-      setFirstRun(true);
-      setModal("privacy");
-    }
-  }, []);
-
-  // Direct blind-rating entry: /?rate=<paper_id> opens the blind form for an already-ingested paper
-  // (a stable link for assigning a rater a paper; the in-app entry is the local detection view).
-  useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("rate");
-    if (id) setRatingPaperId(id);
-  }, []);
-
-  // The available rubrics for the analysis picker (synthesis default; Gelman, etc.).
-  useEffect(() => {
-    fetchRubrics()
-      .then(setRubrics)
-      .catch(() => {});
-  }, []);
-
-  const ackPrivacy = useCallback(() => {
-    localStorage.setItem(PRIVACY_ACK_KEY, "1");
-    setFirstRun(false);
-    setModal(null);
-  }, []);
-
-  const reset = () => {
-    setPhase("idle");
-    setIdentifier("");
-    setFile(null);
-    setStageState({});
-    setPaper(null);
-    setError(null);
-  };
-
-  // Stream one paper_id to completion and load the final result. Shared by a fresh run and a rerun.
-  // `rateOnDone` opens the blind rating form once the paper is ingested (the rate-from-landing flow).
-  const track = useCallback((paperId: string, opts?: { rateOnDone?: boolean }) => {
-    setPhase("running");
-    setStageState({});
-    setError(null);
-    streamProgress(
-      paperId,
-      (e) => {
-        if (e.type === "stage" && e.stage) {
-          setStageState((prev) => ({ ...prev, [e.stage!]: e.state ?? "running" }));
-        }
-      },
-      async () => {
-        const result = await getPaper(paperId);
-        if (result.status === "failed") {
-          setPaper(result);
-          setError(result.error ?? "assessment failed");
-          setPhase("error");
-          return;
-        }
-        if (opts?.rateOnDone) {
-          setRatingPaperId(paperId); // the paper is ingested → open the blind form directly
-          setPhase("idle");
-          return;
-        }
-        setPaper(result);
-        setPhase("done");
-      },
-    );
-  }, []);
-
-  // `intent="rate"` runs the on-device front half (detect only, no LLM) and then opens the blind
-  // rating form — so a rater can self-rate straight from the landing page, not only after Analyze.
-  const start = useCallback(
-    async (intent: "analyze" | "rate" = "analyze") => {
-      if (!file && !identifier.trim()) return;
-      const runMode = intent === "rate" ? "local" : mode;
-      setPhase("running");
-      setStageState({});
-      setError(null);
-      try {
-        const paperId = await submitPaper({ file, identifier, mode: runMode, profile });
-        track(paperId, { rateOnDone: intent === "rate" });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-        setPhase("error");
-      }
-    },
-    [file, identifier, mode, profile, track],
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<CoverRoute />} />
+          <Route path="/start" element={<LandingRoute />} />
+          <Route path="/processing" element={<ProcessingRoute />} />
+          <Route path="/paper/:id" element={<PaperRoute />} />
+          <Route path="/rate/:id" element={<RateRoute />} />
+          <Route path="/calibration" element={<CalibrationRoute />} />
+          <Route path="/guide" element={<GuideRoute />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
+}
 
-  // Gate-page escape hatch: re-run a short-circuited paper as 'partial' so it gets fully graded.
-  const rerunPaper = useCallback(
-    async (paperId: string) => {
-      try {
-        await rerun(paperId);
-        track(paperId);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-        setPhase("error");
-      }
-    },
-    [track],
+function CoverRoute() {
+  const { mode } = useApp();
+  const navigate = useNavigate();
+  return <Cover mode={mode} onGetStarted={() => navigate("/start")} />;
+}
+
+function LandingRoute() {
+  const app = useApp();
+  const navigate = useNavigate();
+  return (
+    <Landing
+      mode={app.mode}
+      setMode={app.setMode}
+      profile={app.profile}
+      setProfile={app.setProfile}
+      rubrics={app.rubrics}
+      identifier={app.identifier}
+      setIdentifier={app.setIdentifier}
+      file={app.file}
+      setFile={app.setFile}
+      dragging={app.dragging}
+      setDragging={app.setDragging}
+      fileInput={app.fileInput}
+      onStart={app.start}
+      onGuide={() => navigate("/guide")}
+      onPrivacy={app.openPrivacy}
+      onCalibration={() => navigate("/calibration")}
+    />
   );
+}
 
-  // The immersive landing (idle + no takeover view) is fully MUI and renders edge-to-edge — it does
-  // not use the legacy .page/.container chrome. Every other state still uses the old chrome for now;
-  // they'll migrate page by page.
-  // The slogan cover is the very first screen, shown before anything is uploaded. "Get Started" hands
-  // off to the landing page. A direct ?rate= link or any in-progress work skips straight past it.
-  const atStart = !ratingPaperId && !showCalibration && !showGuide && phase === "idle";
-  if (atStart && showCover) {
+function ProcessingRoute() {
+  const { running, error, stageState, file, identifier, mode, reset } = useApp();
+  const navigate = useNavigate();
+  if (error) return <ErrorPage mode={mode} error={error} onRetry={reset} />;
+  // A direct hit / refresh on /processing has no run in flight. We show an idle panel rather than
+  // redirecting — a render-time <Navigate> here would fire during the completion transition (when
+  // running briefly reads false on the old location) and bounce an in-flight run back to /start.
+  if (!running) {
     return (
-      <>
-        <Cover mode={mode} onGetStarted={() => setShowCover(false)} />
-        {modal === "privacy" && (
-          <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
-        )}
-      </>
+      <PageShell mode={mode}>
+        <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 }, textAlign: "center" }}>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            No analysis is in progress.
+          </Typography>
+          <Button variant="contained" disableElevation onClick={() => navigate("/start")}>
+            Start an analysis
+          </Button>
+        </Container>
+      </PageShell>
     );
   }
+  // an identifier job fetches instead of ingesting an upload → swap the first step
+  const stages =
+    !file && identifier.trim()
+      ? ["fetch", ...(mode === "local" ? LOCAL_STAGES : STAGES).slice(1)]
+      : mode === "local"
+        ? LOCAL_STAGES
+        : STAGES;
+  return <Analyzing stageState={stageState} stages={stages} source={file?.name ?? identifier} mode={mode} />;
+}
 
-  const isLanding = atStart;
-  if (isLanding) {
-    return (
-      <>
-        <Landing
-          mode={mode}
-          setMode={setMode}
-          profile={profile}
-          setProfile={setProfile}
-          rubrics={rubrics}
-          identifier={identifier}
-          setIdentifier={setIdentifier}
-          file={file}
-          setFile={setFile}
-          dragging={dragging}
-          setDragging={setDragging}
-          fileInput={fileInput}
-          onStart={start}
-          onGuide={() => setShowGuide(true)}
-          onPrivacy={() => setModal("privacy")}
-          onCalibration={() => setShowCalibration(true)}
-        />
-        {modal === "privacy" && (
-          <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
-        )}
-      </>
-    );
-  }
+// Dispatches a paper by payload (report / inventory / local notice / failed). Uses the in-memory
+// paper when it matches the URL; otherwise refetches by id so refresh, bookmark, and share all work.
+function PaperRoute() {
+  const { id } = useParams();
+  const app = useApp();
+  const navigate = useNavigate();
+  const [fetched, setFetched] = useState<PaperState | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
-  // The "Analyzing" page is equally immersive (same hero, no card) — render it full-bleed too.
-  const isAnalyzing = !ratingPaperId && !showCalibration && !showGuide && phase === "running";
-  if (isAnalyzing) {
-    // an identifier job fetches instead of ingesting an upload → swap the first step
-    const stages =
-      !file && identifier.trim()
-        ? ["fetch", ...(mode === "local" ? LOCAL_STAGES : STAGES).slice(1)]
-        : mode === "local"
-          ? LOCAL_STAGES
-          : STAGES;
-    return (
-      <Analyzing
-        stageState={stageState}
-        stages={stages}
-        source={file?.name ?? identifier}
-        mode={mode}
-      />
-    );
-  }
+  const fromState = app.paper && app.paper.paper_id === id ? app.paper : null;
+  const paper = fromState ?? fetched;
 
-  // The blind rating form is its own full-bleed page (own top bar), like the result pages.
-  if (ratingPaperId) {
-    return <Rate paperId={ratingPaperId} mode={mode} onExit={() => setRatingPaperId(null)} />;
-  }
+  useEffect(() => {
+    if (fromState || !id) return;
+    setFetched(null);
+    setErr(null);
+    getPaper(id)
+      .then(setFetched)
+      .catch((e) => setErr(e instanceof Error ? e.message : String(e)));
+  }, [id, fromState]);
 
-  // Calibration and the guide are each their own full-bleed page (own top bar), like the results.
-  if (showCalibration) {
-    return <Calibration mode={mode} onExit={() => setShowCalibration(false)} />;
+  if (err) return <ErrorPage mode={app.mode} error={err} onRetry={app.reset} />;
+  if (!paper) return <LoadingPage mode={app.mode} label="Loading paper…" />;
+  if (paper.status === "failed") {
+    return <ErrorPage mode={app.mode} error={paper.error ?? "assessment failed"} onRetry={app.reset} />;
   }
-  if (showGuide) {
-    return <Guide mode={mode} onExit={() => setShowGuide(false)} />;
+  if (paper.result) {
+    return <Report paper={paper} mode={app.mode} onReset={app.reset} onRerun={app.rerunPaper} />;
   }
+  if (paper.inventory) {
+    return <Inventory paper={paper} onReset={app.reset} onRate={(pid) => navigate(`/rate/${pid}`)} />;
+  }
+  if (paper.local_notice) {
+    return <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={app.reset} />;
+  }
+  return <LoadingPage mode={app.mode} label="Preparing…" />;
+}
 
-  // The done-state result pages are each their own full-bleed page (own top bar) — render directly.
-  if (phase === "done" && paper) {
-    if (paper.result) {
-      return <Report paper={paper} mode={mode} onReset={reset} onRerun={rerunPaper} />;
-    }
-    if (paper.inventory) {
-      return <Inventory paper={paper} onReset={reset} onRate={setRatingPaperId} />;
-    }
-    if (paper.local_notice) {
-      return <LocalNotice notice={paper.local_notice} source={paper.source_label} onReset={reset} />;
-    }
-  }
+function RateRoute() {
+  const { id } = useParams();
+  const { mode } = useApp();
+  const navigate = useNavigate();
+  if (!id) return <Navigate to="/start" replace />;
+  return <Rate paperId={id} mode={mode} onExit={() => navigate(-1)} />;
+}
 
-  // Everything else — chiefly the error state — on the same light, top-barred page chrome.
+function CalibrationRoute() {
+  const { mode } = useApp();
+  const navigate = useNavigate();
+  return <Calibration mode={mode} onExit={() => navigate(-1)} />;
+}
+
+function GuideRoute() {
+  const { mode } = useApp();
+  const navigate = useNavigate();
+  return <Guide mode={mode} onExit={() => navigate(-1)} />;
+}
+
+// --- shared full-bleed status pages (loading / error), top-barred like the result pages ----------
+
+function PageShell({ mode, children }: { mode: "full" | "local"; children: React.ReactNode }) {
   return (
     <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
       <TopBar mode={mode} />
-      <Box sx={{ flex: 1 }}>
-        <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 } }}>
-          <Alert
-            severity="error"
-            action={
-              <Button color="inherit" size="small" onClick={reset}>
-                Try again
-              </Button>
-            }
-          >
-            <AlertTitle>Something went wrong</AlertTitle>
-            {error ?? "Unexpected state."}
-          </Alert>
-        </Container>
-      </Box>
-      {modal === "privacy" && (
-        <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
-      )}
+      <Box sx={{ flex: 1 }}>{children}</Box>
     </Box>
   );
 }
 
+function LoadingPage({ mode, label }: { mode: "full" | "local"; label: string }) {
+  return (
+    <PageShell mode={mode}>
+      <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary" }}>
+          <CircularProgress size={20} />
+          <Typography>{label}</Typography>
+        </Box>
+      </Box>
+    </PageShell>
+  );
+}
+
+function ErrorPage({ mode, error, onRetry }: { mode: "full" | "local"; error: string; onRetry: () => void }) {
+  return (
+    <PageShell mode={mode}>
+      <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 } }}>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={onRetry}>
+              Try again
+            </Button>
+          }
+        >
+          <AlertTitle>Something went wrong</AlertTitle>
+          {error}
+        </Alert>
+      </Container>
+    </PageShell>
+  );
+}

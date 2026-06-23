@@ -64,7 +64,7 @@ export function Guide({ mode, onExit }: { mode: "full" | "local"; onExit: () => 
           >
             <GuideStep n={1} head="Open the blind form.">
               On the landing page click <em>Rate it yourself (blind)</em>, or open a{" "}
-              <code>?rate=&hellip;</code> link you were assigned. The paper is ingested on-device
+              <code>/rate/&hellip;</code> link you were assigned. The paper is ingested on-device
               (detectors only, no LLM).
             </GuideStep>
             <GuideStep n={2} head="You see the rubric and the evidence.">

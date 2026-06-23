@@ -1,6 +1,28 @@
 import LockIcon from "@mui/icons-material/Lock";
 import PublicIcon from "@mui/icons-material/Public";
 import { AppBar, Box, Chip, Container, Toolbar, Typography } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
+
+// The brand wordmark, a link to the home route. Shared by the hero header and the content top bar so
+// the affordance is identical everywhere.
+function Wordmark() {
+  return (
+    <Typography
+      variant="h6"
+      component={RouterLink}
+      to="/"
+      sx={{
+        fontWeight: 700,
+        letterSpacing: "-0.01em",
+        color: "inherit",
+        textDecoration: "none",
+        "&:hover": { opacity: 0.85 },
+      }}
+    >
+      Bayesify
+    </Typography>
+  );
+}
 
 // The immersive page shell shared by every full-bleed screen (landing, analyzing, …): a bold accent
 // gradient band that fills the viewport, with the brand wordmark + the always-on mode indicator at
@@ -61,9 +83,7 @@ export function HeroShell({
         >
           <Container maxWidth="lg">
             <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
-              <Typography variant="h6" component="div" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
-                Bayesify
-              </Typography>
+              <Wordmark />
               <ModeChip mode={mode} />
             </Toolbar>
           </Container>
@@ -92,9 +112,7 @@ export function TopBar({ mode }: { mode: "full" | "local" }) {
     >
       <Container maxWidth="lg">
         <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
-          <Typography variant="h6" component="div" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
-            Bayesify
-          </Typography>
+          <Wordmark />
           <ModeChip mode={mode} />
         </Toolbar>
       </Container>
