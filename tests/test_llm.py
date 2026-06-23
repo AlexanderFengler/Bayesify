@@ -5,6 +5,8 @@ No network and no API key — this is the contract screen/classify build against
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 from pydantic import BaseModel
 
@@ -118,6 +120,38 @@ def test_anthropic_client_maps_parsed_output_and_usage() -> None:
     client._sdk_client = SimpleNamespace(messages=_Msgs())  # bypass real SDK construction
     resp = client.complete(model="claude-haiku-4-5", system="s", user="u", schema=_Answer)
     assert resp.parsed.label == "yes" and resp.input_tokens == 11 and resp.output_tokens == 4
+
+
+def test_openai_client_maps_parsed_output_and_usage(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from veribayes.llm import OpenAIClient
+
+    calls: dict = {}
+
+    class APIError(Exception):
+        status_code = 500
+
+    class _Responses:
+        def parse(self, **kw):
+            calls.update(kw)
+            return SimpleNamespace(
+                output_parsed=_Answer(label="yes"),
+                usage=SimpleNamespace(input_tokens=13, output_tokens=7),
+            )
+
+    class _OpenAI:
+        def __init__(self, *, api_key=None):
+            self.api_key = api_key
+            self.responses = _Responses()
+
+    monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=_OpenAI, APIError=APIError))
+    client = OpenAIClient(api_key="sk-fake")
+    resp = client.complete(model="gpt-5.4-mini", system="s", user="u", schema=_Answer)
+    assert resp.parsed.label == "yes"
+    assert resp.input_tokens == 13 and resp.output_tokens == 7
+    assert calls["text_format"] is _Answer
+    assert calls["store"] is False
 
 
 # --- AgentSDKClient (claude-agent-sdk query monkeypatched; no CLI/session) ---

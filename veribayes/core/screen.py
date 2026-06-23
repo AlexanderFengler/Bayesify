@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from veribayes.core import config
 from veribayes.core.context import build_user
-from veribayes.core.llm import LLMClient, call_with_policy, ledger_entry
 from veribayes.core.prompts import SCREEN_SYSTEM
 from veribayes.core.schema import (
     CostLedgerEntry,
@@ -28,6 +27,7 @@ from veribayes.core.schema import (
     Relevance,
     RelevanceLabel,
 )
+from veribayes.llm import LLMClient, call_with_policy, ledger_entry
 
 # Evidence kinds that count as *Bayesian-substantive* for the floor. open_science is excluded — a
 # GitHub link or data-availability statement is not evidence of Bayesian methodology. The two

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from veribayes.core import config
 from veribayes.core.classify import classify
-from veribayes.core.llm import LLMClient
 from veribayes.core.schema import (
     CostLedgerEntry,
     Evidence,
@@ -19,6 +18,7 @@ from veribayes.core.schema import (
     RelevanceLabel,
 )
 from veribayes.core.screen import screen
+from veribayes.llm import LLMClient
 
 
 def screen_and_classify(

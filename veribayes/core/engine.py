@@ -12,7 +12,6 @@ from veribayes.core.assess import assess
 from veribayes.core.cache import BlobStore
 from veribayes.core.detectors import run_detectors
 from veribayes.core.ingest import ingest_upload
-from veribayes.core.llm import LLMClient
 from veribayes.core.parse import parse
 from veribayes.core.pipeline import screen_and_classify
 from veribayes.core.rubric.models import RubricSpec
@@ -25,6 +24,7 @@ from veribayes.core.schema import (
 )
 from veribayes.core.score import ScoreMeta, score
 from veribayes.core.stub import cost_ledger
+from veribayes.llm import LLMClient
 
 
 def grade_parsed(

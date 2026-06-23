@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field
 
 from veribayes.core import config
 from veribayes.core.context import evidence_digest, excerpt_context
-from veribayes.core.llm import LLMClient, call_with_policy, ledger_entry
 from veribayes.core.prompts import ASSESS_JUDGE_SYSTEM, ASSESS_REFUTE_SYSTEM
 from veribayes.core.rubric.applicability import step_applicability
 from veribayes.core.rubric.models import RubricSpec, RubricStep
@@ -42,6 +41,7 @@ from veribayes.core.schema import (
     StepStatus,
     Suggestion,
 )
+from veribayes.llm import LLMClient, call_with_policy, ledger_entry
 
 
 class AssessError(RuntimeError):

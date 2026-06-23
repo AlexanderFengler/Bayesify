@@ -19,11 +19,6 @@ import os
 import shutil
 from dataclasses import dataclass
 
-# --- OA-provider config (M2 fetcher; verified terms 2026-06-13) ---
-# OpenAlex moved to a metered API in Feb 2026: a free API key is recommended (single-DOI lookups
-# stay free). Unpaywall requires a contact email parameter on every call. Both read from the
-# environment so no secret is hard-coded; absence is tolerated (the fetcher skips that provider).
-
 
 def openalex_api_key() -> str | None:
     return os.environ.get("OPENALEX_API_KEY") or None
@@ -39,6 +34,11 @@ def anthropic_api_key() -> str | None:
     return os.environ.get("ANTHROPIC_API_KEY") or None
 
 
+def openai_api_key() -> str | None:
+    """The OpenAI API key for the LLM stages when ``VERIBAYES_LLM_BACKEND=openai``."""
+    return os.environ.get("OPENAI_API_KEY") or None
+
+
 def claude_code_available() -> bool:
     """True if the Claude Agent SDK can run on the local Claude Code session: the ``claude`` CLI is
     on PATH and ``claude_agent_sdk`` is importable. This is the no-API-key path that bills the
@@ -49,30 +49,47 @@ def claude_code_available() -> bool:
 
 
 def llm_backend() -> str:
-    """Which backend full mode uses: ``"agent-sdk"`` (Claude subscription via Claude Code, no key),
-    ``"api"`` (``ANTHROPIC_API_KEY``, pay-as-you-go), or ``"none"`` (→ stub fallback).
+    """Select the LLM backend for full mode.
 
-    Default preference is **subscription-first** (mirrors the hormuz translator): the Agent SDK when
-    the ``claude`` CLI is available, else the API key. Override with ``VERIBAYES_LLM_BACKEND``.
-    Caveat: the Agent SDK bills ``ANTHROPIC_API_KEY`` if it is set — unset it to use the plan,
-    or set ``VERIBAYES_LLM_BACKEND=agent-sdk``."""
-    override = os.environ.get("VERIBAYES_LLM_BACKEND")
-    if override in ("agent-sdk", "api", "none"):
+    Returns ``"agent-sdk"`` (Claude subscription), ``"api"`` (Anthropic API), ``"openai"``
+    (OpenAI API), or ``"none"`` (stub fallback). Override with ``VERIBAYES_LLM_BACKEND``.
+    """
+    override = (os.environ.get("VERIBAYES_LLM_BACKEND") or "").strip().lower()
+    aliases = {
+        "anthropic": "api",
+        "anthropic-api": "api",
+        "claude-api": "api",
+        "openai-api": "openai",
+    }
+    override = aliases.get(override, override)
+    if override in ("agent-sdk", "api", "openai", "none"):
         return override
     if claude_code_available():
         return "agent-sdk"
     if anthropic_api_key():
         return "api"
+    if openai_api_key():
+        return "openai"
     return "none"
 
+ANTHROPIC_JUDGE_MODEL = "claude-opus-4-8"
+ANTHROPIC_SCREEN_MODEL = "claude-opus-4-8"
+OPENAI_JUDGE_MODEL = "gpt-5.5"
+OPENAI_SCREEN_MODEL = "gpt-5.4-mini"
 
-# --- Pinned models (G1) ---------------------------------------------------------------------------
+
+def _default_judge_model() -> str:
+    return OPENAI_JUDGE_MODEL if llm_backend() == "openai" else ANTHROPIC_JUDGE_MODEL
+
+
+def _default_screen_model() -> str:
+    return OPENAI_SCREEN_MODEL if llm_backend() == "openai" else ANTHROPIC_SCREEN_MODEL
+
+
 # Judge: the most capable model, for nuanced per-step methodology judgment (assess stage).
-JUDGE_MODEL: str = "claude-opus-4-8"
-# Screen/classify model. During M4 bring-up this is Opus 4.8 — guaranteed available on a Max plan
-# via the Agent SDK, avoiding tier-availability surprises while we validate the subscription path.
-# It can move back to the cheap Haiku tier (the C6 gate) later. Override: VERIBAYES_SCREEN_MODEL.
-SCREEN_MODEL: str = os.environ.get("VERIBAYES_SCREEN_MODEL") or "claude-opus-4-8"
+JUDGE_MODEL: str = os.environ.get("VERIBAYES_JUDGE_MODEL") or _default_judge_model()
+# Screen/classify model. Override: VERIBAYES_SCREEN_MODEL.
+SCREEN_MODEL: str = os.environ.get("VERIBAYES_SCREEN_MODEL") or _default_screen_model()
 
 
 @dataclass(frozen=True)
@@ -91,6 +108,10 @@ MODEL_PRICING: dict[str, ModelPrice] = {
     # Kept for completeness / overrides; not used by default.
     "claude-sonnet-4-6": ModelPrice(input_per_mtok=3.0, output_per_mtok=15.0),
     "claude-fable-5": ModelPrice(input_per_mtok=10.0, output_per_mtok=50.0),
+    "gpt-5.5": ModelPrice(input_per_mtok=5.0, output_per_mtok=30.0),
+    "gpt-5.4": ModelPrice(input_per_mtok=2.5, output_per_mtok=15.0),
+    "gpt-5.4-mini": ModelPrice(input_per_mtok=0.75, output_per_mtok=4.5),
+    "gpt-5.4-nano": ModelPrice(input_per_mtok=0.2, output_per_mtok=1.25),
 }
 
 

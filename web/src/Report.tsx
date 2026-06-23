@@ -98,7 +98,13 @@ function BackendBadge({ backend, fromCache }: { backend: string | null; fromCach
     return <span className="backend-badge be-stub">Stub engine · no model</span>;
   }
   const name =
-    backend === "agent-sdk" ? "Claude subscription" : backend === "api" ? "Anthropic API" : backend;
+    backend === "agent-sdk"
+      ? "Claude subscription"
+      : backend === "api"
+        ? "Anthropic API"
+        : backend === "openai"
+          ? "OpenAI API"
+          : backend;
   // A cache replay is labelled distinctly from a fresh live run, so a hit never masquerades as live.
   if (fromCache) {
     return <span className="backend-badge be-cache">Cached · {name}</span>;

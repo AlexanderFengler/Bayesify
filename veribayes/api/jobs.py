@@ -30,7 +30,6 @@ from veribayes.core.detectors import EvidenceInventory, evidence_inventory, run_
 from veribayes.core.errors import IngestError
 from veribayes.core.fetcher import Fetcher
 from veribayes.core.ingest import ingest_upload, parse_input
-from veribayes.core.llm import AgentSDKClient, AnthropicClient, LLMClient
 from veribayes.core.parse import parse
 from veribayes.core.pipeline import screen_and_classify
 from veribayes.core.rubric.loader import load_rubric
@@ -38,6 +37,7 @@ from veribayes.core.score import ScoreMeta, score
 from veribayes.core.stub import ENGINE_VERSION, build_stub_result, cost_ledger
 from veribayes.core.validation.override_store import OverrideStore
 from veribayes.core.validation.rating_store import RatingStore
+from veribayes.llm import LLMClient, make_llm_client
 
 _RUBRIC = load_rubric()  # static rubric spec, loaded once
 
@@ -178,11 +178,8 @@ def _fetcher() -> Fetcher:
 
 
 def _llm_client() -> LLMClient:
-    """The LLM client for full mode, chosen by ``config.llm_backend()``: the Claude subscription via
-    the Agent SDK, or the API key. A seam: tests monkeypatch this to inject a FakeLLMClient."""
-    if config.llm_backend() == "agent-sdk":
-        return AgentSDKClient()
-    return AnthropicClient(api_key=config.anthropic_api_key())
+    """The configured LLM client for full mode. Tests monkeypatch this seam."""
+    return make_llm_client()
 
 
 async def run_job(job: Job) -> None:

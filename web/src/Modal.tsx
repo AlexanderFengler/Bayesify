@@ -44,7 +44,7 @@ export function PrivacyModal({ onClose, firstRun }: { onClose: () => void; first
         <div className="privacy-mode-head pm-full">Full mode</div>
         <p>
           To make per-step judgments, VeriBayes sends the <strong>extracted text</strong> of your
-          document to Anthropic (via your Claude subscription or API key). Nothing else leaves the
+          document to the configured LLM provider. Nothing else leaves the
           machine — not the PDF file, not your identity, not the results. If a manuscript is
           confidential or embargoed, treat this as &ldquo;this text will be sent to a third-party API
           for processing&rdquo; and decide accordingly.

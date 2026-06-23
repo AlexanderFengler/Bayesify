@@ -32,8 +32,8 @@ export function Guide({ onExit }: { onExit: () => void }) {
             OpenAlex ID, or URL) and VeriBayes fetches the open-access copy.
           </li>
           <li>
-            <strong>Pick a mode.</strong> <em>Full</em> sends the extracted text to Anthropic and
-            returns the graded report; <em>Local-only</em> runs the on-device detectors with nothing
+            <strong>Pick a mode.</strong> <em>Full</em> sends the extracted text to the configured
+            LLM provider and returns the graded report; <em>Local-only</em> runs the on-device detectors with nothing
             leaving your machine (an evidence inventory, no scores).
           </li>
           <li>

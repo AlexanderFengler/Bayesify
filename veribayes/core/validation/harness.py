@@ -241,17 +241,13 @@ def _live_engine_source(*, profile: str) -> LiveEngineSource:  # pragma: no cove
     bytes in the blob store. Bills the LLM — only the deliberate M7 run reaches here."""
     import os
 
-    from veribayes.core import config, engine
-    from veribayes.core.llm import AgentSDKClient, AnthropicClient
+    from veribayes.core import engine
     from veribayes.core.stub import ENGINE_VERSION, RUBRIC_VERSION
+    from veribayes.llm import make_llm_client
 
     root = os.environ.get("VERIBAYES_DATA_DIR") or str(Path.home() / ".veribayes")
     blobs = BlobStore(Path(root) / "blobs")
-    client = (
-        AgentSDKClient()
-        if config.llm_backend() == "agent-sdk"
-        else AnthropicClient(api_key=config.anthropic_api_key())
-    )
+    client = make_llm_client()
     rubric = load_rubric(profile=profile)
 
     def grade_fn(data: bytes) -> ScoredResult:

@@ -237,8 +237,8 @@ function ModeIndicator({ mode }: { mode: "full" | "local" }) {
     );
   }
   return (
-    <span className="mode-indicator mi-full" title="Extracted text is sent to Anthropic for grading.">
-      Full · text sent to Anthropic
+    <span className="mode-indicator mi-full" title="Extracted text is sent to the configured LLM provider for grading.">
+      Full · text sent to LLM
     </span>
   );
 }
