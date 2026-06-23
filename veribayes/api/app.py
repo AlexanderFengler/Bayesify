@@ -405,7 +405,7 @@ async def calibration() -> dict:
     real_dir = Path(harness.REAL_REPORTS_DIR)
     real = sorted(real_dir.glob("*.json")) if real_dir.is_dir() else []
     if real:
-        return JSONResponse(json.loads(real[-1].read_text()))  # latest real report
+        return JSONResponse(json.loads(real[-1].read_text(encoding="utf-8")))  # latest real report
     fake = Path(harness.FAKE_GOLDSET_DIR)
     if fake.is_dir() and any(fake.glob("*.json")):
         report = harness.build(

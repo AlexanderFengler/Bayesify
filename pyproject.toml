@@ -116,7 +116,7 @@ forbidden_modules = [
 # from the [project.optional-dependencies].dev group (pixi exposes it as the `dev` feature).
 [tool.pixi.workspace]
 channels = ["conda-forge"]
-platforms = ["osx-arm64", "linux-64"]
+platforms = ["win-64", "osx-arm64", "linux-64"]
 
 [tool.pixi.dependencies]
 python = "3.12.*"
@@ -133,14 +133,19 @@ veribayes = { path = ".", editable = true }
 # avoiding the locally-built-wheel macOS-version mismatch. Only installed in the `parse` environment,
 # so the default env (and CI) stays light. torch + models land in gitignored .pixi; nothing big is
 # committed (the lockfile grows, but it's text). PyMuPDF is in the base env (above), not here.
+# Docling's conda dependency chain does not currently solve on win-64, so the richer parser feature
+# is Linux/macOS-only. Windows still gets the base PyMuPDF parser in the default environment.
+[tool.pixi.feature.parse]
+platforms = ["osx-arm64", "linux-64"]
+
 [tool.pixi.feature.parse.dependencies]
 docling = ">=2.0"   # richer parser upgrade: layout / sections / tables / captions
 
 [tool.pixi.environments]
-default = { features = ["dev", "api"], solve-group = "default" }
+default = { features = ["dev", "api"] }
 # The heavy parser env — install/run with `pixi run -e parse <task>`. Not installed by a plain
 # `pixi install`, so the default workflow stays light.
-parse = { features = ["dev", "api", "parse"], solve-group = "default" }
+parse = { features = ["dev", "api", "parse"] }
 
 [tool.pixi.tasks]
 test = "pytest -q"
