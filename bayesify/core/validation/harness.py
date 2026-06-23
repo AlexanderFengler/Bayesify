@@ -243,7 +243,7 @@ def _live_engine_source(*, profile: str) -> LiveEngineSource:  # pragma: no cove
 
     from bayesify.core import engine
     from bayesify.core.stub import ENGINE_VERSION, RUBRIC_VERSION
-    from bayesify.core.llm import make_llm_client
+    from bayesify.llm import make_llm_client
 
     root = os.environ.get("BAYESIFY_DATA_DIR") or str(Path.home() / ".bayesify")
     blobs = BlobStore(Path(root) / "blobs")

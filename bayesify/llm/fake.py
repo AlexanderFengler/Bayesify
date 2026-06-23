@@ -1,10 +1,10 @@
-"""Scripted in-memory LLM client for tests."""
+﻿"""Scripted in-memory LLM client for tests."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel
 
-from veribayes.llm.base import LLMError, LLMResponse
+from bayesify.llm.base import LLMError, LLMResponse
 
 
 class FakeLLMClient:
@@ -52,3 +52,4 @@ class FakeLLMClient:
         return LLMResponse(
             parsed=item, model=model, input_tokens=self._default_in, output_tokens=self._default_out
         )
+

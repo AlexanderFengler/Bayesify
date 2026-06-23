@@ -8,40 +8,23 @@ client) — no caching, no UI events, no escape-hatch overrides (those are app c
 
 from __future__ import annotations
 
-<<<<<<< HEAD:veribayes/core/engine.py
-from veribayes.core.assess import assess
-from veribayes.core.cache import BlobStore
-from veribayes.core.detectors import run_detectors
-from veribayes.core.ingest import ingest_upload
-from veribayes.core.parse import parse
-from veribayes.core.pipeline import screen_and_classify
-from veribayes.core.rubric.models import RubricSpec
-from veribayes.core.schema import (
-=======
 from bayesify.core.assess import assess
 from bayesify.core.cache import BlobStore
 from bayesify.core.detectors import run_detectors
 from bayesify.core.ingest import ingest_upload
-from bayesify.core.llm import LLMClient
 from bayesify.core.parse import parse
 from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.rubric.models import RubricSpec
 from bayesify.core.schema import (
->>>>>>> dev:bayesify/core/engine.py
     Evidence,
     PaperClassLabel,
     ParsedDoc,
     RelevanceLabel,
     ScoredResult,
 )
-<<<<<<< HEAD:veribayes/core/engine.py
-from veribayes.core.score import ScoreMeta, score
-from veribayes.core.stub import cost_ledger
-from veribayes.llm import LLMClient
-=======
 from bayesify.core.score import ScoreMeta, score
 from bayesify.core.stub import cost_ledger
->>>>>>> dev:bayesify/core/engine.py
+from bayesify.llm import LLMClient
 
 
 def grade_parsed(

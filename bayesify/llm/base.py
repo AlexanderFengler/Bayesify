@@ -1,4 +1,4 @@
-"""Shared LLM interface, retry policy, token accounting, and cost ledger helpers."""
+﻿"""Shared LLM interface, retry policy, token accounting, and cost ledger helpers."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from typing import Protocol
 
 from pydantic import BaseModel
 
-from veribayes.core import config
-from veribayes.core.schema import CostLedgerEntry
+from bayesify.core import config
+from bayesify.core.schema import CostLedgerEntry
 
 
 class LLMError(Exception):
@@ -140,3 +140,4 @@ def brace_json(text: str) -> dict | None:
                     return None
                 return obj if isinstance(obj, dict) else None
     return None
+

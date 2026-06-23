@@ -7,16 +7,9 @@ API job loop (and Phase 3's batch pipeline) unchanged.
 
 from __future__ import annotations
 
-<<<<<<< HEAD:veribayes/core/pipeline.py
-from veribayes.core import config
-from veribayes.core.classify import classify
-from veribayes.core.schema import (
-=======
 from bayesify.core import config
 from bayesify.core.classify import classify
-from bayesify.core.llm import LLMClient
 from bayesify.core.schema import (
->>>>>>> dev:bayesify/core/pipeline.py
     CostLedgerEntry,
     Evidence,
     PaperClass,
@@ -24,12 +17,8 @@ from bayesify.core.schema import (
     Relevance,
     RelevanceLabel,
 )
-<<<<<<< HEAD:veribayes/core/pipeline.py
-from veribayes.core.screen import screen
-from veribayes.llm import LLMClient
-=======
 from bayesify.core.screen import screen
->>>>>>> dev:bayesify/core/pipeline.py
+from bayesify.llm import LLMClient
 
 
 def screen_and_classify(

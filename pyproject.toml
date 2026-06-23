@@ -77,8 +77,8 @@ forbidden_modules = ["bayesify.api", "fastapi", "starlette", "uvicorn"]
 [[tool.importlinter.contracts]]
 name = "score is pure"
 type = "forbidden"
-source_modules = ["veribayes.core.score"]
-forbidden_modules = ["veribayes.core.llm", "veribayes.llm", "anthropic", "claude_agent_sdk", "openai", "httpx"]
+source_modules = ["bayesify.core.score"]
+forbidden_modules = ["bayesify.core.llm", "bayesify.llm", "anthropic", "claude_agent_sdk", "openai", "httpx"]
 
 # The human-report contract is the measuring instrument: it must not depend on engine *behaviour*,
 # so the instrument can never inherit the engine's framing (the validity firewall). It shares only
@@ -89,13 +89,13 @@ name = "human-report contract is engine-free"
 type = "forbidden"
 source_modules = ["bayesify.core.validation.human_report"]
 forbidden_modules = [
-    "veribayes.core.score",
-    "veribayes.core.assess",
-    "veribayes.core.screen",
-    "veribayes.core.classify",
-    "veribayes.core.pipeline",
-    "veribayes.core.llm",
-    "veribayes.llm",
+    "bayesify.core.score",
+    "bayesify.core.assess",
+    "bayesify.core.screen",
+    "bayesify.core.classify",
+    "bayesify.core.pipeline",
+    "bayesify.core.llm",
+    "bayesify.llm",
 ]
 
 # The metric engine is pure (same discipline as score): no LLM, no network, no IO — just labels in,
@@ -105,9 +105,9 @@ name = "validation metrics is pure"
 type = "forbidden"
 source_modules = ["bayesify.core.validation.metrics"]
 forbidden_modules = [
-    "veribayes.core.llm",
-    "veribayes.llm",
-    "veribayes.api",
+    "bayesify.core.llm",
+    "bayesify.llm",
+    "bayesify.api",
     "anthropic",
     "claude_agent_sdk",
     "openai",

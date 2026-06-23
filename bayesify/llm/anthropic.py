@@ -1,10 +1,10 @@
-"""Anthropic API implementation of the provider-neutral LLM client."""
+﻿"""Anthropic API implementation of the provider-neutral LLM client."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel
 
-from veribayes.llm.base import LLMError, LLMResponse, LLMTransientError
+from bayesify.llm.base import LLMError, LLMResponse, LLMTransientError
 
 
 class AnthropicClient:
@@ -59,3 +59,4 @@ class AnthropicClient:
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
         )
+

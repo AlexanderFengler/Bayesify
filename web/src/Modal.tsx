@@ -1,4 +1,4 @@
-import CloseIcon from "@mui/icons-material/Close";
+﻿import CloseIcon from "@mui/icons-material/Close";
 import {
   Box,
   Button,
@@ -38,7 +38,7 @@ export function Modal({
   );
 }
 
-// The data-path explainer for one analysis mode — a coloured header strip over the prose.
+// The data-path explainer for one analysis mode â€” a coloured header strip over the prose.
 function PrivacyMode({ mode, children }: { mode: "full" | "local"; children: React.ReactNode }) {
   const full = mode === "full";
   return (
@@ -87,15 +87,15 @@ export function PrivacyModal({ onClose, firstRun }: { onClose: () => void; first
 
       <PrivacyMode mode="full">
         To make per-step judgments, Bayesify sends the <strong>extracted text</strong> of your
-        document to Anthropic (via your Claude subscription or API key). Nothing else leaves the
-        machine — not the PDF file, not your identity, not the results. If a manuscript is
+        document to the configured LLM provider. Nothing else leaves the
+        machine â€” not the PDF file, not your identity, not the results. If a manuscript is
         confidential or embargoed, treat this as &ldquo;this text will be sent to a third-party API
         for processing&rdquo; and decide accordingly.
       </PrivacyMode>
 
       <PrivacyMode mode="local">
         <strong>Nothing leaves this machine.</strong> Local-only runs the parser and the
-        deterministic detectors only — no LLM call, no text sent anywhere. It produces an evidence
+        deterministic detectors only â€” no LLM call, no text sent anywhere. It produces an evidence
         inventory (what was found and where), <strong>not a graded report</strong>: there are no
         coverage or quality scores, because scoring requires the model&rsquo;s judgment.
       </PrivacyMode>
@@ -107,3 +107,4 @@ export function PrivacyModal({ onClose, firstRun }: { onClose: () => void; first
     </Modal>
   );
 }
+

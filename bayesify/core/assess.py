@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field
 
 from bayesify.core import config
 from bayesify.core.context import evidence_digest, excerpt_context
-from bayesify.core.llm import LLMClient, call_with_policy, ledger_entry
 from bayesify.core.prompts import ASSESS_JUDGE_SYSTEM, ASSESS_REFUTE_SYSTEM
 from bayesify.core.rubric.applicability import step_applicability
 from bayesify.core.rubric.models import RubricSpec, RubricStep
@@ -42,7 +41,7 @@ from bayesify.core.schema import (
     StepStatus,
     Suggestion,
 )
-from veribayes.llm import LLMClient, call_with_policy, ledger_entry
+from bayesify.llm import LLMClient, call_with_policy, ledger_entry
 
 
 class AssessError(RuntimeError):

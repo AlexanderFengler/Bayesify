@@ -125,7 +125,7 @@ def test_anthropic_client_maps_parsed_output_and_usage() -> None:
 def test_openai_client_maps_parsed_output_and_usage(monkeypatch) -> None:
     from types import SimpleNamespace
 
-    from veribayes.llm import OpenAIClient
+    from bayesify.llm import OpenAIClient
 
     calls: dict = {}
 
@@ -152,6 +152,12 @@ def test_openai_client_maps_parsed_output_and_usage(monkeypatch) -> None:
     assert resp.input_tokens == 13 and resp.output_tokens == 7
     assert calls["text_format"] is _Answer
     assert calls["store"] is False
+
+
+def test_factory_builds_openai_client() -> None:
+    from bayesify.llm import OpenAIClient, make_llm_client
+
+    assert isinstance(make_llm_client("openai"), OpenAIClient)
 
 
 # --- AgentSDKClient (claude-agent-sdk query monkeypatched; no CLI/session) ---

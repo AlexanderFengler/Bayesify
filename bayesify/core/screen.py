@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from bayesify.core import config
 from bayesify.core.context import build_user
-from bayesify.core.llm import LLMClient, call_with_policy, ledger_entry
 from bayesify.core.prompts import SCREEN_SYSTEM
 from bayesify.core.schema import (
     CostLedgerEntry,
@@ -28,7 +27,7 @@ from bayesify.core.schema import (
     Relevance,
     RelevanceLabel,
 )
-from veribayes.llm import LLMClient, call_with_policy, ledger_entry
+from bayesify.llm import LLMClient, call_with_policy, ledger_entry
 
 # Evidence kinds that count as *Bayesian-substantive* for the floor. open_science is excluded — a
 # GitHub link or data-availability statement is not evidence of Bayesian methodology. The two

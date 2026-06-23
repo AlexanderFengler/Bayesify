@@ -35,7 +35,7 @@ def anthropic_api_key() -> str | None:
 
 
 def openai_api_key() -> str | None:
-    """The OpenAI API key for the LLM stages when ``VERIBAYES_LLM_BACKEND=openai``."""
+    """The OpenAI API key for the LLM stages when ``BAYESIFY_LLM_BACKEND=openai``."""
     return os.environ.get("OPENAI_API_KEY") or None
 
 
@@ -52,9 +52,9 @@ def llm_backend() -> str:
     """Select the LLM backend for full mode.
 
     Returns ``"agent-sdk"`` (Claude subscription), ``"api"`` (Anthropic API), ``"openai"``
-    (OpenAI API), or ``"none"`` (stub fallback). Override with ``VERIBAYES_LLM_BACKEND``.
+    (OpenAI API), or ``"none"`` (stub fallback). Override with ``BAYESIFY_LLM_BACKEND``.
     """
-    override = (os.environ.get("VERIBAYES_LLM_BACKEND") or "").strip().lower()
+    override = (os.environ.get("BAYESIFY_LLM_BACKEND") or "").strip().lower()
     aliases = {
         "anthropic": "api",
         "anthropic-api": "api",
@@ -86,8 +86,8 @@ def _default_screen_model() -> str:
     return OPENAI_SCREEN_MODEL if llm_backend() == "openai" else ANTHROPIC_SCREEN_MODEL
 
 
-JUDGE_MODEL: str = os.environ.get("VERIBAYES_JUDGE_MODEL") or _default_judge_model()
-SCREEN_MODEL: str = os.environ.get("VERIBAYES_SCREEN_MODEL") or _default_screen_model()
+JUDGE_MODEL: str = os.environ.get("BAYESIFY_JUDGE_MODEL") or _default_judge_model()
+SCREEN_MODEL: str = os.environ.get("BAYESIFY_SCREEN_MODEL") or _default_screen_model()
 
 
 @dataclass(frozen=True)

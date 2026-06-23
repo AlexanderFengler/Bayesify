@@ -1,4 +1,4 @@
-"""Claude Agent SDK implementation of the provider-neutral LLM client."""
+﻿"""Claude Agent SDK implementation of the provider-neutral LLM client."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import os
 
 from pydantic import BaseModel, ValidationError
 
-from veribayes.llm.base import (
+from bayesify.llm.base import (
     LLMError,
     LLMResponse,
     LLMTransientError,
@@ -34,7 +34,8 @@ class AgentSDKClient:
         except ImportError as exc:  # pragma: no cover - dependency is declared
             raise LLMError("the 'claude-agent-sdk' package is not installed") from exc
 
-        use_output_format = os.environ.get("VERIBAYES_AGENT_OUTPUT_FORMAT", "").strip().lower() in (
+        output_format_flag = os.environ.get("BAYESIFY_AGENT_OUTPUT_FORMAT", "")
+        use_output_format = output_format_flag.strip().lower() in (
             "1",
             "true",
             "yes",
@@ -94,3 +95,4 @@ class AgentSDKClient:
         return LLMResponse(
             parsed=parsed, model=model, input_tokens=result["in"], output_tokens=result["out"]
         )
+

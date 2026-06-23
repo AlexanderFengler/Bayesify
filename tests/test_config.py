@@ -58,7 +58,7 @@ def test_backend_falls_back_to_api_key(monkeypatch) -> None:
 
 
 def test_backend_falls_back_to_openai_key(monkeypatch) -> None:
-    monkeypatch.delenv("VERIBAYES_LLM_BACKEND", raising=False)
+    monkeypatch.delenv("BAYESIFY_LLM_BACKEND", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     monkeypatch.setattr(config, "claude_code_available", lambda: False)

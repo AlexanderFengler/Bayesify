@@ -1,4 +1,4 @@
-import { Box, Button, Container, Typography } from "@mui/material";
+﻿import { Box, Button, Container, Typography } from "@mui/material";
 
 // A short in-app explainer reached from the footer. Two audiences, two flows shown side by side:
 // get a paper rated (authors/readers) and rate a paper blind (domain experts, the gold standard).
@@ -33,13 +33,13 @@ export function Guide({ onExit }: { onExit: () => void }) {
           alignItems: "flex-start",
         }}
       >
-        <GuideColumn title="Get your paper rated" lead="For authors and readers — an evidence-linked, per-step report on a paper.">
+        <GuideColumn title="Get your paper rated" lead="For authors and readers â€” an evidence-linked, per-step report on a paper.">
           <GuideStep n={1} head="Add the paper.">
             Drop a PDF, or paste an identifier (arXiv ID, DOI, OpenAlex ID, or URL) and Bayesify
             fetches the open-access copy.
           </GuideStep>
           <GuideStep n={2} head="Pick a mode.">
-            <em>Full</em> sends the extracted text to Anthropic and returns the graded report;{" "}
+            <em>Full</em> sends the extracted text to the configured LLM provider and returns the graded report;{" "}
             <em>Local-only</em> runs the on-device detectors with nothing leaving your machine (an
             evidence inventory, no scores).
           </GuideStep>
@@ -60,44 +60,9 @@ export function Guide({ onExit }: { onExit: () => void }) {
           </GuideStep>
         </GuideColumn>
 
-<<<<<<< HEAD
-      <section className="card guide-section">
-        <h2 className="guide-h">Get your paper rated</h2>
-        <p className="guide-lead">
-          For authors and readers &mdash; an evidence-linked, per-step report on a paper.
-        </p>
-        <ol className="guide-steps">
-          <li>
-            <strong>Add the paper.</strong> Drop a PDF, or paste an identifier (arXiv ID, DOI,
-            OpenAlex ID, or URL) and VeriBayes fetches the open-access copy.
-          </li>
-          <li>
-            <strong>Pick a mode.</strong> <em>Full</em> sends the extracted text to the configured
-            LLM provider and returns the graded report; <em>Local-only</em> runs the on-device detectors with nothing
-            leaving your machine (an evidence inventory, no scores).
-          </li>
-          <li>
-            <strong>Click Analyze.</strong> You get a dashboard &mdash; the steps at a glance plus a
-            coverage and a quality score (hover the &#9432; for exactly how each is computed) &mdash;
-            then the <strong>Full report</strong>: per step, what was done well, concrete suggestions,
-            and the supporting quotes &ldquo;in the paper&rdquo;.
-          </li>
-          <li>
-            <strong>Read the summary.</strong> The end of the report recaps the result and lists the
-            priority fixes, ranked by impact.
-          </li>
-          <li>
-            <strong>Edge cases.</strong> If the paper isn&rsquo;t a Bayesian application &mdash; e.g. a
-            review or opinion piece &mdash; the rubric doesn&rsquo;t directly apply and nothing is
-            graded; you can still &ldquo;Run full assessment anyway&rdquo;. Disagree with a step? Use{" "}
-            <em>Disagree?</em> to record a correction. Download the report as JSON or Markdown anytime.
-          </li>
-        </ol>
-      </section>
-=======
         <GuideColumn
           title="Rate a paper (blind)"
-          lead="For domain experts — your ratings are the gold standard the engine is measured against. You rate blind (you never see the engine's verdict), so your judgment isn't anchored to it."
+          lead="For domain experts â€” your ratings are the gold standard the engine is measured against. You rate blind (you never see the engine's verdict), so your judgment isn't anchored to it."
         >
           <GuideStep n={1} head="Open the blind form.">
             On the landing page click <em>Rate it yourself (blind)</em>, or open a{" "}
@@ -119,7 +84,6 @@ export function Guide({ onExit }: { onExit: () => void }) {
           </GuideStep>
         </GuideColumn>
       </Box>
->>>>>>> dev
 
       <Typography variant="body2" color="text.secondary" sx={{ mt: { xs: 4, md: 5 } }}>
         Bayesify runs locally and is honest about its limits: the engine is not yet validated against
@@ -180,3 +144,4 @@ function GuideStep({ n, head, children }: { n: number; head: string; children: R
     </Box>
   );
 }
+

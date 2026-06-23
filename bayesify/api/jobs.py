@@ -21,25 +21,6 @@ from pathlib import Path
 
 import httpx
 
-<<<<<<< HEAD:veribayes/api/jobs.py
-from veribayes.core import config
-from veribayes.core import schema as s
-from veribayes.core.assess import assess
-from veribayes.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
-from veribayes.core.classify import classify
-from veribayes.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
-from veribayes.core.errors import IngestError
-from veribayes.core.fetcher import Fetcher
-from veribayes.core.ingest import ingest_upload, parse_input
-from veribayes.core.parse import parse
-from veribayes.core.pipeline import screen_and_classify
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.score import ScoreMeta, score
-from veribayes.core.stub import ENGINE_VERSION, build_stub_result, cost_ledger
-from veribayes.core.validation.override_store import OverrideStore
-from veribayes.core.validation.rating_store import RatingStore
-from veribayes.llm import LLMClient, make_llm_client
-=======
 from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.assess import assess
@@ -49,7 +30,6 @@ from bayesify.core.detectors import EvidenceInventory, evidence_inventory, run_d
 from bayesify.core.errors import IngestError
 from bayesify.core.fetcher import Fetcher
 from bayesify.core.ingest import ingest_upload, parse_input
-from bayesify.core.llm import AgentSDKClient, AnthropicClient, LLMClient
 from bayesify.core.parse import parse
 from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.rubric.loader import load_rubric
@@ -57,7 +37,7 @@ from bayesify.core.score import ScoreMeta, score
 from bayesify.core.stub import ENGINE_VERSION, build_stub_result, cost_ledger
 from bayesify.core.validation.override_store import OverrideStore
 from bayesify.core.validation.rating_store import RatingStore
->>>>>>> dev:bayesify/api/jobs.py
+from bayesify.llm import LLMClient, make_llm_client
 
 _RUBRIC = load_rubric()  # static rubric spec, loaded once
 
@@ -138,7 +118,7 @@ class Job:
     parser: str | None = None  # which parser ran (docling | pymupdf), surfaced in the local report
     parser_version: str | None = None
     paper_title: str | None = None  # best-effort title for display (provider/page-1; may be None)
-    backend: str | None = None  # who produced the result: "agent-sdk" | "api" | "stub"
+    backend: str | None = None  # who produced the result: "agent-sdk" | "api" | "openai" | "stub"
     from_cache: bool = False  # this result was a cache replay, not a fresh run (surfaced in the UI)
     force_fresh: bool = False  # bypass the cache for this run (set by the rerun escape hatch)
     local_notice: str | None = None  # the labelled local-mode explanation
@@ -329,7 +309,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
 
     parsed, evidence = await _front_half(job, source=source)
     client = _llm_client()
-    job.backend = config.llm_backend()  # "agent-sdk" (subscription) | "api" — shown in the report
+    job.backend = config.llm_backend()  # "agent-sdk" | "api" | "openai" — shown in the report
 
     job.stage = "screen"
     job.emit({"type": "stage", "stage": "screen", "state": "running"})

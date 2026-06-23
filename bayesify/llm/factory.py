@@ -1,12 +1,12 @@
-"""Factory for choosing the configured LLM provider."""
+﻿"""Factory for choosing the configured LLM provider."""
 
 from __future__ import annotations
 
-from veribayes.core import config
-from veribayes.llm.anthropic import AnthropicClient
-from veribayes.llm.base import LLMClient, LLMError
-from veribayes.llm.claude_agent import AgentSDKClient
-from veribayes.llm.openai import OpenAIClient
+from bayesify.core import config
+from bayesify.llm.anthropic import AnthropicClient
+from bayesify.llm.base import LLMClient, LLMError
+from bayesify.llm.claude_agent import AgentSDKClient
+from bayesify.llm.openai import OpenAIClient
 
 
 def make_llm_client(backend: str | None = None) -> LLMClient:
@@ -19,3 +19,4 @@ def make_llm_client(backend: str | None = None) -> LLMClient:
     if selected == "openai":
         return OpenAIClient(api_key=config.openai_api_key())
     raise LLMError(f"no LLM client is configured for backend {selected!r}")
+

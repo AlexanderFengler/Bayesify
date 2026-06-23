@@ -163,18 +163,12 @@ function GuideRoute() {
 
 function LoadingPage({ label }: { label: string }) {
   return (
-<<<<<<< HEAD
-    <span className="mode-indicator mi-full" title="Extracted text is sent to the configured LLM provider for grading.">
-      Full · text sent to LLM
-    </span>
-=======
     <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary" }}>
         <CircularProgress size={20} />
         <Typography>{label}</Typography>
       </Box>
     </Box>
->>>>>>> dev
   );
 }
 

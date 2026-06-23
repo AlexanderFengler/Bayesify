@@ -1,10 +1,10 @@
-"""OpenAI Responses API implementation of the provider-neutral LLM client."""
+﻿"""OpenAI Responses API implementation of the provider-neutral LLM client."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel, ValidationError
 
-from veribayes.llm.base import LLMError, LLMResponse, LLMTransientError, brace_json, usage_tokens
+from bayesify.llm.base import LLMError, LLMResponse, LLMTransientError, brace_json, usage_tokens
 
 
 class OpenAIClient:
@@ -140,3 +140,4 @@ def _parsed_output[T: BaseModel](response: object, schema: type[T]) -> T | None:
             except ValidationError as exc:
                 raise LLMTransientError(f"OpenAI output failed schema validation: {exc}") from exc
     return None
+

@@ -1,4 +1,4 @@
-import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+﻿import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import LockIcon from "@mui/icons-material/Lock";
 import PublicIcon from "@mui/icons-material/Public";
@@ -35,9 +35,9 @@ function ModeChip({ mode }: { mode: "full" | "local" }) {
     "& .MuiChip-icon": { color: "inherit" },
   } as const;
   return mode === "local" ? (
-    <Chip icon={<LockIcon sx={{ fontSize: 16 }} />} label="Local-only · nothing leaves this machine" size="small" sx={sx} />
+    <Chip icon={<LockIcon sx={{ fontSize: 16 }} />} label="Local-only Â· nothing leaves this machine" size="small" sx={sx} />
   ) : (
-    <Chip icon={<PublicIcon sx={{ fontSize: 16 }} />} label="Full · text sent to Anthropic" size="small" sx={sx} />
+    <Chip icon={<PublicIcon sx={{ fontSize: 16 }} />} label="Full Â· text sent to LLM" size="small" sx={sx} />
   );
 }
 
@@ -80,3 +80,4 @@ export function Header() {
     </AppBar>
   );
 }
+

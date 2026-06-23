@@ -12,19 +12,11 @@ on LLM error, and meters its single call into the cost ledger (stage tag ``class
 
 from __future__ import annotations
 
-<<<<<<< HEAD:veribayes/core/classify.py
-from veribayes.core import config
-from veribayes.core.context import build_user
-from veribayes.core.prompts import CLASSIFY_SYSTEM
-from veribayes.core.schema import CostLedgerEntry, Evidence, PaperClass, ParsedDoc
-from veribayes.llm import LLMClient, call_with_policy, ledger_entry
-=======
 from bayesify.core import config
 from bayesify.core.context import build_user
-from bayesify.core.llm import LLMClient, call_with_policy, ledger_entry
 from bayesify.core.prompts import CLASSIFY_SYSTEM
 from bayesify.core.schema import CostLedgerEntry, Evidence, PaperClass, ParsedDoc
->>>>>>> dev:bayesify/core/classify.py
+from bayesify.llm import LLMClient, call_with_policy, ledger_entry
 
 
 def classify(
