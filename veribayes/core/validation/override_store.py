@@ -56,5 +56,5 @@ class OverrideStore:
     def all(self) -> list[Override]:
         if not self.path.exists():
             return []
-        lines = self.path.read_text().splitlines()
+        lines = self.path.read_text(encoding="utf-8").splitlines()
         return [Override.model_validate_json(line) for line in lines if line.strip()]

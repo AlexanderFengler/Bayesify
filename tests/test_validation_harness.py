@@ -42,7 +42,7 @@ def test_demo_run_is_watermarked(tmp_path) -> None:
     assert list(o.glob("*.json"))  # the report JSON (the /api/calibration payload)
     # the seeded absence-FPR paper flows through (engine 'missing' on S5, human saw it)
     assert rep.absence_fpr_strict.x == 1 and rep.absence_fpr_strict.n == 1
-    md = (o / "VALIDATION.demo.md").read_text()
+    md = (o / "VALIDATION.demo.md").read_text(encoding="utf-8")
     assert "FAKE DATA" in md
     # the Tier-C analytic paper is reported as a case, not pooled into the rates
     assert "Tier-C special cases" in md and "demo-analytic" in md

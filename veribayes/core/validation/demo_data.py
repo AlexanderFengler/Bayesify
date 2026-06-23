@@ -265,8 +265,12 @@ def write_demo_dataset(goldset_dir: str, engine_dir: str) -> int:
     e.mkdir(parents=True, exist_ok=True)
     papers = build_demo_dataset()
     for p in papers:
-        (g / f"{p.work_id}.json").write_text(p.human.model_dump_json(indent=2))
-        (e / f"{p.work_id}.json").write_text(p.engine.model_dump_json(indent=2))
+        (g / f"{p.work_id}.json").write_text(
+            p.human.model_dump_json(indent=2), encoding="utf-8"
+        )
+        (e / f"{p.work_id}.json").write_text(
+            p.engine.model_dump_json(indent=2), encoding="utf-8"
+        )
     return len(papers)
 
 
