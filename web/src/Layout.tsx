@@ -4,6 +4,8 @@ import { useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { SwitchTransition } from "react-transition-group";
 import { fetchRubrics, getPaper, rerun, type RubricSummary, streamProgress, submitPaper } from "./api";
 import { AppContext, type AppState } from "./AppContext";
+import { Aurora } from "./Aurora";
+import { Footer } from "./Footer";
 import { Header } from "./Header";
 import { PrivacyModal } from "./Modal";
 import type { PaperState } from "./types";
@@ -177,11 +179,26 @@ export function Layout() {
 
   return (
     <AppContext.Provider value={value}>
-      <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
+      {/* the living gradient, fixed behind everything */}
+      <Aurora />
+      {/* the app frame: header + footer are transparent and pinned outside the scroll area, so the
+          aurora shows through them at all times and content never slides underneath. Only the middle
+          scrolls. */}
+      <Box
+        sx={{
+          position: "relative",
+          zIndex: 1,
+          height: "100dvh",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
         <Header />
-        <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
           <FadingOutlet />
         </Box>
+        <Footer />
       </Box>
       {modal === "privacy" && (
         <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
@@ -190,9 +207,11 @@ export function Layout() {
   );
 }
 
-// Cross-fades the routed content (and only the content — Header sits above this, permanent). Keyed on
-// the path, SwitchTransition's "out-in" mode fades the old page out, then the new page in. The Box is
-// the single ref-forwarding child MUI's Fade needs, and flex-fills so hero pages occupy the area.
+// Cross-fades the routed content (and only the content — header/footer are pinned outside this).
+// Keyed on the path, SwitchTransition's "out-in" mode fades the old page out, then the new page in.
+// Every route is transparent: content floats directly on the aurora (panels are frosted glass), so
+// the fade always resolves to the living background — never to a flat surface — keeping it
+// uninterrupted through the transition.
 function FadingOutlet() {
   const { pathname } = useLocation();
   const outlet = useOutlet();

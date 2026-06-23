@@ -31,16 +31,6 @@ export function Cover({ onGetStarted }: { onGetStarted: () => void }) {
         >
           Bring your Bayesian workflow to the gold standard
         </Typography>
-        <Typography
-          sx={{
-            fontSize: { xs: "1rem", md: "1.25rem" },
-            color: "rgba(255,255,255,0.82)",
-            maxWidth: 620,
-          }}
-        >
-          See exactly where your paper&rsquo;s Bayesian workflow shines — and where it slips. Every
-          call grounded in the paper and the methods literature.
-        </Typography>
         <Button
           variant="contained"
           size="large"

@@ -51,7 +51,7 @@ export function Inventory({
         }}
       >
         {/* LEFT: detection summary + where the engine looked */}
-        <Box sx={{ flex: { md: "0 0 38%" }, width: "100%", position: { md: "sticky" }, top: { md: 88 } }}>
+        <Box sx={{ flex: { md: "0 0 38%" }, width: "100%", position: { md: "sticky" }, top: { md: 24 } }}>
           <SummaryColumn paper={paper} inv={inv} onReset={onReset} onRate={onRate} />
         </Box>
 

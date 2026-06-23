@@ -3,7 +3,6 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import {
   Box,
   Button,
-  Container,
   Divider,
   Link,
   MenuItem,
@@ -39,9 +38,6 @@ export interface LandingProps {
   setDragging: (b: boolean) => void;
   fileInput: React.RefObject<HTMLInputElement>;
   onStart: (intent?: "analyze" | "rate") => void;
-  onGuide: () => void;
-  onPrivacy: () => void;
-  onCalibration: () => void;
 }
 
 export function Landing(p: LandingProps) {
@@ -50,40 +46,13 @@ export function Landing(p: LandingProps) {
   const rubricOptions = p.rubrics.length ? p.rubrics : [{ id: p.profile, label: p.profile }];
 
   return (
-    <HeroShell
-      footer={
-        <Box component="footer" sx={{ bgcolor: "background.paper", borderTop: 1, borderColor: "divider" }}>
-          <Container maxWidth="lg">
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: { xs: "column", sm: "row" },
-                gap: 2,
-                justifyContent: "space-between",
-                alignItems: { xs: "flex-start", sm: "center" },
-                py: 2.5,
-              }}
-            >
-              <Typography variant="caption" color="text.secondary" sx={{ maxWidth: 560 }}>
-                Formative report, not a verdict. The badge concept was dropped — Bayesify reports
-                per-step practice, not a pass/fail.
-              </Typography>
-              <Box sx={{ display: "flex", gap: 3 }}>
-                <FooterLink onClick={p.onGuide}>Guide</FooterLink>
-                <FooterLink onClick={p.onPrivacy}>Privacy</FooterLink>
-                <FooterLink onClick={p.onCalibration}>Calibration</FooterLink>
-              </Box>
-            </Box>
-          </Container>
-        </Box>
-      }
-    >
+    <HeroShell maxWidth="xl">
       {/* two columns: pitch | upload panel */}
       <Box
         sx={{
           display: "flex",
           flexDirection: { xs: "column", md: "row" },
-          gap: { xs: 4, md: 8 },
+          gap: { xs: 4, md: 10 },
           alignItems: { xs: "stretch", md: "center" },
         }}
       >
@@ -94,17 +63,17 @@ export function Landing(p: LandingProps) {
               fontWeight: 700,
               lineHeight: 1.1,
               letterSpacing: "-0.02em",
-              fontSize: { xs: "2rem", sm: "2.5rem", md: "3rem" },
+              fontSize: { xs: "2rem", sm: "2.75rem", md: "3.25rem" },
             }}
           >
-            How well does this paper follow the Bayesian workflow?
+            Put your Bayesian workflow to the test.
           </Typography>
           <Typography
             sx={{
               mt: 3,
-              fontSize: { xs: "1rem", md: "1.125rem" },
+              fontSize: { xs: "1rem", md: "1.2rem" },
               color: "rgba(255,255,255,0.82)",
-              maxWidth: 460,
+              maxWidth: 520,
             }}
           >
             Drop a PDF or paste an identifier. You&rsquo;ll get a per-step report with a coverage and
@@ -278,20 +247,5 @@ function UploadPanel(
         </Box>
       </Box>
     </Paper>
-  );
-}
-
-function FooterLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <Link
-      component="button"
-      type="button"
-      underline="hover"
-      color="text.secondary"
-      onClick={onClick}
-      sx={{ fontSize: "0.875rem" }}
-    >
-      {children}
-    </Link>
   );
 }

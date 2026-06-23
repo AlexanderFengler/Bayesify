@@ -48,7 +48,7 @@ export function StepCardShell({
         borderRadius: 2,
         borderLeft: "3px solid",
         borderLeftColor: status ? BORDER_COLOR[status] : (t) => t.tokens.lineStrong,
-        bgcolor: na ? "#fbfcfe" : "background.paper",
+        bgcolor: na ? "rgba(255,255,255,0.03)" : "background.paper",
         opacity: status ? 1 : 0.9,
       }}
     >

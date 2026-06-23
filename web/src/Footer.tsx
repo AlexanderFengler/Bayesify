@@ -1,0 +1,54 @@
+import { Box, Container, Link, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+import { useApp } from "./AppContext";
+
+// The permanent app footer: a single transparent bar rendered once by Layout (like the header), so
+// the dynamic aurora shows through and blends with it. A thin horizontal divider sits on top. It
+// carries the global nav: how-it-works, privacy, calibration, and the rubrics reference.
+export function Footer() {
+  const navigate = useNavigate();
+  const { openPrivacy } = useApp();
+  return (
+    <Box
+      component="footer"
+      sx={{ color: "rgba(255,255,255,0.92)", borderTop: 1, borderColor: "rgba(255,255,255,0.18)" }}
+    >
+      <Container maxWidth={false}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            gap: 2,
+            justifyContent: "space-between",
+            alignItems: { xs: "flex-start", sm: "center" },
+            py: 2,
+          }}
+        >
+          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)", maxWidth: 560 }}>
+            Formative report, not a verdict — Bayesify reports per-step practice, not a pass/fail.
+          </Typography>
+          <Box sx={{ display: "flex", gap: 3 }}>
+            <FooterLink onClick={() => navigate("/guide")}>How it works</FooterLink>
+            <FooterLink onClick={() => navigate("/rubrics")}>Rubrics</FooterLink>
+            <FooterLink onClick={openPrivacy}>Privacy</FooterLink>
+            <FooterLink onClick={() => navigate("/calibration")}>Calibration</FooterLink>
+          </Box>
+        </Box>
+      </Container>
+    </Box>
+  );
+}
+
+function FooterLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <Link
+      component="button"
+      type="button"
+      underline="hover"
+      onClick={onClick}
+      sx={{ color: "inherit", fontSize: "0.875rem", "&:hover": { color: "common.white" } }}
+    >
+      {children}
+    </Link>
+  );
+}

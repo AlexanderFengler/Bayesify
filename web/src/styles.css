@@ -35,13 +35,21 @@ body,
   margin: 0;
   height: 100%;
 }
+/* The app is fully MUI now: CssBaseline (dark theme) owns the body background/colour/font. We keep
+   only the resets here. Forcing a light background/ink colour would leak onto raw elements (e.g.
+   <code>) and fight the immersive dark UI, so those declarations are intentionally gone. */
 body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Inline code on the dark glass: a faint pill so it reads as code without a light box. */
+code {
+  font-family: var(--mono, "SF Mono", ui-monospace, Menlo, Consolas, monospace);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+  font-size: 0.9em;
 }
 
 .page {

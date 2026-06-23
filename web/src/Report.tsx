@@ -124,7 +124,7 @@ export function Report({
               }}
             >
               {/* LEFT: everything above "steps at a glance" + the relevance gate */}
-              <Box sx={{ flex: { md: "0 0 38%" }, width: "100%", position: { md: "sticky" }, top: { md: 88 } }}>
+              <Box sx={{ flex: { md: "0 0 38%" }, width: "100%", position: { md: "sticky" }, top: { md: 24 } }}>
                 <SummaryColumn paper={paper} r={r} rubric={rubric} onReset={onReset} />
               </Box>
 

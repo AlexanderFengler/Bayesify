@@ -532,7 +532,8 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
           alignItems: "center",
           justifyContent: "space-between",
           gap: 2,
-          bgcolor: "background.default",
+          bgcolor: (t) => t.tokens.glass,
+          backdropFilter: "blur(14px)",
           borderTop: 1,
           borderColor: "divider",
         }}

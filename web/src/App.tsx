@@ -12,6 +12,7 @@ import { Landing } from "./Landing";
 import { Layout } from "./Layout";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
+import { Rubrics } from "./Rubrics";
 import { LOCAL_STAGES, type PaperState, STAGES } from "./types";
 
 // The whole app is client-side routed: a single Layout holds the app-wide state (mode, the upload
@@ -29,6 +30,7 @@ export function App() {
           <Route path="/paper/:id" element={<PaperRoute />} />
           <Route path="/rate/:id" element={<RateRoute />} />
           <Route path="/calibration" element={<CalibrationRoute />} />
+          <Route path="/rubrics" element={<RubricsRoute />} />
           <Route path="/guide" element={<GuideRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
@@ -44,7 +46,6 @@ function CoverRoute() {
 
 function LandingRoute() {
   const app = useApp();
-  const navigate = useNavigate();
   return (
     <Landing
       mode={app.mode}
@@ -60,11 +61,13 @@ function LandingRoute() {
       setDragging={app.setDragging}
       fileInput={app.fileInput}
       onStart={app.start}
-      onGuide={() => navigate("/guide")}
-      onPrivacy={app.openPrivacy}
-      onCalibration={() => navigate("/calibration")}
     />
   );
+}
+
+function RubricsRoute() {
+  const navigate = useNavigate();
+  return <Rubrics onExit={() => navigate(-1)} />;
 }
 
 function ProcessingRoute() {

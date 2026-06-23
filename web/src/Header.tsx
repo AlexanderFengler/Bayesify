@@ -1,8 +1,11 @@
+import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
+import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import LockIcon from "@mui/icons-material/Lock";
 import PublicIcon from "@mui/icons-material/Public";
-import { AppBar, Chip, Container, Toolbar, Typography } from "@mui/material";
+import { AppBar, Box, Chip, Container, IconButton, Toolbar, Typography } from "@mui/material";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import { useApp } from "./AppContext";
+import { useColorMode } from "./ThemeMode";
 
 // The brand wordmark, a link to the home route.
 function Wordmark() {
@@ -38,24 +41,40 @@ function ModeChip({ mode }: { mode: "full" | "local" }) {
   );
 }
 
-// The permanent app header: a single sticky top bar rendered once by Layout, so it stays put while
-// the routed content cross-fades beneath it. Route-aware: the cover (`/`) spans the full viewport and
-// shows no mode chip (it starts no analysis); every other screen is lg-width with the mode reminder.
+// The permanent app header: a single transparent bar rendered once by Layout, consistent across
+// every page so the wordmark never moves. Transparent so the global aurora shows through and blends;
+// it sits outside the scroll area (Layout), so content never slides under it. The only per-page
+// difference is the cover (`/`), which shows no mode chip (it starts no analysis).
 export function Header() {
   const { pathname } = useLocation();
   const { mode } = useApp();
+  const { variant, toggle } = useColorMode();
   const isCover = pathname === "/";
   return (
     <AppBar
       component="header"
-      position="sticky"
+      position="static"
       elevation={0}
-      sx={{ color: "common.white", backgroundImage: "linear-gradient(130deg, #15435f 0%, #007396 100%)" }}
+      sx={{ background: "transparent", color: "common.white" }}
     >
-      <Container maxWidth={isCover ? false : "lg"}>
+      <Container maxWidth={false}>
         <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
           <Wordmark />
-          {!isCover && <ModeChip mode={mode} />}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            {!isCover && <ModeChip mode={mode} />}
+            <IconButton
+              onClick={toggle}
+              size="small"
+              aria-label="toggle dark mode"
+              sx={{ color: "inherit" }}
+            >
+              {variant === "teal" ? (
+                <DarkModeOutlinedIcon fontSize="small" />
+              ) : (
+                <LightModeOutlinedIcon fontSize="small" />
+              )}
+            </IconButton>
+          </Box>
         </Toolbar>
       </Container>
     </AppBar>
