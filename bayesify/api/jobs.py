@@ -117,6 +117,7 @@ class Job:
     inventory: EvidenceInventory | None = None  # local-only detection result
     parser: str | None = None  # which parser ran (docling | pymupdf), surfaced in the local report
     parser_version: str | None = None
+    paper_title: str | None = None  # best-effort title for display (provider/page-1; may be None)
     backend: str | None = None  # who produced the result: "agent-sdk" | "api" | "stub"
     from_cache: bool = False  # this result was a cache replay, not a fresh run (surfaced in the UI)
     force_fresh: bool = False  # bypass the cache for this run (set by the rerun escape hatch)
@@ -228,6 +229,7 @@ async def _fetch_into(job: Job) -> s.SourceDoc:
     parsed = parse_input(job.identifier)
     fetched = await asyncio.to_thread(_fetcher().fetch, parsed)
     job.data = _blobs().get(fetched.source_doc.sha256)
+    job.paper_title = fetched.title  # the provider/webpage title — preferred over the parsed one
     job.emit({"type": "stage", "stage": "fetch", "state": "done"})
     return fetched.source_doc
 
@@ -255,6 +257,8 @@ async def _front_half(
     job.emit({"type": "stage", "stage": "parse", "state": "running"})
     parsed = await asyncio.to_thread(parse, source, blobs)
     job.parser, job.parser_version = parsed.parser, parsed.parser_version
+    # Prefer the provider/webpage title (set during fetch); for uploads, use the page-1 title.
+    job.paper_title = job.paper_title or parsed.title
     job.emit({"type": "stage", "stage": "parse", "state": "done"})
 
     job.stage = "detect"

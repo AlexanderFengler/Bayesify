@@ -12,10 +12,9 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import type { RubricSummary } from "./api";
 import { HeroShell } from "./HeroShell";
-import { RubricAbout } from "./RubricAbout";
-import { useRubric } from "./rubric";
 
 // The immersive landing page (first screen of the MUI migration). A bold accent hero band fills the
 // viewport: brand + headline + blurb on the left, the upload panel on a light surface on the right.
@@ -42,7 +41,6 @@ export interface LandingProps {
 
 export function Landing(p: LandingProps) {
   const canStart = !!p.file || p.identifier.trim().length > 0;
-  const rubric = useRubric(p.profile); // full rubric (with step names) for the explainer under the picker
   const rubricOptions = p.rubrics.length ? p.rubrics : [{ id: p.profile, label: p.profile }];
 
   return (
@@ -57,46 +55,55 @@ export function Landing(p: LandingProps) {
         }}
       >
         <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
-          <Typography
-            variant="h2"
-            sx={{
-              fontWeight: 700,
-              lineHeight: 1.1,
-              letterSpacing: "-0.02em",
-              fontSize: { xs: "2rem", sm: "2.75rem", md: "3.25rem" },
-            }}
-          >
-            Put your Bayesian workflow to the test.
-          </Typography>
-          <Typography
-            sx={{
-              mt: 3,
-              fontSize: { xs: "1rem", md: "1.2rem" },
-              color: "rgba(255,255,255,0.82)",
-              maxWidth: 520,
-            }}
-          >
-            Drop a PDF or paste an identifier. You&rsquo;ll get a per-step report with a coverage and
-            a quality score — every finding grounded in the paper and in the methodological
-            literature.
-          </Typography>
+          {/* the title sets the column width; the subcaption (width:0; min-width:100%) fills that
+              same width without widening it, so the two blocks share an exact right edge */}
+          <Box sx={{ width: "fit-content", maxWidth: "100%" }}>
+            <Typography
+              variant="h2"
+              sx={{
+                fontWeight: 700,
+                lineHeight: 1.1,
+                letterSpacing: "-0.02em",
+                fontSize: { xs: "2rem", sm: "2.75rem", md: "3.25rem" },
+              }}
+            >
+              {/* always three lines */}
+              Put your
+              <br />
+              Bayesian workflow
+              <br />
+              to the test.
+            </Typography>
+            <Typography
+              sx={{
+                mt: 3,
+                fontSize: { xs: "1rem", md: "1.2rem" },
+                color: "rgba(255,255,255,0.82)",
+                width: 0,
+                minWidth: "100%",
+              }}
+            >
+              Drop a PDF or paste an identifier. You&rsquo;ll get a per-step report with a coverage and
+              a quality score — every finding grounded in the paper and in the methodological
+              literature.
+            </Typography>
+          </Box>
         </Box>
 
         <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
-          <UploadPanel {...p} canStart={canStart} rubricOptions={rubricOptions} rubric={rubric} />
+          <UploadPanel {...p} canStart={canStart} rubricOptions={rubricOptions} />
         </Box>
       </Box>
     </HeroShell>
   );
 }
 
-// The light upload surface that contrasts with the bold hero. It carries the dropzone, the
-// identifier fallback, the rubric picker, the mode toggle, and the two actions.
+// The upload surface: the dropzone, the identifier fallback, the rubric picker, the mode toggle, and
+// the two actions.
 function UploadPanel(
   p: LandingProps & {
     canStart: boolean;
     rubricOptions: { id: string; label: string }[];
-    rubric: ReturnType<typeof useRubric>;
   },
 ) {
   return (
@@ -195,11 +202,15 @@ function UploadPanel(
           </MenuItem>
         ))}
       </TextField>
-      {p.rubric && (
-        <Box sx={{ mt: 1 }}>
-          <RubricAbout rubric={p.rubric} />
-        </Box>
-      )}
+      <Link
+        component={RouterLink}
+        to="/rubrics"
+        variant="body2"
+        underline="hover"
+        sx={{ display: "inline-block", mt: 1, fontWeight: 600 }}
+      >
+        See how our rubrics compare →
+      </Link>
 
       <Box
         sx={{

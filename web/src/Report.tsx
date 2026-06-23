@@ -1,4 +1,7 @@
+import ArticleIcon from "@mui/icons-material/Article";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import DataObjectIcon from "@mui/icons-material/DataObject";
+import DownloadIcon from "@mui/icons-material/Download";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import {
@@ -8,7 +11,10 @@ import {
   Chip,
   Collapse,
   Container,
+  Divider,
   Link,
+  ListItemIcon,
+  Menu,
   MenuItem,
   Tab,
   Tabs,
@@ -17,7 +23,6 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { recordOverride } from "./api";
-import { RubricAbout } from "./RubricAbout";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import type {
   Evidence,
@@ -125,7 +130,7 @@ export function Report({
             >
               {/* LEFT: everything above "steps at a glance" + the relevance gate */}
               <Box sx={{ flex: { md: "0 0 38%" }, width: "100%", position: { md: "sticky" }, top: { md: 24 } }}>
-                <SummaryColumn paper={paper} r={r} rubric={rubric} onReset={onReset} />
+                <SummaryColumn paper={paper} r={r} onReset={onReset} />
               </Box>
 
               {/* RIGHT: steps at a glance (buttons) + the selected step's de-carded detail */}
@@ -178,14 +183,13 @@ export function Report({
 function SummaryColumn({
   paper,
   r,
-  rubric,
   onReset,
 }: {
   paper: PaperState;
   r: ScoredResult;
-  rubric: ReturnType<typeof useRubric>;
   onReset: () => void;
 }) {
+  const title = paper.paper_title ?? paper.source_label;
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
       <Box>
@@ -195,16 +199,21 @@ function SummaryColumn({
           </Typography>
           <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
         </Box>
-        <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-          {paper.source_label}
+        <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
+          {title}
         </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mt: 1.5, flexWrap: "wrap" }}>
-          <Downloads paperId={paper.paper_id} />
-          <Button size="small" variant="outlined" onClick={onReset}>
-            Analyze another
-          </Button>
+
+        {/* relevance · rubric · paper type — small all-caps labels over larger values, one line */}
+        <Box sx={{ display: "flex", gap: 4, flexWrap: "wrap", mt: 2 }}>
+          <Stat label="relevance" value={r.relevance.label} />
+          <Stat label="rubric" value={r.rubric_profile} />
+          {r.paper_class && <Stat label="paper type" value={r.paper_class.primary.replace(/_/g, " ")} />}
         </Box>
       </Box>
+
+      <Divider />
+
+      <ScoreMetrics r={r} />
 
       {r.relevance.overridden && (
         <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "warning.light", color: "text.primary", fontSize: "0.875rem" }}>
@@ -213,39 +222,26 @@ function SummaryColumn({
         </Box>
       )}
 
-      {rubric && <RubricAbout rubric={rubric} showHeader />}
-
-      <ScoreMetrics r={r} />
-      <PaperType r={r} />
-      <RelevanceGate r={r} />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+        <Downloads paperId={paper.paper_id} />
+        <Button size="small" variant="outlined" onClick={onReset}>
+          Analyze another
+        </Button>
+      </Box>
     </Box>
   );
 }
 
-function PaperType({ r }: { r: ScoredResult }) {
-  const pc = r.paper_class;
-  if (!pc) return null;
+// A small all-caps label over a larger, slightly bolder value — the relevance/rubric/paper-type row.
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <Box>
-      <Typography variant="overline" color="text.secondary">
-        Paper type
+      <Typography
+        sx={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary" }}
+      >
+        {label}
       </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-        <Chip size="small" variant="outlined" label={pc.primary.replace(/_/g, " ")} />
-        {pc.secondary && (
-          <Typography variant="caption" color="text.secondary">
-            / {pc.secondary.replace(/_/g, " ")}
-          </Typography>
-        )}
-        <Typography variant="caption" color="text.secondary">
-          {Math.round(pc.confidence * 100)}% conf.
-        </Typography>
-      </Box>
-      {pc.rationale && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          {pc.rationale}
-        </Typography>
-      )}
+      <Typography sx={{ fontSize: "1.05rem", fontWeight: 600, lineHeight: 1.3 }}>{value}</Typography>
     </Box>
   );
 }
@@ -281,9 +277,14 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
           </Typography>
         </Box>
         <Box>
-          <Typography sx={{ fontSize: "2.5rem", fontWeight: 700, lineHeight: 1 }}>
-            {quality == null ? "—" : quality.toFixed(2)}
-          </Typography>
+          <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
+            <Typography sx={{ fontSize: "2.5rem", fontWeight: 700, lineHeight: 1 }}>
+              {quality == null ? "—" : Math.round(quality * 100)}
+            </Typography>
+            {quality != null && (
+              <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>/ 100</Typography>
+            )}
+          </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             quality score
           </Typography>
@@ -308,51 +309,6 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
           )}
         </Box>
       )}
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-        <MetaChip k="relevance" v={r.relevance.label} />
-        <MetaChip k="rubric" v={r.rubric_profile} />
-      </Box>
-    </Box>
-  );
-}
-
-function MetaChip({ k, v }: { k: string; v: string }) {
-  return (
-    <Chip
-      size="small"
-      variant="outlined"
-      label={
-        <span>
-          <Box component="span" sx={{ color: "text.secondary", mr: 0.5 }}>
-            {k}
-          </Box>
-          {v}
-        </span>
-      }
-    />
-  );
-}
-
-function RelevanceGate({ r }: { r: ScoredResult }) {
-  return (
-    <Box>
-      <Typography variant="overline" color="text.secondary">
-        Relevance gate
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-        <Chip
-          size="small"
-          label={r.relevance.label}
-          color={r.relevance.label === "yes" ? "success" : "warning"}
-          variant="outlined"
-        />
-        <Typography variant="caption" color="text.secondary">
-          {Math.round(r.relevance.confidence * 100)}% conf.
-        </Typography>
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-        {r.relevance.rationale}
-      </Typography>
     </Box>
   );
 }
@@ -375,15 +331,46 @@ function BackendBadge({ backend, fromCache }: { backend: string | null; fromCach
 }
 
 function Downloads({ paperId }: { paperId: string }) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const close = () => setAnchor(null);
   return (
-    <Box sx={{ display: "flex", gap: 1.5 }}>
-      <Link href={`/api/papers/${paperId}/report.json`} target="_blank" rel="noreferrer" variant="body2">
-        report.json
-      </Link>
-      <Link href={`/api/papers/${paperId}/report.md`} target="_blank" rel="noreferrer" variant="body2">
-        report.md
-      </Link>
-    </Box>
+    <>
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={<DownloadIcon />}
+        endIcon={<ExpandMoreIcon />}
+        onClick={(e) => setAnchor(e.currentTarget)}
+      >
+        Download
+      </Button>
+      <Menu anchorEl={anchor} open={!!anchor} onClose={close}>
+        <MenuItem
+          component="a"
+          href={`/api/papers/${paperId}/report.json`}
+          target="_blank"
+          rel="noreferrer"
+          onClick={close}
+        >
+          <ListItemIcon>
+            <DataObjectIcon fontSize="small" />
+          </ListItemIcon>
+          report.json
+        </MenuItem>
+        <MenuItem
+          component="a"
+          href={`/api/papers/${paperId}/report.md`}
+          target="_blank"
+          rel="noreferrer"
+          onClick={close}
+        >
+          <ListItemIcon>
+            <ArticleIcon fontSize="small" />
+          </ListItemIcon>
+          report.md
+        </MenuItem>
+      </Menu>
+    </>
   );
 }
 

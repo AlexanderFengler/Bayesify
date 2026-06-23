@@ -18,6 +18,7 @@ redistribution honors the host/publisher terms (gate G3) — never the index's C
 
 from __future__ import annotations
 
+import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -46,6 +47,7 @@ class FetchedSource:
     source_doc: s.SourceDoc
     license: str | None  # the fetched copy's own license (cc-by / cc0 / publisher / None=unknown)
     is_oa: bool = True
+    title: str | None = None  # the paper title from the provider metadata (the "webpage"), if known
 
 
 class Fetcher:
@@ -94,6 +96,7 @@ class Fetcher:
         id_url = entry.findtext("atom:id", "", _ARXIV_NS)  # http://arxiv.org/abs/2011.01808v3
         version = parsed.version_hint or _arxiv_version(id_url)
         license_url = entry.findtext("arxiv:license", default=None, namespaces=_ARXIV_NS)
+        title = entry.findtext("atom:title", "", _ARXIV_NS)  # paper title from arXiv metadata
         data = self._download(f"{self.ARXIV_PDF}/{parsed.value}{version}")
         return self._store(
             data,
@@ -101,6 +104,7 @@ class Fetcher:
             version_label=f"arXiv {version}",
             source="arxiv",
             license=license_url,
+            title=title,
         )
 
     def _fetch_doi_or_openalex(self, parsed: ParsedIdentifier) -> FetchedSource:
@@ -111,6 +115,7 @@ class Fetcher:
             f"{self.OPENALEX_WORKS}/{ref}", params=params, not_found_is=IdNotFoundError
         )
         ids = _ids_from_openalex(resp)
+        title = resp.get("title") or resp.get("display_name")  # the paper title from OpenAlex
         loc = resp.get("best_oa_location") or resp.get("primary_location") or {}
         pdf_url = loc.get("pdf_url")
         if pdf_url:
@@ -121,6 +126,7 @@ class Fetcher:
                 version_label=f"{loc.get('version') or 'OA'} (OpenAlex)",
                 source="openalex",
                 license=loc.get("license"),
+                title=title,
             )
         # 2) Unpaywall (needs an email; skip if not configured).
         if parsed.kind == "doi" and self._email:
@@ -139,6 +145,7 @@ class Fetcher:
                     version_label=f"{uloc.get('version') or 'OA'} (Unpaywall)",
                     source="unpaywall",
                     license=uloc.get("license"),
+                    title=title or self._crossref_title(parsed.value),
                 )
         # 3) No OA copy — name the paper so the UI can invite a manual upload.
         title = resp.get("title") or self._crossref_title(parsed.value)
@@ -210,6 +217,7 @@ class Fetcher:
         version_label: str,
         source: str,
         license: str | None,
+        title: str | None = None,
     ) -> FetchedSource:
         sha = self._blobs.put(data)
         doc = s.SourceDoc(
@@ -219,7 +227,15 @@ class Fetcher:
             source=source,
             fetched_at=datetime.now(UTC),
         )
-        return FetchedSource(source_doc=doc, license=license, is_oa=True)
+        return FetchedSource(source_doc=doc, license=license, is_oa=True, title=_clean_title(title))
+
+
+def _clean_title(title: str | None) -> str | None:
+    """Collapse whitespace (arXiv/crossref titles carry newlines); drop empties."""
+    if not title:
+        return None
+    cleaned = re.sub(r"\s+", " ", title).strip()
+    return cleaned or None
 
 
 def _arxiv_version(id_url: str) -> str:

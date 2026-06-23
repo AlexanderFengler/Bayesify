@@ -50,7 +50,7 @@ def _source(blob: BlobStore, data: bytes):
 
 
 def test_pymupdf_fallback_extracts_kinds(tmp_path: Path) -> None:
-    raws = P._parse_pymupdf("sha", _make_pdf(_BODY))
+    raws, _title = P._parse_pymupdf("sha", _make_pdf(_BODY))
     kinds = {r.kind for r in raws if r.text}
     assert "caption" in kinds  # "Figure 1: ..." line pulled out
     assert "references" in kinds

@@ -1,10 +1,56 @@
 import CheckIcon from "@mui/icons-material/Check";
 import { Box, CircularProgress, Typography, useMediaQuery, useTheme } from "@mui/material";
-import { Fragment } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { HeroShell } from "./HeroShell";
 
 type StepState = "pending" | "running" | "done";
 const CIRCLE = 52; // px — node diameter; connectors align to its centre (CIRCLE / 2)
+
+// The rotating "working…" words for the title, typed out one at a time (à la a CLI status line).
+const WORKING_WORDS = [
+  "Analyzing",
+  "Parsing",
+  "Detecting",
+  "Screening",
+  "Assessing",
+  "Scoring",
+  "Synthesizing",
+  "Calibrating",
+  "Reasoning",
+  "Inspecting",
+];
+
+// A typewriter that types a word, holds, deletes, then moves to the next — looping forever.
+function useTypewriter(words: string[], { typeMs = 85, deleteMs = 40, holdMs = 1200 } = {}) {
+  const [text, setText] = useState("");
+  const [idx, setIdx] = useState(0);
+  const [phase, setPhase] = useState<"typing" | "holding" | "deleting">("typing");
+
+  useEffect(() => {
+    const word = words[idx % words.length];
+    if (phase === "typing") {
+      if (text.length < word.length) {
+        const t = setTimeout(() => setText(word.slice(0, text.length + 1)), typeMs);
+        return () => clearTimeout(t);
+      }
+      const t = setTimeout(() => setPhase("holding"), holdMs);
+      return () => clearTimeout(t);
+    }
+    if (phase === "holding") {
+      const t = setTimeout(() => setPhase("deleting"), holdMs);
+      return () => clearTimeout(t);
+    }
+    // deleting
+    if (text.length > 0) {
+      const t = setTimeout(() => setText(word.slice(0, text.length - 1)), deleteMs);
+      return () => clearTimeout(t);
+    }
+    setIdx((i) => (i + 1) % words.length);
+    setPhase("typing");
+  }, [text, phase, idx, words, typeMs, deleteMs, holdMs]);
+
+  return text;
+}
 
 // The immersive "Analyzing" page: same bold hero as the landing (no card), with a connected
 // flow-chart stepper instead of loose dots. Each step is a circle — hollow when pending, a spinning
@@ -19,11 +65,29 @@ export function Analyzing({
   stages: readonly string[];
   source?: string;
 }) {
+  const typed = useTypewriter(WORKING_WORDS);
   return (
     <HeroShell>
-      <Box sx={{ textAlign: "center", maxWidth: 760, mx: "auto" }}>
-        <Typography variant="h3" sx={{ fontWeight: 700, letterSpacing: "-0.02em", fontSize: { xs: "1.75rem", md: "2.25rem" } }}>
-          Analyzing
+      {/* left-aligned, sharing the flow diagram's left edge below */}
+      <Box sx={{ maxWidth: 760, mx: "auto", textAlign: "left" }}>
+        <Typography
+          variant="h3"
+          sx={{ fontWeight: 700, letterSpacing: "-0.02em", fontSize: { xs: "1.75rem", md: "2.25rem" }, minHeight: "1.3em" }}
+        >
+          {typed}
+          <Box
+            component="span"
+            aria-hidden
+            sx={{
+              display: "inline-block",
+              ml: "2px",
+              fontWeight: 400,
+              animation: "caretBlink 1s steps(1) infinite",
+              "@keyframes caretBlink": { "0%,50%": { opacity: 1 }, "50.01%,100%": { opacity: 0 } },
+            }}
+          >
+            ▌
+          </Box>
         </Typography>
         {source && (
           <Typography sx={{ mt: 1, color: "rgba(255,255,255,0.78)", wordBreak: "break-all" }}>

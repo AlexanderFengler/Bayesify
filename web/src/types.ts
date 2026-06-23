@@ -129,6 +129,8 @@ export interface PaperState {
   stage: string | null;
   mode: string;
   source_label: string;
+  paper_title: string | null; // best-effort title from parsing; falls back to source_label for display
+
   relevance_override: string | null; // set when the user forced a short-circuited paper to be graded
   result: ScoredResult | null;
   fix_list: FixItem[] | null;

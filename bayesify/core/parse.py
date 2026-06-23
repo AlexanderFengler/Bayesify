@@ -68,9 +68,11 @@ def parse(
     supplements: tuple[s.SourceDoc, ...] = (),
 ) -> s.ParsedDoc:
     """Parse the primary document (+ optional supplements merged into one ``ParsedDoc``)."""
-    raws, parser, parser_version = _parse_doc(source.sha256, blob_store.get(source.sha256))
+    raws, parser, parser_version, title = _parse_doc(source.sha256, blob_store.get(source.sha256))
     for supp in supplements:
-        s_raws, _, _ = _parse_doc(supp.sha256, blob_store.get(supp.sha256), force_supplement=True)
+        s_raws, _, _, _ = _parse_doc(
+            supp.sha256, blob_store.get(supp.sha256), force_supplement=True
+        )
         raws.extend(s_raws)
 
     sections = [
@@ -92,25 +94,26 @@ def parse(
         for i, r in enumerate((r for r in raws if r.text), start=1)
     ]
     return s.ParsedDoc(
-        source=source, sections=sections, parser=parser, parser_version=parser_version
+        source=source, sections=sections, parser=parser, parser_version=parser_version, title=title
     )
 
 
 def _parse_doc(
     sha256: str, data: bytes, *, force_supplement: bool = False
-) -> tuple[list[_RawSection], str, str]:
-    """Parse one document's bytes into raw sections. Tries Docling, falls back to PyMuPDF."""
+) -> tuple[list[_RawSection], str, str, str | None]:
+    """Parse one document's bytes into raw sections (+ the page-1 title). Tries Docling, falls back
+    to PyMuPDF."""
     try:
-        raws = _parse_docling(sha256, data)
+        raws, title = _parse_docling(sha256, data)
         parser, pv = "docling", f"docling-{_safe_version('docling')}"
     except _DoclingUnavailable:
-        raws = _parse_pymupdf(sha256, data)
+        raws, title = _parse_pymupdf(sha256, data)
         parser, pv = "pymupdf", f"pymupdf-{_safe_version('pymupdf')}"
     if force_supplement:
         for r in raws:
             if r.kind != "caption":  # captions inside a supplement stay captions
                 r.kind = "supplement"
-    return raws, parser, pv
+    return raws, parser, pv, title
 
 
 # --- Docling primary ------------------------------------------------------------------------------
@@ -140,7 +143,7 @@ def _docling_converter():
     return _CONVERTER
 
 
-def _parse_docling(sha256: str, data: bytes) -> list[_RawSection]:
+def _parse_docling(sha256: str, data: bytes) -> tuple[list[_RawSection], str | None]:
     try:
         import io
 
@@ -154,6 +157,7 @@ def _parse_docling(sha256: str, data: bytes) -> list[_RawSection]:
     current = _RawSection(kind="body", title="", doc_sha256=sha256)
     sections: list[_RawSection] = [current]
     in_references = False
+    paper_title: str | None = None  # the first `title`-labelled item is the paper title
 
     for item, _level in doc.iterate_items():
         label = getattr(getattr(item, "label", None), "value", "")
@@ -161,6 +165,8 @@ def _parse_docling(sha256: str, data: bytes) -> list[_RawSection]:
 
         if label in ("section_header", "title"):
             title = (getattr(item, "text", "") or "").strip()
+            if label == "title" and paper_title is None and title:
+                paper_title = re.sub(r"\s+", " ", title)
             kind, in_references = _header_kind(title, in_references)
             current = _RawSection(kind=kind, title=title, doc_sha256=sha256)
             _add_page(current, page)
@@ -189,7 +195,7 @@ def _parse_docling(sha256: str, data: bytes) -> list[_RawSection]:
             _add_page(current, page)
         # page_header / page_footer / footnote / picture → skipped
 
-    return sections
+    return sections, paper_title
 
 
 def _page_of(item: object) -> int | None:
@@ -205,7 +211,7 @@ def _add_page(section: _RawSection, page: int | None) -> None:
 # --- PyMuPDF fallback -----------------------------------------------------------------------------
 
 
-def _parse_pymupdf(sha256: str, data: bytes) -> list[_RawSection]:
+def _parse_pymupdf(sha256: str, data: bytes) -> tuple[list[_RawSection], str | None]:
     try:
         import fitz  # PyMuPDF
     except ImportError as exc:
@@ -230,6 +236,8 @@ def _parse_pymupdf(sha256: str, data: bytes) -> list[_RawSection]:
             "no_text_layer",
             user_message="This looks like a scanned PDF; OCR is not supported in this version.",
         )
+
+    title = _pdf_title_from_page1(doc)
 
     # Degraded heuristic sectioning: split on heading-like lines, pull out captions + references.
     current = _RawSection(kind="body", title="", doc_sha256=sha256)
@@ -259,7 +267,49 @@ def _parse_pymupdf(sha256: str, data: bytes) -> list[_RawSection]:
                 continue
             current.parts.append(stripped)
             current.pages.add(page_no)
-    return sections
+    return sections, title
+
+
+# The paper title is, on essentially every academic PDF, the largest text near the top of page 1.
+# We read per-span font sizes from page 1, take the lines at (or just under) the max size in the top
+# half, and join them in reading order. Conservative: returns None if the result looks wrong, so the
+# caller can fall back to the source label.
+_NON_TITLE_RE = re.compile(
+    r"^(abstract|introduction|arxiv:|doi:|https?://|figure|table|\d+$)", re.IGNORECASE
+)
+
+
+def _pdf_title_from_page1(doc) -> str | None:  # doc: fitz.Document
+    if doc.page_count == 0:
+        return None
+    try:
+        page = doc[0]
+        info = page.get_text("dict")
+        height = page.rect.height or 1
+    except Exception:
+        return None
+
+    lines: list[tuple[float, float, str]] = []  # (font_size, y_top, text)
+    for block in info.get("blocks", []):
+        for line in block.get("lines", []):
+            spans = line.get("spans", [])
+            text = " ".join((sp.get("text") or "").strip() for sp in spans).strip()
+            if not text:
+                continue
+            size = max((sp.get("size", 0.0) for sp in spans), default=0.0)
+            y = line.get("bbox", (0, 0, 0, 0))[1]
+            if y <= height * 0.5:  # title sits in the top half of the first page
+                lines.append((round(size, 1), y, text))
+    if not lines:
+        return None
+
+    max_size = max(size for size, _, _ in lines)
+    # the title may span multiple lines at the same (largest) size; keep them in reading order
+    parts = [text for size, _, text in sorted(lines, key=lambda t: t[1]) if size >= max_size - 0.5]
+    title = re.sub(r"\s+", " ", " ".join(parts)).strip()
+    if 8 <= len(title) <= 250 and not _NON_TITLE_RE.match(title):
+        return title
+    return None
 
 
 # --- helpers --------------------------------------------------------------------------------------

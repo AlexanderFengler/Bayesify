@@ -103,6 +103,7 @@ def _job_payload(job: jobsmod.Job) -> dict:
         "stage": job.stage,
         "mode": job.mode,
         "source_label": job.source_label,
+        "paper_title": job.paper_title,
         "relevance_override": job.relevance_override,
         "result": job.result.model_dump(mode="json") if job.result else None,
         # D2 prioritised fix-list, derived server-side (the SPA renders it; not in the contract).

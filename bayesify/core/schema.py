@@ -144,6 +144,7 @@ class ParsedDoc(_Base):
     sections: list[Section] = Field(default_factory=list)
     parser: str  # "grobid" | "pymupdf"
     parser_version: str
+    title: str | None = None  # best-effort paper title from the first page (None if undetected)
 
 
 class EvidenceSpan(_Base):
