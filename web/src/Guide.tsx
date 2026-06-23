@@ -39,7 +39,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
           <li>
             <strong>Click Analyze.</strong> You get a dashboard &mdash; the steps at a glance plus a
             coverage and a quality score (hover the &#9432; for exactly how each is computed) &mdash;
-            then the <strong>Full report</strong>: per step, what was done well, concrete suggestions,
+            then the <strong>Full report</strong>: per step, what was adequate, concrete suggestions,
             and the supporting quotes &ldquo;in the paper&rdquo;.
           </li>
           <li>
@@ -73,7 +73,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
             detected spans (where the engine looked) &mdash; never the engine&rsquo;s grades.
           </li>
           <li>
-            <strong>Judge each step.</strong> Mark whether it applies, its status (done well / partial
+            <strong>Judge each step.</strong> Mark whether it applies, its status (adequate / partial
             / missing / N/A), your confidence, a one-line rationale, and cite the relevant quotes.
           </li>
           <li>

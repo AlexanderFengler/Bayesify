@@ -58,7 +58,7 @@ class JudgeSuggestion(BaseModel):
 
 
 class StepJudgment(BaseModel):
-    status: str  # done_well | partial | missing
+    status: str  # adequate | partial | missing
     confidence: float = 0.5
     rationale: str = ""
     evidence_quotes: list[str] = Field(default_factory=list)  # verbatim substrings of the excerpts
@@ -71,7 +71,7 @@ class RefuterVerdict(BaseModel):
     refuted: bool = False
     notes: str = ""
     rescuing_quote: str | None = None
-    upgraded_status: str | None = None  # partial | done_well when refuted
+    upgraded_status: str | None = None  # partial | adequate when refuted
 
 
 # --- step → detector map + synonyms (v0 constants; → rubric at v1) -------------------------------
@@ -96,8 +96,8 @@ _STEP_SYNONYMS: dict[str, list[str]] = {
     "S8": ["sensitivity analysis", "robustness check", "alternative prior"],
 }
 
-_STATUS = {s.value: s for s in (StepStatus.done_well, StepStatus.partial, StepStatus.missing)}
-_RANK = {StepStatus.missing: 0, StepStatus.partial: 1, StepStatus.done_well: 2}
+_STATUS = {s.value: s for s in (StepStatus.adequate, StepStatus.partial, StepStatus.missing)}
+_RANK = {StepStatus.missing: 0, StepStatus.partial: 1, StepStatus.adequate: 2}
 _NEGATIVE = (StepStatus.missing, StepStatus.partial)
 _REFUTER_BUDGET = 14_000
 
@@ -229,7 +229,7 @@ def _build_judge_user(
     ) or "  (none)"
     return (
         f"RUBRIC STEP {step.id}: {step.name}\n"
-        f"DONE WELL: {step.done_well}\n"
+        f"ADEQUATE: {step.adequate}\n"
         f"DONE POORLY: {step.done_poorly}\n"
         + (f"THRESHOLDS:\n{thresholds}\n" if thresholds else "")
         + f"\nCANDIDATE STANDARDS (cite by id only):\n{candidates}\n\n"
@@ -244,7 +244,7 @@ def _build_refuter_user(step: RubricStep, parsed, assessment: StepAssessment) ->
     return (
         f"RUBRIC STEP {step.id}: {step.name}\n"
         f"The first pass judged this '{assessment.status.value}'.\n"
-        f"DONE WELL means: {step.done_well}\n"
+        f"ADEQUATE means: {step.adequate}\n"
         f"Alternative wordings to search for: {synonyms}\n\n"
         f"WIDER CONTEXT (includes supplements & captions):\n{wider}"
     )
@@ -347,7 +347,7 @@ def _apply_refutation(
     evidence = [e for e in assessment.evidence if e.kind is not EvidenceKind.absence_search]
     if verdict.rescuing_quote:
         evidence += _judge_quote_evidence([verdict.rescuing_quote], parsed.sections)
-    suggestions = [] if new_status is StepStatus.done_well else assessment.suggestions
+    suggestions = [] if new_status is StepStatus.adequate else assessment.suggestions
     return assessment.model_copy(
         update={
             "status": new_status,
@@ -383,7 +383,7 @@ def _clamp(x: float) -> float:
 
 
 def _bump(status: StepStatus) -> StepStatus:
-    return StepStatus.partial if status is StepStatus.missing else StepStatus.done_well
+    return StepStatus.partial if status is StepStatus.missing else StepStatus.adequate
 
 
 def _judge_quote_evidence(quotes: list[str], sections: list[Section]) -> list[Evidence]:

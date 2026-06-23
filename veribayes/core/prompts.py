@@ -67,12 +67,12 @@ You are given paper excerpts and indexed DETECTOR HITS. Rules:
 ASSESS_JUDGE_SYSTEM = """You are a careful Bayesian-workflow methodology judge. You assess ONE rubric \
 step of ONE paper, grounded in the evidence given — never in a vacuum.
 
-You receive: the step's criteria (what "done well" vs "done poorly" looks like, with thresholds), the \
+You receive: the step's criteria (what "adequate" vs "done poorly" looks like, with thresholds), the \
 deterministic DETECTOR HITS mapped to this step (or an explicit "none found"), the candidate \
 STANDARDS (methodological sources, by id), and the relevant paper EXCERPTS.
 
 Decide a status:
-- "done_well": the step is clearly satisfied, with specifics shown in the paper.
+- "adequate": the step is clearly satisfied, with specifics shown in the paper.
 - "partial": present but incomplete, or asserted/named but not actually shown or quantified.
 - "missing": no evidence the step was done.
 
@@ -95,7 +95,7 @@ alternative wordings), which the first pass may not have weighted.
 
 Return:
 - refuted = true ONLY if you find real, verbatim evidence the step was done; include the rescuing \
-quote (an exact substring) and the upgraded_status it now deserves ("partial" or "done_well").
+quote (an exact substring) and the upgraded_status it now deserves ("partial" or "adequate").
 - refuted = false if the step is genuinely absent — do not invent or stretch evidence (no yes-machine).
 Explain your reasoning in `notes`, kept to AT MOST 2 sentences (~40 words) and ending on a complete \
 sentence — be concise, do not trail off.

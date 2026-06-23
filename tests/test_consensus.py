@@ -36,7 +36,7 @@ def _sr(
         applicable=not na,
         status=status,
         confidence=conf,
-        evidence=[span] if status in (S.done_well, S.partial) else [],
+        evidence=[span] if status in (S.adequate, S.partial) else [],
         rationale="" if na else "rater note",
     )
 
@@ -69,37 +69,37 @@ def _byid(rating: Rating) -> dict[str, StepRating]:
 
 
 def test_unanimous_agreement_passes_through() -> None:
-    r1 = _rating("r1", [_sr("S1", S.done_well), _sr("S2", S.missing)])
-    r2 = _rating("r2", [_sr("S1", S.done_well), _sr("S2", S.missing)])
+    r1 = _rating("r1", [_sr("S1", S.adequate), _sr("S2", S.missing)])
+    r2 = _rating("r2", [_sr("S1", S.adequate), _sr("S2", S.missing)])
     res = consensus_from_ratings([r1, r2])
     assert res.no_consensus_steps == []
     steps = _byid(res.consensus)
-    assert steps["S1"].status is S.done_well and steps["S2"].status is S.missing
+    assert steps["S1"].status is S.adequate and steps["S2"].status is S.missing
 
 
 def test_strict_majority_of_three() -> None:
     raters = [
-        _rating("r1", [_sr("S1", S.done_well)]),
-        _rating("r2", [_sr("S1", S.done_well)]),
+        _rating("r1", [_sr("S1", S.adequate)]),
+        _rating("r2", [_sr("S1", S.adequate)]),
         _rating("r3", [_sr("S1", S.partial)]),
     ]
     res = consensus_from_ratings(raters)
-    assert _byid(res.consensus)["S1"].status is S.done_well  # 2 of 3
+    assert _byid(res.consensus)["S1"].status is S.adequate  # 2 of 3
     assert res.no_consensus_steps == []
 
 
 def test_two_rater_status_disagreement_is_no_consensus() -> None:
-    r1 = _rating("r1", [_sr("S1", S.done_well), _sr("S2", S.done_well)])
-    r2 = _rating("r2", [_sr("S1", S.partial), _sr("S2", S.done_well)])  # split on S1, agree on S2
+    r1 = _rating("r1", [_sr("S1", S.adequate), _sr("S2", S.adequate)])
+    r2 = _rating("r2", [_sr("S1", S.partial), _sr("S2", S.adequate)])  # split on S1, agree on S2
     res = consensus_from_ratings([r1, r2])
     assert res.no_consensus_steps == ["S1"]
     steps = _byid(res.consensus)
     assert "S1" not in steps  # dropped — the engine comparison skips it
-    assert steps["S2"].status is S.done_well
+    assert steps["S2"].status is S.adequate
 
 
 def test_applicability_split_is_no_consensus() -> None:
-    r1 = _rating("r1", [_sr("S4", S.done_well)])  # applicable
+    r1 = _rating("r1", [_sr("S4", S.adequate)])  # applicable
     r2 = _rating("r2", [_sr("S4", S.not_applicable)])  # N/A
     res = consensus_from_ratings([r1, r2])
     assert res.no_consensus_steps == ["S4"]
@@ -115,9 +115,9 @@ def test_majority_not_applicable() -> None:
 
 
 def test_present_consensus_unions_evidence_and_is_contract_valid() -> None:
-    # two raters agree done_well but cite different spans → consensus cites both; a valid StepRating
-    r1 = _rating("r1", [_sr("S1", S.done_well, conf=0.8, span=_SPAN_A)])
-    r2 = _rating("r2", [_sr("S1", S.done_well, conf=1.0, span=_SPAN_B)])
+    # two raters agree adequate but cite different spans → consensus cites both; a valid StepRating
+    r1 = _rating("r1", [_sr("S1", S.adequate, conf=0.8, span=_SPAN_A)])
+    r2 = _rating("r2", [_sr("S1", S.adequate, conf=1.0, span=_SPAN_B)])
     s1 = _byid(consensus_from_ratings([r1, r2]).consensus)["S1"]
     assert {sp.quote for sp in s1.evidence} == {"span A", "span B"}
     assert s1.confidence == 0.9  # mean of the agreeing raters
@@ -136,14 +136,14 @@ def test_relevance_no_majority_short_circuits() -> None:
 
 
 def test_no_relevance_consensus_yields_none() -> None:
-    r1 = _rating("r1", [_sr("S1", S.done_well)], rel=RelevanceLabel.yes)
+    r1 = _rating("r1", [_sr("S1", S.adequate)], rel=RelevanceLabel.yes)
     r2 = _rating("r2", [], rel=RelevanceLabel.no)
     assert consensus_from_ratings([r1, r2]).consensus is None
 
 
 def test_no_paper_class_consensus_yields_none() -> None:
-    r1 = _rating("r1", [_sr("S1", S.done_well)], cls=PaperClassLabel.empirical)
-    r2 = _rating("r2", [_sr("S1", S.done_well)], cls=PaperClassLabel.methodological)
+    r1 = _rating("r1", [_sr("S1", S.adequate)], cls=PaperClassLabel.empirical)
+    r2 = _rating("r2", [_sr("S1", S.adequate)], cls=PaperClassLabel.methodological)
     assert consensus_from_ratings([r1, r2]).consensus is None
 
 
@@ -152,8 +152,8 @@ def test_no_paper_class_consensus_yields_none() -> None:
 
 def test_assemble_human_report_is_admissible() -> None:
     ratings = [
-        _rating("r1", [_sr("S1", S.done_well)], relationship=RaterRelationship.independent),
-        _rating("r2", [_sr("S1", S.done_well)], relationship=RaterRelationship.prompt_author),
+        _rating("r1", [_sr("S1", S.adequate)], relationship=RaterRelationship.independent),
+        _rating("r2", [_sr("S1", S.adequate)], relationship=RaterRelationship.prompt_author),
     ]
     hr = assemble_human_report(
         work_id="w1",

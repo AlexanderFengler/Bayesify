@@ -32,9 +32,9 @@ _RUBRIC = load_rubric()
 _HERE = Path(__file__).parent
 
 _STATUSES = {
-    "S1": StepStatus.done_well, "S2": StepStatus.done_well, "S3": StepStatus.partial,
-    "S4": StepStatus.done_well, "S5": StepStatus.missing, "S7": StepStatus.missing,
-    "S8": StepStatus.done_well, "S9": StepStatus.partial, "S10": StepStatus.done_well,
+    "S1": StepStatus.adequate, "S2": StepStatus.adequate, "S3": StepStatus.partial,
+    "S4": StepStatus.adequate, "S5": StepStatus.missing, "S7": StepStatus.missing,
+    "S8": StepStatus.adequate, "S9": StepStatus.partial, "S10": StepStatus.adequate,
 }
 _DID_WELL = {
     "S1": ["States a hierarchical drift-diffusion generative model (§s02)."],
@@ -56,7 +56,7 @@ def _assessments(gate_facts: GateFacts):
     out = []
     for step in _RUBRIC.steps:
         ap = step_applicability(step, PaperClassLabel.empirical, gate_facts)
-        status = _STATUSES.get(step.id, StepStatus.done_well) if ap.applicable else StepStatus.not_applicable
+        status = _STATUSES.get(step.id, StepStatus.adequate) if ap.applicable else StepStatus.not_applicable
         sug = [_SUGGESTIONS[step.id]] if ap.applicable and step.id in _SUGGESTIONS else []
         out.append(
             StepAssessment(

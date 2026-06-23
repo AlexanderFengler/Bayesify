@@ -12,7 +12,14 @@ import { StepCardShell } from "./StepCard";
 import type { StepStatus } from "./types";
 
 type Relevance = "" | "yes" | "partial" | "no";
-type PaperClass = "" | "empirical" | "numerical_experiment" | "methodological";
+type PaperClass =
+  | "model_development"
+  | "method_development"
+  | "software_development"
+  | "data_analysis"
+  | "numerical_analysis"
+  | "theoretical_analysis"
+  | "review";
 
 interface StepDraft {
   status: "" | StepStatus;
@@ -23,12 +30,16 @@ interface StepDraft {
 }
 const EMPTY: StepDraft = { status: "", confidence: 0.8, rationale: "", cited: [], missingSubtag: "" };
 
-const INFERENCE = ["mcmc", "hmc_nuts", "variational", "exact_analytic", "unstated"];
+const INFERENCE = ["mcmc", "hmc_nuts", "variational", "sbi", "exact_analytic", "unstated"];
 const PRIORS = ["informative", "weakly_informative", "default", "none", "unstated"];
 const CLASSES: { v: PaperClass; label: string }[] = [
-  { v: "empirical", label: "empirical" },
-  { v: "numerical_experiment", label: "numerical experiment" },
-  { v: "methodological", label: "methodological" },
+  { v: "model_development", label: "model development" },
+  { v: "method_development", label: "method development" },
+  { v: "software_development", label: "software development" },
+  { v: "data_analysis", label: "data analysis" },
+  { v: "numerical_analysis", label: "numerical analysis" },
+  { v: "theoretical_analysis", label: "theoretical analysis" },
+  { v: "review", label: "review / tutorial / commentary" },
 ];
 
 // The blind rating form: a rater walks the same rubric the engine walks and authors a Rating,
@@ -43,7 +54,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
   const [relationship, setRelationship] = useState("independent");
   const [relevance, setRelevance] = useState<Relevance>("");
   const [relevanceRationale, setRelevanceRationale] = useState("");
-  const [paperClass, setPaperClass] = useState<PaperClass>("");
+  const [paperClasses, setPaperClasses] = useState<PaperClass[]>([]);
   const [classRationale, setClassRationale] = useState("");
   const [gate, setGate] = useState({
     inference_method: "mcmc",
@@ -77,6 +88,11 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
     const cur = draft(id).cited;
     setStep(id, { cited: cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i] });
   };
+  const togglePaperClass = (klass: PaperClass) => {
+    setPaperClasses((prev) =>
+      prev.includes(klass) ? prev.filter((v) => v !== klass) : [...prev, klass],
+    );
+  };
 
   function build(): RatingInput | { error: string } {
     if (!relevance) return { error: "Choose a relevance verdict." };
@@ -87,20 +103,20 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
         ...base,
         relevance_label: "no",
         relevance_rationale: relevanceRationale,
-        paper_class_label: null,
+        paper_class_labels: [],
         paper_class_rationale: "",
         gate_facts: null,
         steps: [],
       };
     }
-    if (!paperClass) return { error: "Choose a paper type." };
+    if (paperClasses.length === 0) return { error: "Choose at least one paper type." };
     const steps = [];
     for (const s of ctx!.rubric.steps) {
       const d = draft(s.id);
       if (!d.status) continue; // an unrated step is omitted (a partial pass is allowed)
       const applicable = d.status !== "not_applicable";
       if (applicable && !d.rationale.trim()) return { error: `${s.id}: add a rationale.` };
-      if ((d.status === "done_well" || d.status === "partial") && d.cited.length === 0)
+      if ((d.status === "adequate" || d.status === "partial") && d.cited.length === 0)
         return { error: `${s.id}: cite ≥1 evidence span for a "${STATUS_LABEL[d.status]}" rating.` };
       steps.push({
         step_id: s.id,
@@ -121,7 +137,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
       ...base,
       relevance_label: relevance,
       relevance_rationale: relevanceRationale,
-      paper_class_label: paperClass,
+      paper_class_labels: paperClasses,
       paper_class_rationale: classRationale,
       gate_facts: gate,
       steps,
@@ -228,7 +244,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
 
         <div className="rate-field">
           <label>
-            Relevance — is this a Bayesian-workflow paper?
+            Relevance - is Bayesian workflow applicable?
             <select value={relevance} onChange={(e) => setRelevance(e.target.value as Relevance)}>
               <option value="">— choose —</option>
               <option value="yes">yes</option>
@@ -239,7 +255,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
         </div>
         <textarea
           className="rate-rationale"
-          placeholder="Why? (relevance rationale — required)"
+          placeholder="Why? (required)"
           value={relevanceRationale}
           onChange={(e) => setRelevanceRationale(e.target.value)}
         />
@@ -247,21 +263,25 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
         {relevant && (
           <>
             <div className="rate-field">
-              <label>
-                Paper type
-                <select value={paperClass} onChange={(e) => setPaperClass(e.target.value as PaperClass)}>
-                  <option value="">— choose —</option>
+              <fieldset className="rate-class-field">
+                <legend>Paper type</legend>
+                <div className="rate-class-options">
                   {CLASSES.map((c) => (
-                    <option key={c.v} value={c.v}>
+                    <label key={c.v} className="rate-check">
+                      <input
+                        type="checkbox"
+                        checked={paperClasses.includes(c.v)}
+                        onChange={() => togglePaperClass(c.v)}
+                      />
                       {c.label}
-                    </option>
+                    </label>
                   ))}
-                </select>
-              </label>
+                </div>
+              </fieldset>
             </div>
             <textarea
               className="rate-rationale"
-              placeholder="Why this paper type? (optional)"
+              placeholder="Why these paper types? (optional)"
               value={classRationale}
               onChange={(e) => setClassRationale(e.target.value)}
             />
@@ -334,9 +354,9 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                 pill={<span className="rate-step-pill">{d.status ? STATUS_LABEL[d.status] : "rate"}</span>}
               >
                 <div className="rate-step-body">
-                  {s.done_well && (
+                  {s.adequate && (
                     <p className="rate-guide">
-                      <strong>Done well:</strong> {s.done_well}
+                      <strong>Adequate:</strong> {s.adequate}
                     </p>
                   )}
                   {s.done_poorly && (
@@ -377,7 +397,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                         value={d.rationale}
                         onChange={(e) => setStep(s.id, { rationale: e.target.value })}
                       />
-                      {(d.status === "done_well" || d.status === "partial") && (
+                      {(d.status === "adequate" || d.status === "partial") && (
                         <EvidenceCite
                           spans={ctx.evidence}
                           cited={d.cited}

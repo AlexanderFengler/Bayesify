@@ -50,7 +50,7 @@ class ScoreMeta:
     validation_ref: str = "unvalidated"
 
 
-_PRESENT = (StepStatus.done_well, StepStatus.partial)
+_PRESENT = (StepStatus.adequate, StepStatus.partial)
 
 
 @dataclass(frozen=True)
@@ -222,25 +222,25 @@ def _score_impacts(
     base_cov: Coverage | None,
     base_q: float | None,
 ) -> list[ScoreImpact]:
-    """For each applicable step not already at ``done_well``, the verified coverage/quality gain of
-    upgrading it to ``done_well`` — computed by re-running the arithmetic, so every delta is
+    """For each applicable step not already at ``adequate``, the verified coverage/quality gain of
+    upgrading it to ``adequate`` — computed by re-running the arithmetic, so every delta is
     reachable by construction (never speculative)."""
     if base_cov is None or base_q is None:
         return []
     impacts: list[ScoreImpact] = []
     plain = [c for _, c in calcs]
     for i, (step_id, c) in enumerate(calcs):
-        if not c.applicable or c.status is StepStatus.done_well:
+        if not c.applicable or c.status is StepStatus.adequate:
             continue
         hypo = list(plain)
-        hypo[i] = StepCalc(True, StepStatus.done_well, c.weight, c.confidence)
+        hypo[i] = StepCalc(True, StepStatus.adequate, c.weight, c.confidence)
         cov2, q2 = coverage_quality_from_weighted_steps(hypo, sub_score, low_conf)
         assert cov2 is not None and q2 is not None
         impacts.append(
             ScoreImpact(
                 step_id=step_id,
                 from_status=c.status,
-                to_status=StepStatus.done_well,
+                to_status=StepStatus.adequate,
                 # exact (not rounded): every delta is reachable by re-scoring with this upgrade.
                 coverage_delta=cov2.strict - base_cov.strict,
                 quality_delta=q2 - base_q,

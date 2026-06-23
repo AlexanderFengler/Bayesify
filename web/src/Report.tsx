@@ -192,12 +192,12 @@ function SummarySection({ r, fixes }: { r: ScoredResult; fixes: FixItem[] | null
 }
 
 const COVERAGE_HELP =
-  "Coverage = the share of APPLICABLE steps that are present at all (done well or partial). " +
+  "Coverage = the share of APPLICABLE steps that are present at all (adequate or partial). " +
   "N/A steps are excluded from the denominator. The range (e.g. 6–7) reflects low-confidence " +
   "absences: the low end counts them absent, the high end counts them present.";
 
 const QUALITY_HELP =
-  "Quality = average credit across the applicable steps: done well = 1, partial = ½, missing = 0 " +
+  "Quality = average credit across the applicable steps: adequate = 1, partial = ½, missing = 0 " +
   "(N/A excluded), as a weighted mean (v0 weights every step equally). It measures how WELL each " +
   "step was done, so it sits at or below coverage — partial steps count toward coverage but only " +
   "score ½ here, and missing steps score 0.";
@@ -212,12 +212,12 @@ function InfoDot({ text }: { text: string }) {
 }
 
 const STATUS_GLYPH: Record<StepStatus, string> = {
-  done_well: "✓",
+  adequate: "✓",
   partial: "◐",
   missing: "✗",
   not_applicable: "–",
 };
-const STRIP_LEGEND: StepStatus[] = ["done_well", "partial", "missing", "not_applicable"];
+const STRIP_LEGEND: StepStatus[] = ["adequate", "partial", "missing", "not_applicable"];
 
 // Item 1: a 2-second pictorial of every step's status — colour-coded cells, click to jump to a step.
 function StepStrip({
@@ -263,7 +263,7 @@ function RelevanceLine({ r }: { r: ScoredResult }) {
     <div className="relevance-line">
       <span className="grounding-label">Relevance gate</span>
       <p className="rl-text">
-        <span className={"status-pill status-" + (r.relevance.label === "yes" ? "done_well" : "partial")}>
+        <span className={"status-pill status-" + (r.relevance.label === "yes" ? "adequate" : "partial")}>
           {r.relevance.label}
         </span>
         <span className="rl-conf">{Math.round(r.relevance.confidence * 100)}% conf.</span>

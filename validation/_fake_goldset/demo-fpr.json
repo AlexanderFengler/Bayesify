@@ -35,7 +35,7 @@
         {
           "step_id": "S1",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -52,7 +52,7 @@
         {
           "step_id": "S2",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -69,7 +69,7 @@
         {
           "step_id": "S3",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -86,7 +86,7 @@
         {
           "step_id": "S4",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -103,7 +103,7 @@
         {
           "step_id": "S5",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -131,7 +131,7 @@
         {
           "step_id": "S7",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -148,7 +148,7 @@
         {
           "step_id": "S8",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -165,7 +165,7 @@
         {
           "step_id": "S9",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -182,7 +182,7 @@
         {
           "step_id": "S10",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -215,7 +215,7 @@
         {
           "step_id": "S1",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -232,7 +232,7 @@
         {
           "step_id": "S2",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -249,7 +249,7 @@
         {
           "step_id": "S3",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -266,7 +266,7 @@
         {
           "step_id": "S4",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -283,7 +283,7 @@
         {
           "step_id": "S5",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -311,7 +311,7 @@
         {
           "step_id": "S7",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -328,7 +328,7 @@
         {
           "step_id": "S8",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -345,7 +345,7 @@
         {
           "step_id": "S9",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -362,7 +362,7 @@
         {
           "step_id": "S10",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -396,7 +396,7 @@
       {
         "step_id": "S1",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -413,7 +413,7 @@
       {
         "step_id": "S2",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -430,7 +430,7 @@
       {
         "step_id": "S3",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -447,7 +447,7 @@
       {
         "step_id": "S4",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -464,7 +464,7 @@
       {
         "step_id": "S5",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -492,7 +492,7 @@
       {
         "step_id": "S7",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -509,7 +509,7 @@
       {
         "step_id": "S8",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -526,7 +526,7 @@
       {
         "step_id": "S9",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -543,7 +543,7 @@
       {
         "step_id": "S10",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {

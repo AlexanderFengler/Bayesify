@@ -184,7 +184,7 @@ def _rubric_payload(profile: str) -> dict:
                 "why": s.why,
                 "essential_for": s.essential_for,
                 "recommended_for": s.recommended_for,
-                "done_well": s.done_well,
+                "adequate": s.adequate,
                 "done_poorly": s.done_poorly,
                 "citations": s.citations,
             }

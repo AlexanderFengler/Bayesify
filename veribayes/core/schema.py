@@ -55,7 +55,10 @@ class RelevanceLabel(StrEnum):
 
 
 class PaperClassLabel(StrEnum):
-    model_development = "model development"
+    empirical = "empirical"
+    numerical_experiment = "numerical_experiment"
+    methodological = "methodological"
+    model_development = "model_development"
     method_development = "method_development"
     software_development = "software_development"
     data_analysis = "data_analysis"
@@ -268,7 +271,7 @@ class Profile(_Base):
 
 
 class Coverage(_Base):
-    """Share of applicable steps present (done_well | partial). ``strict``/``lenient`` bracket the
+    """Share of applicable steps present (adequate | partial). ``strict``/``lenient`` bracket the
     uncertainty from low-confidence absences (e.g. "6-7 / 9")."""
 
     present: int  # high-confidence present count

@@ -43,7 +43,7 @@ from veribayes.core.validation.human_report import (
 )
 
 _RUBRIC = load_rubric()
-_PRESENT = (StepStatus.done_well, StepStatus.partial)
+_PRESENT = (StepStatus.adequate, StepStatus.partial)
 _DEFAULT_GATE = GateFacts()  # mcmc/unstated, 1 model, no BF, unstated priors
 _ANALYTIC_GATE = GateFacts(inference_method=InferenceMethod.exact_analytic)  # → S4 N/A (G6)
 _SPAN = EvidenceSpan(section_id="s01", quote="a demonstration span")
@@ -77,7 +77,7 @@ def _engine(
                 )
             )
             continue
-        status = overrides.get(step.id, StepStatus.done_well)
+        status = overrides.get(step.id, StepStatus.adequate)
         ev = (
             [
                 Evidence(
@@ -127,7 +127,7 @@ def _rating(
                 )
             )
             continue
-        status = overrides.get(step.id, StepStatus.done_well)
+        status = overrides.get(step.id, StepStatus.adequate)
         steps.append(
             StepRating(
                 step_id=step.id,
@@ -220,14 +220,14 @@ def build_demo_dataset() -> list[DemoPaper]:
             _human("demo-agree", "sha-agree", empirical, _DEFAULT_GATE, {}),
             _engine(empirical, _DEFAULT_GATE, {}),
         ),
-        # 2) absence-FPR: engine cries 'missing' on S5, human saw it (done_well)
+        # 2) absence-FPR: engine cries 'missing' on S5, human saw it (adequate)
         DemoPaper(
             "demo-fpr",
             "sha-fpr",
             _human("demo-fpr", "sha-fpr", empirical, _DEFAULT_GATE, {}),
             _engine(empirical, _DEFAULT_GATE, {"S5": StepStatus.missing}),
         ),
-        # 3) status disagreement: engine done_well, human partial on S1 + S3
+        # 3) status disagreement: engine adequate, human partial on S1 + S3
         DemoPaper(
             "demo-status",
             "sha-status",
