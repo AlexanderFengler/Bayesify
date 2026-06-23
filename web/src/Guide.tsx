@@ -1,4 +1,4 @@
-import { Box, Button, Container, Typography } from "@mui/material";
+﻿import { Box, Button, Container, Typography } from "@mui/material";
 
 // A short in-app explainer reached from the footer. Two audiences, two flows shown side by side:
 // get a paper rated (authors/readers) and rate a paper blind (domain experts, the gold standard).
@@ -33,13 +33,13 @@ export function Guide({ onExit }: { onExit: () => void }) {
           alignItems: "flex-start",
         }}
       >
-        <GuideColumn title="Get your paper rated" lead="For authors and readers — an evidence-linked, per-step report on a paper.">
+        <GuideColumn title="Get your paper rated" lead="For authors and readers: an evidence-linked, per-step report on a paper.">
           <GuideStep n={1} head="Add the paper.">
             Drop a PDF, or paste an identifier (arXiv ID, DOI, OpenAlex ID, or URL) and Bayesify
             fetches the open-access copy.
           </GuideStep>
           <GuideStep n={2} head="Pick a mode.">
-            <em>Full</em> sends the extracted text to Anthropic and returns the graded report;{" "}
+            <em>Full</em> sends the extracted text to the configured LLM provider and returns the graded report;{" "}
             <em>Local-only</em> runs the on-device detectors with nothing leaving your machine (an
             evidence inventory, no scores).
           </GuideStep>
@@ -62,7 +62,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
 
         <GuideColumn
           title="Rate a paper (blind)"
-          lead="For domain experts — your ratings are the gold standard the engine is measured against. You rate blind (you never see the engine's verdict), so your judgment isn't anchored to it."
+          lead="For domain experts: your ratings are the gold standard the engine is measured against. You rate blind (you never see the engine's verdict), so your judgment isn't anchored to it."
         >
           <GuideStep n={1} head="Open the blind form.">
             On the landing page click <em>Rate it yourself (blind)</em>, or open a{" "}
@@ -144,3 +144,4 @@ function GuideStep({ n, head, children }: { n: number; head: string; children: R
     </Box>
   );
 }
+

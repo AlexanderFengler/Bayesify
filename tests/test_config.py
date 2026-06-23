@@ -52,12 +52,22 @@ def test_backend_prefers_subscription_when_cli_present(monkeypatch) -> None:
 def test_backend_falls_back_to_api_key(monkeypatch) -> None:
     monkeypatch.delenv("BAYESIFY_LLM_BACKEND", raising=False)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr(config, "claude_code_available", lambda: False)
     assert config.llm_backend() == "api"
+
+
+def test_backend_falls_back_to_openai_key(monkeypatch) -> None:
+    monkeypatch.delenv("BAYESIFY_LLM_BACKEND", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setattr(config, "claude_code_available", lambda: False)
+    assert config.llm_backend() == "openai"
 
 
 def test_backend_none_when_no_credentials(monkeypatch) -> None:
     monkeypatch.delenv("BAYESIFY_LLM_BACKEND", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr(config, "claude_code_available", lambda: False)
     assert config.llm_backend() == "none"

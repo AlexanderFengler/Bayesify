@@ -55,9 +55,6 @@ class RelevanceLabel(StrEnum):
 
 
 class PaperClassLabel(StrEnum):
-    empirical = "empirical"
-    numerical_experiment = "numerical_experiment"
-    methodological = "methodological"
     model_development = "model_development"
     method_development = "method_development"
     software_development = "software_development"

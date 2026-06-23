@@ -29,7 +29,14 @@ import { StepCardShell } from "./StepCard";
 import type { StepStatus } from "./types";
 
 type Relevance = "" | "yes" | "partial" | "no";
-type PaperClass = "" | "empirical" | "numerical_experiment" | "methodological";
+type PaperClass =
+  | "model_development"
+  | "method_development"
+  | "software_development"
+  | "data_analysis"
+  | "numerical_analysis"
+  | "theoretical_analysis"
+  | "review";
 
 interface StepDraft {
   status: "" | StepStatus;
@@ -40,12 +47,29 @@ interface StepDraft {
 }
 const EMPTY: StepDraft = { status: "", confidence: 0.8, rationale: "", cited: [], missingSubtag: "" };
 
-const INFERENCE = ["mcmc", "hmc_nuts", "variational", "exact_analytic", "unstated"];
-const PRIORS = ["informative", "weakly_informative", "default", "none", "unstated"];
-const CLASSES: { v: PaperClass; label: string }[] = [
-  { v: "empirical", label: "empirical" },
-  { v: "numerical_experiment", label: "numerical experiment" },
-  { v: "methodological", label: "methodological" },
+const INFERENCE = [
+  { value: "mcmc", label: "MCMC" },
+  { value: "hmc_nuts", label: "HMC / NUTS" },
+  { value: "variational", label: "Variational" },
+  { value: "sbi", label: "SBI" },
+  { value: "exact_analytic", label: "Exact / analytic" },
+  { value: "unstated", label: "Unstated" },
+];
+const PRIORS = [
+  { value: "informative", label: "Informative" },
+  { value: "weakly_informative", label: "Weakly informative" },
+  { value: "default", label: "Default" },
+  { value: "none", label: "None" },
+  { value: "unstated", label: "Unstated" },
+];
+const CLASSES: { value: PaperClass; label: string }[] = [
+  { value: "model_development", label: "Model development" },
+  { value: "method_development", label: "Method development" },
+  { value: "software_development", label: "Software development" },
+  { value: "data_analysis", label: "Data analysis" },
+  { value: "numerical_analysis", label: "Numerical analysis" },
+  { value: "theoretical_analysis", label: "Theoretical analysis" },
+  { value: "review", label: "Review" },
 ];
 
 // The colour a status chip wears — mirrors the report's status palette so the two views read alike.
@@ -78,7 +102,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
   const [relationship, setRelationship] = useState("independent");
   const [relevance, setRelevance] = useState<Relevance>("");
   const [relevanceRationale, setRelevanceRationale] = useState("");
-  const [paperClass, setPaperClass] = useState<PaperClass>("");
+  const [paperClasses, setPaperClasses] = useState<PaperClass[]>([]);
   const [classRationale, setClassRationale] = useState("");
   const [gate, setGate] = useState({
     inference_method: "mcmc",
@@ -112,6 +136,11 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
     const cur = draft(id).cited;
     setStep(id, { cited: cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i] });
   };
+  const togglePaperClass = (value: PaperClass) => {
+    setPaperClasses((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+    );
+  };
 
   function build(): RatingInput | { error: string } {
     if (!relevance) return { error: "Choose a relevance verdict." };
@@ -128,7 +157,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
         steps: [],
       };
     }
-    if (!paperClass) return { error: "Choose a paper type." };
+    if (paperClasses.length === 0) return { error: "Choose at least one paper type." };
     const steps = [];
     for (const s of ctx!.rubric.steps) {
       const d = draft(s.id);
@@ -156,7 +185,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
       ...base,
       relevance_label: relevance,
       relevance_rationale: relevanceRationale,
-      paper_class_labels: paperClass ? [paperClass] : [],
+      paper_class_labels: paperClasses,
       paper_class_rationale: classRationale,
       gate_facts: gate,
       steps,
@@ -303,7 +332,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
           select
           fullWidth
           size="small"
-          label="Relevance — is this a Bayesian-workflow paper?"
+          label="Relevance - is a Bayesian workflow applicable?"
           value={relevance}
           onChange={(e) => setRelevance(e.target.value as Relevance)}
         >
@@ -327,21 +356,34 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
         {relevant && (
           <>
             <Divider />
-            <TextField
-              select
-              fullWidth
-              size="small"
-              label="Paper type"
-              value={paperClass}
-              onChange={(e) => setPaperClass(e.target.value as PaperClass)}
-            >
-              <MenuItem value="">— choose —</MenuItem>
-              {CLASSES.map((c) => (
-                <MenuItem key={c.v} value={c.v}>
-                  {c.label}
-                </MenuItem>
-              ))}
-            </TextField>
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+                Paper type
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mt: 0.75 }}>
+                {CLASSES.map((c) => (
+                  <FormControlLabel
+                    key={c.value}
+                    sx={{
+                      m: 0,
+                      pr: 1.25,
+                      border: 1,
+                      borderColor: paperClasses.includes(c.value) ? "primary.main" : "divider",
+                      borderRadius: 1,
+                      bgcolor: paperClasses.includes(c.value) ? "action.selected" : "transparent",
+                    }}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={paperClasses.includes(c.value)}
+                        onChange={() => togglePaperClass(c.value)}
+                      />
+                    }
+                    label={c.label}
+                  />
+                ))}
+              </Box>
+            </Box>
             <TextField
               fullWidth
               multiline
@@ -360,9 +402,9 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                 onChange={(e) => setGate({ ...gate, inference_method: e.target.value })}
                 sx={{ flex: "1 1 160px" }}
               >
-                {INFERENCE.map((v) => (
-                  <MenuItem key={v} value={v}>
-                    {v}
+                {INFERENCE.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
                   </MenuItem>
                 ))}
               </TextField>
@@ -383,9 +425,9 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                 onChange={(e) => setGate({ ...gate, prior_informativeness: e.target.value })}
                 sx={{ flex: "1 1 160px" }}
               >
-                {PRIORS.map((v) => (
-                  <MenuItem key={v} value={v}>
-                    {v}
+                {PRIORS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
                   </MenuItem>
                 ))}
               </TextField>
@@ -435,9 +477,9 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                       <strong>Adequate:</strong> {s.adequate}
                     </Typography>
                   )}
-                  {s.done_poorly && (
+                  {s.missing && (
                     <Typography variant="body2" color="text.disabled">
-                      <strong>Done poorly:</strong> {s.done_poorly}
+                      <strong>Missing:</strong> {s.missing}
                     </Typography>
                   )}
 

@@ -14,9 +14,9 @@ from __future__ import annotations
 
 from bayesify.core import config
 from bayesify.core.context import build_user
-from bayesify.core.llm import LLMClient, call_with_policy, ledger_entry
 from bayesify.core.prompts import CLASSIFY_SYSTEM
 from bayesify.core.schema import CostLedgerEntry, Evidence, PaperClass, ParsedDoc
+from bayesify.llm import LLMClient, call_with_policy, ledger_entry
 
 
 def classify(

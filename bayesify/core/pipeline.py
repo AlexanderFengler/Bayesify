@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from bayesify.core import config
 from bayesify.core.classify import classify
-from bayesify.core.llm import LLMClient
 from bayesify.core.schema import (
     CostLedgerEntry,
     Evidence,
@@ -19,6 +18,7 @@ from bayesify.core.schema import (
     RelevanceLabel,
 )
 from bayesify.core.screen import screen
+from bayesify.llm import LLMClient
 
 
 def screen_and_classify(

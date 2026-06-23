@@ -19,7 +19,6 @@ from pydantic import BaseModel, Field
 
 from bayesify.core import config
 from bayesify.core.context import evidence_digest, excerpt_context
-from bayesify.core.llm import LLMClient, call_with_policy, ledger_entry
 from bayesify.core.prompts import ASSESS_JUDGE_SYSTEM, ASSESS_REFUTE_SYSTEM
 from bayesify.core.rubric.applicability import step_applicability
 from bayesify.core.rubric.models import RubricSpec, RubricStep
@@ -42,6 +41,7 @@ from bayesify.core.schema import (
     StepStatus,
     Suggestion,
 )
+from bayesify.llm import LLMClient, call_with_policy, ledger_entry
 
 
 class AssessError(RuntimeError):
@@ -74,8 +74,6 @@ class RefuterVerdict(BaseModel):
     upgraded_status: str | None = None  # partial | adequate when refuted
 
 
-# --- step → detector map + synonyms (v0 constants; → rubric at v1) -------------------------------
-
 _STEP_DETECTORS: dict[str, list[str]] = {
     "S1": ["software.", "method."],
     "S2": ["method.prior"],
@@ -100,9 +98,6 @@ _STATUS = {s.value: s for s in (StepStatus.adequate, StepStatus.partial, StepSta
 _RANK = {StepStatus.missing: 0, StepStatus.partial: 1, StepStatus.adequate: 2}
 _NEGATIVE = (StepStatus.missing, StepStatus.partial)
 _REFUTER_BUDGET = 14_000
-
-
-# --- gate facts (e mints these from the evidence + paper class) ----------------------------------
 
 
 def derive_gate_facts(evidence: list[Evidence], paper_class: PaperClass) -> GateFacts:
@@ -148,9 +143,6 @@ def _prior_informativeness(evidence: list[Evidence]) -> PriorInformativeness:
     if "default" in quotes:
         return PriorInformativeness.default
     return PriorInformativeness.unstated
-
-
-# --- main ----------------------------------------------------------------------------------------
 
 
 def assess(
@@ -217,9 +209,6 @@ def assess(
     return assessments, gate_facts, cost
 
 
-# --- prompt assembly (deterministic, unit-testable) ----------------------------------------------
-
-
 def _build_judge_user(
     step: RubricStep, parsed, step_ev: list[Evidence], rubric: RubricSpec
 ) -> str:
@@ -230,7 +219,7 @@ def _build_judge_user(
     return (
         f"RUBRIC STEP {step.id}: {step.name}\n"
         f"ADEQUATE: {step.adequate}\n"
-        f"DONE POORLY: {step.done_poorly}\n"
+        f"DONE POORLY: {step.missing}\n"
         + (f"THRESHOLDS:\n{thresholds}\n" if thresholds else "")
         + f"\nCANDIDATE STANDARDS (cite by id only):\n{candidates}\n\n"
         f"DETECTOR HITS for this step:\n{evidence_digest(step_ev)}\n\n"
@@ -272,9 +261,6 @@ def _scanned_section_ids(parsed) -> list[str]:
 def _step_evidence(step_id: str, evidence: list[Evidence]) -> list[Evidence]:
     prefixes = _STEP_DETECTORS.get(step_id, [])
     return [e for e in evidence if any(e.detector_id.startswith(p) for p in prefixes)]
-
-
-# --- mapping LLM output -> the StepAssessment contract -------------------------------------------
 
 
 def _to_assessment(
@@ -356,9 +342,6 @@ def _apply_refutation(
             "adversarial_verdict": AdversarialVerdict(challenged=True, refuted=True, notes=notes),
         }
     )
-
-
-# --- small deterministic helpers -----------------------------------------------------------------
 
 
 def _severity(tier: ExpectationTier, status: StepStatus) -> Severity:

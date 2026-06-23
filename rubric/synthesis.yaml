@@ -47,7 +47,7 @@ steps:
     essential_for: [empirical, numerical_experiment, methodological]
     why: "The generative model is the foundation every later check is run against — an unstated or unjustified model makes every downstream diagnostic uninterpretable."
     adequate: "Explicit generative/likelihood model; assumptions stated; structure justified by question/data."
-    done_poorly: "Model appears with no rationale; key assumptions unstated."
+    missing: "Model appears with no rationale; key assumptions unstated."
     citations: [gelman2020, schad2021]
 
   - id: S2
@@ -59,7 +59,7 @@ steps:
     why: "Priors are part of the model and shape the posterior; leaving them unstated hides assumptions and makes the analysis impossible to reproduce or critique."
     note: "When the likelihood fully dominates and priors are immaterial, the depth of justification may be relaxed — but the priors must still be reported (silence remains a defect)."
     adequate: "Every prior listed and justified (weakly-informative vs informative, and why); informative priors sourced."
-    done_poorly: "'Default priors' with no statement of what they are; priors absent; unexamined flat priors."
+    missing: "'Default priors' with no statement of what they are; priors absent; unexamined flat priors."
     citations: [barg2021, wambs2017, vandeschoot2021]
 
   - id: S3
@@ -68,7 +68,7 @@ steps:
     recommended_for: [empirical, numerical_experiment]
     why: "Simulating from the prior before seeing data catches implausible assumptions while they are still cheap to fix, and before the data can bias the prior choice."
     adequate: "Simulations from prior(+likelihood) shown/described BEFORE data; implausible implications caught & priors revised."
-    done_poorly: "No prior predictive reasoning; priors never sanity-checked; priors set from the data (uses data twice)."
+    missing: "No prior predictive reasoning; priors never sanity-checked; priors set from the data (uses data twice)."
     citations: [gabry2019, betancourt_workflow, schad2021]
 
   - id: S4
@@ -80,7 +80,7 @@ steps:
     inference_scope: [mcmc, hmc_nuts, variational]
     why: "Convergence diagnostics tell you whether the sampler actually approximated the posterior; without them, every number reported could be an artifact of a broken fit."
     adequate: "Reports R-hat AND ESS for every parameter (BARG); divergences=0; warmup/iters/chains stated; treedepth/E-FMI/MCSE as relevant."
-    done_poorly: "No convergence diagnostics; single chain; ignored divergences; only one of R-hat/ESS."
+    missing: "No convergence diagnostics; single chain; ignored divergences; only one of R-hat/ESS."
     thresholds:
       rhat_modern: { value: "< 1.01", source: vehtari2021, verified: false, note: "fetched but not adversarially verified this run; cite directly. 2026 pass line." }
       rhat_historical: { value: "> 1.1 flagged", source: betancourt_workflow, verified: true, note: "stan_utility; use to judge older papers in context." }
@@ -99,7 +99,7 @@ steps:
     recommended_for: [numerical_experiment, methodological]
     why: "Comparing the fitted model's predictions back to the observed data is the main test of whether the model is actually adequate for the question."
     adequate: "PPCs shown (graphical overlays and/or test quantities); discrepancies discussed and acted on."
-    done_poorly: "No PPC; fit asserted without checking; obvious misfit ignored."
+    missing: "No PPC; fit asserted without checking; obvious misfit ignored."
     note: "PPC discrepancies are signals to investigate, NOT auto-diagnoses of a specific defect."
     citations: [gabry2019, gelman2020]
 
@@ -113,7 +113,7 @@ steps:
       essential_when_bf_claimed: true
     why: "When more than one model is in play, an honest comparison carrying uncertainty prevents cherry-picking the specification that merely happened to look best."
     adequate: "PSIS-LOO/WAIC with SE and Pareto-k reported, interpreted with uncertainty. For BF: robust BF sub-workflow (verify priors, bridge-sample >=2x, SBC-check BF accuracy)."
-    done_poorly: "Model chosen with no comparison / inappropriate criterion; high Pareto-k ignored; BF reported without prior justification, stability, or SBC."
+    missing: "Model chosen with no comparison / inappropriate criterion; high Pareto-k ignored; BF reported without prior justification, stability, or SBC."
     thresholds:
       pareto_k: { value: "k>0.5 monitor, k>0.7 bad", source: vehtari2017, verified: false, note: "SCOPE GAP: widely used but NOT verified this run. Fill from Vehtari 2017 + Stan loo docs before v1.0." }
       elpd_diff: { value: "report elpd differences WITH standard errors", source: vehtari2017, verified: false }
@@ -127,7 +127,7 @@ steps:
     na_when: "Routine fit with reliable self-diagnostics (S4) on a simple/standard model — may be done once per research program."
     why: "Calibration / recovery studies show the inference machinery itself is trustworthy on this model — essential for a new method, before any real-data claim is believed."
     adequate: "SBC (rank-uniformity) or parameter-recovery study reported; for BF, SBC of BF estimates."
-    done_poorly: "New method/model with no recovery or calibration evidence."
+    missing: "New method/model with no recovery or calibration evidence."
     citations: [talts2018, modrak2023, schad2022_bf]
 
   - id: S8
@@ -141,7 +141,7 @@ steps:
       essential_when_bf_claimed: true
     why: "Checking whether conclusions survive reasonable changes to the priors/specification distinguishes a robust finding from an artifact of one arbitrary choice."
     adequate: "Alternative priors/specifications tried; robustness (or lack of) reported regardless of outcome."
-    done_poorly: "Single specification; no sensitivity check despite influential priors/BF."
+    missing: "Single specification; no sensitivity check despite influential priors/BF."
     citations: [wambs2017, vandeschoot2021, gelman2020, schad2022_bf]
 
   - id: S9
@@ -149,7 +149,7 @@ steps:
     essential_for: [empirical, numerical_experiment, methodological]
     why: "A Bayesian result is only usable if others can see and rerun the model, priors, settings, and data — opacity makes the analysis impossible to verify or build on."
     adequate: "Model, priors, software+version, sampler settings (chains/iters/warmup/seed), diagnostics, data/code availability all reported (BARG 6 steps)."
-    done_poorly: "Opaque 'we fit a Bayesian model'; missing settings; point estimates with no uncertainty; no data/code."
+    missing: "Opaque 'we fit a Bayesian model'; missing settings; point estimates with no uncertainty; no data/code."
     citations: [barg2021, wambs2017]
 
   - id: S10
@@ -157,7 +157,7 @@ steps:
     essential_for: [empirical, numerical_experiment, methodological]
     why: "How the posterior is summarized and claimed is where the analysis meets the science — dropping uncertainty or over-claiming undoes the careful work upstream."
     adequate: "Point + interval (CrI/HDI, defined) with uncertainty; claims tied to posterior quantities; no over-claiming."
-    done_poorly: "Point estimates only; significance-style misreadings; intervals undefined."
+    missing: "Point estimates only; significance-style misreadings; intervals undefined."
     citations: [barg2021, vandeschoot2021]
 
 citations:

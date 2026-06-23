@@ -242,7 +242,27 @@ export function Report({
   );
 }
 
-// ---- summary pieces ------------------------------------------------------------------------------
+// Who produced this result. The clearest "the model actually ran" signal — a real backend
+// (subscription / API) vs the labelled stub that runs when no credentials are configured.
+function BackendBadge({ backend, fromCache }: { backend: string | null; fromCache: boolean }) {
+  if (!backend) return null;
+  if (backend === "stub") {
+    return <span className="backend-badge be-stub">Stub engine · no model</span>;
+  }
+  const name =
+    backend === "agent-sdk"
+      ? "Claude subscription"
+      : backend === "api"
+        ? "Anthropic API"
+        : backend === "openai"
+          ? "OpenAI API"
+          : backend;
+  // A cache replay is labelled distinctly from a fresh live run, so a hit never masquerades as live.
+  if (fromCache) {
+    return <span className="backend-badge be-cache">Cached · {name}</span>;
+  }
+  return <span className="backend-badge be-live">Live · {name}</span>;
+}
 
 // The relevance-gate description: why the gate landed on its verdict (the value itself is in the Stat
 // row above), with the gate's confidence.
@@ -251,7 +271,7 @@ function RelevanceGate({ r }: { r: ScoredResult }) {
   return (
     <Box>
       <Typography variant="overline" color="text.secondary">
-        Relevance gate · {Math.round(r.relevance.confidence * 100)}% conf.
+        Relevance gate · {Math.round(r.relevance.confidence * 100)}% Confidence
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
         {r.relevance.rationale}
@@ -351,22 +371,6 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
   );
 }
 
-function BackendBadge({ backend, fromCache }: { backend: string | null; fromCache: boolean }) {
-  if (!backend) return null;
-  if (backend === "stub") {
-    return <Chip size="small" variant="outlined" color="warning" label="Stub engine · no model" />;
-  }
-  const name =
-    backend === "agent-sdk" ? "Claude subscription" : backend === "api" ? "Anthropic API" : backend;
-  return (
-    <Chip
-      size="small"
-      variant="outlined"
-      color={fromCache ? "default" : "success"}
-      label={`${fromCache ? "Cached" : "Live"} · ${name}`}
-    />
-  );
-}
 
 function Downloads({ paperId }: { paperId: string }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -410,8 +414,6 @@ function Downloads({ paperId }: { paperId: string }) {
     </>
   );
 }
-
-// ---- RIGHT column: the at-a-glance buttons + selected step detail --------------------------------
 
 function StepGlance({
   steps,
@@ -528,7 +530,7 @@ function StepDetail({
         />
         {!na && (
           <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }} title="engine confidence (uncalibrated at this milestone)">
-            {Math.round(a.confidence * 100)}% conf.
+            {Math.round(a.confidence * 100)}% Confidence
           </Typography>
         )}
       </Box>

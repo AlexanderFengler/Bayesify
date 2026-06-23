@@ -1,5 +1,5 @@
-// TypeScript mirror of the fields of bayesify.core.schema.ScoredResult that the report renders.
-// The contract is owned by core/schema.py (§4.3); this is the read-side view.
+﻿// TypeScript mirror of the fields of bayesify.core.schema.ScoredResult that the report renders.
+// The contract is owned by core/schema.py (Â§4.3); this is the read-side view.
 
 export type StepStatus = "adequate" | "partial" | "missing" | "not_applicable";
 export type Severity = "error" | "warning" | "info";
@@ -137,7 +137,7 @@ export interface PaperState {
   inventory: EvidenceInventory | null;
   parser: string | null;
   parser_version: string | null;
-  backend: string | null; // "agent-sdk" | "api" | "stub" — who produced the result
+  backend: string | null; // "agent-sdk" | "api" | "openai" | "stub" - who produced the result
   from_cache: boolean; // true if this was a cached replay, not a fresh run
   local_notice: string | null;
   error: string | null;
@@ -152,6 +152,7 @@ export const STAGES = [
   "assess",
   "score",
 ] as const;
-// Local-only mode runs detectors only — no LLM, no scores.
+// Local-only mode runs detectors only no LLM, no scores.
 export const LOCAL_STAGES = ["ingest", "parse", "detect"] as const;
 export type Stage = (typeof STAGES)[number];
+
