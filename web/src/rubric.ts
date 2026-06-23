@@ -20,7 +20,7 @@ export interface RubricStepInfo {
   essential_for: string[];
   recommended_for: string[];
   adequate: string | null;
-  done_poorly: string | null;
+  missing: string | null;
   citations: string[];
 }
 export interface Rubric {

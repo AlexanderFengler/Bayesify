@@ -83,8 +83,8 @@ export function Landing(p: LandingProps) {
                 minWidth: "100%",
               }}
             >
-              Drop a PDF or paste an identifier. You&rsquo;ll get a per-step report with a coverage and
-              a quality score — every finding grounded in the paper and in the methodological
+              Drop a PDF or paste an identifier. You will get a per-step report with a coverage and
+              a quality score. Every finding is grounded in the paper and in the methodological
               literature.
             </Typography>
           </Box>

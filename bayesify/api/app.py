@@ -186,7 +186,7 @@ def _rubric_payload(profile: str) -> dict:
                 "essential_for": s.essential_for,
                 "recommended_for": s.recommended_for,
                 "adequate": s.adequate,
-                "done_poorly": s.done_poorly,
+                "missing": s.missing,
                 "citations": s.citations,
             }
             for s in spec.steps

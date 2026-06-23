@@ -435,9 +435,9 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                       <strong>Adequate:</strong> {s.adequate}
                     </Typography>
                   )}
-                  {s.done_poorly && (
+                  {s.missing && (
                     <Typography variant="body2" color="text.disabled">
-                      <strong>Done poorly:</strong> {s.done_poorly}
+                      <strong>Missing:</strong> {s.missing}
                     </Typography>
                   )}
 

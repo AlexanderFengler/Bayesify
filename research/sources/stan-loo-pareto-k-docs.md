@@ -19,7 +19,7 @@ The official reference page for PSIS diagnostics in the loo R package (v2.9.0), 
 - High k means the full posterior and the LOO posteriors differ substantially, i.e., importance sampling is unreliable for those observations.
 
 ## How Bayesify uses it
-- Grounds S6 (model comparison / selection): "done_well" requires PSIS-LOO/WAIC reported with SE and Pareto-k, interpreted with uncertainty; "done_poorly" includes high Pareto-k ignored.
+- Grounds S6 (model comparison / selection): "done_well" requires PSIS-LOO/WAIC reported with SE and Pareto-k, interpreted with uncertainty; "missing" includes high Pareto-k ignored.
 - S6 threshold record: rubric/steps.yaml currently stores `pareto_k: "k>0.5 monitor, k>0.7 bad"` flagged SCOPE GAP / verified: false. This page's actual bands (above) are now recorded; the 0.7 bad-bias threshold is confirmed, but the lower bound is min(1 - 1/log10(S), 0.7), not a flat 0.5 — the rubric entry should be updated accordingly for v1.0.
 - HONESTY: the pareto_k thresholds were NOT verified during the research run itself; this note is the designated fill-from source closing that gap, paired with Vehtari et al. 2017.
 - Also supports S6's elpd_diff guidance indirectly via `mcse_loo()` (Monte Carlo SE for PSIS-LOO).

@@ -35,9 +35,9 @@ function ModeChip({ mode }: { mode: "full" | "local" }) {
     "& .MuiChip-icon": { color: "inherit" },
   } as const;
   return mode === "local" ? (
-    <Chip icon={<LockIcon sx={{ fontSize: 16 }} />} label="Local-only Â· nothing leaves this machine" size="small" sx={sx} />
+    <Chip icon={<LockIcon sx={{ fontSize: 16 }} />} label="Local-only - nothing leaves this machine" size="small" sx={sx} />
   ) : (
-    <Chip icon={<PublicIcon sx={{ fontSize: 16 }} />} label="Full Â· text sent to LLM" size="small" sx={sx} />
+    <Chip icon={<PublicIcon sx={{ fontSize: 16 }} />} label="Full - text sent to LLM" size="small" sx={sx} />
   );
 }
 

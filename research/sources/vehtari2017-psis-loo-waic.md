@@ -16,7 +16,7 @@ The standard reference for practical Bayesian model comparison via approximate l
 - Methods are implemented in the `loo` R package and demonstrated with Stan models, so reported PSIS-LOO output (elpd_loo, SE, Pareto-k counts) is a checkable artifact in papers.
 
 ## How Bayesify uses it
-- Grounds rubric step S6 (Model comparison / selection) in `rubric/steps.yaml`: done_well requires PSIS-LOO/WAIC reported with SE and Pareto-k, interpreted with uncertainty; done_poorly includes ignoring high Pareto-k.
+- Grounds rubric step S6 (Model comparison / selection) in `rubric/steps.yaml`: done_well requires PSIS-LOO/WAIC reported with SE and Pareto-k, interpreted with uncertainty; missing includes ignoring high Pareto-k.
 - S6 threshold `pareto_k` (k > 0.5 monitor, k > 0.7 bad) — verified: FALSE. SCOPE GAP: must be confirmed directly from this paper plus the Stan loo documentation before rubric v1.0.
 - S6 threshold `elpd_diff` (report elpd differences WITH standard errors, never point values alone) — verified: FALSE; same confirmation needed.
 - Caveat: although this is the authoritative source for S6, no surviving verified claim in the deep-research run cites it, so all S6 numeric criteria currently rest on the research-run record rather than verified extraction.

@@ -33,7 +33,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
           alignItems: "flex-start",
         }}
       >
-        <GuideColumn title="Get your paper rated" lead="For authors and readers â€” an evidence-linked, per-step report on a paper.">
+        <GuideColumn title="Get your paper rated" lead="For authors and readers: an evidence-linked, per-step report on a paper.">
           <GuideStep n={1} head="Add the paper.">
             Drop a PDF, or paste an identifier (arXiv ID, DOI, OpenAlex ID, or URL) and Bayesify
             fetches the open-access copy.
@@ -62,7 +62,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
 
         <GuideColumn
           title="Rate a paper (blind)"
-          lead="For domain experts â€” your ratings are the gold standard the engine is measured against. You rate blind (you never see the engine's verdict), so your judgment isn't anchored to it."
+          lead="For domain experts: your ratings are the gold standard the engine is measured against. You rate blind (you never see the engine's verdict), so your judgment isn't anchored to it."
         >
           <GuideStep n={1} head="Open the blind form.">
             On the landing page click <em>Rate it yourself (blind)</em>, or open a{" "}
