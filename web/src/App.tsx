@@ -1,8 +1,11 @@
+import { Alert, AlertTitle, Box, Button, Container } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchRubrics, getPaper, rerun, type RubricSummary, streamProgress, submitPaper } from "./api";
 import { Analyzing } from "./Analyzing";
 import { Calibration } from "./Calibration";
+import { Cover } from "./Cover";
 import { Guide } from "./Guide";
+import { TopBar } from "./HeroShell";
 import { Inventory, LocalNotice } from "./Inventory";
 import { Landing } from "./Landing";
 import { PrivacyModal } from "./Modal";
@@ -30,6 +33,7 @@ export function App() {
   const [showGuide, setShowGuide] = useState(false); // user-guide view takeover
   const [modal, setModal] = useState<ModalKind>(null);
   const [firstRun, setFirstRun] = useState(false);
+  const [showCover, setShowCover] = useState(true); // the slogan cover precedes the landing page
   const fileInput = useRef<HTMLInputElement>(null);
 
   // First visit: show the privacy/mode disclosure before anything is uploaded (PRIVACY.md, F3).
@@ -138,7 +142,21 @@ export function App() {
   // The immersive landing (idle + no takeover view) is fully MUI and renders edge-to-edge — it does
   // not use the legacy .page/.container chrome. Every other state still uses the old chrome for now;
   // they'll migrate page by page.
-  const isLanding = !ratingPaperId && !showCalibration && !showGuide && phase === "idle";
+  // The slogan cover is the very first screen, shown before anything is uploaded. "Get Started" hands
+  // off to the landing page. A direct ?rate= link or any in-progress work skips straight past it.
+  const atStart = !ratingPaperId && !showCalibration && !showGuide && phase === "idle";
+  if (atStart && showCover) {
+    return (
+      <>
+        <Cover mode={mode} onGetStarted={() => setShowCover(false)} />
+        {modal === "privacy" && (
+          <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
+        )}
+      </>
+    );
+  }
+
+  const isLanding = atStart;
   if (isLanding) {
     return (
       <>
@@ -187,8 +205,21 @@ export function App() {
     );
   }
 
+  // The blind rating form is its own full-bleed page (own top bar), like the result pages.
+  if (ratingPaperId) {
+    return <Rate paperId={ratingPaperId} mode={mode} onExit={() => setRatingPaperId(null)} />;
+  }
+
+  // Calibration and the guide are each their own full-bleed page (own top bar), like the results.
+  if (showCalibration) {
+    return <Calibration mode={mode} onExit={() => setShowCalibration(false)} />;
+  }
+  if (showGuide) {
+    return <Guide mode={mode} onExit={() => setShowGuide(false)} />;
+  }
+
   // The done-state result pages are each their own full-bleed page (own top bar) — render directly.
-  if (!ratingPaperId && !showCalibration && !showGuide && phase === "done" && paper) {
+  if (phase === "done" && paper) {
     if (paper.result) {
       return <Report paper={paper} mode={mode} onReset={reset} onRerun={rerunPaper} />;
     }
@@ -200,101 +231,29 @@ export function App() {
     }
   }
 
+  // Everything else — chiefly the error state — on the same light, top-barred page chrome.
   return (
-    <div className="page">
-      <Header mode={mode} />
-      <main className="container">
-        {ratingPaperId ? (
-          <Rate paperId={ratingPaperId} onExit={() => setRatingPaperId(null)} />
-        ) : showCalibration ? (
-          <Calibration onExit={() => setShowCalibration(false)} />
-        ) : showGuide ? (
-          <Guide onExit={() => setShowGuide(false)} />
-        ) : (
-          phase === "error" && (
-            <div className="card error-card">
-              <h2>Something went wrong</h2>
-              <p>{error}</p>
-              <button className="btn" onClick={reset}>
+    <Box sx={{ minHeight: "100dvh", display: "flex", flexDirection: "column", bgcolor: "background.default" }}>
+      <TopBar mode={mode} />
+      <Box sx={{ flex: 1 }}>
+        <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 } }}>
+          <Alert
+            severity="error"
+            action={
+              <Button color="inherit" size="small" onClick={reset}>
                 Try again
-              </button>
-            </div>
-          )
-        )}
-      </main>
-      <Footer
-        onGuide={() => setShowGuide(true)}
-        onPrivacy={() => setModal("privacy")}
-        onCalibration={() => setShowCalibration(true)}
-      />
+              </Button>
+            }
+          >
+            <AlertTitle>Something went wrong</AlertTitle>
+            {error ?? "Unexpected state."}
+          </Alert>
+        </Container>
+      </Box>
       {modal === "privacy" && (
         <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
       )}
-    </div>
-  );
-}
-
-function Header({ mode }: { mode: "full" | "local" }) {
-  return (
-    <header className="topbar">
-      <div className="container topbar-inner">
-        <div className="brand">
-          <img className="brand-logo" src="/logo.png" alt="Bayesify" />
-        </div>
-        <span className="brand-tag">Measure your Bayesian Workflow against the gold standard</span>
-        <ModeIndicator mode={mode} />
-      </div>
-    </header>
-  );
-}
-
-// Always-visible reminder of what the current mode means for the outbound data path (F3). The
-// per-paper toggle lives in the upload card; this keeps the privacy consequence on screen at all
-// times, including while a report is showing.
-function ModeIndicator({ mode }: { mode: "full" | "local" }) {
-  if (mode === "local") {
-    return (
-      <span className="mode-indicator mi-local" title="Detectors only — no LLM call.">
-        Local-only · nothing leaves this machine
-      </span>
-    );
-  }
-  return (
-    <span className="mode-indicator mi-full" title="Extracted text is sent to Anthropic for grading.">
-      Full · text sent to Anthropic
-    </span>
-  );
-}
-
-function Footer({
-  onGuide,
-  onPrivacy,
-  onCalibration,
-}: {
-  onGuide: () => void;
-  onPrivacy: () => void;
-  onCalibration: () => void;
-}) {
-  return (
-    <footer className="footer">
-      <div className="container footer-inner">
-        <span>
-          Formative report, not a verdict. The badge concept was dropped — Bayesify reports per-step
-          practice, not a pass/fail.
-        </span>
-        <span className="footer-links">
-          <button className="link-btn" onClick={onGuide}>
-            Guide
-          </button>
-          <button className="link-btn" onClick={onPrivacy}>
-            Privacy
-          </button>
-          <button className="link-btn" onClick={onCalibration}>
-            Calibration
-          </button>
-        </span>
-      </div>
-    </footer>
+    </Box>
   );
 }
 
