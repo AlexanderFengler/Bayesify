@@ -271,7 +271,7 @@ function RelevanceGate({ r }: { r: ScoredResult }) {
   return (
     <Box>
       <Typography variant="overline" color="text.secondary">
-        Relevance gate · {Math.round(r.relevance.confidence * 100)}% conf.
+        Relevance gate · {Math.round(r.relevance.confidence * 100)}% Confidence
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
         {r.relevance.rationale}
@@ -530,7 +530,7 @@ function StepDetail({
         />
         {!na && (
           <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }} title="engine confidence (uncalibrated at this milestone)">
-            {Math.round(a.confidence * 100)}% conf.
+            {Math.round(a.confidence * 100)}% Confidence
           </Typography>
         )}
       </Box>
