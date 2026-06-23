@@ -14,7 +14,7 @@ def test_stub_is_schema_valid_and_round_trips() -> None:
 def test_stub_coverage_and_quality() -> None:
     r = build_stub_result()
     assert r.coverage is not None and r.profile is not None
-    # 8 applicable steps (S6, S7 are N/A); 6 present (done_well|partial); 1 uncertain (low-conf S3).
+    # 8 applicable steps (S6, S7 are N/A); 6 present (adequate|partial); 1 uncertain (low-conf S3).
     assert r.coverage.applicable == 8
     assert r.coverage.present == 6
     assert r.profile.n_na == 2

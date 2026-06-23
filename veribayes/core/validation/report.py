@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel, ConfigDict
 
 from veribayes.core.rubric.models import RubricSpec
-from veribayes.core.schema import RelevanceLabel, ScoredResult, StepStatus
+from veribayes.core.schema import PaperClassLabel, RelevanceLabel, ScoredResult, StepStatus
 from veribayes.core.score import StepCalc, coverage_quality_from_weighted_steps, step_weight
 from veribayes.core.validation.human_report import GoldTier, HumanReport
 from veribayes.core.validation.metrics import (
@@ -162,12 +162,12 @@ def _human_coverage_quality(
     """Human-implied coverage(strict)/quality from the consensus statuses via the engine's own
     arithmetic + weights — so the diff vs the engine is purely about statuses."""
     cons = hr.consensus
-    assert cons is not None and cons.paper_class_label is not None and rubric.scoring is not None
+    assert cons is not None and cons.paper_class_labels and rubric.scoring is not None
     calcs = [
         StepCalc(
             st.applicable,
             st.status,
-            step_weight(rubric, st.step_id, cons.paper_class_label),
+            _multi_class_step_weight(rubric, st.step_id, cons.paper_class_labels),
             st.confidence,
         )
         for st in cons.steps
@@ -176,6 +176,13 @@ def _human_coverage_quality(
         calcs, rubric.scoring.sub_score, rubric.scoring.low_confidence_threshold
     )
     return (cov.strict if cov else None), qual
+
+
+def _multi_class_step_weight(
+    rubric: RubricSpec, step_id: str, labels: Sequence[PaperClassLabel]
+) -> float:
+    """Human ratings are genuinely multi-label; use the strongest rubric weight across labels."""
+    return max(step_weight(rubric, step_id, label) for label in labels)
 
 
 @dataclass
@@ -235,11 +242,16 @@ def _relevance_class_rates(
         for h, s in rate_pairs
     ]
     sens, spec = binary_sens_spec(rel_pairs)
-    class_pairs = [
-        (h.consensus.paper_class_label.value, s.paper_class.primary.value)
-        for h, s in rate_pairs
-        if h.consensus.paper_class_label is not None and s.paper_class is not None
-    ]
+    class_pairs = []
+    for h, s in rate_pairs:
+        if h.consensus.paper_class_labels and s.paper_class is not None:
+            human = "|".join(sorted(label.value for label in h.consensus.paper_class_labels))
+            engine = (
+                human
+                if s.paper_class.primary in h.consensus.paper_class_labels
+                else s.paper_class.primary.value
+            )
+            class_pairs.append((human, engine))
     return sens, spec, accuracy(class_pairs)
 
 
@@ -355,7 +367,7 @@ def build_report(
             None,
         ),
         absence_fpr_strict=rate_stat(
-            "absence-FPR (strict: engine 'missing' but consensus done_well)",
+            "absence-FPR (strict: engine 'missing' but consensus adequate)",
             absence_fpr(all_status, mode="strict"),
         ),
         absence_fpr_broad=rate_stat(

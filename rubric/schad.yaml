@@ -14,7 +14,7 @@
 # inside §2.2; the pre/post split is the rubric's organizing principle.
 # Single-source: steps carry NO per-step citation — the source lives in the preamble below.
 # applicability gating: paper_class ∈ {empirical, numerical_experiment, methodological}
-# status values emitted by the engine: done_well | partial | missing | not_applicable
+# status values emitted by the engine: adequate | partial | missing | not_applicable
 
 rubric_version: "0.1-schad"
 label: "Schad — Principled Bayesian Workflow"
@@ -27,15 +27,15 @@ summary: >
   recover the parameters?) — done before any data are seen, then the post-data arc of fit,
   convergence diagnostics, posterior predictive checks, and model adequacy. Because it rests on a
   single paper, steps carry no separate per-step citation.
-status_values: [done_well, partial, missing, not_applicable]
+status_values: [adequate, partial, missing, not_applicable]
 scoring_rule: >
   Same machine scoring as the other rubrics: coverage = present/applicable (present =
-  done_well|partial; N/A excluded; low-confidence absences widen the range), quality = weighted mean
+  adequate|partial; N/A excluded; low-confidence absences widen the range), quality = weighted mean
   sub-score over applicable steps. essential_for sets the expectation tier (severity), not a verdict.
   v0 weights are uniform (a documented placeholder).
 
 scoring:
-  sub_score: { done_well: 1.0, partial: 0.5, missing: 0.0 }   # not_applicable is excluded
+  sub_score: { adequate: 1.0, partial: 0.5, missing: 0.0 }   # not_applicable is excluded
   low_confidence_threshold: 0.6
   weight_default: 1.0
   weights:
@@ -49,14 +49,14 @@ steps:
     name: Model & prior specification
     essential_for: [empirical, numerical_experiment, methodological]
     why: "The model and its priors are the object every principled check interrogates; specifying them explicitly from domain knowledge is the precondition for the rest of the workflow."
-    done_well: "The likelihood, parameters and random-effects structure are specified from domain knowledge and the research question, and every prior is stated and justified (informative vs weakly-informative, and why)."
+    adequate: "The likelihood, parameters and random-effects structure are specified from domain knowledge and the research question, and every prior is stated and justified (informative vs weakly-informative, and why)."
     done_poorly: "Model structure appears without rationale; priors absent or unstated 'defaults' with no account of what they encode."
 
   - id: S2
     name: Prior predictive checks
     essential_for: [empirical, numerical_experiment, methodological]
     why: "Simulating data from the prior before collecting any real data exposes what the priors imply and lets implausible assumptions be fixed up front."
-    done_well: "Data are simulated from the prior(+likelihood) BEFORE seeing the real data, summarised on domain-relevant quantities, and priors/model are revised when the implied data are implausible."
+    adequate: "Data are simulated from the prior(+likelihood) BEFORE seeing the real data, summarised on domain-relevant quantities, and priors/model are revised when the implied data are implausible."
     done_poorly: "No prior predictive reasoning; priors never sanity-checked against plausible data ranges; priors tuned to the observed data."
 
   - id: S3
@@ -64,7 +64,7 @@ steps:
     essential_for: [methodological, numerical_experiment]
     recommended_for: [empirical]
     why: "Simulation-based calibration verifies the model+algorithm actually recover the prior — without it a 'fit' may be systematically biased and you would never know."
-    done_well: "Simulation-based calibration is run (sample from prior → simulate → fit → rank the true value in the posterior) and the rank histograms are uniform — no systematic bias, over/under-dispersion, or autocorrelation."
+    adequate: "Simulation-based calibration is run (sample from prior → simulate → fit → rank the true value in the posterior) and the rank histograms are uniform — no systematic bias, over/under-dispersion, or autocorrelation."
     done_poorly: "No SBC / calibration check; the model+algorithm are assumed faithful without evidence; non-uniform ranks ignored."
     thresholds:
       sbc_rank_uniformity: { value: "SBC rank statistics uniform (no systematic deviation)", source: schad2021, verified: false }
@@ -74,7 +74,7 @@ steps:
     essential_for: [methodological, numerical_experiment]
     recommended_for: [empirical]
     why: "A pre-data design analysis asks whether the study can even recover the parameters of interest — guarding against running an experiment that cannot answer the question."
-    done_well: "Before collecting data, the design's ability to recover parameters is assessed — posterior z-scores near 0 (low bias) and high posterior contraction (the data are informative for the question)."
+    adequate: "Before collecting data, the design's ability to recover parameters is assessed — posterior z-scores near 0 (low bias) and high posterior contraction (the data are informative for the question)."
     done_poorly: "No assessment of whether the design/model can actually answer the question; sensitivity (bias/contraction) never examined."
     thresholds:
       posterior_zscore: { value: "posterior z-score near 0 (unbiased recovery)", source: schad2021, verified: false }
@@ -89,7 +89,7 @@ steps:
     gate:
       na_when_inference: [exact_analytic]
     inference_scope: [mcmc, hmc_nuts, variational]
-    done_well: "Convergence checked and reported — R-hat, effective sample size, zero divergences, well-mixing chains ('fat hairy caterpillars'), with chains/iterations stated."
+    adequate: "Convergence checked and reported — R-hat, effective sample size, zero divergences, well-mixing chains ('fat hairy caterpillars'), with chains/iterations stated."
     done_poorly: "No convergence diagnostics; divergences ignored; single chain; R-hat / ESS not reported."
     thresholds:
       rhat: { value: "R-hat < 1.05", source: schad2021, verified: false }
@@ -100,14 +100,14 @@ steps:
     essential_for: [empirical]
     recommended_for: [numerical_experiment, methodological]
     why: "Posterior predictive checks test whether the fitted model can reproduce the observed data — the core check of model adequacy."
-    done_well: "The fitted model's predictions are compared to the observed data on domain-relevant summary statistics; the observed data fall within the predictive distribution, and discrepancies are acted on."
+    adequate: "The fitted model's predictions are compared to the observed data on domain-relevant summary statistics; the observed data fall within the predictive distribution, and discrepancies are acted on."
     done_poorly: "No posterior predictive check; fit asserted without checking; clear misfit ignored."
 
   - id: S7
     name: Model adequacy & inference
     essential_for: [empirical, numerical_experiment, methodological]
     why: "Inference is only as good as the model's adequacy; conclusions must be tied to posterior quantities with uncertainty, and inadequacy must drive iteration or an honestly narrowed claim."
-    done_well: "Posterior quantities are interpreted with uncertainty to answer the scientific question; model inadequacy (when found) drives iteration or an honestly narrowed claim."
+    adequate: "Posterior quantities are interpreted with uncertainty to answer the scientific question; model inadequacy (when found) drives iteration or an honestly narrowed claim."
     done_poorly: "Point estimates without uncertainty; over-claiming beyond what the model/data support; inadequacy ignored."
 
 citations:

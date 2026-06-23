@@ -134,7 +134,7 @@ def test_trim_to_sentence_never_cuts_mid_word() -> None:
 
 def test_non_applicable_steps_make_no_llm_call() -> None:
     parsed = _parsed((SectionKind.body, "Methods", "We fit a model."))
-    judge = StepJudgment(status="done_well", confidence=0.9)
+    judge = StepJudgment(status="adequate", confidence=0.9)
     assessments, gate_facts, cost, client = _assess(parsed, [], judge)
     # S6 is N/A for an empirical paper with 1 model and no BF → no judge call for it
     s6 = next(a for a in assessments if a.step_id == "S6")
@@ -146,7 +146,7 @@ def test_non_applicable_steps_make_no_llm_call() -> None:
 # --- grounded judge → assessment -----------------------------------------------------------------
 
 
-def test_done_well_maps_through_with_verified_quote_and_standard() -> None:
+def test_adequate_maps_through_with_verified_quote_and_standard() -> None:
     parsed = _parsed(
         (SectionKind.abstract, "Abstract", "A hierarchical model with weakly-informative priors."),
         (SectionKind.body, "Methods", "All R-hat < 1.01 across 4 chains; no divergences."),
@@ -154,7 +154,7 @@ def test_done_well_maps_through_with_verified_quote_and_standard() -> None:
 
     def judge(_user):
         return StepJudgment(
-            status="done_well",
+            status="adequate",
             confidence=0.9,
             evidence_quotes=["All R-hat < 1.01 across 4 chains"],  # verbatim in s02
             standard_ids=["barg2021"],  # a real candidate for S4
@@ -163,7 +163,7 @@ def test_done_well_maps_through_with_verified_quote_and_standard() -> None:
 
     assessments, _, _, _ = _assess(parsed, [], judge)
     s4 = next(a for a in assessments if a.step_id == "S4")
-    assert s4.status is StepStatus.done_well
+    assert s4.status is StepStatus.adequate
     quotes = [e for e in s4.evidence if e.kind is EvidenceKind.judge_quote]
     assert any("R-hat < 1.01" in e.span.quote for e in quotes)
     assert any(std.source_id == "barg2021" for std in s4.standards)
@@ -175,7 +175,7 @@ def test_unverifiable_quote_is_dropped() -> None:
 
     def judge(_user):
         return StepJudgment(
-            status="done_well", confidence=0.8, evidence_quotes=["NOT IN THE PAPER"]
+            status="adequate", confidence=0.8, evidence_quotes=["NOT IN THE PAPER"]
         )
 
     assessments, _, _, _ = _assess(parsed, [], judge)
@@ -187,7 +187,7 @@ def test_unknown_standard_id_is_rejected() -> None:
     parsed = _parsed((SectionKind.body, "Methods", "We fit a model."))
 
     def judge(_user):
-        return StepJudgment(status="done_well", confidence=0.8, standard_ids=["not_a_real_source"])
+        return StepJudgment(status="adequate", confidence=0.8, standard_ids=["not_a_real_source"])
 
     assessments, _, _, _ = _assess(parsed, [], judge)
     s1 = next(a for a in assessments if a.step_id == "S1")
@@ -239,11 +239,11 @@ def test_refuted_absence_is_rescued_and_upgraded() -> None:
         refuted=True,
         notes="found in the supplement",
         rescuing_quote="Posterior predictive checks are in Fig S3.",
-        upgraded_status="done_well",
+        upgraded_status="adequate",
     )
     assessments, _, _, _ = _assess(parsed, [], judge, refute=rescue)
     s5 = next(a for a in assessments if a.step_id == "S5")  # S5 = posterior predictive
-    assert s5.status is StepStatus.done_well  # rescued
+    assert s5.status is StepStatus.adequate  # rescued
     assert s5.adversarial_verdict.refuted is True
     assert any(e.kind is EvidenceKind.judge_quote for e in s5.evidence)  # rescuing span appended
     assert not any(e.kind is EvidenceKind.absence_search for e in s5.evidence)  # no longer missing

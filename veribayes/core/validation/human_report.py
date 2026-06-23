@@ -127,7 +127,7 @@ class StepRating(_Base):
         if not self.rationale.strip():
             raise ValueError(f"StepRating[{sid}]: rationale required for {self.status.value}")
         # a 'present' judgment cites where it was seen; an absence (missing) can't quote what's gone
-        if self.status in (StepStatus.done_well, StepStatus.partial) and not self.evidence:
+        if self.status in (StepStatus.adequate, StepStatus.partial) and not self.evidence:
             raise ValueError(f"StepRating[{sid}]: {self.status.value} needs an evidence span")
         return self
 
@@ -142,26 +142,43 @@ class Rating(_Base):
     relationship: RaterRelationship
     relevance_label: RelevanceLabel
     relevance_rationale: str
-    paper_class_label: PaperClassLabel | None = None  # None only when relevance == no
+    paper_class_labels: list[PaperClassLabel] = Field(default_factory=list)
     paper_class_rationale: str = ""
     gate_facts: GateFacts | None = None  # the rater's answers (shared schema type, by value)
     steps: list[StepRating] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_single_class(cls, data):
+        if isinstance(data, dict) and "paper_class_label" in data:
+            data = dict(data)
+            label = data.pop("paper_class_label")
+            if label is not None and "paper_class_labels" not in data:
+                data["paper_class_labels"] = [label]
+        return data
+
+    @property
+    def paper_class_label(self) -> PaperClassLabel | None:
+        """Compatibility view for legacy single-label metrics."""
+        return self.paper_class_labels[0] if self.paper_class_labels else None
 
     @model_validator(mode="after")
     def _discipline(self) -> Rating:
         if not self.relevance_rationale.strip():
             raise ValueError("Rating.relevance_rationale must be non-empty")
         rel = self.relevance_label
+        if len(self.paper_class_labels) != len(set(self.paper_class_labels)):
+            raise ValueError("Rating: duplicate paper_class_labels")
         if rel is RelevanceLabel.no:
             if self.steps:
                 raise ValueError("Rating: relevance 'no' must have no step ratings")
-            if self.paper_class_label is not None:
-                raise ValueError("Rating: relevance 'no' must have paper_class_label=None")
+            if self.paper_class_labels:
+                raise ValueError("Rating: relevance 'no' must have no paper_class_labels")
             if self.gate_facts is not None:
                 raise ValueError("Rating: relevance 'no' must have gate_facts=None")
             return self
-        if self.paper_class_label is None:
-            raise ValueError(f"Rating: relevance '{rel.value}' needs paper_class_label")
+        if not self.paper_class_labels:
+            raise ValueError(f"Rating: relevance '{rel.value}' needs >=1 paper_class_labels")
         if self.gate_facts is None:
             raise ValueError(f"Rating: relevance '{rel.value}' needs gate_facts")
         ids = [s.step_id for s in self.steps]
