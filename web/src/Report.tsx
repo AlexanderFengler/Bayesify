@@ -16,12 +16,12 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
+import { alpha, type Theme } from "@mui/material/styles";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { recordOverride } from "./api";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import type {
@@ -81,21 +81,27 @@ function cellColors(status: StepStatus): { bg: string; fg: string } {
   }
 }
 
+// The report is one full-width column with two states, driven by the URL: the summary (/paper/:id)
+// and the full report (/paper/:id/full). The score data + "Steps at a glance" persist across both;
+// `expanded` toggles which surrounding blocks collapse/expand, producing the slide-up morph into the
+// detailed report. No tabs, no two columns.
 export function Report({
   paper,
   onReset,
   onRerun,
+  expanded,
 }: {
   paper: PaperState;
   onReset: () => void;
   onRerun: (paperId: string) => void;
+  expanded: boolean;
 }) {
   const r = paper.result!;
+  const navigate = useNavigate();
   // Records of expert disagreements made this session (step_id -> corrected status). Purely a UI
   // indicator; the engine output is never mutated (A5).
   const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
-  const [tab, setTab] = useState<"report" | "fixes">("report");
-  // which step's detail is open in the right column; default to the first step
+  // which step's detail is open on the full report; default to the first step
   const [selected, setSelected] = useState<string | null>(r.step_assessments[0]?.step_id ?? null);
 
   const rubric = useRubric(r.rubric_profile); // the rubric this paper was graded against
@@ -108,69 +114,136 @@ export function Report({
     return <NotApplicable paper={paper} onReset={onReset} onRerun={onRerun} />;
   }
 
+  const title = paper.paper_title ?? paper.source_label;
   const selectedStep = r.step_assessments.find((a) => a.step_id === selected) ?? null;
+  const base = `/paper/${paper.paper_id}`;
+  const openFull = (stepId?: string) => {
+    if (stepId) setSelected(stepId);
+    navigate(`${base}/full`);
+  };
 
   return (
     <>
       <Box sx={{ flex: 1 }}>
         <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
-          <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
-            <Tab value="report" label="Report" />
-            <Tab value="fixes" label="Priority fixes" />
-          </Tabs>
+          {/* back to summary — full report only, pinned at the top */}
+          <Collapse in={expanded} timeout={300}>
+            <Box sx={{ mb: 2 }}>
+              <Link
+                component="button"
+                type="button"
+                underline="hover"
+                onClick={() => navigate(base)}
+                sx={{ fontWeight: 600, fontSize: "0.875rem" }}
+              >
+                ← Summary
+              </Link>
+            </Box>
+          </Collapse>
 
-          {tab === "report" ? (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: { xs: "column", md: "row" },
-                gap: { xs: 4, md: 6 },
-                alignItems: "flex-start",
-              }}
-            >
-              {/* LEFT: everything above "steps at a glance" + the relevance gate */}
-              <Box sx={{ flex: { md: "0 0 38%" }, width: "100%", position: { md: "sticky" }, top: { md: 24 } }}>
-                <SummaryColumn paper={paper} r={r} onReset={onReset} />
-              </Box>
+          {/* meta + title — persistent (the title stays visible through the morph) */}
+          <Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+              <Typography variant="overline" color="text.secondary">
+                Report
+              </Typography>
+              <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
+            </Box>
+            <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+              {title}
+            </Typography>
+          </Box>
 
-              {/* RIGHT: steps at a glance (buttons) + the selected step's de-carded detail */}
-              <Box sx={{ flex: "1 1 0", width: "100%", minWidth: 0 }}>
-                <Typography variant="overline" color="text.secondary">
-                  Steps at a glance
-                </Typography>
-                <StepGlance
-                  steps={r.step_assessments}
-                  stepNames={stepNames}
-                  selected={selected}
-                  onSelect={setSelected}
-                />
-                {selectedStep && (
-                  <Box sx={{ mt: 3 }}>
-                    <StepDetail
-                      a={selectedStep}
-                      stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
-                      why={stepWhy[selectedStep.step_id]}
-                      fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
-                      overridden={overrides[selectedStep.step_id]}
-                      onOverride={async (status, rationale) => {
-                        await recordOverride(
-                          paper.paper_id,
-                          selectedStep.step_id,
-                          status,
-                          rationale,
-                          selectedStep.status,
-                          r.rubric_profile,
-                        );
-                        setOverrides((prev) => ({ ...prev, [selectedStep.step_id]: status }));
-                      }}
-                    />
-                  </Box>
+          {/* chips (collapse away in the full report) + score data (persists), one row, scores right */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 3, flexWrap: "wrap", mt: 2 }}>
+            <Collapse in={!expanded} orientation="horizontal" timeout={300} sx={{ flexShrink: 0 }}>
+              {/* hidden on narrow screens, where the scores need the full row width */}
+              <Box sx={{ display: { xs: "none", md: "flex" }, gap: 5, pr: 2, transition: "opacity 240ms", opacity: expanded ? 0 : 1 }}>
+                <Stat label="relevance" value={r.relevance.label} />
+                <Stat label="rubric" value={r.rubric_profile} />
+                {r.paper_class && (
+                  <Stat label="paper type" value={r.paper_class.primary.replace(/_/g, " ")} />
                 )}
               </Box>
+            </Collapse>
+            <ScoreMetrics r={r} />
+          </Box>
+
+          <Divider sx={{ mt: 2.5 }} />
+
+          {/* relevance gate + actions — summary only */}
+          <Collapse in={!expanded} timeout={300}>
+            <Box
+              sx={{
+                mt: 2.5,
+                display: "flex",
+                flexDirection: "column",
+                gap: 2.5,
+                transition: "opacity 240ms",
+                opacity: expanded ? 0 : 1,
+              }}
+            >
+              <RelevanceGate r={r} />
+              {r.relevance.overridden && (
+                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "warning.light", color: "text.primary", fontSize: "0.875rem" }}>
+                  Graded on request. The relevance gate did not classify this as a Bayesian paper; you
+                  asked for a full assessment anyway, so treat coverage and quality as provisional.
+                </Box>
+              )}
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                <Button variant="contained" disableElevation onClick={() => openFull()}>
+                  Read full report
+                </Button>
+                <Downloads paperId={paper.paper_id} />
+                <Button variant="outlined" onClick={onReset}>
+                  Analyze another
+                </Button>
+              </Box>
             </Box>
-          ) : (
-            <FixesPage r={r} fixes={paper.fix_list} />
-          )}
+          </Collapse>
+
+          {/* steps at a glance — persists; titles in the summary, none in the full report */}
+          <Box sx={{ mt: { xs: 3, md: 4 } }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+              <Typography variant="overline" color="text.secondary">
+                Steps at a glance
+              </Typography>
+              <Legend />
+            </Box>
+            <StepGlance
+              steps={r.step_assessments}
+              stepNames={stepNames}
+              selected={expanded ? selected : null}
+              showTitles={!expanded}
+              onSelect={expanded ? setSelected : openFull}
+            />
+          </Box>
+
+          {/* the detailed report — full report only; fades in underneath */}
+          <Collapse in={expanded} timeout={300}>
+            <Box sx={{ mt: 3, transition: "opacity 320ms", opacity: expanded ? 1 : 0 }}>
+              {selectedStep && (
+                <StepDetail
+                  a={selectedStep}
+                  stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
+                  why={stepWhy[selectedStep.step_id]}
+                  fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
+                  overridden={overrides[selectedStep.step_id]}
+                  onOverride={async (status, rationale) => {
+                    await recordOverride(
+                      paper.paper_id,
+                      selectedStep.step_id,
+                      status,
+                      rationale,
+                      selectedStep.status,
+                      r.rubric_profile,
+                    );
+                    setOverrides((prev) => ({ ...prev, [selectedStep.step_id]: status }));
+                  }}
+                />
+              )}
+            </Box>
+          </Collapse>
         </Container>
       </Box>
       <ProvenanceFooter r={r} />
@@ -178,61 +251,7 @@ export function Report({
   );
 }
 
-// ---- LEFT column ---------------------------------------------------------------------------------
-
-function SummaryColumn({
-  paper,
-  r,
-  onReset,
-}: {
-  paper: PaperState;
-  r: ScoredResult;
-  onReset: () => void;
-}) {
-  const title = paper.paper_title ?? paper.source_label;
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-      <Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-          <Typography variant="overline" color="text.secondary">
-            Report
-          </Typography>
-          <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
-        </Box>
-        <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-          {title}
-        </Typography>
-
-        {/* relevance · rubric · paper type — small all-caps labels over larger values, one line */}
-        <Box sx={{ display: "flex", gap: 4, flexWrap: "wrap", mt: 2 }}>
-          <Stat label="relevance" value={r.relevance.label} />
-          <Stat label="rubric" value={r.rubric_profile} />
-          {r.paper_class && <Stat label="paper type" value={r.paper_class.primary.replace(/_/g, " ")} />}
-        </Box>
-      </Box>
-
-      <Divider />
-
-      <ScoreMetrics r={r} />
-
-      <RelevanceGate r={r} />
-
-      {r.relevance.overridden && (
-        <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "warning.light", color: "text.primary", fontSize: "0.875rem" }}>
-          Graded on request. The relevance gate did not classify this as a Bayesian paper; you asked
-          for a full assessment anyway, so treat coverage and quality as provisional.
-        </Box>
-      )}
-
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-        <Downloads paperId={paper.paper_id} />
-        <Button size="small" variant="outlined" onClick={onReset}>
-          Analyze another
-        </Button>
-      </Box>
-    </Box>
-  );
-}
+// ---- summary pieces ------------------------------------------------------------------------------
 
 // The relevance-gate description: why the gate landed on its verdict (the value itself is in the Stat
 // row above), with the gate's confidence.
@@ -250,7 +269,10 @@ function RelevanceGate({ r }: { r: ScoredResult }) {
   );
 }
 
-// A small all-caps label over a larger, slightly bolder value — the relevance/rubric/paper-type row.
+const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+// A small all-caps label over a larger, slightly bolder, sentence-cased value — the relevance / rubric
+// / paper-type row under the title.
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <Box>
@@ -259,7 +281,23 @@ function Stat({ label, value }: { label: string; value: string }) {
       >
         {label}
       </Typography>
-      <Typography sx={{ fontSize: "1.05rem", fontWeight: 600, lineHeight: 1.3 }}>{value}</Typography>
+      <Typography sx={{ fontSize: "1.35rem", fontWeight: 600, lineHeight: 1.2 }}>{cap(value)}</Typography>
+    </Box>
+  );
+}
+
+// The status legend — sits on the "Steps at a glance" heading row, right-aligned.
+function Legend() {
+  return (
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+      {STRIP_LEGEND.map((s) => (
+        <Box key={s} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Box sx={{ width: 9, height: 9, borderRadius: "50%", bgcolor: statusSx(statusMeta(s).color) }} />
+          <Typography variant="caption" color="text.secondary">
+            {STATUS_LABEL[s]}
+          </Typography>
+        </Box>
+      ))}
     </Box>
   );
 }
@@ -275,11 +313,9 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
     rangeNote = lo === hi ? null : "range reflects low-confidence absences";
   }
   const quality = r.quality_score;
-  const total = r.step_assessments.length;
-  const naCount = cov ? total - cov.applicable : 0;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
       <Box sx={{ display: "flex", gap: 3 }}>
         <Box>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
@@ -290,8 +326,10 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
               <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>/ {cov.applicable}</Typography>
             )}
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            applicable steps present
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.25 }}>
+            applicable steps
+            <br />
+            present
           </Typography>
         </Box>
         <Box>
@@ -313,19 +351,10 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
           )}
         </Box>
       </Box>
-      {(naCount > 0 || rangeNote) && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-          {cov && naCount > 0 && (
-            <Typography variant="caption" color="text.secondary">
-              {naCount} of {total} steps not applicable (excluded from the denominator)
-            </Typography>
-          )}
-          {rangeNote && (
-            <Typography variant="caption" color="text.secondary">
-              {rangeNote}
-            </Typography>
-          )}
-        </Box>
+      {rangeNote && (
+        <Typography variant="caption" color="text.secondary" sx={{ textAlign: "right" }}>
+          {rangeNote}
+        </Typography>
       )}
     </Box>
   );
@@ -398,63 +427,71 @@ function StepGlance({
   steps,
   stepNames,
   selected,
+  showTitles,
   onSelect,
 }: {
   steps: StepAssessment[];
   stepNames: Record<string, string>;
   selected: string | null;
+  showTitles: boolean; // summary cells carry the step title; full-report cells are compact
   onSelect: (id: string) => void;
 }) {
   return (
-    <Box sx={{ mt: 1 }}>
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-        {steps.map((a) => {
-          const isSel = a.step_id === selected;
-          const c = cellColors(a.status);
-          return (
-            <ButtonBase
-              key={a.step_id}
-              onClick={() => onSelect(a.step_id)}
-              focusRipple
-              title={`${a.step_id} · ${stepNames[a.step_id] ?? a.step_id} — ${STATUS_LABEL[a.status]}`}
-              aria-pressed={isSel}
+    <Box sx={{ mt: 1.5, display: "flex", flexWrap: "nowrap", gap: 1, overflowX: "auto" }}>
+      {steps.map((a) => {
+        const isSel = a.step_id === selected;
+        const c = cellColors(a.status);
+        return (
+          <ButtonBase
+            key={a.step_id}
+            onClick={() => onSelect(a.step_id)}
+            focusRipple
+            title={`${a.step_id} · ${stepNames[a.step_id] ?? a.step_id} — ${STATUS_LABEL[a.status]}`}
+            aria-pressed={isSel}
+            sx={{
+              flex: "1 1 0",
+              minWidth: 72,
+              alignSelf: "stretch",
+              flexDirection: "column",
+              alignItems: "stretch",
+              justifyContent: "flex-start", // override ButtonBase's default centring
+              p: 1,
+              borderRadius: 1, // less round
+              bgcolor: c.bg,
+              color: c.fg,
+              // selection (and hover) read as a ring so the status colour stays intact
+              outline: "2px solid",
+              outlineColor: isSel ? "currentColor" : "transparent",
+              transition: "outline-color 120ms",
+              "&:hover": { outlineColor: isSel ? "currentColor" : "primary.light" },
+            }}
+          >
+            {/* title — top-aligned; collapses away (height + fade) in the full report */}
+            <Box
               sx={{
-                flex: "1 1 0",
-                minWidth: 56,
-                flexDirection: "column",
-                gap: "3px",
-                py: 1,
-                px: 0.5,
-                borderRadius: 2,
-                bgcolor: c.bg,
-                color: c.fg,
-                // selection (and hover) read as a ring so the status colour stays intact
-                outline: "2px solid",
-                outlineColor: isSel ? "currentColor" : "transparent",
-                transition: "outline-color 120ms",
-                "&:hover": { outlineColor: isSel ? "currentColor" : "primary.light" },
+                width: "100%",
+                overflow: "hidden",
+                maxHeight: showTitles ? 64 : 0,
+                opacity: showTitles ? 1 : 0,
+                transition: "max-height 300ms ease, opacity 200ms ease",
               }}
             >
+              <Typography sx={{ fontSize: "0.78rem", fontWeight: 600, lineHeight: 1.2, textAlign: "left", color: "inherit" }}>
+                {stepNames[a.step_id] ?? a.step_id}
+              </Typography>
+            </Box>
+            {/* step index — vertically centred in the remaining space; status glyph to the right */}
+            <Box sx={{ flex: 1, minHeight: 22, display: "flex", alignItems: "center", width: "100%", gap: 0.75 }}>
               <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 700 }}>
                 {a.step_id}
               </Box>
-              <Box component="span" sx={{ fontSize: 14, lineHeight: 1 }}>
+              <Box component="span" sx={{ fontSize: 15, lineHeight: 1, ml: "auto" }}>
                 {STATUS_GLYPH[a.status]}
               </Box>
-            </ButtonBase>
-          );
-        })}
-      </Box>
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mt: 1.5 }}>
-        {STRIP_LEGEND.map((s) => (
-          <Box key={s} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-            <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: statusSx(statusMeta(s).color) }} />
-            <Typography variant="caption" color="text.secondary">
-              {STATUS_LABEL[s]}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
+            </Box>
+          </ButtonBase>
+        );
+      })}
     </Box>
   );
 }
@@ -524,29 +561,7 @@ function StepDetail({
             </Box>
           )}
 
-          {a.suggestions.map((sug, i) => (
-            <SuggestionRow key={i} sug={sug} />
-          ))}
-
-          {fixes.length > 0 && (
-            <Box>
-              <Typography variant="overline" color="text.secondary">
-                Suggested fixes
-              </Typography>
-              {fixes.map((f, i) => (
-                <Box key={i} sx={{ mt: 0.5 }}>
-                  <SuggestionRow
-                    sug={{ severity: f.severity, text: f.text, how_to: f.how_to, ease: f.ease }}
-                    impact={
-                      f.coverage_delta > 0
-                        ? `fixing this lifts coverage by ${(f.coverage_delta * 100).toFixed(0)} pts`
-                        : undefined
-                    }
-                  />
-                </Box>
-              ))}
-            </Box>
-          )}
+          <SuggestedFixes suggestions={a.suggestions} fixes={fixes} />
 
           <EvidencePanel evidence={a.evidence} />
 
@@ -585,6 +600,47 @@ function StepDetail({
           )}
         </Box>
       )}
+    </Box>
+  );
+}
+
+// Per-step suggested fixes, behind a collapsible link (styled like the "See how our rubrics compare"
+// link). Sorted high→low by severity; coverage impact is pulled from the fix-list where the texts match.
+const SEV_RANK: Record<string, number> = { error: 0, warning: 1, info: 2 };
+
+function SuggestedFixes({ suggestions, fixes }: { suggestions: Suggestion[]; fixes: FixItem[] }) {
+  const [open, setOpen] = useState(false);
+  if (suggestions.length === 0) return null;
+  const sorted = [...suggestions].sort(
+    (a, b) => (SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9),
+  );
+  const impact = new Map(fixes.map((f) => [f.text, f.coverage_delta]));
+  return (
+    <Box>
+      <Link
+        component="button"
+        type="button"
+        underline="hover"
+        onClick={() => setOpen((o) => !o)}
+        sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, fontWeight: 600, fontSize: "0.875rem" }}
+      >
+        Suggested fixes ({suggestions.length})
+        <ExpandMoreIcon sx={{ fontSize: 18, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
+      </Link>
+      <Collapse in={open}>
+        <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 2 }}>
+          {sorted.map((sug, i) => {
+            const cd = impact.get(sug.text);
+            return (
+              <SuggestionRow
+                key={i}
+                sug={sug}
+                impact={cd && cd > 0 ? `fixing this lifts coverage by ${Math.round(cd * 100)} pts` : undefined}
+              />
+            );
+          })}
+        </Box>
+      </Collapse>
     </Box>
   );
 }
@@ -715,79 +771,6 @@ function DisagreeControl({
         </Button>
         <Button onClick={() => setOpen(false)}>Cancel</Button>
       </Box>
-    </Box>
-  );
-}
-
-// ---- Page 2: ranked cross-step priority fixes ---------------------------------------------------
-
-function FixesPage({ r, fixes }: { r: ScoredResult; fixes: FixItem[] | null }) {
-  const cov = r.coverage;
-  const needsAttention = r.step_assessments.filter(
-    (a) => a.status === "missing" || a.status === "partial",
-  ).length;
-  return (
-    <Box sx={{ maxWidth: 760 }}>
-      <Typography variant="overline" color="text.secondary">
-        Summary
-      </Typography>
-      <Typography sx={{ mb: 3 }}>
-        {cov ? (
-          <>
-            <strong>
-              {cov.present} of {cov.applicable}
-            </strong>{" "}
-            applicable steps present
-            {r.quality_score != null && (
-              <>
-                {" · quality "}
-                <strong>{r.quality_score.toFixed(2)}</strong>
-              </>
-            )}
-            {needsAttention > 0 ? (
-              <>
-                {" · "}
-                <strong>{needsAttention}</strong> step{needsAttention === 1 ? "" : "s"} to improve.
-              </>
-            ) : (
-              " · nothing flagged."
-            )}
-          </>
-        ) : (
-          "No applicable steps to summarize."
-        )}
-      </Typography>
-
-      {!fixes || fixes.length === 0 ? (
-        <Typography color="text.secondary">No priority fixes — nothing flagged.</Typography>
-      ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {fixes.map((f, i) => (
-            <Box key={i} sx={{ pl: 2, borderLeft: "4px solid", borderColor: `${sevColor(f.severity)}.main` }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                <Chip size="small" color={sevColor(f.severity)} variant="outlined" label={sevLabel(f.severity)} />
-                <Typography component="span" sx={{ fontWeight: 700, color: "text.secondary" }}>
-                  {f.step_id}
-                </Typography>
-                <Typography component="span" sx={{ fontWeight: 600 }}>
-                  {f.text}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }}>
-                  {f.ease} effort
-                </Typography>
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                {f.how_to}
-              </Typography>
-              {f.coverage_delta > 0 && (
-                <Typography variant="caption" sx={{ color: "success.main" }}>
-                  fixing this lifts coverage by {(f.coverage_delta * 100).toFixed(0)} pts
-                </Typography>
-              )}
-            </Box>
-          ))}
-        </Box>
-      )}
     </Box>
   );
 }

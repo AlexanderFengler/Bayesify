@@ -27,7 +27,9 @@ export function App() {
           <Route path="/" element={<CoverRoute />} />
           <Route path="/start" element={<LandingRoute />} />
           <Route path="/processing" element={<ProcessingRoute />} />
-          <Route path="/paper/:id" element={<PaperRoute />} />
+          {/* splat captures the optional /full segment; one route element so the component persists
+              across the summary↔full morph */}
+          <Route path="/paper/:id/*" element={<PaperRoute />} />
           <Route path="/rate/:id" element={<RateRoute />} />
           <Route path="/calibration" element={<CalibrationRoute />} />
           <Route path="/rubrics" element={<RubricsRoute />} />
@@ -102,7 +104,9 @@ function ProcessingRoute() {
 // Dispatches a paper by payload (report / inventory / local notice / failed). Uses the in-memory
 // paper when it matches the URL; otherwise refetches by id so refresh, bookmark, and share all work.
 function PaperRoute() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = params.id;
+  const expanded = (params["*"] ?? "") === "full"; // /paper/:id/full → the full report
   const app = useApp();
   const navigate = useNavigate();
   const [fetched, setFetched] = useState<PaperState | null>(null);
@@ -126,7 +130,7 @@ function PaperRoute() {
     return <ErrorPage error={paper.error ?? "assessment failed"} onRetry={app.reset} />;
   }
   if (paper.result) {
-    return <Report paper={paper} onReset={app.reset} onRerun={app.rerunPaper} />;
+    return <Report paper={paper} onReset={app.reset} onRerun={app.rerunPaper} expanded={expanded} />;
   }
   if (paper.inventory) {
     return <Inventory paper={paper} onReset={app.reset} onRate={(pid) => navigate(`/rate/${pid}`)} />;

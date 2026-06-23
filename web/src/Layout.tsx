@@ -215,9 +215,14 @@ export function Layout() {
 function FadingOutlet() {
   const { pathname } = useLocation();
   const outlet = useOutlet();
+  // Group /paper/:id and /paper/:id/full under one key so navigating between the summary and the full
+  // report does NOT trigger a page cross-fade — that morph is animated inside the (persistent) Report.
+  const key = pathname.startsWith("/paper/")
+    ? "/" + pathname.split("/").slice(1, 3).join("/")
+    : pathname;
   return (
     <SwitchTransition mode="out-in">
-      <Fade key={pathname} timeout={200} appear>
+      <Fade key={key} timeout={200} appear>
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>{outlet}</Box>
       </Fade>
     </SwitchTransition>
