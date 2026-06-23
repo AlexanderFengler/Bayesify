@@ -27,7 +27,7 @@ from bayesify.core.schema import StepStatus
 STATUS_ORDER: tuple[StepStatus, ...] = (
     StepStatus.missing,
     StepStatus.partial,
-    StepStatus.done_well,
+    StepStatus.adequate,
 )
 
 Pair = tuple[Hashable, Hashable]  # (rater_a_label, rater_b_label) — order-agnostic for agreement
@@ -130,8 +130,8 @@ def cohen_kappa(pairs: Sequence[Pair], order: Sequence[Hashable] | None = None) 
 def weighted_kappa(
     pairs: Sequence[Pair], order: Sequence[Hashable], *, kind: str = "linear"
 ) -> float | None:
-    """Weighted κ on an ordinal scale — for stage-2 status (missing < partial < done_well), so a
-    done_well-vs-partial disagreement is penalised less than done_well-vs-missing."""
+    """Weighted κ on an ordinal scale — for stage-2 status (missing < partial < adequate), so a
+    adequate-vs-partial disagreement is penalised less than adequate-vs-missing."""
     return _kappa(pairs, order, kind)
 
 
@@ -162,13 +162,13 @@ def gwet_ac(pairs: Sequence[Pair], order: Sequence[Hashable] | None = None) -> f
 
 def absence_fpr(pairs: Sequence[tuple[StepStatus, StepStatus]], *, mode: str = "strict") -> Rate:
     """Of the engine's ``missing`` calls, the share that were actually present per the human — the
-    rate of *crying wolf*. ``strict`` counts only human==done_well as a false positive; ``broad``
-    counts {done_well, partial}. Pairs are (human_status, engine_status). Cells where the human said
+    rate of *crying wolf*. ``strict`` counts only human==adequate as a false positive; ``broad``
+    counts {adequate, partial}. Pairs are (human_status, engine_status). Cells where the human said
     N/A are EXCLUDED (that is a stage-1 applicability disagreement, not a false absence)."""
     present = (
-        {StepStatus.done_well}
+        {StepStatus.adequate}
         if mode == "strict"
-        else {StepStatus.done_well, StepStatus.partial}
+        else {StepStatus.adequate, StepStatus.partial}
         if mode == "broad"
         else None
     )

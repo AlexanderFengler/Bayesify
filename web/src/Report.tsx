@@ -45,8 +45,8 @@ const sevColor = (sev: string): "error" | "warning" | "info" =>
 type PaletteKey = "success" | "warning" | "error";
 function statusMeta(status: StepStatus): { color: PaletteKey | "disabled"; label: string } {
   switch (status) {
-    case "done_well":
-      return { color: "success", label: STATUS_LABEL.done_well };
+    case "adequate":
+      return { color: "success", label: STATUS_LABEL.adequate };
     case "partial":
       return { color: "warning", label: STATUS_LABEL.partial };
     case "missing":
@@ -59,11 +59,11 @@ function statusMeta(status: StepStatus): { color: PaletteKey | "disabled"; label
 const statusSx = (color: PaletteKey | "disabled") =>
   color === "disabled" ? "text.disabled" : `${color}.main`;
 
-const STRIP_LEGEND: StepStatus[] = ["done_well", "partial", "missing", "not_applicable"];
+const STRIP_LEGEND: StepStatus[] = ["adequate", "partial", "missing", "not_applicable"];
 // The signifier (status) main colour, resolved from the theme — used to tint the frosted-glass cells.
 function statusMainColor(t: Theme, status: StepStatus): string {
   switch (status) {
-    case "done_well":
+    case "adequate":
       return t.palette.success.main;
     case "partial":
       return t.palette.warning.main;

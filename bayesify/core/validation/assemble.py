@@ -57,7 +57,7 @@ def assemble(
         if report is None or report.validate_admissible():
             skipped.append(bucket)
             continue
-        (out / f"{bucket}.json").write_text(report.model_dump_json(indent=2))
+        (out / f"{bucket}.json").write_text(report.model_dump_json(indent=2), encoding="utf-8")
         written.append(bucket)
     return written, skipped
 

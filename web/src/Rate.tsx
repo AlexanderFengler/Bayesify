@@ -50,7 +50,7 @@ const CLASSES: { v: PaperClass; label: string }[] = [
 
 // The colour a status chip wears — mirrors the report's status palette so the two views read alike.
 const CHIP_COLOR: Record<StepStatus, "success" | "warning" | "error" | "default"> = {
-  done_well: "success",
+  adequate: "success",
   partial: "warning",
   missing: "error",
   not_applicable: "default",
@@ -122,7 +122,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
         ...base,
         relevance_label: "no",
         relevance_rationale: relevanceRationale,
-        paper_class_label: null,
+        paper_class_labels: [],
         paper_class_rationale: "",
         gate_facts: null,
         steps: [],
@@ -135,7 +135,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
       if (!d.status) continue; // an unrated step is omitted (a partial pass is allowed)
       const applicable = d.status !== "not_applicable";
       if (applicable && !d.rationale.trim()) return { error: `${s.id}: add a rationale.` };
-      if ((d.status === "done_well" || d.status === "partial") && d.cited.length === 0)
+      if ((d.status === "adequate" || d.status === "partial") && d.cited.length === 0)
         return { error: `${s.id}: cite ≥1 evidence span for a "${STATUS_LABEL[d.status]}" rating.` };
       steps.push({
         step_id: s.id,
@@ -156,7 +156,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
       ...base,
       relevance_label: relevance,
       relevance_rationale: relevanceRationale,
-      paper_class_label: paperClass,
+      paper_class_labels: paperClass ? [paperClass] : [],
       paper_class_rationale: classRationale,
       gate_facts: gate,
       steps,
@@ -430,9 +430,9 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                 }
               >
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: 0.5 }}>
-                  {s.done_well && (
+                  {s.adequate && (
                     <Typography variant="body2" color="text.secondary">
-                      <strong>Done well:</strong> {s.done_well}
+                      <strong>Adequate:</strong> {s.adequate}
                     </Typography>
                   )}
                   {s.done_poorly && (
@@ -484,7 +484,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                         value={d.rationale}
                         onChange={(e) => setStep(s.id, { rationale: e.target.value })}
                       />
-                      {(d.status === "done_well" || d.status === "partial") && (
+                      {(d.status === "adequate" || d.status === "partial") && (
                         <EvidenceCite
                           spans={ctx.evidence}
                           cited={d.cited}

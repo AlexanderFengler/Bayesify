@@ -547,7 +547,7 @@ main.container {
   box-shadow: var(--shadow);
   padding: 18px 20px;
 }
-.step-card.status-done_well {
+.step-card.status-adequate {
   border-left-color: var(--green);
 }
 .step-card.status-partial {
@@ -595,7 +595,7 @@ main.container {
   border-radius: 999px;
   white-space: nowrap;
 }
-.status-pill.status-done_well {
+.status-pill.status-adequate {
   background: var(--green-soft);
   color: var(--green);
 }
@@ -1060,7 +1060,7 @@ main.container {
   font-size: 14px;
   line-height: 1;
 }
-.strip-cell.status-done_well {
+.strip-cell.status-adequate {
   background: var(--green-soft);
   color: var(--green);
 }
@@ -1093,7 +1093,7 @@ main.container {
   height: 11px;
   border-radius: 3px;
 }
-.strip-legend .dot.status-done_well {
+.strip-legend .dot.status-adequate {
   background: var(--green);
 }
 .strip-legend .dot.status-partial {
@@ -1422,6 +1422,23 @@ main.container {
   align-items: center;
   gap: 7px !important;
   align-self: flex-end;
+}
+.rate-class-field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+.rate-class-field legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.rate-class-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
 }
 .rate-rationale {
   width: 100%;

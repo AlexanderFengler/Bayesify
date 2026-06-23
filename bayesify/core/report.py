@@ -31,7 +31,7 @@ class FixItem(BaseModel):
     how_to: str
     ease: Ease
     weight: float
-    coverage_delta: float  # verified gain from bringing this step to done_well (0 if present)
+    coverage_delta: float  # verified gain from bringing this step to adequate (0 if present)
     quality_delta: float
 
 

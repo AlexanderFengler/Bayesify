@@ -17,7 +17,7 @@
 #   §9 Modeling as software development
 # Single-source: steps carry NO per-step citation — the source lives in the preamble below.
 # applicability gating: paper_class ∈ {empirical, numerical_experiment, methodological}
-# status values emitted by the engine: done_well | partial | missing | not_applicable
+# status values emitted by the engine: adequate | partial | missing | not_applicable
 
 rubric_version: "0.1-gelman"
 label: "Gelman — Bayesian Workflow"
@@ -30,15 +30,15 @@ summary: >
   cross-validation & influence, iterative model expansion, comparing multiple models (and the
   multiverse), and modeling-as-software. Because it rests on a single paper, steps carry no separate
   per-step citation.
-status_values: [done_well, partial, missing, not_applicable]
+status_values: [adequate, partial, missing, not_applicable]
 scoring_rule: >
   Same machine scoring as the synthesis rubric: coverage = present/applicable (present =
-  done_well|partial; N/A excluded; low-confidence absences widen the range), quality = weighted mean
+  adequate|partial; N/A excluded; low-confidence absences widen the range), quality = weighted mean
   sub-score over applicable steps. essential_for sets the expectation tier (severity), not a verdict.
   v0 weights are uniform (a documented placeholder).
 
 scoring:
-  sub_score: { done_well: 1.0, partial: 0.5, missing: 0.0 }   # not_applicable is excluded
+  sub_score: { adequate: 1.0, partial: 0.5, missing: 0.0 }   # not_applicable is excluded
   low_confidence_threshold: 0.6
   weight_default: 1.0
   weights:
@@ -52,14 +52,14 @@ steps:
     name: Model building & justification
     essential_for: [empirical, numerical_experiment, methodological]
     why: "The workflow starts from an explicit generative model; every later check, diagnostic and comparison is only interpretable relative to a model that was actually justified."
-    done_well: "An initial generative model is stated and justified from domain knowledge and the question; structure built modularly, with assumptions explicit (§2)."
+    adequate: "An initial generative model is stated and justified from domain knowledge and the question; structure built modularly, with assumptions explicit (§2)."
     done_poorly: "A model appears with no rationale; assumptions unstated; no sense of how it was arrived at."
 
   - id: S2
     name: Prior specification & prior predictive checks
     essential_for: [empirical, numerical_experiment, methodological]
     why: "Priors are part of the model; simulating from them before fitting reveals what they imply and catches implausible assumptions before the data are touched."
-    done_well: "Priors stated; their implications examined by simulating from the prior (prior predictive / pushforward) BEFORE seeing the data, and revised when implausible (§2.4)."
+    adequate: "Priors stated; their implications examined by simulating from the prior (prior predictive / pushforward) BEFORE seeing the data, and revised when implausible (§2.4)."
     done_poorly: "'Default priors' with no statement; no prior predictive reasoning; priors tuned to the data."
 
   - id: S3
@@ -71,7 +71,7 @@ steps:
     gate:
       na_when_inference: [exact_analytic]
     inference_scope: [mcmc, hmc_nuts, variational]
-    done_well: "Convergence checked and reported — R-hat, effective sample size, zero divergences, E-BFMI, with chains/iterations/warmup stated and adequate run length (§3)."
+    adequate: "Convergence checked and reported — R-hat, effective sample size, zero divergences, E-BFMI, with chains/iterations/warmup stated and adequate run length (§3)."
     done_poorly: "No convergence diagnostics; single chain; divergences ignored; run length not justified."
     thresholds:
       rhat: { value: "R-hat near 1 (clear separation from 1 flags non-convergence)", source: gelman2020, verified: false }
@@ -83,7 +83,7 @@ steps:
     essential_for: [methodological, numerical_experiment]
     recommended_for: [empirical]
     why: "Fitting to data simulated from known parameters (and SBC) shows the model+algorithm can recover truth — the only way to trust inference before drawing real-data conclusions."
-    done_well: "Fake-data simulation: the model is fit to data simulated from known parameters and recovers them; for inferential claims about the algorithm, simulation-based calibration (rank uniformity) is shown (§4)."
+    adequate: "Fake-data simulation: the model is fit to data simulated from known parameters and recovers them; for inferential claims about the algorithm, simulation-based calibration (rank uniformity) is shown (§4)."
     done_poorly: "A new model/method with no recovery study or calibration evidence."
 
   - id: S5
@@ -93,7 +93,7 @@ steps:
     na_when: "Exact/analytic posterior, or computation raised no problems to address."
     gate:
       na_when_inference: [exact_analytic]
-    done_well: "Where fitting struggled, problems are diagnosed and addressed — simpler starting models, reparameterization, better priors/data, stacking for non-mixing (the 'folk theorem') — and the steps are described (§5)."
+    adequate: "Where fitting struggled, problems are diagnosed and addressed — simpler starting models, reparameterization, better priors/data, stacking for non-mixing (the 'folk theorem') — and the steps are described (§5)."
     done_poorly: "Fitting problems papered over or ignored; pathologies left unaddressed without comment."
 
   - id: S6
@@ -101,7 +101,7 @@ steps:
     essential_for: [empirical]
     recommended_for: [numerical_experiment, methodological]
     why: "Posterior predictive checks are the central test of model adequacy — whether the fitted model can reproduce the features of the data it is meant to explain."
-    done_well: "Posterior predictive checks shown (graphical overlays and/or test quantities); discrepancies between model and data discussed and acted on (§6.1)."
+    adequate: "Posterior predictive checks shown (graphical overlays and/or test quantities); discrepancies between model and data discussed and acted on (§6.1)."
     done_poorly: "No posterior predictive check; fit asserted without checking; obvious misfit ignored."
     note: "PPC discrepancies are signals to investigate, not auto-diagnoses of a specific defect."
 
@@ -109,7 +109,7 @@ steps:
     name: Cross-validation & influence
     recommended_for: [empirical, numerical_experiment, methodological]
     why: "Cross-validation with honest uncertainty (and influence checks) shows how well the model actually predicts, not merely how well it fit the data it already saw."
-    done_well: "Predictive performance assessed with cross-validation (e.g. PSIS-LOO) reported with uncertainty; importance-sampling reliability checked and influential observations examined (§6.2)."
+    adequate: "Predictive performance assessed with cross-validation (e.g. PSIS-LOO) reported with uncertainty; importance-sampling reliability checked and influential observations examined (§6.2)."
     done_poorly: "Predictive claims with no validation; unreliable importance sampling unmonitored; influential points unexamined."
     thresholds:
       pareto_k: { value: "PSIS Pareto-k flagged when large (unreliable LOO)", source: gelman2020, verified: false }
@@ -118,7 +118,7 @@ steps:
     name: Model modification & expansion
     recommended_for: [empirical, numerical_experiment, methodological]
     why: "Bayesian workflow is iterative: shortcomings found in checking should drive a documented expansion of the model, not be quietly accepted."
-    done_well: "The model is treated as iterative: shortcomings found in checking drive a documented expansion/modification (or a justified decision to stop) (§7)."
+    adequate: "The model is treated as iterative: shortcomings found in checking drive a documented expansion/modification (or a justified decision to stop) (§7)."
     done_poorly: "A single model is fit once with no iteration, despite checks suggesting problems."
 
   - id: S9
@@ -129,14 +129,14 @@ steps:
     gate:
       na_when_single_model_no_bf: true
       essential_when_models_gte: 2
-    done_well: "Multiple models compared honestly (cross-validation / stacking / averaging) with uncertainty; awareness of the multiverse of reasonable specifications and the forking-paths risk (§8)."
+    adequate: "Multiple models compared honestly (cross-validation / stacking / averaging) with uncertainty; awareness of the multiverse of reasonable specifications and the forking-paths risk (§8)."
     done_poorly: "A model chosen with no comparison or an inappropriate criterion; comparison reported without uncertainty; forking paths unacknowledged."
 
   - id: S10
     name: Reproducibility & modeling as software
     essential_for: [empirical, numerical_experiment, methodological]
     why: "Treating the analysis as software — versioned code, settings and data — is what makes a Bayesian result reproducible and trustworthy to others."
-    done_well: "The analysis is reproducible and treated as software — model, priors, software + versions, sampler settings, and data/code shared; modeling decisions documented (§9)."
+    adequate: "The analysis is reproducible and treated as software — model, priors, software + versions, sampler settings, and data/code shared; modeling decisions documented (§9)."
     done_poorly: "Opaque 'we fit a Bayesian model'; missing settings; no data or code; undocumented decisions."
 
 citations:

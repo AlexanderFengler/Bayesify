@@ -1,7 +1,7 @@
 // TypeScript mirror of the fields of bayesify.core.schema.ScoredResult that the report renders.
 // The contract is owned by core/schema.py (§4.3); this is the read-side view.
 
-export type StepStatus = "done_well" | "partial" | "missing" | "not_applicable";
+export type StepStatus = "adequate" | "partial" | "missing" | "not_applicable";
 export type Severity = "error" | "warning" | "info";
 export type Ease = "low" | "medium" | "high";
 

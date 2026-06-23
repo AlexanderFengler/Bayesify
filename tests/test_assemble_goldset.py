@@ -43,7 +43,7 @@ def _rating(rater_id: str, rel: RelevanceLabel = RelevanceLabel.yes) -> Rating:
             StepRating(
                 step_id="S1",
                 applicable=True,
-                status=StepStatus.done_well,
+                status=StepStatus.adequate,
                 confidence=0.9,
                 evidence=[_SPAN],
                 rationale="note",

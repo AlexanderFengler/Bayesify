@@ -44,7 +44,7 @@ def _rating(sr: ScoredResult, rater_id: str, rel: RaterRelationship, *, flip: bo
         status = a.status
         if flip and not flipped and status is not StepStatus.partial:
             status, flipped = StepStatus.partial, True
-        present = status in (StepStatus.done_well, StepStatus.partial)
+        present = status in (StepStatus.adequate, StepStatus.partial)
         steps.append(
             StepRating(
                 step_id=a.step_id,
@@ -132,10 +132,10 @@ def test_test_retest_kappa_from_two_engine_runs() -> None:
     )
     assert perfect.test_retest_kappa.value == 1.0
 
-    # a noisier second run (one applicable done_well flipped to partial) → below 1.0
+    # a noisier second run (one applicable adequate flipped to partial) → below 1.0
     flipped = list(sr.step_assessments)
     for i, a in enumerate(flipped):
-        if a.applicable and a.status is StepStatus.done_well:
+        if a.applicable and a.status is StepStatus.adequate:
             flipped[i] = a.model_copy(update={"status": StepStatus.partial})
             break
     sr2 = sr.model_copy(update={"step_assessments": flipped})

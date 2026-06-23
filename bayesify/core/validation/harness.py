@@ -106,7 +106,7 @@ def load_goldset(goldset_dir: str | Path) -> list[HumanReport]:
     """Load every ``*.json`` HumanReport in the directory (non-recursive, so an ``_engine/`` sibling
     of engine results is not picked up)."""
     return [
-        HumanReport.model_validate_json(p.read_text())
+        HumanReport.model_validate_json(p.read_text(encoding="utf-8"))
         for p in sorted(Path(goldset_dir).glob("*.json"))
     ]
 
@@ -114,7 +114,7 @@ def load_goldset(goldset_dir: str | Path) -> list[HumanReport]:
 def load_engine(engine_dir: str | Path) -> dict[str, ScoredResult]:
     """Load engine ScoredResults keyed by work_id (the file stem)."""
     return {
-        p.stem: ScoredResult.model_validate_json(p.read_text())
+        p.stem: ScoredResult.model_validate_json(p.read_text(encoding="utf-8"))
         for p in sorted(Path(engine_dir).glob("*.json"))
     }
 
@@ -225,12 +225,14 @@ def run(
     default_dir = FAKE_REPORTS_DIR if report.is_demo else REAL_REPORTS_DIR
     out = Path(out_dir) if out_dir else Path(default_dir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / f"{engine_version}.json").write_text(report.model_dump_json(indent=2))
+    (out / f"{engine_version}.json").write_text(
+        report.model_dump_json(indent=2), encoding="utf-8"
+    )
     if report.is_demo:
-        (out / DEMO_MD).write_text(to_markdown(report))
+        (out / DEMO_MD).write_text(to_markdown(report), encoding="utf-8")
     else:
         guard_public_emit(report)  # belt-and-braces: cannot reach here with demo data
-        Path(PUBLIC_MD).write_text(to_markdown(report))
+        Path(PUBLIC_MD).write_text(to_markdown(report), encoding="utf-8")
     return report
 
 

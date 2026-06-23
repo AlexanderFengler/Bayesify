@@ -53,11 +53,11 @@ def test_kappa_paradox() -> None:
 
 
 def test_weighted_kappa_beats_nominal_on_near_misses() -> None:
-    # disagreements are all one step apart (done_well↔partial, missing↔partial), never far.
+    # disagreements are all one step apart (adequate↔partial, missing↔partial), never far.
     pairs = (
-        [(S.done_well, S.done_well)] * 4
+        [(S.adequate, S.adequate)] * 4
         + [(S.partial, S.partial)] * 3
-        + [(S.done_well, S.partial)] * 2
+        + [(S.adequate, S.partial)] * 2
         + [(S.missing, S.partial)]
     )
     nominal = cohen_kappa(pairs)
@@ -72,7 +72,7 @@ def test_weighted_kappa_beats_nominal_on_near_misses() -> None:
 
 def test_absence_fpr_strict_and_broad_excludes_na() -> None:
     pairs = [
-        (S.done_well, S.missing),  # engine cried 'missing' but it was present → strict + broad FP
+        (S.adequate, S.missing),  # engine cried 'missing' but it was present → strict + broad FP
         (S.partial, S.missing),  # present-ish → broad FP only
         (S.missing, S.missing),  # correct absence → not an FP
         (S.not_applicable, S.missing),  # engine-missing vs human-N/A → STAGE-1, excluded from FPR
@@ -86,7 +86,7 @@ def test_absence_fpr_strict_and_broad_excludes_na() -> None:
 
 def test_absence_miss_rate_excludes_na() -> None:
     pairs = [
-        (S.missing, S.done_well),  # human says missing, engine missed it → a miss
+        (S.missing, S.adequate),  # human says missing, engine missed it → a miss
         (S.missing, S.partial),  # also a miss
         (S.missing, S.missing),  # caught
         (S.missing, S.not_applicable),  # engine-N/A vs human-missing → stage-1, excluded
@@ -95,10 +95,10 @@ def test_absence_miss_rate_excludes_na() -> None:
 
 
 def test_confusion_crosstab() -> None:
-    pairs = [(S.done_well, S.done_well), (S.done_well, S.partial), (S.missing, S.missing)]
+    pairs = [(S.adequate, S.adequate), (S.adequate, S.partial), (S.missing, S.missing)]
     table = confusion(pairs)
-    assert table["done_well"]["done_well"] == 1
-    assert table["done_well"]["partial"] == 1
+    assert table["adequate"]["adequate"] == 1
+    assert table["adequate"]["partial"] == 1
     assert table["missing"]["missing"] == 1
 
 

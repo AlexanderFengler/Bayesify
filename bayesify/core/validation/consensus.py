@@ -18,7 +18,14 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
-from bayesify.core.schema import EvidenceSpan, GateFacts, PaperIds, RelevanceLabel, StepStatus
+from bayesify.core.schema import (
+    EvidenceSpan,
+    GateFacts,
+    PaperClassLabel,
+    PaperIds,
+    RelevanceLabel,
+    StepStatus,
+)
 from bayesify.core.validation.human_report import (
     GoldOrigin,
     GoldProvenance,
@@ -108,6 +115,19 @@ def _consensus_steps(ratings: Sequence[Rating]) -> tuple[list[StepRating], list[
     return steps, no_consensus
 
 
+def _consensus_classes(ratings: Sequence[Rating]) -> list[PaperClassLabel]:
+    """Each paper class is an independent multi-label vote; keep labels chosen by a strict
+    majority of raters."""
+    labels = sorted(
+        {label for r in ratings for label in r.paper_class_labels}, key=lambda x: x.value
+    )
+    return [
+        label
+        for label in labels
+        if sum(label in r.paper_class_labels for r in ratings) * 2 > len(ratings)
+    ]
+
+
 def _step_key(step_id: str) -> tuple[int, object]:
     """Natural sort so S2 precedes S10 (not lexicographic)."""
     body = step_id[1:]
@@ -146,10 +166,8 @@ def consensus_from_ratings(ratings: Sequence[Rating]) -> ConsensusResult:
         )
         return ConsensusResult(consensus=cons, note="relevance=no (majority)")
 
-    paper_class = _strict_majority(
-        [r.paper_class_label for r in ratings if r.paper_class_label is not None]
-    )
-    if paper_class is None:
+    paper_classes = _consensus_classes(ratings)
+    if not paper_classes:
         return ConsensusResult(consensus=None, note="no paper-class consensus")
 
     steps, no_consensus = _consensus_steps(ratings)
@@ -161,7 +179,7 @@ def consensus_from_ratings(ratings: Sequence[Rating]) -> ConsensusResult:
         relationship=RaterRelationship.consensus,
         relevance_label=relevance,
         relevance_rationale=note,
-        paper_class_label=paper_class,
+        paper_class_labels=paper_classes,
         paper_class_rationale="Majority consensus.",
         gate_facts=_consensus_gate(ratings),
         steps=steps,

@@ -62,7 +62,7 @@ def test_scored_result_round_trip_is_byte_stable() -> None:
                 step_id="S4",
                 applicable=True,
                 applicability_reason="HMC/NUTS sampler used",
-                status=s.StepStatus.done_well,
+                status=s.StepStatus.adequate,
                 confidence=0.85,
                 evidence=[
                     s.Evidence(
@@ -91,7 +91,7 @@ def test_scored_result_round_trip_is_byte_stable() -> None:
                 s.StepProfile(
                     step_id="S4",
                     applicable=True,
-                    status=s.StepStatus.done_well,
+                    status=s.StepStatus.adequate,
                     sub_score=1.0,
                     weight=1.0,
                     tier=s.ExpectationTier.expected,

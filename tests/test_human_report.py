@@ -34,13 +34,13 @@ from bayesify.core.validation.human_report import (
 _SPAN = EvidenceSpan(section_id="s01", quote="we fit a hierarchical model in Stan")
 
 
-def _step(step_id: str = "S1", status: StepStatus = StepStatus.done_well, **over) -> StepRating:
+def _step(step_id: str = "S1", status: StepStatus = StepStatus.adequate, **over) -> StepRating:
     base: dict = dict(
         step_id=step_id,
         applicable=status is not StepStatus.not_applicable,
         status=status,
         confidence=0.9,
-        evidence=[_SPAN] if status in (StepStatus.done_well, StepStatus.partial) else [],
+        evidence=[_SPAN] if status in (StepStatus.adequate, StepStatus.partial) else [],
         rationale="" if status is StepStatus.not_applicable else "the paper does this",
     )
     base.update(over)
@@ -125,7 +125,7 @@ def test_human_report_module_is_engine_free() -> None:
 
 def test_present_status_requires_evidence_span() -> None:
     with pytest.raises(ValidationError):
-        _step("S1", status=StepStatus.done_well, evidence=[])
+        _step("S1", status=StepStatus.adequate, evidence=[])
 
 
 def test_missing_status_needs_no_span_but_needs_rationale() -> None:
@@ -144,7 +144,7 @@ def test_applicable_status_invariant() -> None:
 def test_missing_subtag_only_when_missing() -> None:
     _step("S2", status=StepStatus.missing, missing_subtag=MissingSubtag.not_reported_suspected)
     with pytest.raises(ValidationError):
-        _step("S1", status=StepStatus.done_well, missing_subtag=MissingSubtag.not_done)
+        _step("S1", status=StepStatus.adequate, missing_subtag=MissingSubtag.not_done)
 
 
 # --- rating short-circuit + envelope --------------------------------------------------------------

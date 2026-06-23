@@ -57,7 +57,7 @@ def _assessments() -> list[s.StepAssessment]:
             step_id="S1",
             applicable=True,
             applicability_reason="Essential for all paper types.",
-            status=s.StepStatus.done_well,
+            status=s.StepStatus.adequate,
             confidence=0.9,
             evidence=[
                 _ev(
@@ -153,7 +153,7 @@ def _assessments() -> list[s.StepAssessment]:
             step_id="S4",
             applicable=True,
             applicability_reason="MCMC/NUTS inference used.",
-            status=s.StepStatus.done_well,
+            status=s.StepStatus.adequate,
             confidence=0.92,
             evidence=[
                 _ev(
@@ -266,7 +266,7 @@ def _assessments() -> list[s.StepAssessment]:
             step_id="S9",
             applicable=True,
             applicability_reason="Essential for all paper types.",
-            status=s.StepStatus.done_well,
+            status=s.StepStatus.adequate,
             confidence=0.88,
             evidence=[
                 _ev(
@@ -296,7 +296,7 @@ def _assessments() -> list[s.StepAssessment]:
             step_id="S10",
             applicable=True,
             applicability_reason="Essential for all paper types.",
-            status=s.StepStatus.done_well,
+            status=s.StepStatus.adequate,
             confidence=0.86,
             evidence=[
                 _ev(
@@ -317,7 +317,7 @@ def _assessments() -> list[s.StepAssessment]:
     ]
 
 
-_SUBSCORE = {s.StepStatus.done_well: 1.0, s.StepStatus.partial: 0.5, s.StepStatus.missing: 0.0}
+_SUBSCORE = {s.StepStatus.adequate: 1.0, s.StepStatus.partial: 0.5, s.StepStatus.missing: 0.0}
 _TIER = {  # which steps are tier-1 "expected" for an empirical paper (drives severity, not a verdict)
     "S1": s.ExpectationTier.expected,
     "S2": s.ExpectationTier.expected,
@@ -355,7 +355,7 @@ def build_stub_result(mode: str = "full") -> s.ScoredResult:
         if not a.applicable:
             continue
         quality_num += sub or 0.0
-        if a.status in (s.StepStatus.done_well, s.StepStatus.partial):
+        if a.status in (s.StepStatus.adequate, s.StepStatus.partial):
             present += 1
         elif a.status is s.StepStatus.missing and a.confidence < _LOW_CONFIDENCE:
             uncertain += 1
@@ -398,14 +398,14 @@ def build_stub_result(mode: str = "full") -> s.ScoredResult:
             s.ScoreImpact(
                 step_id="S8",
                 from_status=s.StepStatus.missing,
-                to_status=s.StepStatus.done_well,
+                to_status=s.StepStatus.adequate,
                 coverage_delta=1 / n_app,
                 quality_delta=round(1.0 / n_app, 3),
             ),
             s.ScoreImpact(
                 step_id="S5",
                 from_status=s.StepStatus.partial,
-                to_status=s.StepStatus.done_well,
+                to_status=s.StepStatus.adequate,
                 coverage_delta=0.0,
                 quality_delta=round(0.5 / n_app, 3),
             ),

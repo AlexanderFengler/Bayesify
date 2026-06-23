@@ -109,7 +109,7 @@ def test_rubric_endpoint_serves_compiled_steps() -> None:
     assert body["rubric_version"]
     assert [s["id"] for s in body["steps"]] == [f"S{i}" for i in range(1, 11)]
     assert all(s["name"] for s in body["steps"])  # every step carries a display name
-    assert "done_well" in body["steps"][0]  # the per-step prose a rater is guided by (V3)
+    assert "adequate" in body["steps"][0]  # the per-step prose a rater is guided by (V3)
 
 
 def test_rubric_unknown_profile_is_422() -> None:
@@ -179,7 +179,7 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
             {
                 "step_id": "S1",
                 "applicable": True,
-                "status": "done_well",
+                "status": "adequate",
                 "confidence": 0.9,
                 "evidence": [{"section_id": "s01", "quote": "hierarchical drift-diffusion model"}],
                 "rationale": "the model is specified and justified",
@@ -228,7 +228,7 @@ def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch
 
     r = client.post(
         f"/api/assessments/{job.id}/steps/{step.step_id}/override",
-        data={"corrected_status": "done_well", "rationale": "supplement has it"},
+        data={"corrected_status": "adequate", "rationale": "supplement has it"},
     )
     assert r.json()["recorded"] is True
 
@@ -238,7 +238,7 @@ def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch
     assert len(saved) == 1
     o = saved[0]
     assert o.paper_id == job.id and o.step_id == step.step_id
-    assert o.corrected_status == "done_well"
+    assert o.corrected_status == "adequate"
     assert o.original_status == step.status.value  # WHAT WAS OVERRIDDEN (engine verdict)
     assert o.rubric_profile == job.profile == "synthesis"  # which rubric the correction is against
     assert o.source_sha256 == job.content_sha256  # durable paper identity, not the ephemeral job id
@@ -371,7 +371,7 @@ def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:
 
 
 def _full_fake(
-    relevance: str = "yes", judge_status: str = "done_well", paper_class: str = "empirical"
+    relevance: str = "yes", judge_status: str = "adequate", paper_class: str = "empirical"
 ):
     """A schema-aware fake for the whole full pipeline: Relevance for screen, PaperClass for
     classify, StepJudgment for each assess judge call, RefuterVerdict for refuters. Records the

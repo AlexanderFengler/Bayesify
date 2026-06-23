@@ -148,7 +148,7 @@ class _FakeLLM:
                 primary=PaperClassLabel.empirical, confidence=0.8, rationale="r", evidence_refs=[0]
             )
         elif name == "StepJudgment":
-            p = StepJudgment(status="done_well", confidence=0.9)
+            p = StepJudgment(status="adequate", confidence=0.9)
         else:
             p = RefuterVerdict(refuted=False, notes="absent")
         return LLMResponse(parsed=p, model=model, input_tokens=10, output_tokens=5)

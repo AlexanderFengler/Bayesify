@@ -12,7 +12,7 @@ import type { EvidenceSpan, StepStatus } from "./types";
 // The status-tinted left border — mirrors the report's palette so the two views read alike. An
 // unrated/blank step keeps the neutral strong line.
 const BORDER_COLOR: Record<StepStatus, string> = {
-  done_well: "success.main",
+  adequate: "success.main",
   partial: "warning.main",
   missing: "error.main",
   not_applicable: "divider",

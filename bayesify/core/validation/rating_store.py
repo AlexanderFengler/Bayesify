@@ -59,7 +59,7 @@ class RatingStore:
         paper_dir = self.root / bucket_key(sub.source_sha256, sub.rubric_profile, sub.paper_id)
         paper_dir.mkdir(parents=True, exist_ok=True)
         path = paper_dir / f"{_safe(sub.rating.rater_id)}.json"
-        path.write_text(sub.model_dump_json(indent=2))
+        path.write_text(sub.model_dump_json(indent=2), encoding="utf-8")
         return path
 
     def count_for(
@@ -76,7 +76,7 @@ class RatingStore:
             return out
         for paper_dir in sorted(p for p in self.root.iterdir() if p.is_dir()):
             subs = [
-                SubmittedRating.model_validate_json(f.read_text())
+                SubmittedRating.model_validate_json(f.read_text(encoding="utf-8"))
                 for f in sorted(paper_dir.glob("*.json"))
             ]
             if subs:

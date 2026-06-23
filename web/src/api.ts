@@ -152,7 +152,7 @@ export interface RatingInput {
   relationship: string;
   relevance_label: string;
   relevance_rationale: string;
-  paper_class_label: string | null;
+  paper_class_labels: string[];
   paper_class_rationale: string;
   gate_facts: {
     inference_method: string;

@@ -84,7 +84,7 @@ every parameter/derived value**:
   convergence." Threshold: **"ESS ≥ 10,000" for reasonably stable estimates of HDI limits**;
   equal-tailed-interval limits tolerate lower ESS.
 - *Done well:* both PSRF/R-hat **and** ESS reported for all parameters, ESS ≥ 10,000 for HDI claims.
-  *Done poorly:* only one diagnostic, or ESS without the convergence statistic.
+  *Missing:* only one diagnostic, or ESS without the convergence statistic.
 
 ### 3.2 WAMBS / WAMBS-v2 (Depaoli & van de Schoot 2017; van de Schoot et al. WAMBS-v2)
 *(Psychological Methods; WAMBS-v2 tutorial doi 10.4324/9780429273872-4; confidence: high, merged 3-0.)*
@@ -129,7 +129,7 @@ supplemented by **simulation-based calibration (SBC)** when self-diagnostics are
 - **divergence count > 0 flagged** (`check_div`)
 - **max tree-depth (=10) saturation flagged** (`check_treedepth`)
 - **E-FMI < 0.2 flagged** (`check_energy`)
-- *Done well:* all five reported and passing on every fit. *Done poorly:* no convergence diagnostics,
+- *Done well:* all five reported and passing on every fit. *Missing:* no convergence diagnostics,
   or ignored divergences.
 
 **SBC** *(confidence: high, 3-0)*: the prescribed tool when self-diagnostics are insufficient (origin:

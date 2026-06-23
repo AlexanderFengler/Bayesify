@@ -46,7 +46,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
           <GuideStep n={3} head="Click Analyze.">
             You get a dashboard &mdash; the steps at a glance plus a coverage and a quality score
             (hover the &#9432; for exactly how each is computed) &mdash; then the{" "}
-            <strong>Full report</strong>: per step, what was done well, concrete suggestions, and the
+            <strong>Full report</strong>: per step, what was adequate, concrete suggestions, and the
             supporting quotes &ldquo;in the paper&rdquo;.
           </GuideStep>
           <GuideStep n={4} head="Read the summary.">
@@ -74,7 +74,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
             engine&rsquo;s grades.
           </GuideStep>
           <GuideStep n={3} head="Judge each step.">
-            Mark whether it applies, its status (done well / partial / missing / N/A), your
+            Mark whether it applies, its status (adequate / partial / missing / N/A), your
             confidence, a one-line rationale, and cite the relevant quotes.
           </GuideStep>
           <GuideStep n={4} head="Submit.">
