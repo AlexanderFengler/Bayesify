@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from veribayes.core import assess as A
-from veribayes.core.assess import RefuterVerdict, StepJudgment, derive_gate_facts
-from veribayes.core.llm import LLMResponse
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import (
+from bayesify.core import assess as A
+from bayesify.core.assess import RefuterVerdict, StepJudgment, derive_gate_facts
+from bayesify.core.llm import LLMResponse
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
     EvidenceSpan,

@@ -1,3 +1,20 @@
+import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  CircularProgress,
+  Container,
+  Divider,
+  FormControlLabel,
+  MenuItem,
+  Paper,
+  Slider,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useEffect, useState } from "react";
 import {
   fetchRateContext,
@@ -12,14 +29,7 @@ import { StepCardShell } from "./StepCard";
 import type { StepStatus } from "./types";
 
 type Relevance = "" | "yes" | "partial" | "no";
-type PaperClass =
-  | "model_development"
-  | "method_development"
-  | "software_development"
-  | "data_analysis"
-  | "numerical_analysis"
-  | "theoretical_analysis"
-  | "review";
+type PaperClass = "" | "empirical" | "numerical_experiment" | "methodological";
 
 interface StepDraft {
   status: "" | StepStatus;
@@ -30,17 +40,31 @@ interface StepDraft {
 }
 const EMPTY: StepDraft = { status: "", confidence: 0.8, rationale: "", cited: [], missingSubtag: "" };
 
-const INFERENCE = ["mcmc", "hmc_nuts", "variational", "sbi", "exact_analytic", "unstated"];
+const INFERENCE = ["mcmc", "hmc_nuts", "variational", "exact_analytic", "unstated"];
 const PRIORS = ["informative", "weakly_informative", "default", "none", "unstated"];
 const CLASSES: { v: PaperClass; label: string }[] = [
-  { v: "model_development", label: "model development" },
-  { v: "method_development", label: "method development" },
-  { v: "software_development", label: "software development" },
-  { v: "data_analysis", label: "data analysis" },
-  { v: "numerical_analysis", label: "numerical analysis" },
-  { v: "theoretical_analysis", label: "theoretical analysis" },
-  { v: "review", label: "review / tutorial / commentary" },
+  { v: "empirical", label: "empirical" },
+  { v: "numerical_experiment", label: "numerical experiment" },
+  { v: "methodological", label: "methodological" },
 ];
+
+// The colour a status chip wears — mirrors the report's status palette so the two views read alike.
+const CHIP_COLOR: Record<StepStatus, "success" | "warning" | "error" | "default"> = {
+  adequate: "success",
+  partial: "warning",
+  missing: "error",
+  not_applicable: "default",
+};
+
+// Width-constrained shell shared by every state of the rating flow (loading / error / done / form),
+// so the column width stays constant. The header is permanent (Layout) and lives above this.
+function RateShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
+      {children}
+    </Container>
+  );
+}
 
 // The blind rating form: a rater walks the same rubric the engine walks and authors a Rating,
 // WITHOUT ever seeing the engine's verdict (the context endpoint serves no ScoredResult). Statuses
@@ -54,7 +78,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
   const [relationship, setRelationship] = useState("independent");
   const [relevance, setRelevance] = useState<Relevance>("");
   const [relevanceRationale, setRelevanceRationale] = useState("");
-  const [paperClasses, setPaperClasses] = useState<PaperClass[]>([]);
+  const [paperClass, setPaperClass] = useState<PaperClass>("");
   const [classRationale, setClassRationale] = useState("");
   const [gate, setGate] = useState({
     inference_method: "mcmc",
@@ -88,11 +112,6 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
     const cur = draft(id).cited;
     setStep(id, { cited: cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i] });
   };
-  const togglePaperClass = (klass: PaperClass) => {
-    setPaperClasses((prev) =>
-      prev.includes(klass) ? prev.filter((v) => v !== klass) : [...prev, klass],
-    );
-  };
 
   function build(): RatingInput | { error: string } {
     if (!relevance) return { error: "Choose a relevance verdict." };
@@ -109,7 +128,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
         steps: [],
       };
     }
-    if (paperClasses.length === 0) return { error: "Choose at least one paper type." };
+    if (!paperClass) return { error: "Choose a paper type." };
     const steps = [];
     for (const s of ctx!.rubric.steps) {
       const d = draft(s.id);
@@ -137,7 +156,7 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
       ...base,
       relevance_label: relevance,
       relevance_rationale: relevanceRationale,
-      paper_class_labels: paperClasses,
+      paper_class_labels: paperClass ? [paperClass] : [],
       paper_class_rationale: classRationale,
       gate_facts: gate,
       steps,
@@ -164,184 +183,234 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
 
   if (loadErr) {
     return (
-      <div className="report">
-        <div className="card error-card">
-          <h2>Couldn&rsquo;t load the rating context</h2>
-          <p>{loadErr}</p>
-          <button className="btn" onClick={onExit}>
-            Back
-          </button>
-        </div>
-      </div>
+      <RateShell>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={onExit}>
+              Back
+            </Button>
+          }
+        >
+          <Typography sx={{ fontWeight: 600 }}>Couldn&rsquo;t load the rating context</Typography>
+          {loadErr}
+        </Alert>
+      </RateShell>
     );
   }
-  if (!ctx) return <div className="card">Loading…</div>;
+  if (!ctx) {
+    return (
+      <RateShell>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary", py: 6 }}>
+          <CircularProgress size={20} />
+          <Typography>Loading the rating context…</Typography>
+        </Box>
+      </RateShell>
+    );
+  }
 
   if (done) {
     return (
-      <div className="report">
-        <div className="card na-card">
-          <div className="na-badge">Rating recorded</div>
-          <p className="na-lead">
+      <RateShell>
+        <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 }, borderRadius: 3, textAlign: "center" }}>
+          <Chip color="success" label="Rating recorded" sx={{ mb: 2, fontWeight: 600 }} />
+          <Typography sx={{ maxWidth: 520, mx: "auto", color: "text.secondary" }}>
             Your blind rating of <strong>{ctx.source_label}</strong> was saved. Two-to-three blind
             ratings plus an adjudicated consensus assemble into the gold record (at adjudication).
-          </p>
-          <button className="btn btn-primary" onClick={onExit}>
+          </Typography>
+          <Button variant="contained" disableElevation onClick={onExit} sx={{ mt: 3 }}>
             Done
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Paper>
+      </RateShell>
     );
   }
 
   const relevant = relevance !== "" && relevance !== "no";
-  return (
-    <div className="report rate">
-      <div className="report-head">
-        <div>
-          <div className="report-eyebrow">Blind rating</div>
-          <h1 className="report-title">{ctx.source_label}</h1>
-        </div>
-        <button className="btn" onClick={onExit}>
-          Cancel
-        </button>
-      </div>
+  const rubricOptions = rubrics.length ? rubrics : [{ id: profile, label: profile }];
+  const ratedCount = ctx.rubric.steps.filter((s) => draft(s.id).status).length;
 
-      <div className="rate-blind-banner">
+  return (
+    <RateShell>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+        <Box>
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
+            Blind rating
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
+            {ctx.source_label}
+          </Typography>
+        </Box>
+        <Button variant="outlined" onClick={onExit} sx={{ flexShrink: 0 }}>
+          Cancel
+        </Button>
+      </Box>
+
+      <Alert severity="info" icon={<VisibilityOffIcon />} sx={{ mt: 2.5 }}>
         You are rating <strong>blind</strong> — the engine&rsquo;s verdict is hidden. Judge each step
         from the paper and the detected evidence only; nothing here is pre-filled.
-      </div>
+      </Alert>
 
-      <div className="card rate-gate">
-        <div className="rate-field">
-          <label>
-            Rubric
-            <select value={profile} onChange={(e) => setProfile(e.target.value)}>
-              {(rubrics.length ? rubrics : [{ id: profile, label: profile }]).map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        {ctx.rubric.summary && <p className="rubric-preamble">{ctx.rubric.summary}</p>}
+      <Paper
+        variant="outlined"
+        sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, mt: 2.5, display: "flex", flexDirection: "column", gap: 2.5 }}
+      >
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label="Rubric"
+          value={profile}
+          onChange={(e) => setProfile(e.target.value)}
+        >
+          {rubricOptions.map((r) => (
+            <MenuItem key={r.id} value={r.id}>
+              {r.label}
+            </MenuItem>
+          ))}
+        </TextField>
+        {ctx.rubric.summary && (
+          <Typography variant="body2" color="text.secondary">
+            {ctx.rubric.summary}
+          </Typography>
+        )}
 
-        <div className="rate-field">
-          <label>
-            Rater id
-            <input value={raterId} onChange={(e) => setRaterId(e.target.value)} />
-          </label>
-          <label>
-            Relationship
-            <select value={relationship} onChange={(e) => setRelationship(e.target.value)}>
-              <option value="independent">independent</option>
-              <option value="engine_dev">engine developer</option>
-              <option value="prompt_author">prompt author</option>
-            </select>
-          </label>
-        </div>
+        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          <TextField
+            size="small"
+            label="Rater id"
+            value={raterId}
+            onChange={(e) => setRaterId(e.target.value)}
+            sx={{ flex: "1 1 180px" }}
+          />
+          <TextField
+            select
+            size="small"
+            label="Relationship"
+            value={relationship}
+            onChange={(e) => setRelationship(e.target.value)}
+            sx={{ flex: "1 1 180px" }}
+          >
+            <MenuItem value="independent">independent</MenuItem>
+            <MenuItem value="engine_dev">engine developer</MenuItem>
+            <MenuItem value="prompt_author">prompt author</MenuItem>
+          </TextField>
+        </Box>
 
-        <div className="rate-field">
-          <label>
-            Relevance - is Bayesian workflow applicable?
-            <select value={relevance} onChange={(e) => setRelevance(e.target.value as Relevance)}>
-              <option value="">— choose —</option>
-              <option value="yes">yes</option>
-              <option value="partial">partial</option>
-              <option value="no">no</option>
-            </select>
-          </label>
-        </div>
-        <textarea
-          className="rate-rationale"
-          placeholder="Why? (required)"
+        <Divider />
+
+        <TextField
+          select
+          fullWidth
+          size="small"
+          label="Relevance — is this a Bayesian-workflow paper?"
+          value={relevance}
+          onChange={(e) => setRelevance(e.target.value as Relevance)}
+        >
+          <MenuItem value="">— choose —</MenuItem>
+          <MenuItem value="yes">yes</MenuItem>
+          <MenuItem value="partial">partial</MenuItem>
+          <MenuItem value="no">no</MenuItem>
+        </TextField>
+        <TextField
+          fullWidth
+          multiline
+          minRows={2}
+          size="small"
+          label="Relevance rationale"
+          required
+          placeholder="Why?"
           value={relevanceRationale}
           onChange={(e) => setRelevanceRationale(e.target.value)}
         />
 
         {relevant && (
           <>
-            <div className="rate-field">
-              <fieldset className="rate-class-field">
-                <legend>Paper type</legend>
-                <div className="rate-class-options">
-                  {CLASSES.map((c) => (
-                    <label key={c.v} className="rate-check">
-                      <input
-                        type="checkbox"
-                        checked={paperClasses.includes(c.v)}
-                        onChange={() => togglePaperClass(c.v)}
-                      />
-                      {c.label}
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            </div>
-            <textarea
-              className="rate-rationale"
-              placeholder="Why these paper types? (optional)"
+            <Divider />
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label="Paper type"
+              value={paperClass}
+              onChange={(e) => setPaperClass(e.target.value as PaperClass)}
+            >
+              <MenuItem value="">— choose —</MenuItem>
+              {CLASSES.map((c) => (
+                <MenuItem key={c.v} value={c.v}>
+                  {c.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              multiline
+              minRows={2}
+              size="small"
+              label="Paper type rationale (optional)"
               value={classRationale}
               onChange={(e) => setClassRationale(e.target.value)}
             />
-            <div className="rate-field rate-gate-facts">
-              <label>
-                Inference
-                <select
-                  value={gate.inference_method}
-                  onChange={(e) => setGate({ ...gate, inference_method: e.target.value })}
-                >
-                  {INFERENCE.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                # models
-                <input
-                  type="number"
-                  min={1}
-                  value={gate.n_models}
-                  onChange={(e) => setGate({ ...gate, n_models: Math.max(1, +e.target.value) })}
-                />
-              </label>
-              <label className="rate-check">
-                <input
-                  type="checkbox"
-                  checked={gate.bf_claimed}
-                  onChange={(e) => setGate({ ...gate, bf_claimed: e.target.checked })}
-                />
-                Bayes factor claimed
-              </label>
-              <label>
-                Priors
-                <select
-                  value={gate.prior_informativeness}
-                  onChange={(e) => setGate({ ...gate, prior_informativeness: e.target.value })}
-                >
-                  {PRIORS.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
+              <TextField
+                select
+                size="small"
+                label="Inference"
+                value={gate.inference_method}
+                onChange={(e) => setGate({ ...gate, inference_method: e.target.value })}
+                sx={{ flex: "1 1 160px" }}
+              >
+                {INFERENCE.map((v) => (
+                  <MenuItem key={v} value={v}>
+                    {v}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                type="number"
+                size="small"
+                label="# models"
+                value={gate.n_models}
+                onChange={(e) => setGate({ ...gate, n_models: Math.max(1, +e.target.value) })}
+                slotProps={{ htmlInput: { min: 1 } }}
+                sx={{ flex: "0 1 110px" }}
+              />
+              <TextField
+                select
+                size="small"
+                label="Priors"
+                value={gate.prior_informativeness}
+                onChange={(e) => setGate({ ...gate, prior_informativeness: e.target.value })}
+                sx={{ flex: "1 1 160px" }}
+              >
+                {PRIORS.map((v) => (
+                  <MenuItem key={v} value={v}>
+                    {v}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={gate.bf_claimed}
+                    onChange={(e) => setGate({ ...gate, bf_claimed: e.target.checked })}
+                  />
+                }
+                label="Bayes factor claimed"
+              />
+            </Box>
           </>
         )}
-      </div>
+      </Paper>
 
       {relevance === "no" && (
-        <p className="rate-hint">
+        <Alert severity="info" sx={{ mt: 2.5 }}>
           Marked not a Bayesian-workflow paper — there are no steps to rate. Submit to record it.
-        </p>
+        </Alert>
       )}
 
       {relevant && (
-        <div className="steps">
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2.5 }}>
           {ctx.rubric.steps.map((s) => {
             const d = draft(s.id);
             const na = d.status === "not_applicable";
@@ -350,50 +419,68 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                 key={s.id}
                 stepId={s.id}
                 stepName={s.name}
-                sectionClass={d.status ? "status-" + d.status : "rate-unrated"}
-                pill={<span className="rate-step-pill">{d.status ? STATUS_LABEL[d.status] : "rate"}</span>}
+                status={d.status}
+                pill={
+                  <Chip
+                    size="small"
+                    label={d.status ? STATUS_LABEL[d.status] : "rate"}
+                    color={d.status ? CHIP_COLOR[d.status] : "default"}
+                    variant={d.status ? "filled" : "outlined"}
+                  />
+                }
               >
-                <div className="rate-step-body">
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: 0.5 }}>
                   {s.adequate && (
-                    <p className="rate-guide">
+                    <Typography variant="body2" color="text.secondary">
                       <strong>Adequate:</strong> {s.adequate}
-                    </p>
+                    </Typography>
                   )}
                   {s.done_poorly && (
-                    <p className="rate-guide rate-guide-poor">
-                      <strong>Missing:</strong> {s.done_poorly}
-                    </p>
+                    <Typography variant="body2" color="text.disabled">
+                      <strong>Done poorly:</strong> {s.done_poorly}
+                    </Typography>
                   )}
 
-                  <select
-                    className="rate-status"
+                  <TextField
+                    select
+                    size="small"
+                    label="Rating"
                     value={d.status}
                     onChange={(e) => setStep(s.id, { status: e.target.value as StepStatus | "" })}
+                    sx={{ alignSelf: "flex-start", minWidth: 200 }}
                   >
-                    <option value="">— rate this step —</option>
+                    <MenuItem value="">— rate this step —</MenuItem>
                     {STATUS_OPTIONS.map((st) => (
-                      <option key={st} value={st}>
+                      <MenuItem key={st} value={st}>
                         {STATUS_LABEL[st]}
-                      </option>
+                      </MenuItem>
                     ))}
-                  </select>
+                  </TextField>
 
                   {d.status && !na && (
                     <>
-                      <label className="rate-conf">
-                        Confidence: {Math.round(d.confidence * 100)}%
-                        <input
-                          type="range"
+                      <Box sx={{ maxWidth: 280 }}>
+                        <Typography variant="caption" color="text.secondary">
+                          Confidence: {Math.round(d.confidence * 100)}%
+                        </Typography>
+                        <Slider
+                          size="small"
                           min={0}
                           max={1}
                           step={0.05}
                           value={d.confidence}
-                          onChange={(e) => setStep(s.id, { confidence: +e.target.value })}
+                          onChange={(_, v) => setStep(s.id, { confidence: v as number })}
+                          valueLabelDisplay="auto"
+                          valueLabelFormat={(v) => `${Math.round(v * 100)}%`}
                         />
-                      </label>
-                      <textarea
-                        className="rate-rationale"
-                        placeholder="Rationale (required)"
+                      </Box>
+                      <TextField
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        size="small"
+                        label="Rationale"
+                        required
                         value={d.rationale}
                         onChange={(e) => setStep(s.id, { rationale: e.target.value })}
                       />
@@ -405,38 +492,60 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
                         />
                       )}
                       {d.status === "missing" && (
-                        <div className="rate-field">
-                          <label>
-                            Missing because
-                            <select
-                              value={d.missingSubtag}
-                              onChange={(e) =>
-                                setStep(s.id, { missingSubtag: e.target.value as StepDraft["missingSubtag"] })
-                              }
-                            >
-                              <option value="">— optional —</option>
-                              <option value="not-done">not done</option>
-                              <option value="not-reported-suspected">done but not reported</option>
-                            </select>
-                          </label>
-                        </div>
+                        <TextField
+                          select
+                          size="small"
+                          label="Missing because (optional)"
+                          value={d.missingSubtag}
+                          onChange={(e) =>
+                            setStep(s.id, { missingSubtag: e.target.value as StepDraft["missingSubtag"] })
+                          }
+                          sx={{ alignSelf: "flex-start", minWidth: 220 }}
+                        >
+                          <MenuItem value="">— optional —</MenuItem>
+                          <MenuItem value="not-done">not done</MenuItem>
+                          <MenuItem value="not-reported-suspected">done but not reported</MenuItem>
+                        </TextField>
                       )}
                     </>
                   )}
-                </div>
+                </Box>
               </StepCardShell>
             );
           })}
-        </div>
+        </Box>
       )}
 
-      {formError && <div className="rate-error">{formError}</div>}
-      <div className="rate-actions">
-        <button className="btn btn-primary" disabled={submitting} onClick={onSubmit}>
+      {formError && (
+        <Alert severity="error" sx={{ mt: 2.5 }}>
+          {formError}
+        </Alert>
+      )}
+
+      <Box
+        sx={{
+          position: "sticky",
+          bottom: 0,
+          mt: 2.5,
+          py: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          bgcolor: (t) => t.tokens.glass,
+          backdropFilter: "blur(14px)",
+          borderTop: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          {relevant ? `${ratedCount} of ${ctx.rubric.steps.length} steps rated` : " "}
+        </Typography>
+        <Button variant="contained" disableElevation disabled={submitting} onClick={onSubmit}>
           {submitting ? "Saving…" : "Submit blind rating"}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Box>
+    </RateShell>
   );
 }
 
@@ -451,22 +560,38 @@ function EvidenceCite({
 }) {
   if (spans.length === 0) {
     return (
-      <p className="rate-hint">
+      <Typography variant="caption" color="text.disabled">
         No detector spans to cite for this paper. (Free-quote citation is a later enhancement.)
-      </p>
+      </Typography>
     );
   }
   return (
-    <div className="rate-cite">
-      <div className="grounding-label">Cite the evidence you saw (≥1 for present)</div>
+    <Box sx={{ borderLeft: 2, borderColor: "divider", pl: 1.5, py: 0.5 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
+        Cite the evidence you saw (≥1 for present)
+      </Typography>
       {spans.map((e, i) => (
-        <label key={i} className="rate-cite-item">
-          <input type="checkbox" checked={cited.includes(i)} onChange={() => onToggle(i)} />
-          <span>
-            &ldquo;{e.quote}&rdquo; <cite>§{e.section_id}</cite>
-          </span>
-        </label>
+        <FormControlLabel
+          key={i}
+          sx={{ display: "flex", alignItems: "flex-start", m: 0, mt: 0.5 }}
+          control={
+            <Checkbox
+              size="small"
+              checked={cited.includes(i)}
+              onChange={() => onToggle(i)}
+              sx={{ py: 0, mr: 0.5 }}
+            />
+          }
+          label={
+            <Typography variant="body2">
+              &ldquo;{e.quote}&rdquo;{" "}
+              <Box component="cite" sx={{ color: "text.disabled", fontStyle: "normal" }}>
+                §{e.section_id}
+              </Box>
+            </Typography>
+          }
+        />
       ))}
-    </div>
+    </Box>
   );
 }

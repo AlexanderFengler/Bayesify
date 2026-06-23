@@ -1,4 +1,4 @@
-# f. Score — VeriBayes v0 component
+# f. Score — Bayesify v0 component
 
 **Milestone:** M5
 **v0 items covered:** B1 (applicability gating) · B3 (profile-first scoring; no premature collapse — and, per the 2026-06-12 PR-#1 decision, **no categorical badge at all**)

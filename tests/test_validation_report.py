@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import pathlib
 
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import EvidenceSpan, RelevanceLabel, ScoredResult, StepStatus
-from veribayes.core.validation.human_report import (
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import EvidenceSpan, RelevanceLabel, ScoredResult, StepStatus
+from bayesify.core.validation.human_report import (
     GoldOrigin,
     GoldProvenance,
     GoldTier,
@@ -18,7 +18,7 @@ from veribayes.core.validation.human_report import (
     Rating,
     StepRating,
 )
-from veribayes.core.validation.report import build_report, to_calibration_payload, to_markdown
+from bayesify.core.validation.report import build_report, to_calibration_payload, to_markdown
 
 _FIX = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
 _RUBRIC = load_rubric()

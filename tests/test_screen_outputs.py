@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from veribayes.core.schema import PaperClass, Relevance, RelevanceLabel
+from bayesify.core.schema import PaperClass, Relevance, RelevanceLabel
 
 _FIX = Path(__file__).parent / "fixtures"
 _SCREEN = _FIX / "screen"

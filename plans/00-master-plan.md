@@ -1,6 +1,6 @@
-# VeriBayes — Master Plan (Executive Summary)
+# Bayesify — Master Plan (Executive Summary)
 
-**One line:** VeriBayes ingests an academic paper and returns an evidence-linked, step-by-step report
+**One line:** Bayesify ingests an academic paper and returns an evidence-linked, step-by-step report
 on how well it followed Bayesian-workflow best practices — a per-step score profile with two
 transparent summary scores, **coverage** (share of applicable steps present) and **quality** — and,
 at scale, charts how a whole field's practices evolve. *(The earlier Verified/Shaky/Failed badge was
@@ -48,7 +48,7 @@ governance). Read §G there for the post-v0 priorities and §H for the newest pr
 - *Governance, shipped not promised:* `ETHICS.md` + anti-gaming policy (F1) · privacy disclosure +
   local-only mode + purge (F3).
 
-**Architectural keystone:** one engine, `veribayes-core` (pure Python, no web deps), applies one
+**Architectural keystone:** one engine, `bayesify-core` (pure Python, no web deps), applies one
 versioned rubric. The MVP tool and the corpus pipeline both call it — so single-paper and
 field-level results never drift, and Phase 3 is cheap to build on Phase 2.
 

@@ -6,10 +6,10 @@ from datetime import datetime
 
 import pytest
 
-from veribayes.core import classify as C
-from veribayes.core import config
-from veribayes.core.llm import FakeLLMClient, LLMError, LLMTransientError
-from veribayes.core.schema import (
+from bayesify.core import classify as C
+from bayesify.core import config
+from bayesify.core.llm import FakeLLMClient, LLMError, LLMTransientError
+from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
     EvidenceSpan,

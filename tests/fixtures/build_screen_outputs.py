@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
 
 _HERE = Path(__file__).parent
 

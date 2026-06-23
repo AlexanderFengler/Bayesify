@@ -6,17 +6,17 @@ from __future__ import annotations
 
 import pytest
 
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.validation.demo_data import build_demo_dataset, write_demo_dataset
-from veribayes.core.validation.harness import (
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.validation.demo_data import build_demo_dataset, write_demo_dataset
+from bayesify.core.validation.harness import (
     FakeDataInPublicReport,
     FakeDataInRealGoldset,
     decide_status,
     guard_public_emit,
     run,
 )
-from veribayes.core.validation.human_report import GoldOrigin, HumanReport
-from veribayes.core.validation.report import build_report
+from bayesify.core.validation.human_report import GoldOrigin, HumanReport
+from bayesify.core.validation.report import build_report
 
 _RUBRIC = load_rubric()
 

@@ -11,7 +11,7 @@
 **Status:** Plan — decomposed: this spine + eight component subplans in [`02-mvp/`](02-mvp/) + the
 validation protocol in [`../validation/protocol.md`](../validation/protocol.md)
 **Depends on:** Phase 1 (the rubric `rubric/steps.yaml` and scoring rule)
-**Feeds:** Phase 3 (the engine here is the shared `veribayes-core` used at corpus scale)
+**Feeds:** Phase 3 (the engine here is the shared `bayesify-core` used at corpus scale)
 **Stack (decided):** FastAPI (Python) backend + React/Vite (TypeScript) frontend, local-first.
 **Engine (decided):** Hybrid — Claude API for rubric judgment, grounded by deterministic checks.
 
@@ -91,21 +91,21 @@ yet validated" in the footer.
    • progress / SSE           • GET  /api/papers/:id  │ async (LLM calls are slow)
    • report views             • SSE  events           │
         ▲                                             ▼
-        └──── report JSON ◀── veribayes-core (pure Python pkg):
+        └──── report JSON ◀── bayesify-core (pure Python pkg):
                               [a]ingest → [b]parse → [c]detect → [d]screen+classify
                               → [e]assess → [f]score      (letters = subplans in 02-mvp/)
                               uses: rubric/steps.yaml · Claude API · detectors · cache
 ```
 
 ### 3.2 The crucial design rule: a UI-agnostic core package
-**All real logic lives in `veribayes-core`, a plain Python package with no FastAPI imports.** The
+**All real logic lives in `bayesify-core`, a plain Python package with no FastAPI imports.** The
 backend is a thin transport layer; Phase 3's batch pipeline imports the same package. One rubric,
 one engine, one scoring rule — used identically by the interactive tool and the corpus pipeline.
 
 ### 3.3 Repo layout
 
 ```
-veribayes/
+bayesify/
   core/                  # the engine (no web deps): ingest.py fetcher.py parse.py detectors/
                          #   screen.py classify.py assess.py score.py cache.py schema.py rubric/
   api/                   # FastAPI app (thin): routes, job queue, SSE, persistence, overrides

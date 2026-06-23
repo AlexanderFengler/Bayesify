@@ -1,16 +1,16 @@
-# Responsible use of VeriBayes
+# Responsible use of Bayesify
 
 *Draft (milestone M1). This is a shipped artifact, not an aspiration — it ships with the tool and the
 report links it. It will be tightened as the engine and the validation evidence mature.*
 
-VeriBayes reads an academic paper and reports how well it followed established Bayesian-workflow
+Bayesify reads an academic paper and reports how well it followed established Bayesian-workflow
 practices, step by step. This document states what that report does and does not mean, and how it can
 be misused.
 
 ## Formative, not a verdict
 
 - **There is no pass/fail badge.** The earlier Verified/Shaky/Failed badge was deliberately dropped.
-  VeriBayes reports a **per-step profile** plus two transparent summary scores (coverage and quality).
+  Bayesify reports a **per-step profile** plus two transparent summary scores (coverage and quality).
 - The scores attest to **workflow practice as detectable in the document(s)** — whether the paper
   *reports* and *justifies* the steps of a principled Bayesian workflow. They do **not** attest to the
   correctness of the paper's results, the validity of its scientific claims, or the competence of its
@@ -22,7 +22,7 @@ be misused.
 
 ## The instrument must meet its own bar
 
-VeriBayes is itself a measurement instrument. Until it has been validated against expert ratings
+Bayesify is itself a measurement instrument. Until it has been validated against expert ratings
 (milestone M7, see `validation/protocol.md`), **every report is labelled "preliminary"** and should
 be read as a structured prompt for reflection, not as evidence. Corpus-level claims (Phase 3) are
 only as good as the engine's measured accuracy and will quote it as measurement error.
@@ -49,9 +49,9 @@ only as good as the engine's measured accuracy and will quote it as measurement 
   requirements; some legitimately do not apply to your paper (the report marks those "not
   applicable").
 - **For reviewers and editors:** a structured aid for organising a methodological critique — **not an
-  auto-reject machine.** Do not paste a VeriBayes verdict into a review as unattributed authority;
+  auto-reject machine.** Do not paste a Bayesify verdict into a review as unattributed authority;
   carry the engine/rubric versions and the "preliminary" status with it.
-- **Third-party scoring.** VeriBayes does not auto-publish scores about other people's papers. The
+- **Third-party scoring.** Bayesify does not auto-publish scores about other people's papers. The
   Phase-3 corpus dashboards (named-paper badges over a sampled literature) will carry their own,
   stricter ethics note before they launch; the default for public outputs is aggregate-only.
 

@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from veribayes.core.rubric.applicability import step_applicability
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import (
+from bayesify.core.rubric.applicability import step_applicability
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import (
     CostLedger,
     CostLedgerEntry,
     Ease,
@@ -26,7 +26,7 @@ from veribayes.core.schema import (
     StepStatus,
     Suggestion,
 )
-from veribayes.core.score import ScoreMeta, score
+from bayesify.core.score import ScoreMeta, score
 
 _RUBRIC = load_rubric()
 _HERE = Path(__file__).parent

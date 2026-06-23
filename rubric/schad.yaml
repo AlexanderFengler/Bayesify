@@ -1,11 +1,11 @@
-# VeriBayes rubric — Schad "Principled Bayesian Workflow"
+# Bayesify rubric — Schad "Principled Bayesian Workflow"
 # A self-contained rubric grounded SOLELY in:
 #   Schad, Betancourt & Vasishth (2021). "Toward a principled Bayesian workflow in cognitive
 #   science." Psychological Methods 26(1). arXiv:1904.12765.
 # IMPORTANT (verified 2026-06-17 against the paper): the paper does NOT print a numbered list of
 # steps and has no master workflow flowchart. It names FOUR principled checks (§2.1 prior predictive,
 # §2.2 computational faithfulness / SBC, §2.3 model sensitivity, §2.4 posterior predictive) plus model
-# building (§1.1) — ~5 components. These SEVEN steps are VeriBayes' finer-grained decomposition: §2.2
+# building (§1.1) — ~5 components. These SEVEN steps are Bayesify' finer-grained decomposition: §2.2
 # is split into {SBC, convergence diagnostics} and §2.4 into {posterior predictive, model adequacy}.
 # ORDERING: the steps are arranged on the paper's central axis — the PRE-data-collection design
 # analysis (prior predictive, SBC, model sensitivity, done before any data are seen) THEN the POST-data
@@ -21,7 +21,7 @@ label: "Schad — Principled Bayesian Workflow"
 summary: >
   Graded solely against Schad, Betancourt & Vasishth (2021), "Toward a principled Bayesian workflow
   in cognitive science" (arXiv:1904.12765). The paper names four principled checks plus model
-  building rather than a numbered recipe, so these seven steps are VeriBayes' finer-grained
+  building rather than a numbered recipe, so these seven steps are Bayesify' finer-grained
   decomposition. Its hallmark is the PRE-data-collection design analysis — prior predictive checks,
   simulation-based calibration (computational faithfulness), and model sensitivity (can the design
   recover the parameters?) — done before any data are seen, then the post-data arc of fit,

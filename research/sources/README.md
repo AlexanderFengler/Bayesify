@@ -2,7 +2,7 @@
 
 The sources used by the Phase-1 deep research run (2026-06-10) that produced
 [`../bayesian-workflow-gold-standards.md`](../bayesian-workflow-gold-standards.md). One note per
-work: what it is, full citation, and exactly how VeriBayes uses it (which rubric steps in
+work: what it is, full citation, and exactly how Bayesify uses it (which rubric steps in
 [`../../rubric/steps.yaml`](../../rubric/steps.yaml) it grounds, with verified / not-verified status
 for every threshold).
 

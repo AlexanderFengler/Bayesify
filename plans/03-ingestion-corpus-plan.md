@@ -1,7 +1,7 @@
 # Phase 3 — Corpus Ingestion, Sampling, Ontology & Meta-Analysis
 
 **Status:** Plan
-**Depends on:** Phase 1 (rubric & scoring rule), Phase 2 (analysis engine `veribayes-core`)
+**Depends on:** Phase 1 (rubric & scoring rule), Phase 2 (analysis engine `bayesify-core`)
 **Owner:** TBD
 
 ---
@@ -138,7 +138,7 @@ the way the dedup-tooling literature does, so our pipeline's accuracy is itself 
                 └───────────────┬──────────┘
                                 │
                 ┌───────────────▼─────────────────────────┐
-                │  Phase-2 engine (veribayes-core)         │  ← SAME code path as the single-paper tool
+                │  Phase-2 engine (bayesify-core)         │  ← SAME code path as the single-paper tool
                 │  relevance screen → classify → assess    │
                 └───────────────┬─────────────────────────┘
                                 │ structured results (per-step assessments, coverage/quality scores)
@@ -151,7 +151,7 @@ the way the dedup-tooling literature does, so our pipeline's accuracy is itself 
                 └──────────────────────────┘
 ```
 
-**Key principle:** the corpus pipeline calls the **exact same `veribayes-core`** engine as the
+**Key principle:** the corpus pipeline calls the **exact same `bayesify-core`** engine as the
 single-paper tool. There is one definition of the rubric and scoring, used in both phases — no drift.
 
 ---
@@ -264,7 +264,7 @@ the sampling/CI caveats inline so meta-researchers don't over-read noise.
 2. **M2 — Dedup/identity service.** ID-key + fuzzy matching; `work_id` assignment; validation set + precision/recall report.
 3. **M3 — Acquisition + batch engine.** OA full-text fetch — **reusing the Phase-2 `fetcher.py`
    (C5, `plans/02-mvp/a-ingest-fetch.md`) and cache/cost ledger (C6) as-is**; batch-run
-   `veribayes-core`; persist assessments. Two-phase sampling wired in (the cheap screen *is* the
+   `bayesify-core`; persist assessments. Two-phase sampling wired in (the cheap screen *is* the
    Phase-2 relevance gate).
 4. **M4 — Corpus DB + ontology.** Schema, ontology seeding, auto-tagging from deterministic checks.
 5. **M5 — Dashboards.** Quality-over-time + landmarks, subfield scorecards, adoption heatmap, relevance prevalence, cluster view, DB explorer.
