@@ -7,24 +7,25 @@ interface ColorMode {
   variant: AuroraVariant;
   toggle: () => void;
 }
-const ColorModeContext = createContext<ColorMode>({ variant: "teal", toggle: () => {} });
+const ColorModeContext = createContext<ColorMode>({ variant: "light", toggle: () => {} });
 export const useColorMode = () => useContext(ColorModeContext);
 
 const KEY = "bayesify.aurora"; // persisted aurora variant
 
-// Holds the active aurora variant (teal default / indigo dark), builds the matching MUI theme, and
-// exposes a toggle. Sits above the Router so the whole app (including Aurora) re-themes on switch.
+// Holds the active aurora variant (light default / dark), builds the matching MUI theme, and exposes
+// a toggle. Sits above the Router so the whole app (including Aurora) re-themes on switch.
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
-  const [variant, setVariant] = useState<AuroraVariant>(
-    () => (localStorage.getItem(KEY) as AuroraVariant | null) ?? "teal",
-  );
+  const [variant, setVariant] = useState<AuroraVariant>(() => {
+    const stored = localStorage.getItem(KEY);
+    return stored === "light" || stored === "dark" ? stored : "light";
+  });
   const theme = useMemo(() => makeTheme(variant), [variant]);
   const ctx = useMemo<ColorMode>(
     () => ({
       variant,
       toggle: () =>
         setVariant((v) => {
-          const next: AuroraVariant = v === "teal" ? "indigo" : "teal";
+          const next: AuroraVariant = v === "light" ? "dark" : "light";
           localStorage.setItem(KEY, next);
           return next;
         }),

@@ -78,7 +78,7 @@ export function Landing(p: LandingProps) {
               sx={{
                 mt: 3,
                 fontSize: { xs: "1rem", md: "1.2rem" },
-                color: "rgba(255,255,255,0.82)",
+                color: "text.secondary",
                 width: 0,
                 minWidth: "100%",
               }}

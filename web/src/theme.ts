@@ -1,10 +1,10 @@
-import { createTheme, type Theme } from "@mui/material/styles";
+import { createTheme, type PaletteMode, type Theme } from "@mui/material/styles";
 
-// The app runs as an immersive, light-on-dark UI: every screen floats over the animated aurora, with
-// frosted-glass panels instead of opaque light cards. Two aurora variants ship — the default teal and
-// a "dark mode" purple→indigo — chosen at runtime. Both keep the signifier hues (success/warning/
-// error/info) identical so status colours never shift meaning.
-export type AuroraVariant = "teal" | "indigo";
+// The app floats every screen over an animated aurora, with frosted-glass panels. Two real modes
+// ship: a LIGHT mode (a soft grey aurora, dark purple text, light glass) and a DARK mode (a deep
+// purple aurora, light text, dark glass). Each mode carries its own signifier hues (success/warning/
+// error/info) — the dark mode's are brighter, for contrast on the dark aurora.
+export type AuroraVariant = "light" | "dark";
 
 const typeface = {
   font: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',
@@ -12,8 +12,19 @@ const typeface = {
   mono: '"SF Mono", ui-monospace, "Roboto Mono", Menlo, Consolas, monospace',
 };
 
-// Signifier colours — shared across every variant/mode, never themed.
-const signifier = {
+type Signifier = {
+  green: string;
+  greenSoft: string;
+  amber: string;
+  amberSoft: string;
+  red: string;
+  redSoft: string;
+  blue: string;
+  blueSoft: string;
+};
+
+// Light mode — the original mid-tone signifiers on light pastel fills.
+const LIGHT_SIGNIFIER: Signifier = {
   green: "#2f9e5e",
   greenSoft: "#e9f6ee",
   amber: "#c9810b",
@@ -24,46 +35,81 @@ const signifier = {
   blueSoft: "#e8f1fb",
 };
 
-// Per-variant: the accent colour, a soft translucent accent for fills/hovers, the frosted-glass panel
-// tint, and the aurora itself (a base fill + layered radial pools that drift over a base gradient).
-const VARIANTS: Record<
-  AuroraVariant,
-  { primary: string; primarySoft: string; contrast: string; glass: string; aurora: { base: string; image: string; size: string } }
-> = {
-  // Default — brand teals, now with a bright #47b5ff pool woven in; gradients blend the three.
-  teal: {
-    primary: "#4cc2ff",
-    primarySoft: "rgba(76,194,255,0.18)",
-    contrast: "#06202e",
-    glass: "rgba(9,30,45,0.55)",
+// Dark mode — brighter signifiers (better contrast on the dark purple) over translucent tints.
+const DARK_SIGNIFIER: Signifier = {
+  green: "#5fd68a",
+  greenSoft: "rgba(95,214,138,0.18)",
+  amber: "#f7c948",
+  amberSoft: "rgba(247,201,72,0.18)",
+  red: "#fb7185",
+  redSoft: "rgba(251,113,133,0.18)",
+  blue: "#60a5fa",
+  blueSoft: "rgba(96,165,250,0.18)",
+};
+
+interface Variant {
+  mode: PaletteMode;
+  primary: string;
+  primarySoft: string;
+  contrast: string;
+  glass: string;
+  glassBorder: string;
+  lineStrong: string;
+  text: { primary: string; secondary: string; disabled: string };
+  divider: string;
+  signifier: Signifier;
+  aurora: { base: string; image: string; size: string };
+}
+
+const SIZE = "180% 180%, 200% 200%, 220% 220%, 210% 210%, 160% 160%";
+
+const VARIANTS: Record<AuroraVariant, Variant> = {
+  // Light — a soft grey aurora between rgb(217,217,217) and rgb(240,240,240); purple ink, light glass.
+  light: {
+    mode: "light",
+    primary: "#6d28d9",
+    primarySoft: "rgba(109,40,217,0.10)",
+    contrast: "#ffffff",
+    glass: "rgba(255,255,255,0.62)",
+    glassBorder: "rgba(48,16,78,0.12)",
+    lineStrong: "rgba(48,16,78,0.24)",
+    text: { primary: "#30104e", secondary: "#5b5470", disabled: "#8e88a0" },
+    divider: "rgba(48,16,78,0.14)",
+    signifier: LIGHT_SIGNIFIER,
     aurora: {
-      base: "#0c2f44",
+      base: "#e8e8e8",
       image: [
-        "radial-gradient(40% 48% at 20% 28%, rgba(0,115,150,0.60), transparent 62%)", // #007396
-        "radial-gradient(44% 54% at 82% 30%, rgba(71,181,255,0.42), transparent 66%)", // #47b5ff
-        "radial-gradient(46% 56% at 60% 82%, rgba(21,67,95,0.65), transparent 60%)", // #15435f
-        "radial-gradient(52% 62% at 12% 84%, rgba(71,181,255,0.28), transparent 66%)", // #47b5ff
-        "linear-gradient(130deg, #15435f 0%, #007396 55%, #2f93d6 100%)",
+        "radial-gradient(40% 48% at 20% 28%, rgba(217,217,217,0.85), transparent 62%)",
+        "radial-gradient(44% 54% at 82% 30%, rgba(240,240,240,0.95), transparent 66%)",
+        "radial-gradient(46% 56% at 60% 82%, rgba(217,217,217,0.75), transparent 60%)",
+        "radial-gradient(52% 62% at 12% 84%, rgba(240,240,240,0.85), transparent 66%)",
+        "linear-gradient(130deg, #d9d9d9 0%, #e9e9e9 55%, #f0f0f0 100%)",
       ].join(", "),
-      size: "180% 180%, 200% 200%, 220% 220%, 210% 210%, 160% 160%",
+      size: SIZE,
     },
   },
-  // Dark mode — dark purple → indigo, cool complementary scheme.
-  indigo: {
-    primary: "#a78bfa",
-    primarySoft: "rgba(167,139,250,0.20)",
-    contrast: "#1a1438",
-    glass: "rgba(22,16,44,0.58)",
+  // Dark — a deep purple aurora between rgb(29,2,53) and rgb(48,16,78); light text, dark glass.
+  dark: {
+    mode: "dark",
+    primary: "#c4b5fd",
+    primarySoft: "rgba(196,181,253,0.18)",
+    contrast: "#1d0235",
+    glass: "rgba(40,16,72,0.55)",
+    glassBorder: "rgba(255,255,255,0.12)",
+    lineStrong: "rgba(255,255,255,0.22)",
+    text: { primary: "rgba(255,255,255,0.92)", secondary: "rgba(255,255,255,0.66)", disabled: "rgba(255,255,255,0.40)" },
+    divider: "rgba(255,255,255,0.14)",
+    signifier: DARK_SIGNIFIER,
     aurora: {
-      base: "#15122e",
+      base: "#1d0235",
       image: [
-        "radial-gradient(40% 48% at 20% 28%, rgba(79,70,229,0.50), transparent 62%)", // #4f46e5
-        "radial-gradient(44% 54% at 82% 30%, rgba(124,58,237,0.45), transparent 66%)", // #7c3aed
-        "radial-gradient(46% 56% at 60% 82%, rgba(49,46,129,0.65), transparent 60%)", // #312e81
-        "radial-gradient(52% 62% at 12% 84%, rgba(129,140,248,0.30), transparent 66%)", // #818cf8
-        "linear-gradient(130deg, #241a52 0%, #3b2f8f 55%, #4f46e5 100%)",
+        "radial-gradient(40% 48% at 20% 28%, rgba(48,16,78,0.85), transparent 62%)",
+        "radial-gradient(44% 54% at 82% 30%, rgba(29,2,53,0.90), transparent 66%)",
+        "radial-gradient(46% 56% at 60% 82%, rgba(48,16,78,0.78), transparent 60%)",
+        "radial-gradient(52% 62% at 12% 84%, rgba(29,2,53,0.88), transparent 66%)",
+        "linear-gradient(130deg, #1d0235 0%, #260a44 55%, #30104e 100%)",
       ].join(", "),
-      size: "180% 180%, 200% 200%, 220% 220%, 210% 210%, 160% 160%",
+      size: SIZE,
     },
   },
 };
@@ -73,11 +119,11 @@ function buildTokens(variant: AuroraVariant) {
   return {
     radius: 12,
     ...typeface,
-    ...signifier,
+    ...v.signifier,
     variant,
     primary: v.primary,
     glass: v.glass,
-    lineStrong: "rgba(255,255,255,0.22)",
+    lineStrong: v.lineStrong,
     aurora: v.aurora,
   };
 }
@@ -87,23 +133,20 @@ export function makeTheme(variant: AuroraVariant): Theme {
   const v = VARIANTS[variant];
   const tokens = buildTokens(variant);
   const heading = { fontFamily: typeface.heading } as const;
+  const sig = v.signifier;
 
   return createTheme({
     palette: {
-      mode: "dark",
+      mode: v.mode,
       primary: { main: v.primary, light: v.primarySoft, contrastText: v.contrast },
-      success: { main: signifier.green, light: signifier.greenSoft },
-      warning: { main: signifier.amber, light: signifier.amberSoft },
-      error: { main: signifier.red, light: signifier.redSoft },
-      info: { main: signifier.blue, light: signifier.blueSoft },
-      text: {
-        primary: "rgba(255,255,255,0.92)",
-        secondary: "rgba(255,255,255,0.66)",
-        disabled: "rgba(255,255,255,0.40)",
-      },
-      // default is transparent so content floats on the aurora; paper is the frosted glass tint.
+      success: { main: sig.green, light: sig.greenSoft },
+      warning: { main: sig.amber, light: sig.amberSoft },
+      error: { main: sig.red, light: sig.redSoft },
+      info: { main: sig.blue, light: sig.blueSoft },
+      text: v.text,
+      // default is transparent so content floats on the aurora; paper is the frosted-glass tint.
       background: { default: "transparent", paper: v.glass },
-      divider: "rgba(255,255,255,0.14)",
+      divider: v.divider,
     },
     shape: { borderRadius: tokens.radius },
     typography: {
@@ -119,17 +162,17 @@ export function makeTheme(variant: AuroraVariant): Theme {
       overline: heading,
     },
     components: {
-      // The base fill behind the fixed aurora layer (prevents white overscroll edges).
+      // The base fill behind the fixed aurora layer (prevents flat overscroll edges).
       MuiCssBaseline: { styleOverrides: { body: { backgroundColor: v.aurora.base } } },
       // Every Paper becomes a frosted-glass panel — translucent, blurred, hairline-bordered — so the
-      // aurora reads through it. This is what makes the boxes immersive rather than light surfaces.
+      // aurora reads through it. This is what makes the boxes immersive rather than flat surfaces.
       MuiPaper: {
         styleOverrides: {
           root: {
             backgroundImage: "none",
             backgroundColor: v.glass,
             backdropFilter: "blur(14px)",
-            border: "1px solid rgba(255,255,255,0.12)",
+            border: `1px solid ${v.glassBorder}`,
           },
         },
       },

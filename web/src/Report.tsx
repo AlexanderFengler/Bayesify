@@ -59,25 +59,18 @@ function statusMeta(status: StepStatus): { color: PaletteKey | "disabled"; label
 const statusSx = (color: PaletteKey | "disabled") =>
   color === "disabled" ? "text.disabled" : `${color}.main`;
 
-// The at-a-glance cells are colour-coded across the whole cell (soft status fill + status text), the
-// way the original strip was. `.light` palette slots are the *-soft tokens; NA uses a neutral grey.
-const STATUS_GLYPH: Record<StepStatus, string> = {
-  done_well: "✓",
-  partial: "◐",
-  missing: "✗",
-  not_applicable: "–",
-};
 const STRIP_LEGEND: StepStatus[] = ["done_well", "partial", "missing", "not_applicable"];
-function cellColors(status: StepStatus): { bg: string; fg: string } {
+// The signifier (status) main colour, resolved from the theme — used to tint the frosted-glass cells.
+function statusMainColor(t: Theme, status: StepStatus): string {
   switch (status) {
     case "done_well":
-      return { bg: "success.light", fg: "success.main" };
+      return t.palette.success.main;
     case "partial":
-      return { bg: "warning.light", fg: "warning.main" };
+      return t.palette.warning.main;
     case "missing":
-      return { bg: "error.light", fg: "error.main" };
+      return t.palette.error.main;
     default:
-      return { bg: "action.hover", fg: "text.disabled" };
+      return t.palette.text.disabled;
   }
 }
 
@@ -125,7 +118,7 @@ export function Report({
   return (
     <>
       <Box sx={{ flex: 1 }}>
-        <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
+        <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
           {/* back to summary — full report only, pinned at the top */}
           <Collapse in={expanded} timeout={300}>
             <Box sx={{ mb: 2 }}>
@@ -141,31 +134,29 @@ export function Report({
             </Box>
           </Collapse>
 
-          {/* meta + title — persistent (the title stays visible through the morph) */}
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-              <Typography variant="overline" color="text.secondary">
-                Report
-              </Typography>
-              <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
-            </Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-              {title}
-            </Typography>
-          </Box>
-
-          {/* chips (collapse away in the full report) + score data (persists), one row, scores right */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 3, flexWrap: "wrap", mt: 2 }}>
-            <Collapse in={!expanded} orientation="horizontal" timeout={300} sx={{ flexShrink: 0 }}>
-              {/* hidden on narrow screens, where the scores need the full row width */}
-              <Box sx={{ display: { xs: "none", md: "flex" }, gap: 5, pr: 2, transition: "opacity 240ms", opacity: expanded ? 0 : 1 }}>
-                <Stat label="relevance" value={r.relevance.label} />
-                <Stat label="rubric" value={r.rubric_profile} />
-                {r.paper_class && (
-                  <Stat label="paper type" value={r.paper_class.primary.replace(/_/g, " ")} />
-                )}
+          {/* top row: the title block (left) and the score data (right), tops aligned to "REPORT" */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 3, flexWrap: "wrap" }}>
+            <Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+                <Typography variant="overline" color="text.secondary">
+                  Report
+                </Typography>
+                <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
               </Box>
-            </Collapse>
+              <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                {title}
+              </Typography>
+              {/* chips under the title — collapse away in the full report; hidden on the narrowest screens */}
+              <Collapse in={!expanded} timeout={300}>
+                <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 5, mt: 2, transition: "opacity 240ms", opacity: expanded ? 0 : 1 }}>
+                  <Stat label="relevance" value={r.relevance.label} />
+                  <Stat label="rubric" value={r.rubric_profile} />
+                  {r.paper_class && (
+                    <Stat label="paper type" value={r.paper_class.primary.replace(/_/g, " ")} />
+                  )}
+                </Box>
+              </Collapse>
+            </Box>
             <ScoreMetrics r={r} />
           </Box>
 
@@ -342,7 +333,7 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
             )}
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            quality score
+            Bayesify Score
           </Typography>
           {quality != null && (
             <Box sx={{ mt: 0.75, height: 6, borderRadius: 3, bgcolor: "action.hover", overflow: "hidden", width: 120 }}>
@@ -383,7 +374,6 @@ function Downloads({ paperId }: { paperId: string }) {
   return (
     <>
       <Button
-        size="small"
         variant="outlined"
         startIcon={<DownloadIcon />}
         endIcon={<ExpandMoreIcon />}
@@ -440,7 +430,6 @@ function StepGlance({
     <Box sx={{ mt: 1.5, display: "flex", flexWrap: "nowrap", gap: 1, overflowX: "auto" }}>
       {steps.map((a) => {
         const isSel = a.step_id === selected;
-        const c = cellColors(a.status);
         return (
           <ButtonBase
             key={a.step_id}
@@ -450,44 +439,50 @@ function StepGlance({
             aria-pressed={isSel}
             sx={{
               flex: "1 1 0",
-              minWidth: 72,
-              alignSelf: "stretch",
+              minWidth: 96,
+              aspectRatio: showTitles ? "1 / 1" : "auto", // squares in the summary
+              overflow: "hidden",
               flexDirection: "column",
               alignItems: "stretch",
               justifyContent: "flex-start", // override ButtonBase's default centring
-              p: 1,
+              p: 1.25,
               borderRadius: 1, // less round
-              bgcolor: c.bg,
-              color: c.fg,
-              // selection (and hover) read as a ring so the status colour stays intact
+              // frosted-glass tile, tinted by the status colour (like the start-page panels)
+              bgcolor: (t) => alpha(statusMainColor(t, a.status), 0.16),
+              backdropFilter: "blur(8px)",
+              border: "1px solid",
+              borderColor: (t) => alpha(statusMainColor(t, a.status), 0.4),
+              color: "text.primary",
+              // selection (and hover) read as a ring in the status colour so the tint stays intact
               outline: "2px solid",
-              outlineColor: isSel ? "currentColor" : "transparent",
+              outlineColor: isSel ? (t) => statusMainColor(t, a.status) : "transparent",
               transition: "outline-color 120ms",
-              "&:hover": { outlineColor: isSel ? "currentColor" : "primary.light" },
+              "&:hover": { outlineColor: isSel ? undefined : "primary.main" },
             }}
           >
-            {/* title — top-aligned; collapses away (height + fade) in the full report */}
+            {/* top: step number, with its status indicator as a circle dot */}
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.75, width: "100%" }}>
+              <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 13, fontWeight: 700 }}>
+                {a.step_id}
+              </Box>
+              <Box
+                sx={{ width: 12, height: 12, borderRadius: "50%", flexShrink: 0, bgcolor: (t) => statusMainColor(t, a.status) }}
+              />
+            </Box>
+            {/* a divider, then the short title — both collapse away in the full report */}
             <Box
               sx={{
                 width: "100%",
                 overflow: "hidden",
-                maxHeight: showTitles ? 64 : 0,
+                maxHeight: showTitles ? 200 : 0,
                 opacity: showTitles ? 1 : 0,
                 transition: "max-height 300ms ease, opacity 200ms ease",
               }}
             >
-              <Typography sx={{ fontSize: "0.78rem", fontWeight: 600, lineHeight: 1.2, textAlign: "left", color: "inherit" }}>
+              <Box sx={{ borderTop: "1px solid", borderColor: "divider", my: 1 }} />
+              <Typography sx={{ fontSize: "0.78rem", fontWeight: 600, lineHeight: 1.2, textAlign: "left", color: "text.primary" }}>
                 {stepNames[a.step_id] ?? a.step_id}
               </Typography>
-            </Box>
-            {/* step index — vertically centred in the remaining space; status glyph to the right */}
-            <Box sx={{ flex: 1, minHeight: 22, display: "flex", alignItems: "center", width: "100%", gap: 0.75 }}>
-              <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 700 }}>
-                {a.step_id}
-              </Box>
-              <Box component="span" sx={{ fontSize: 15, lineHeight: 1, ml: "auto" }}>
-                {STATUS_GLYPH[a.status]}
-              </Box>
             </Box>
           </ButtonBase>
         );
@@ -561,9 +556,7 @@ function StepDetail({
             </Box>
           )}
 
-          <SuggestedFixes suggestions={a.suggestions} fixes={fixes} />
-
-          <EvidencePanel evidence={a.evidence} />
+          <FixesAndEvidence suggestions={a.suggestions} fixes={fixes} evidence={a.evidence} />
 
           {a.standards.length > 0 && (
             <Box>
@@ -604,30 +597,55 @@ function StepDetail({
   );
 }
 
-// Per-step suggested fixes, behind a collapsible link (styled like the "See how our rubrics compare"
-// link). Sorted high→low by severity; coverage impact is pulled from the fix-list where the texts match.
 const SEV_RANK: Record<string, number> = { error: 0, warning: 1, info: 2 };
 
-function SuggestedFixes({ suggestions, fixes }: { suggestions: Suggestion[]; fixes: FixItem[] }) {
-  const [open, setOpen] = useState(false);
-  if (suggestions.length === 0) return null;
+// A disclosure toggle styled like the "See how our rubrics compare" link — one shared style so the
+// "Suggested fixes" and "In the paper" toggles read identically.
+function DisclosureToggle({ open, onClick, label }: { open: boolean; onClick: () => void; label: string }) {
+  return (
+    <Link
+      component="button"
+      type="button"
+      underline="hover"
+      onClick={onClick}
+      sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, fontWeight: 600, fontSize: "0.875rem" }}
+    >
+      {label}
+      <ExpandMoreIcon sx={{ fontSize: 18, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
+    </Link>
+  );
+}
+
+// Per-step "Suggested fixes" + "In the paper" — the two toggles share one row (same font); each opens
+// its own panel below. Fixes are sorted high→low by severity, with coverage impact from the fix-list.
+function FixesAndEvidence({
+  suggestions,
+  fixes,
+  evidence,
+}: {
+  suggestions: Suggestion[];
+  fixes: FixItem[];
+  evidence: Evidence[];
+}) {
+  const [showFixes, setShowFixes] = useState(false);
+  const [showEvidence, setShowEvidence] = useState(false);
+  const spans = evidence.filter((e) => e.kind !== "absence_search").map((e) => e.span);
   const sorted = [...suggestions].sort(
     (a, b) => (SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9),
   );
   const impact = new Map(fixes.map((f) => [f.text, f.coverage_delta]));
+  if (suggestions.length === 0 && spans.length === 0) return null;
   return (
     <Box>
-      <Link
-        component="button"
-        type="button"
-        underline="hover"
-        onClick={() => setOpen((o) => !o)}
-        sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, fontWeight: 600, fontSize: "0.875rem" }}
-      >
-        Suggested fixes ({suggestions.length})
-        <ExpandMoreIcon sx={{ fontSize: 18, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
-      </Link>
-      <Collapse in={open}>
+      <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+        {suggestions.length > 0 && (
+          <DisclosureToggle open={showFixes} onClick={() => setShowFixes((o) => !o)} label={`Suggested fixes (${suggestions.length})`} />
+        )}
+        {spans.length > 0 && (
+          <DisclosureToggle open={showEvidence} onClick={() => setShowEvidence((o) => !o)} label={`In the paper (${spans.length})`} />
+        )}
+      </Box>
+      <Collapse in={showFixes}>
         <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 2 }}>
           {sorted.map((sug, i) => {
             const cd = impact.get(sug.text);
@@ -639,6 +657,24 @@ function SuggestedFixes({ suggestions, fixes }: { suggestions: Suggestion[]; fix
               />
             );
           })}
+        </Box>
+      </Collapse>
+      <Collapse in={showEvidence}>
+        <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+          {spans.map((s, i) => (
+            <Box key={i} sx={{ pl: 1.5, borderLeft: "3px solid", borderColor: "divider" }}>
+              <Typography variant="body2" sx={{ display: "flex", gap: 0.5 }}>
+                <FormatQuoteIcon sx={{ fontSize: 16, color: "text.disabled", flex: "0 0 auto", mt: "2px" }} />
+                <span>
+                  {s.quote}
+                  <Box component="span" sx={{ display: "block", color: "text.secondary", fontSize: "0.75rem", mt: 0.25 }}>
+                    §{s.section_id}
+                    {s.page != null && `, p.${s.page}`}
+                  </Box>
+                </span>
+              </Typography>
+            </Box>
+          ))}
         </Box>
       </Collapse>
     </Box>
@@ -665,46 +701,6 @@ function SuggestionRow({ sug, impact }: { sug: Pick<Suggestion, "severity" | "te
           {impact}
         </Typography>
       )}
-    </Box>
-  );
-}
-
-// "In the paper" — collapsible verbatim evidence spans. Replaces the CSS <details> with MUI Collapse.
-function EvidencePanel({ evidence }: { evidence: Evidence[] }) {
-  const spans = evidence.filter((e) => e.kind !== "absence_search").map((e) => e.span);
-  const [open, setOpen] = useState(false);
-  if (spans.length === 0) return null;
-  return (
-    <Box>
-      <Link
-        component="button"
-        type="button"
-        underline="hover"
-        color="text.secondary"
-        onClick={() => setOpen((o) => !o)}
-        sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, fontSize: "0.8rem", fontWeight: 600 }}
-      >
-        In the paper ({spans.length})
-        <ExpandMoreIcon sx={{ fontSize: 18, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
-      </Link>
-      <Collapse in={open}>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
-          {spans.map((s, i) => (
-            <Box key={i} sx={{ pl: 1.5, borderLeft: "3px solid", borderColor: "divider" }}>
-              <Typography variant="body2" sx={{ display: "flex", gap: 0.5 }}>
-                <FormatQuoteIcon sx={{ fontSize: 16, color: "text.disabled", flex: "0 0 auto", mt: "2px" }} />
-                <span>
-                  {s.quote}
-                  <Box component="span" sx={{ display: "block", color: "text.secondary", fontSize: "0.75rem", mt: 0.25 }}>
-                    §{s.section_id}
-                    {s.page != null && `, p.${s.page}`}
-                  </Box>
-                </span>
-              </Typography>
-            </Box>
-          ))}
-        </Box>
-      </Collapse>
     </Box>
   );
 }

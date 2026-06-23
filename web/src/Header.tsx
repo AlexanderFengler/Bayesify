@@ -30,8 +30,8 @@ function Wordmark() {
 // Always-visible reminder of the outbound data path for the current mode (PRIVACY.md F3).
 function ModeChip({ mode }: { mode: "full" | "local" }) {
   const sx = {
-    bgcolor: "rgba(255,255,255,0.16)",
-    color: "common.white",
+    bgcolor: "action.selected",
+    color: "text.primary",
     "& .MuiChip-icon": { color: "inherit" },
   } as const;
   return mode === "local" ? (
@@ -55,7 +55,7 @@ export function Header() {
       component="header"
       position="static"
       elevation={0}
-      sx={{ background: "transparent", color: "common.white" }}
+      sx={{ background: "transparent", color: "text.primary" }}
     >
       <Container maxWidth={false}>
         <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
@@ -68,7 +68,7 @@ export function Header() {
               aria-label="toggle dark mode"
               sx={{ color: "inherit" }}
             >
-              {variant === "teal" ? (
+              {variant === "light" ? (
                 <DarkModeOutlinedIcon fontSize="small" />
               ) : (
                 <LightModeOutlinedIcon fontSize="small" />

@@ -46,7 +46,7 @@ function GoldText({ children }: { children: React.ReactNode }) {
     <Box
       component="span"
       sx={{
-        backgroundImage: "linear-gradient(90deg, #a9791c, #ffd86b, #fff3c2, #ffd86b, #a9791c)",
+        backgroundImage: "linear-gradient(90deg, #9a6a14, #d9a832, #ffce5a, #d9a832, #9a6a14)",
         backgroundSize: "200% 100%",
         WebkitBackgroundClip: "text",
         backgroundClip: "text",
@@ -79,7 +79,7 @@ function GetStarted({ onClick }: { onClick: () => void }) {
         "&:hover .cta-circle": { transform: "translateX(3px)" },
       }}
     >
-      <Typography sx={{ fontWeight: 600, fontSize: "1.15rem", color: "common.white" }}>
+      <Typography sx={{ fontWeight: 600, fontSize: "1.15rem", color: "text.primary" }}>
         Get started
       </Typography>
       <Box
@@ -88,8 +88,8 @@ function GetStarted({ onClick }: { onClick: () => void }) {
           width: 46,
           height: 46,
           borderRadius: "50%",
-          bgcolor: "common.white",
-          color: "#0c2f44",
+          bgcolor: "primary.main",
+          color: "primary.contrastText",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

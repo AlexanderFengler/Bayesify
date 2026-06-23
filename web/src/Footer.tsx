@@ -11,7 +11,7 @@ export function Footer() {
   return (
     <Box
       component="footer"
-      sx={{ color: "rgba(255,255,255,0.92)", borderTop: 1, borderColor: "rgba(255,255,255,0.18)" }}
+      sx={{ color: "text.secondary", borderTop: 1, borderColor: "divider" }}
     >
       <Container maxWidth={false}>
         <Box
@@ -24,7 +24,7 @@ export function Footer() {
             py: 2,
           }}
         >
-          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.7)", maxWidth: 560 }}>
+          <Typography variant="caption" sx={{ color: "text.secondary", maxWidth: 560 }}>
             Formative report, not a verdict — Bayesify reports per-step practice, not a pass/fail.
           </Typography>
           <Box sx={{ display: "flex", gap: 3 }}>
@@ -46,7 +46,7 @@ function FooterLink({ onClick, children }: { onClick: () => void; children: Reac
       type="button"
       underline="hover"
       onClick={onClick}
-      sx={{ color: "inherit", fontSize: "0.875rem", "&:hover": { color: "common.white" } }}
+      sx={{ color: "inherit", fontSize: "0.875rem", "&:hover": { color: "text.primary" } }}
     >
       {children}
     </Link>

@@ -90,7 +90,7 @@ export function Analyzing({
           </Box>
         </Typography>
         {source && (
-          <Typography sx={{ mt: 1, color: "rgba(255,255,255,0.78)", wordBreak: "break-all" }}>
+          <Typography sx={{ mt: 1, color: "text.secondary", wordBreak: "break-all" }}>
             {source}
           </Typography>
         )}
@@ -143,7 +143,7 @@ function StepFlow({
 // The line joining two nodes — a sibling of the nodes, offset to line up with the circle's centre
 // ((CIRCLE - thickness) / 2). Horizontal between columns, vertical down the gutter on phones.
 function Connector({ horizontal, filled }: { horizontal: boolean; filled: boolean }) {
-  const color = filled ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.22)";
+  const color = filled ? "primary.main" : "divider";
   const offset = `${(CIRCLE - 3) / 2}px`;
   return horizontal ? (
     <Box sx={{ flex: 1, height: 3, mt: offset, mx: 0.5, bgcolor: color, borderRadius: 2, transition: "background-color 200ms" }} />
@@ -171,7 +171,7 @@ function StepNode({ state, label, horizontal }: { state: StepState; label: strin
           fontSize: "0.875rem",
           fontWeight: state === "pending" ? 400 : 600,
           textTransform: "capitalize",
-          color: state === "pending" ? "rgba(255,255,255,0.6)" : "common.white",
+          color: state === "pending" ? "text.disabled" : "text.primary",
           textAlign: "center",
         }}
       >
@@ -196,7 +196,7 @@ function NodeCircle({ state }: { state: StepState }) {
 
   if (state === "done") {
     return (
-      <Box sx={{ ...base, bgcolor: "common.white", color: "primary.main" }}>
+      <Box sx={{ ...base, bgcolor: "primary.main", color: "primary.contrastText" }}>
         <CheckIcon sx={{ fontSize: 28 }} />
       </Box>
     );
@@ -205,11 +205,11 @@ function NodeCircle({ state }: { state: StepState }) {
     return (
       <Box sx={{ ...base }}>
         {/* faint full ring as a track, with the spinner on top */}
-        <CircularProgress size={CIRCLE} thickness={3.5} sx={{ color: "rgba(255,255,255,0.25)", position: "absolute" }} variant="determinate" value={100} />
-        <CircularProgress size={CIRCLE} thickness={3.5} sx={{ color: "common.white" }} />
+        <CircularProgress size={CIRCLE} thickness={3.5} sx={{ color: "divider", position: "absolute" }} variant="determinate" value={100} />
+        <CircularProgress size={CIRCLE} thickness={3.5} sx={{ color: "primary.main" }} />
       </Box>
     );
   }
   // pending: hollow outline
-  return <Box sx={{ ...base, border: "3px solid rgba(255,255,255,0.3)" }} />;
+  return <Box sx={{ ...base, border: "3px solid", borderColor: "divider" }} />;
 }

@@ -18,7 +18,7 @@ export function HeroShell({
         display: "flex",
         flexDirection: "column",
         justifyContent: "center", // vertically centre the centerpiece in the page
-        color: "common.white",
+        color: "text.primary",
       }}
     >
       <Container maxWidth={maxWidth} sx={{ py: { xs: 4, md: 6 } }}>
