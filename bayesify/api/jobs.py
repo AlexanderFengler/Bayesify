@@ -207,7 +207,7 @@ def _analysis_report_payload(job: Job) -> dict:
 
 def _save_analysis_report_payload(job: Job) -> None:
     """Persist one analysis report event when a user-triggered analysis completes."""
-    save_event(_analysis_report_payload(job))
+    asyncio.create_task(asyncio.to_thread(save_event, _analysis_report_payload(job)))
 
 
 async def run_job(job: Job) -> None:
