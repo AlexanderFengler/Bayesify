@@ -407,7 +407,8 @@ async def rate_submit(body: RateSubmit) -> dict:
     rstore = jobsmod._ratings_store()
     rstore.add(sub)
     n = rstore.count_for(sub.source_sha256, sub.rubric_profile, sub.paper_id)
-    save_event(
+    await asyncio.to_thread(
+        save_event,
         {
             "event": "blind_rating_submitted",
             "paper_id": sub.paper_id,
@@ -415,7 +416,7 @@ async def rate_submit(body: RateSubmit) -> dict:
             "rubric_profile": sub.rubric_profile,
             "submission": sub.model_dump(mode="json"),
             "n_ratings": n,
-        }
+        },
     )
     return {"recorded": True, "n_ratings": n}
 
