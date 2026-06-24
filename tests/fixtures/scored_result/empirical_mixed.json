@@ -9,8 +9,9 @@
     "overridden": false
   },
   "paper_class": {
-    "primary": "empirical",
-    "secondary": null,
+    "labels": [
+      "data_analysis"
+    ],
     "confidence": 0.9,
     "rationale": "real RT data",
     "evidence_refs": [
@@ -27,13 +28,13 @@
     {
       "step_id": "S1",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [],
       "standards": [],
       "did_well": [
-        "States a hierarchical drift-diffusion generative model (Â§s02)."
+        "States a hierarchical drift-diffusion generative model (§s02)."
       ],
       "suggestions": [],
       "adversarial_verdict": null
@@ -41,7 +42,7 @@
     {
       "step_id": "S2",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [],
@@ -53,7 +54,7 @@
     {
       "step_id": "S3",
       "applicable": true,
-      "applicability_reason": "Recommended for empirical papers.",
+      "applicability_reason": "Recommended for data_analysis papers.",
       "status": "partial",
       "confidence": 0.9,
       "evidence": [],
@@ -72,13 +73,13 @@
     {
       "step_id": "S4",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [],
       "standards": [],
       "did_well": [
-        "Reports \"all R-hat < 1.01\" and ESS for every parameter (Â§s02)."
+        "Reports \"all R-hat < 1.01\" and ESS for every parameter (§s02)."
       ],
       "suggestions": [],
       "adversarial_verdict": null
@@ -86,7 +87,7 @@
     {
       "step_id": "S5",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "missing",
       "confidence": 0.9,
       "evidence": [],
@@ -117,7 +118,7 @@
     {
       "step_id": "S7",
       "applicable": true,
-      "applicability_reason": "Recommended for empirical papers.",
+      "applicability_reason": "Recommended for data_analysis papers.",
       "status": "missing",
       "confidence": 0.9,
       "evidence": [],
@@ -148,7 +149,7 @@
     {
       "step_id": "S9",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "partial",
       "confidence": 0.9,
       "evidence": [],
@@ -167,7 +168,7 @@
     {
       "step_id": "S10",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [],

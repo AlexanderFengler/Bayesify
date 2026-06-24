@@ -23,7 +23,9 @@
       "relationship": "independent",
       "relevance_label": "yes",
       "relevance_rationale": "fits a Bayesian model",
-      "paper_class_label": "numerical_experiment",
+      "paper_class_labels": [
+        "numerical_analysis"
+      ],
       "paper_class_rationale": "",
       "gate_facts": {
         "inference_method": "unstated",
@@ -203,7 +205,9 @@
       "relationship": "independent",
       "relevance_label": "yes",
       "relevance_rationale": "fits a Bayesian model",
-      "paper_class_label": "numerical_experiment",
+      "paper_class_labels": [
+        "numerical_analysis"
+      ],
       "paper_class_rationale": "",
       "gate_facts": {
         "inference_method": "unstated",
@@ -384,7 +388,9 @@
     "relationship": "consensus",
     "relevance_label": "yes",
     "relevance_rationale": "fits a Bayesian model",
-    "paper_class_label": "numerical_experiment",
+    "paper_class_labels": [
+      "numerical_analysis"
+    ],
     "paper_class_rationale": "",
     "gate_facts": {
       "inference_method": "unstated",

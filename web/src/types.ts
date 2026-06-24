@@ -59,8 +59,7 @@ export interface Relevance {
   overridden: boolean; // true when a human overrode the gate (the rerun escape hatch)
 }
 export interface PaperClass {
-  primary: string;
-  secondary: string | null;
+  labels: string[];
   confidence: number;
   rationale: string;
 }

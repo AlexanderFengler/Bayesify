@@ -1,8 +1,9 @@
 [
   {
-    "expect_primary": "empirical",
+    "expect_labels": [
+      "data_analysis"
+    ],
     "expect_relevance": "yes",
-    "expect_secondary": null,
     "id": "emp1",
     "note": "clear empirical Bayesian fit",
     "parsed": {
@@ -34,13 +35,15 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": "empirical",
+    "expect_labels": [
+      "data_analysis"
+    ],
     "expect_relevance": "yes",
-    "expect_secondary": null,
     "id": "emp2",
     "note": "empirical, software+method",
     "parsed": {
@@ -72,13 +75,15 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": "empirical",
+    "expect_labels": [
+      "data_analysis"
+    ],
     "expect_relevance": "yes",
-    "expect_secondary": null,
     "id": "emp3",
     "note": "empirical, diagnostics",
     "parsed": {
@@ -110,13 +115,15 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": "numerical_experiment",
+    "expect_labels": [
+      "numerical_analysis"
+    ],
     "expect_relevance": "yes",
-    "expect_secondary": null,
     "id": "num1",
     "note": "method comparison on simulated data",
     "parsed": {
@@ -148,13 +155,16 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": "numerical_experiment",
+    "expect_labels": [
+      "method_development",
+      "numerical_analysis"
+    ],
     "expect_relevance": "yes",
-    "expect_secondary": null,
     "id": "num2",
     "note": "sampler benchmark, software+diagnostics",
     "parsed": {
@@ -186,13 +196,15 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": "numerical_experiment",
+    "expect_labels": [
+      "numerical_analysis"
+    ],
     "expect_relevance": "yes",
-    "expect_secondary": null,
     "id": "num3",
     "note": "SBC validation study",
     "parsed": {
@@ -224,15 +236,18 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": "methodological",
+    "expect_labels": [
+      "method_development",
+      "theoretical_analysis"
+    ],
     "expect_relevance": "yes",
-    "expect_secondary": null,
     "id": "meth1",
-    "note": "analytic methodological \u2014 method family only",
+    "note": "analytic methodological - method family only",
     "parsed": {
       "parser": "fixture",
       "parser_version": "0",
@@ -262,13 +277,16 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": "methodological",
+    "expect_labels": [
+      "method_development",
+      "numerical_analysis"
+    ],
     "expect_relevance": "yes",
-    "expect_secondary": null,
     "id": "meth2",
     "note": "new algorithm + diagnostics",
     "parsed": {
@@ -300,13 +318,16 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": "methodological",
+    "expect_labels": [
+      "method_development",
+      "data_analysis"
+    ],
     "expect_relevance": "yes",
-    "expect_secondary": "empirical",
     "id": "meth3",
     "note": "mixed: method contribution + real-data application",
     "parsed": {
@@ -338,13 +359,13 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": null,
+    "expect_labels": [],
     "expect_relevance": "partial",
-    "expect_secondary": null,
     "id": "part1",
     "note": "lone Bayes factor in a frequentist paper",
     "parsed": {
@@ -376,13 +397,13 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": null,
+    "expect_labels": [],
     "expect_relevance": "partial",
-    "expect_secondary": null,
     "id": "part2",
     "note": "one Bayesian robustness check",
     "parsed": {
@@ -414,13 +435,13 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": null,
+    "expect_labels": [],
     "expect_relevance": "partial",
-    "expect_secondary": null,
     "id": "part3",
     "note": "peripheral Bayesian sub-analysis",
     "parsed": {
@@ -452,13 +473,13 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": null,
+    "expect_labels": [],
     "expect_relevance": "no",
-    "expect_secondary": null,
     "id": "dec1",
     "note": "frequentist OLS; only open-science hit",
     "parsed": {
@@ -490,13 +511,13 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": null,
+    "expect_labels": [],
     "expect_relevance": "no",
-    "expect_secondary": null,
     "id": "dec2",
     "note": "decoy: 'Bayes' only in the reference list",
     "parsed": {
@@ -535,13 +556,13 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": null,
+    "expect_labels": [],
     "expect_relevance": "no",
-    "expect_secondary": null,
     "id": "dec3",
     "note": "ML paper, no Bayesian statistics",
     "parsed": {
@@ -573,13 +594,13 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   },
   {
-    "expect_primary": null,
+    "expect_labels": [],
     "expect_relevance": "no",
-    "expect_secondary": null,
     "id": "dec4",
     "note": "classical statistics, no Bayesian content",
     "parsed": {
@@ -611,7 +632,8 @@
         "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
         "source": "upload",
         "version_label": "fixture"
-      }
+      },
+      "title": null
     }
   }
 ]

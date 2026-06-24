@@ -45,7 +45,7 @@ def test_relevant_runs_both_stages() -> None:
             label=RelevanceLabel.yes, confidence=0.9, rationale="Bayesian", evidence_refs=[0]
         ),
         PaperClass(
-            primary=PaperClassLabel.empirical,
+            labels=[PaperClassLabel.data_analysis],
             confidence=0.8,
             rationale="real data",
             evidence_refs=[0],
@@ -54,5 +54,5 @@ def test_relevant_runs_both_stages() -> None:
     rel, cls, costs = screen_and_classify(_parsed(), [], client=client)
 
     assert rel.label is RelevanceLabel.yes
-    assert cls is not None and cls.primary is PaperClassLabel.empirical
+    assert cls is not None and cls.labels == [PaperClassLabel.data_analysis]
     assert [c.stage for c in costs] == ["screen", "classify"]

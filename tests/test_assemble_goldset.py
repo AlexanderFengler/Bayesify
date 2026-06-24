@@ -35,7 +35,7 @@ def _rating(rater_id: str, rel: RelevanceLabel = RelevanceLabel.yes) -> Rating:
         relationship=RaterRelationship.independent,
         relevance_label=rel,
         relevance_rationale="r",
-        paper_class_label=None if no else PaperClassLabel.empirical,
+        paper_class_labels=[] if no else [PaperClassLabel.data_analysis],
         gate_facts=None if no else GateFacts(),
         steps=[]
         if no

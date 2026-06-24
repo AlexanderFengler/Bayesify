@@ -9,6 +9,7 @@ cross-check e's flags (the f-score DoD).
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from bayesify.core.rubric.models import RubricStep
@@ -50,6 +51,38 @@ def step_applicability(
     if pc in step.recommended_for:
         return StepApplicability(True, ExpectationTier.recommended, f"Recommended for {pc} papers.")
     return StepApplicability(True, ExpectationTier.none, f"Optional for {pc} papers.")
+
+
+def step_applicability_for_labels(
+    step: RubricStep, paper_classes: Sequence[PaperClassLabel], gate_facts: GateFacts
+) -> StepApplicability:
+    """Resolve applicability for a genuinely multi-label paper.
+
+    Gate-driven N/A still wins. Otherwise the strongest expectation across all selected paper
+    classes wins: expected > recommended > optional.
+    """
+    if not paper_classes:
+        raise ValueError("paper_classes must contain at least one label")
+    resolved = [step_applicability(step, label, gate_facts) for label in paper_classes]
+    if all(not r.applicable for r in resolved):
+        return resolved[0]
+    pairs = list(zip(paper_classes, resolved, strict=True))
+    expected = [
+        label.value for label, result in pairs if result.tier is ExpectationTier.expected
+    ]
+    if expected:
+        return StepApplicability(
+            True, ExpectationTier.expected, f"Expected for {', '.join(expected)} papers."
+        )
+    recommended = [
+        label.value for label, result in pairs if result.tier is ExpectationTier.recommended
+    ]
+    if recommended:
+        return StepApplicability(
+            True, ExpectationTier.recommended, f"Recommended for {', '.join(recommended)} papers."
+        )
+    labels = ", ".join(label.value for label in paper_classes)
+    return StepApplicability(True, ExpectationTier.none, f"Optional for {labels} papers.")
 
 
 def _escalation_reason(gate, gate_facts: GateFacts) -> str | None:

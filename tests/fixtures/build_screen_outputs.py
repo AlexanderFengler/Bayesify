@@ -26,7 +26,7 @@ def main() -> None:
             evidence_refs=[0, 3, 13],
         ).model_dump(mode="json"),
         "paper_class": PaperClass(
-            primary=PaperClassLabel.empirical,
+            labels=[PaperClassLabel.data_analysis],
             confidence=0.9,
             rationale="Fits a Bayesian model to real reaction-time data to draw substantive "
             "conclusions; no simulated-truth or methods-contribution framing.",

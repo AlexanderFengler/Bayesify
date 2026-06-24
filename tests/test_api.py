@@ -167,7 +167,7 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
         "relationship": "independent",
         "relevance_label": "yes",
         "relevance_rationale": "fits a hierarchical Bayesian model",
-        "paper_class_label": "empirical",
+        "paper_class_labels": ["data_analysis"],
         "paper_class_rationale": "fit to behavioural data",
         "gate_facts": {
             "inference_method": "mcmc",
@@ -189,7 +189,7 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
     ok = client.post("/api/rate/submit", json={"paper_id": job.id, "rating": rating})
     assert ok.status_code == 200 and ok.json()["recorded"] is True
     # the Rating contract is enforced at the boundary: 'partial' relevance needs a paper_class
-    bad = {**rating, "relevance_label": "partial", "paper_class_label": None}
+    bad = {**rating, "relevance_label": "partial", "paper_class_labels": []}
     r = client.post("/api/rate/submit", json={"paper_id": job.id, "rating": bad})
     assert r.status_code == 422
 
@@ -371,7 +371,7 @@ def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:
 
 
 def _full_fake(
-    relevance: str = "yes", judge_status: str = "adequate", paper_class: str = "empirical"
+    relevance: str = "yes", judge_status: str = "adequate", paper_class: str = "data_analysis"
 ):
     """A schema-aware fake for the whole full pipeline: Relevance for screen, PaperClass for
     classify, StepJudgment for each assess judge call, RefuterVerdict for refuters. Records the
@@ -396,7 +396,7 @@ def _full_fake(
                 )
             elif schema.__name__ == "PaperClass":
                 p = PaperClass(
-                    primary=PaperClassLabel(paper_class),
+                    labels=[PaperClassLabel(paper_class)],
                     confidence=0.8,
                     rationale="r",
                     evidence_refs=[0],
@@ -427,7 +427,7 @@ def test_full_upload_grades_end_to_end(tmp_path, monkeypatch) -> None:
     r = job.result
     assert job.status == "done" and r is not None
     assert r.relevance.label is RelevanceLabel.yes  # real screen
-    assert r.paper_class.primary is PaperClassLabel.empirical  # real classify
+    assert r.paper_class.labels == [PaperClassLabel.data_analysis]  # real classify
     assert len(r.step_assessments) == 10 and r.profile is not None  # real assess + score (no stub)
     assert r.coverage is not None and r.quality_score is not None
     assert job.backend == "api"
@@ -549,7 +549,7 @@ def test_review_paper_short_circuits(tmp_path, monkeypatch) -> None:
     assert job.status == "done" and r is not None
     assert r.not_applicable_reason == "not_an_application"
     assert r.relevance.label is RelevanceLabel.yes  # Bayesian-relevant...
-    assert r.paper_class.primary is PaperClassLabel.review and not r.step_assessments  # not graded
+    assert r.paper_class.labels == [PaperClassLabel.review] and not r.step_assessments  # not graded
     assert "StepJudgment" not in fake.calls  # assess never ran
 
 
@@ -586,7 +586,7 @@ def test_rerun_endpoint_force_grades_a_review_result(tmp_path, monkeypatch) -> N
         ),
         reason="not_an_application",
         paper_class=sm.PaperClass(
-            primary=sm.PaperClassLabel.review, confidence=0.8, rationale="x", evidence_refs=[0]
+            labels=[sm.PaperClassLabel.review], confidence=0.8, rationale="x", evidence_refs=[0]
         ),
         engine_version="ev",
         rubric_version="rv",

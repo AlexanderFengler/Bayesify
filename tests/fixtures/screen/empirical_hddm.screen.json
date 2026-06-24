@@ -4,9 +4,10 @@
     "evidence_refs": [
       0
     ],
-    "primary": "empirical",
-    "rationale": "Fits a Bayesian model to real reaction-time data to draw substantive conclusions; no simulated-truth or methods-contribution framing.",
-    "secondary": null
+    "labels": [
+      "data_analysis"
+    ],
+    "rationale": "Fits a Bayesian model to real reaction-time data to draw substantive conclusions; no simulated-truth or methods-contribution framing."
   },
   "relevance": {
     "confidence": 0.96,
@@ -16,6 +17,7 @@
       13
     ],
     "label": "yes",
+    "overridden": false,
     "rationale": "Fits a hierarchical Bayesian (HDDM) model in Stan with MCMC; reports R-hat, ESS, divergences, and posterior predictive checks \u2014 squarely a Bayesian-workflow paper."
   }
 }

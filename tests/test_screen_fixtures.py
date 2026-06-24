@@ -41,9 +41,9 @@ def test_fixture_set_meets_coverage_minimums() -> None:
     part = [c for c in _CASES if c["expect_relevance"] == "partial"]
     dec = [c for c in _CASES if c["expect_relevance"] == "no"]
     assert len(rel) >= 9 and len(part) >= 3 and len(dec) >= 4
-    classes = {c["expect_primary"] for c in rel}
-    assert classes == {"empirical", "numerical_experiment", "methodological"}  # 3 per class covered
-    assert any(c["expect_secondary"] for c in rel)  # at least one mixed case
+    labels = {label for c in rel for label in c["expect_labels"]}
+    assert {"data_analysis", "numerical_analysis", "method_development"} <= labels
+    assert any(len(c["expect_labels"]) > 1 for c in rel)  # at least one mixed case
 
 
 # --- detector-floor consistency (the real invariant) ----------------------------------------------
@@ -76,20 +76,20 @@ def test_screen_preserves_correct_label(case: dict) -> None:
     assert entry.stage == "screen"
 
 
-@pytest.mark.parametrize("case", [c for c in _CASES if c["expect_primary"]], ids=[
-    c["id"] for c in _CASES if c["expect_primary"]
-])
+@pytest.mark.parametrize(
+    "case",
+    [c for c in _CASES if c["expect_labels"]],
+    ids=[c["id"] for c in _CASES if c["expect_labels"]],
+)
 def test_classify_returns_expected_class(case: dict) -> None:
     parsed = _parsed(case)
     evidence = run_detectors(parsed)
-    secondary = PaperClassLabel(case["expect_secondary"]) if case["expect_secondary"] else None
+    labels = [PaperClassLabel(label) for label in case["expect_labels"]]
     canned = PaperClass(
-        primary=PaperClassLabel(case["expect_primary"]),
-        secondary=secondary,
+        labels=labels,
         confidence=0.8,
         rationale="fixture",
         evidence_refs=[0],
     )
     cls, _ = C.classify(parsed, evidence, client=FakeLLMClient(canned))
-    assert cls.primary is PaperClassLabel(case["expect_primary"])
-    assert cls.secondary is secondary
+    assert cls.labels == labels

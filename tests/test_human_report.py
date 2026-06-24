@@ -53,7 +53,7 @@ def _rating(rater_id: str, relationship: RaterRelationship, **over) -> Rating:
         relationship=relationship,
         relevance_label=RelevanceLabel.yes,
         relevance_rationale="clearly Bayesian",
-        paper_class_label=PaperClassLabel.empirical,
+        paper_class_labels=[PaperClassLabel.data_analysis],
         gate_facts=GateFacts(),
         steps=[_step("S1"), _step("S2", status=StepStatus.missing)],
     )
@@ -169,7 +169,7 @@ def test_relevance_no_is_a_short_circuit() -> None:
 
 def test_relevant_rating_requires_class_and_gate_facts() -> None:
     with pytest.raises(ValidationError):
-        _rating("r1", RaterRelationship.independent, paper_class_label=None)
+        _rating("r1", RaterRelationship.independent, paper_class_labels=[])
     with pytest.raises(ValidationError):
         _rating("r1", RaterRelationship.independent, gate_facts=None)
 

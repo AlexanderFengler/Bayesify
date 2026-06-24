@@ -147,21 +147,6 @@ class Rating(_Base):
     gate_facts: GateFacts | None = None  # the rater's answers (shared schema type, by value)
     steps: list[StepRating] = Field(default_factory=list)
 
-    @model_validator(mode="before")
-    @classmethod
-    def _migrate_single_class(cls, data):
-        if isinstance(data, dict) and "paper_class_label" in data:
-            data = dict(data)
-            label = data.pop("paper_class_label")
-            if label is not None and "paper_class_labels" not in data:
-                data["paper_class_labels"] = [label]
-        return data
-
-    @property
-    def paper_class_label(self) -> PaperClassLabel | None:
-        """Compatibility view for legacy single-label metrics."""
-        return self.paper_class_labels[0] if self.paper_class_labels else None
-
     @model_validator(mode="after")
     def _discipline(self) -> Rating:
         if not self.relevance_rationale.strip():

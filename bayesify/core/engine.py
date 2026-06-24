@@ -15,13 +15,7 @@ from bayesify.core.ingest import ingest_upload
 from bayesify.core.parse import parse
 from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.rubric.models import RubricSpec
-from bayesify.core.schema import (
-    Evidence,
-    PaperClassLabel,
-    ParsedDoc,
-    RelevanceLabel,
-    ScoredResult,
-)
+from bayesify.core.schema import Evidence, PaperClassLabel, ParsedDoc, RelevanceLabel, ScoredResult
 from bayesify.core.score import ScoreMeta, score
 from bayesify.core.stub import cost_ledger
 from bayesify.llm import LLMClient
@@ -47,7 +41,7 @@ def grade_parsed(
             rubric_profile=rubric.profile,
             cost_ledger=cost_ledger(costs),
         )
-    if paper_class.primary is PaperClassLabel.review:  # discusses the workflow, doesn't apply it
+    if paper_class.labels == [PaperClassLabel.review]:  # discusses the workflow, doesn't apply it
         return ScoredResult.short_circuit(
             relevance=relevance,
             reason="not_an_application",

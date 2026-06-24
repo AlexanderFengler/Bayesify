@@ -425,6 +425,9 @@ async def calibration() -> dict:
 def _render_markdown(job: jobsmod.Job) -> str:
     r = job.result
     assert r is not None
+    paper_types = (
+        ", ".join(label.value for label in r.paper_class.labels) if r.paper_class else "n/a"
+    )
     lines = [f"# Bayesify report — {job.source_label}", ""]
     if r.coverage:
         lo, hi = (
@@ -437,7 +440,7 @@ def _render_markdown(job: jobsmod.Job) -> str:
         lines.append(f"**Quality:** {r.quality_score}")
     lines += [
         f"**Relevance:** {r.relevance.label.value} · **Paper type:** "
-        f"{r.paper_class.primary.value if r.paper_class else 'n/a'} · "
+        f"{paper_types} · "
         f"**Profile:** {r.rubric_profile}",
         "",
     ]

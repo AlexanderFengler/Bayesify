@@ -46,7 +46,7 @@ def _rating(
     steps: list[StepRating],
     *,
     rel: RelevanceLabel = RelevanceLabel.yes,
-    cls: PaperClassLabel | None = PaperClassLabel.empirical,
+    cls: PaperClassLabel | None = PaperClassLabel.data_analysis,
     relationship: RaterRelationship = RaterRelationship.independent,
 ) -> Rating:
     no = rel is RelevanceLabel.no
@@ -55,7 +55,7 @@ def _rating(
         relationship=relationship,
         relevance_label=rel,
         relevance_rationale="r",
-        paper_class_label=None if no else cls,
+        paper_class_labels=[] if no or cls is None else [cls],
         gate_facts=None if no else GateFacts(),
         steps=[] if no else steps,
     )
@@ -132,7 +132,7 @@ def test_relevance_no_majority_short_circuits() -> None:
     r2 = _rating("r2", [], rel=RelevanceLabel.no)
     res = consensus_from_ratings([r1, r2])
     assert res.consensus.relevance_label is RelevanceLabel.no
-    assert res.consensus.steps == [] and res.consensus.paper_class_label is None
+    assert res.consensus.steps == [] and res.consensus.paper_class_labels == []
 
 
 def test_no_relevance_consensus_yields_none() -> None:
@@ -142,8 +142,8 @@ def test_no_relevance_consensus_yields_none() -> None:
 
 
 def test_no_paper_class_consensus_yields_none() -> None:
-    r1 = _rating("r1", [_sr("S1", S.adequate)], cls=PaperClassLabel.empirical)
-    r2 = _rating("r2", [_sr("S1", S.adequate)], cls=PaperClassLabel.methodological)
+    r1 = _rating("r1", [_sr("S1", S.adequate)], cls=PaperClassLabel.data_analysis)
+    r2 = _rating("r2", [_sr("S1", S.adequate)], cls=PaperClassLabel.method_development)
     assert consensus_from_ratings([r1, r2]).consensus is None
 
 
@@ -172,7 +172,7 @@ def test_assemble_human_report_is_admissible() -> None:
 
 def test_assemble_returns_none_without_consensus() -> None:
     ratings = [
-        _rating("r1", [], rel=RelevanceLabel.yes, cls=PaperClassLabel.empirical),
+        _rating("r1", [], rel=RelevanceLabel.yes, cls=PaperClassLabel.data_analysis),
         _rating("r2", [], rel=RelevanceLabel.no),
     ]
     hr = assemble_human_report(

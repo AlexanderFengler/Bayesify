@@ -145,7 +145,10 @@ class _FakeLLM:
             )
         elif name == "PaperClass":
             p = PaperClass(
-                primary=PaperClassLabel.empirical, confidence=0.8, rationale="r", evidence_refs=[0]
+                labels=[PaperClassLabel.data_analysis],
+                confidence=0.8,
+                rationale="r",
+                evidence_refs=[0],
             )
         elif name == "StepJudgment":
             p = StepJudgment(status="adequate", confidence=0.9)

@@ -1,9 +1,9 @@
 """Paper-type classifier — component d, stage 5 (runs only after a non-``no`` relevance gate).
 
-Assigns one of ``empirical`` / ``numerical_experiment`` / ``methodological`` (primary, with an
-optional evidence-supported secondary). The class drives rubric-step applicability downstream (B1):
-SBC near-mandatory for methodological work, predictive checks on real data central for empirical
-work. This component only *produces* the class; the applicability rules live in
+Assigns every evidence-supported paper-class label. The label set drives rubric-step applicability
+downstream (B1): data-analysis papers, method/model/software
+development papers, numerical/theoretical analyses, and reviews can have different expectations.
+This component only *produces* the class; the applicability rules live in
 ``rubric/steps.yaml`` and are applied by e-assess / f-score.
 
 Like the relevance gate it runs on the cheap model (C6) over the same bounded context, fails closed

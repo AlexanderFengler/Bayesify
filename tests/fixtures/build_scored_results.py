@@ -55,7 +55,7 @@ _SUGGESTIONS = {  # severity matches tier×status (as e-assess would derive)
 def _assessments(gate_facts: GateFacts):
     out = []
     for step in _RUBRIC.steps:
-        ap = step_applicability(step, PaperClassLabel.empirical, gate_facts)
+        ap = step_applicability(step, PaperClassLabel.data_analysis, gate_facts)
         status = _STATUSES.get(step.id, StepStatus.adequate) if ap.applicable else StepStatus.not_applicable
         sug = [_SUGGESTIONS[step.id]] if ap.applicable and step.id in _SUGGESTIONS else []
         out.append(
@@ -80,7 +80,10 @@ def main() -> None:
         prior_informativeness=PriorInformativeness.weakly_informative,
     )
     paper_class = PaperClass(
-        primary=PaperClassLabel.empirical, confidence=0.9, rationale="real RT data", evidence_refs=[0]
+        labels=[PaperClassLabel.data_analysis],
+        confidence=0.9,
+        rationale="real RT data",
+        evidence_refs=[0],
     )
     relevance = Relevance(label=RelevanceLabel.yes, confidence=0.95, rationale="Bayesian", evidence_refs=[0])
     ledger = CostLedger(

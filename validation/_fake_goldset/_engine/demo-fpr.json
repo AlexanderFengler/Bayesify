@@ -9,8 +9,9 @@
     "overridden": false
   },
   "paper_class": {
-    "primary": "empirical",
-    "secondary": null,
+    "labels": [
+      "data_analysis"
+    ],
     "confidence": 0.9,
     "rationale": "demo",
     "evidence_refs": [
@@ -27,7 +28,7 @@
     {
       "step_id": "S1",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [
@@ -51,7 +52,7 @@
     {
       "step_id": "S2",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [
@@ -75,7 +76,7 @@
     {
       "step_id": "S3",
       "applicable": true,
-      "applicability_reason": "Recommended for empirical papers.",
+      "applicability_reason": "Recommended for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [
@@ -99,7 +100,7 @@
     {
       "step_id": "S4",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [
@@ -123,7 +124,7 @@
     {
       "step_id": "S5",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "missing",
       "confidence": 0.9,
       "evidence": [],
@@ -147,7 +148,7 @@
     {
       "step_id": "S7",
       "applicable": true,
-      "applicability_reason": "Recommended for empirical papers.",
+      "applicability_reason": "Recommended for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [
@@ -171,7 +172,7 @@
     {
       "step_id": "S8",
       "applicable": true,
-      "applicability_reason": "Recommended for empirical papers.",
+      "applicability_reason": "Recommended for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [
@@ -195,7 +196,7 @@
     {
       "step_id": "S9",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [
@@ -219,7 +220,7 @@
     {
       "step_id": "S10",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "adequate",
       "confidence": 0.9,
       "evidence": [
@@ -344,7 +345,8 @@
       "quality_delta": 0.11111111111111116
     }
   ],
-  "engine_version": "pkg=0.1.0;prompts=18c4bd7aae9a;detectors=1585d08ace1f;models=claude-opus-4-8",
+  "not_applicable_reason": null,
+  "engine_version": "pkg=0.1.0;prompts=6e2ff6227cab;detectors=1585d08ace1f;models=claude-opus-4-8",
   "rubric_version": "0.1-draft",
   "rubric_profile": "synthesis",
   "cost_ledger": {

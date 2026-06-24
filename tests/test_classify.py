@@ -41,7 +41,7 @@ def _ev() -> Evidence:
 
 def test_classify_returns_paperclass_and_meters_cost() -> None:
     canned = PaperClass(
-        primary=PaperClassLabel.empirical,
+        labels=[PaperClassLabel.data_analysis],
         confidence=0.85,
         rationale="fits real data",
         evidence_refs=[0],
@@ -49,16 +49,15 @@ def test_classify_returns_paperclass_and_meters_cost() -> None:
     client = FakeLLMClient(canned)
     cls, entry = C.classify(_parsed("We fit a model to real RT data."), [_ev()], client=client)
 
-    assert cls.primary is PaperClassLabel.empirical and cls.secondary is None
+    assert cls.labels == [PaperClassLabel.data_analysis]
     assert entry.stage == "classify" and entry.model == config.SCREEN_MODEL
     assert client.calls[0]["schema"] == "PaperClass"
     assert "DETECTOR HITS" in client.calls[0]["user"]
 
 
-def test_classify_supports_mixed_primary_secondary() -> None:
+def test_classify_supports_multi_label_paper_types() -> None:
     canned = PaperClass(
-        primary=PaperClassLabel.methodological,
-        secondary=PaperClassLabel.empirical,
+        labels=[PaperClassLabel.method_development, PaperClassLabel.data_analysis],
         confidence=0.7,
         rationale="new prior + a real-data application section",
         evidence_refs=[0],
@@ -66,8 +65,7 @@ def test_classify_supports_mixed_primary_secondary() -> None:
     cls, _ = C.classify(
         _parsed("We propose a new prior and apply it."), [_ev()], client=FakeLLMClient(canned)
     )
-    assert cls.primary is PaperClassLabel.methodological
-    assert cls.secondary is PaperClassLabel.empirical
+    assert cls.labels == [PaperClassLabel.method_development, PaperClassLabel.data_analysis]
 
 
 def test_classify_fails_closed() -> None:

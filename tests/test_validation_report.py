@@ -61,7 +61,7 @@ def _rating(sr: ScoredResult, rater_id: str, rel: RaterRelationship, *, flip: bo
         relationship=rel,
         relevance_label=RelevanceLabel.yes,
         relevance_rationale="fits a Bayesian model",
-        paper_class_label=sr.paper_class.primary,
+        paper_class_labels=sr.paper_class.labels,
         gate_facts=sr.gate_facts,
         steps=steps,
     )

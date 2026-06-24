@@ -3,7 +3,7 @@
 # Phase-3 corpus scoring. Grounded in research/bayesian-workflow-gold-standards.md (deep-research
 # synthesis, 2026-06-10). Every threshold is attributed to its source; do NOT collapse to one number.
 #
-# applicability gating: paper_class ∈ {empirical, numerical_experiment, methodological}
+# applicability gating: paper_class labels from PaperClassLabel
 #   essential_for: classes where the step is tier-1 "expected" (missing => error-severity finding)
 #   recommended_for: classes where it is tier-2 "recommended" (missing => warning/info)
 #   na_when: conditions making the step legitimately not-applicable (excluded from denominator)
@@ -36,15 +36,18 @@ scoring:
   low_confidence_threshold: 0.6   # an absence below this confidence is "uncertain" (widens the range)
   weight_default: 1.0
   weights:                # per-class step-weight overrides; omitted steps use weight_default.
-    empirical: {}         # v0: uniform weights — a documented placeholder (B3 v1 differentiates).
-    numerical_experiment: {}
-    methodological: {}
-  mixing_rule: max        # mixed primary+secondary: weight = max(primary, secondary).
+    data_analysis: {}         # v0: uniform weights — a documented placeholder (B3 v1 differentiates).
+    numerical_analysis: {}
+    model_development: {}
+    method_development: {}
+    software_development: {}
+    theoretical_analysis: {}
+  mixing_rule: max        # multi-label papers use the maximum weight across selected labels.
 
 steps:
   - id: S1
     name: Model specification & justification
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "The generative model is the foundation every later check is run against — an unstated or unjustified model makes every downstream diagnostic uninterpretable."
     adequate: "Explicit generative/likelihood model; assumptions stated; structure justified by question/data."
     missing: "Model appears with no rationale; key assumptions unstated."
@@ -52,7 +55,7 @@ steps:
 
   - id: S2
     name: Prior specification
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     # v0: S2 is always applicable (no na_when) — priors are always expected to be reported, so the
     # engine and a blind rater gate it identically. The immaterial-priors nuance is a `note`, not an
     # N/A path; depth of justification may be relaxed there, but reporting is still required.
@@ -64,8 +67,8 @@ steps:
 
   - id: S3
     name: Prior predictive / prior pushforward checks
-    essential_for: [methodological]
-    recommended_for: [empirical, numerical_experiment]
+    essential_for: [model_development, method_development, software_development, theoretical_analysis]
+    recommended_for: [data_analysis, numerical_analysis]
     why: "Simulating from the prior before seeing data catches implausible assumptions while they are still cheap to fix, and before the data can bias the prior choice."
     adequate: "Simulations from prior(+likelihood) shown/described BEFORE data; implausible implications caught & priors revised."
     missing: "No prior predictive reasoning; priors never sanity-checked; priors set from the data (uses data twice)."
@@ -73,7 +76,7 @@ steps:
 
   - id: S4
     name: Computational faithfulness (convergence & sampling diagnostics)
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     na_when: "Exact/analytic/conjugate posterior — no sampler. Mark not_applicable, do not penalize."
     gate:
       na_when_inference: [exact_analytic]   # no sampler to diagnose → not_applicable (G6)
@@ -95,8 +98,8 @@ steps:
 
   - id: S5
     name: Posterior predictive (retrodictive) checks
-    essential_for: [empirical]
-    recommended_for: [numerical_experiment, methodological]
+    essential_for: [data_analysis]
+    recommended_for: [numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Comparing the fitted model's predictions back to the observed data is the main test of whether the model is actually adequate for the question."
     adequate: "PPCs shown (graphical overlays and/or test quantities); discrepancies discussed and acted on."
     missing: "No PPC; fit asserted without checking; obvious misfit ignored."
@@ -122,8 +125,8 @@ steps:
 
   - id: S7
     name: Simulation-based calibration / algorithm validation
-    essential_for: [methodological, numerical_experiment]
-    recommended_for: [empirical]
+    essential_for: [model_development, method_development, software_development, theoretical_analysis, numerical_analysis]
+    recommended_for: [data_analysis]
     na_when: "Routine fit with reliable self-diagnostics (S4) on a simple/standard model — may be done once per research program."
     why: "Calibration / recovery studies show the inference machinery itself is trustworthy on this model — essential for a new method, before any real-data claim is believed."
     adequate: "SBC (rank-uniformity) or parameter-recovery study reported; for BF, SBC of BF estimates."
@@ -132,8 +135,8 @@ steps:
 
   - id: S8
     name: Prior / model sensitivity analysis
-    essential_for: [methodological]
-    recommended_for: [empirical, numerical_experiment]
+    essential_for: [model_development, method_development, software_development, theoretical_analysis]
+    recommended_for: [data_analysis, numerical_analysis]
     na_when: "Likelihood clearly dominates and priors are immaterial AND no BF/informative prior used."
     mandatory_when: "Informative/weakly-informative priors used, OR any Bayes-factor claim (WAMBS; Schad 2022)."
     gate:               # G6: informative priors or a BF claim escalate S8 to expected (any class)
@@ -146,7 +149,7 @@ steps:
 
   - id: S9
     name: Reporting & reproducibility
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "A Bayesian result is only usable if others can see and rerun the model, priors, settings, and data — opacity makes the analysis impossible to verify or build on."
     adequate: "Model, priors, software+version, sampler settings (chains/iters/warmup/seed), diagnostics, data/code availability all reported (BARG 6 steps)."
     missing: "Opaque 'we fit a Bayesian model'; missing settings; point estimates with no uncertainty; no data/code."
@@ -154,7 +157,7 @@ steps:
 
   - id: S10
     name: Posterior summary & inference communication
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "How the posterior is summarized and claimed is where the analysis meets the science — dropping uncertainty or over-claiming undoes the careful work upstream."
     adequate: "Point + interval (CrI/HDI, defined) with uncertainty; claims tied to posterior quantities; no over-claiming."
     missing: "Point estimates only; significance-style misreadings; intervals undefined."

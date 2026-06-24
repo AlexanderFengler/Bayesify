@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from bayesify.core.rubric.applicability import step_applicability
+from bayesify.core.rubric.applicability import step_applicability_for_labels
 from bayesify.core.rubric.models import RubricSpec
 from bayesify.core.schema import (
     CostLedger,
@@ -94,7 +94,7 @@ def score(
         assessment = by_id.get(step.id)
         if assessment is None:
             raise ContractError(f"no assessment for rubric step {step.id}")
-        resolved = step_applicability(step, paper_class.primary, gate_facts)
+        resolved = step_applicability_for_labels(step, paper_class.labels, gate_facts)
         if resolved.applicable != assessment.applicable:
             raise ContractError(
                 f"applicability mismatch on {step.id}: "
@@ -103,7 +103,7 @@ def score(
         if resolved.applicable and assessment.status is StepStatus.not_applicable:
             raise ContractError(f"{step.id} is applicable but status is not_applicable")
 
-        weight = step_weight(rubric, step.id, paper_class.primary, paper_class.secondary)
+        weight = step_weight_for_labels(rubric, step.id, paper_class.labels)
         sub = None if not resolved.applicable else scoring.sub_score[assessment.status.value]
         profile_steps.append(
             StepProfile(
@@ -156,23 +156,23 @@ def score(
 def step_weight(
     rubric: RubricSpec,
     step_id: str,
-    primary: PaperClassLabel,
-    secondary: PaperClassLabel | None = None,
+    label: PaperClassLabel,
 ) -> float:
-    """The f-score weight for a step under a paper class. Public: shared by ``score()`` and the
+    """The f-score weight for a step under one paper class. Public: shared by ``score()`` and the
     validation harness, which derives human-implied coverage/quality with the SAME weights."""
     scoring = rubric.scoring
     assert scoring is not None
 
-    def w(cls: str | None) -> float:
-        if cls is None:
-            return scoring.weight_default
-        return scoring.weights.get(cls, {}).get(step_id, scoring.weight_default)
+    return scoring.weights.get(label.value, {}).get(step_id, scoring.weight_default)
 
-    p = w(primary.value)
-    if secondary is not None and scoring.mixing_rule == "max":
-        return max(p, w(secondary.value))
-    return p
+
+def step_weight_for_labels(
+    rubric: RubricSpec, step_id: str, labels: list[PaperClassLabel]
+) -> float:
+    """The f-score weight for a multi-label paper: strongest applicable class weight wins."""
+    if not labels:
+        raise RubricSpecError("paper_class.labels must contain at least one label")
+    return max(step_weight(rubric, step_id, label) for label in labels)
 
 
 def _uncertain(calcs: list[tuple[str, StepCalc]], low_conf: float) -> int:

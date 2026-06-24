@@ -4,6 +4,7 @@
     "confidence": 0.95,
     "evidence_refs": [],
     "label": "no",
+    "overridden": false,
     "rationale": "Searched for priors, posteriors, Bayesian software, MCMC/VI, and convergence diagnostics; none were found. The analysis is frequentist (OLS, p-values, CIs)."
   }
 }

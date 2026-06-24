@@ -377,7 +377,7 @@ def build_stub_result(mode: str = "full") -> s.ScoredResult:
             evidence_refs=[0, 1],
         ),
         paper_class=s.PaperClass(
-            primary=s.PaperClassLabel.empirical,
+            labels=[s.PaperClassLabel.data_analysis],
             confidence=0.88,
             rationale="Fits a Bayesian model to real observed data to draw substantive conclusions.",
             evidence_refs=[0],

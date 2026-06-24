@@ -16,7 +16,7 @@
 #   §8 Understanding and comparing multiple models
 #   §9 Modeling as software development
 # Single-source: steps carry NO per-step citation — the source lives in the preamble below.
-# applicability gating: paper_class ∈ {empirical, numerical_experiment, methodological}
+# applicability gating: paper_class labels from PaperClassLabel
 # status values emitted by the engine: adequate | partial | missing | not_applicable
 
 rubric_version: "0.1-gelman"
@@ -42,30 +42,33 @@ scoring:
   low_confidence_threshold: 0.6
   weight_default: 1.0
   weights:
-    empirical: {}
-    numerical_experiment: {}
-    methodological: {}
+    data_analysis: {}
+    numerical_analysis: {}
+    model_development: {}
+    method_development: {}
+    software_development: {}
+    theoretical_analysis: {}
   mixing_rule: max
 
 steps:
   - id: S1
     name: Model building & justification
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "The workflow starts from an explicit generative model; every later check, diagnostic and comparison is only interpretable relative to a model that was actually justified."
     adequate: "An initial generative model is stated and justified from domain knowledge and the question; structure built modularly, with assumptions explicit (§2)."
     missing: "A model appears with no rationale; assumptions unstated; no sense of how it was arrived at."
 
   - id: S2
     name: Prior specification & prior predictive checks
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Priors are part of the model; simulating from them before fitting reveals what they imply and catches implausible assumptions before the data are touched."
     adequate: "Priors stated; their implications examined by simulating from the prior (prior predictive / pushforward) BEFORE seeing the data, and revised when implausible (§2.4)."
     missing: "'Default priors' with no statement; no prior predictive reasoning; priors tuned to the data."
 
   - id: S3
     name: Fitting & computational diagnostics
-    essential_for: [empirical, numerical_experiment]
-    recommended_for: [methodological]
+    essential_for: [data_analysis, numerical_analysis]
+    recommended_for: [model_development, method_development, software_development, theoretical_analysis]
     why: "Diagnostics establish that the computation actually approximated the posterior; an undiagnosed fit can make every later result an artifact of broken sampling."
     na_when: "Exact/analytic posterior — no sampler to diagnose. Mark not_applicable, do not penalize."
     gate:
@@ -80,15 +83,15 @@ steps:
 
   - id: S4
     name: Constructed-data simulation & SBC
-    essential_for: [methodological, numerical_experiment]
-    recommended_for: [empirical]
+    essential_for: [model_development, method_development, software_development, theoretical_analysis, numerical_analysis]
+    recommended_for: [data_analysis]
     why: "Fitting to data simulated from known parameters (and SBC) shows the model+algorithm can recover truth — the only way to trust inference before drawing real-data conclusions."
     adequate: "Fake-data simulation: the model is fit to data simulated from known parameters and recovers them; for inferential claims about the algorithm, simulation-based calibration (rank uniformity) is shown (§4)."
     missing: "A new model/method with no recovery study or calibration evidence."
 
   - id: S5
     name: Addressing computational problems
-    recommended_for: [empirical, numerical_experiment, methodological]
+    recommended_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Computational pathologies are information about the model; diagnosing and fixing them (the 'folk theorem') is part of the workflow, not a nuisance to paper over."
     na_when: "Exact/analytic posterior, or computation raised no problems to address."
     gate:
@@ -98,8 +101,8 @@ steps:
 
   - id: S6
     name: Posterior predictive checking
-    essential_for: [empirical]
-    recommended_for: [numerical_experiment, methodological]
+    essential_for: [data_analysis]
+    recommended_for: [numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Posterior predictive checks are the central test of model adequacy — whether the fitted model can reproduce the features of the data it is meant to explain."
     adequate: "Posterior predictive checks shown (graphical overlays and/or test quantities); discrepancies between model and data discussed and acted on (§6.1)."
     missing: "No posterior predictive check; fit asserted without checking; obvious misfit ignored."
@@ -107,7 +110,7 @@ steps:
 
   - id: S7
     name: Cross-validation & influence
-    recommended_for: [empirical, numerical_experiment, methodological]
+    recommended_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Cross-validation with honest uncertainty (and influence checks) shows how well the model actually predicts, not merely how well it fit the data it already saw."
     adequate: "Predictive performance assessed with cross-validation (e.g. PSIS-LOO) reported with uncertainty; importance-sampling reliability checked and influential observations examined (§6.2)."
     missing: "Predictive claims with no validation; unreliable importance sampling unmonitored; influential points unexamined."
@@ -116,7 +119,7 @@ steps:
 
   - id: S8
     name: Model modification & expansion
-    recommended_for: [empirical, numerical_experiment, methodological]
+    recommended_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Bayesian workflow is iterative: shortcomings found in checking should drive a documented expansion of the model, not be quietly accepted."
     adequate: "The model is treated as iterative: shortcomings found in checking drive a documented expansion/modification (or a justified decision to stop) (§7)."
     missing: "A single model is fit once with no iteration, despite checks suggesting problems."
@@ -134,7 +137,7 @@ steps:
 
   - id: S10
     name: Reproducibility & modeling as software
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Treating the analysis as software — versioned code, settings and data — is what makes a Bayesian result reproducible and trustworthy to others."
     adequate: "The analysis is reproducible and treated as software — model, priors, software + versions, sampler settings, and data/code shared; modeling decisions documented (§9)."
     missing: "Opaque 'we fit a Bayesian model'; missing settings; no data or code; undocumented decisions."

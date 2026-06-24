@@ -332,7 +332,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             }
         )
 
-    review = paper_class is not None and paper_class.primary is s.PaperClassLabel.review
+    review_only = paper_class is not None and paper_class.labels == [s.PaperClassLabel.review]
     if relevance.label is s.RelevanceLabel.no:
         job.result = s.ScoredResult.short_circuit(
             relevance=relevance,
@@ -341,7 +341,8 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             rubric_profile=job.profile,
             cost_ledger=cost_ledger(costs),
         )
-    elif review and not job.force_grade:  # discusses the workflow, doesn't apply it → rubric N/A
+    elif review_only and not job.force_grade:
+        # Discusses the workflow, doesn't apply it: rubric N/A unless force-graded as advisory.
         job.result = s.ScoredResult.short_circuit(
             relevance=relevance,
             reason="not_an_application",

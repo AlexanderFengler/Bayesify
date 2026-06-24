@@ -246,11 +246,7 @@ def _relevance_class_rates(
     for h, s in rate_pairs:
         if h.consensus.paper_class_labels and s.paper_class is not None:
             human = "|".join(sorted(label.value for label in h.consensus.paper_class_labels))
-            engine = (
-                human
-                if s.paper_class.primary in h.consensus.paper_class_labels
-                else s.paper_class.primary.value
-            )
+            engine = "|".join(sorted(label.value for label in s.paper_class.labels))
             class_pairs.append((human, engine))
     return sens, spec, accuracy(class_pairs)
 

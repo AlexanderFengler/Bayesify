@@ -45,13 +45,13 @@ class ScoringBlock(_Base):
     low_confidence_threshold: float  # absences below this confidence count as "uncertain"
     weight_default: float = 1.0
     weights: dict[str, dict[str, float]] = Field(default_factory=dict)  # per-class step overrides
-    mixing_rule: str = "max"  # mixed primary+secondary class weight resolution
+    mixing_rule: str = "max"  # multi-label weight resolution
 
 
 class RubricStep(_Base):
     id: str
     name: str
-    # Applicability gating (paper_class in {empirical, numerical_experiment, methodological}).
+    # Applicability gating keyed by PaperClassLabel values.
     essential_for: list[str] = Field(default_factory=list)
     recommended_for: list[str] = Field(default_factory=list)
     na_when: str | None = None  # human-readable reason; the machine predicate is `gate` (G5/G6)

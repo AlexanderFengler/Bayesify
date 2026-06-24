@@ -71,7 +71,7 @@ def _ev(detector_id: str, kind: EvidenceKind, quote: str) -> Evidence:
 
 
 _EMPIRICAL = PaperClass(
-    primary=PaperClassLabel.empirical, confidence=0.9, rationale="real data", evidence_refs=[0]
+    labels=[PaperClassLabel.data_analysis], confidence=0.9, rationale="real data", evidence_refs=[0]
 )
 _REL = Relevance(label=RelevanceLabel.yes, confidence=0.9, rationale="ok", evidence_refs=[0])
 

@@ -13,7 +13,7 @@
 # before S5 (fit & convergence, post-data) by design, even though the paper discusses convergence
 # inside §2.2; the pre/post split is the rubric's organizing principle.
 # Single-source: steps carry NO per-step citation — the source lives in the preamble below.
-# applicability gating: paper_class ∈ {empirical, numerical_experiment, methodological}
+# applicability gating: paper_class labels from PaperClassLabel
 # status values emitted by the engine: adequate | partial | missing | not_applicable
 
 rubric_version: "0.1-schad"
@@ -39,30 +39,33 @@ scoring:
   low_confidence_threshold: 0.6
   weight_default: 1.0
   weights:
-    empirical: {}
-    numerical_experiment: {}
-    methodological: {}
+    data_analysis: {}
+    numerical_analysis: {}
+    model_development: {}
+    method_development: {}
+    software_development: {}
+    theoretical_analysis: {}
   mixing_rule: max
 
 steps:
   - id: S1
     name: Model & prior specification
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "The model and its priors are the object every principled check interrogates; specifying them explicitly from domain knowledge is the precondition for the rest of the workflow."
     adequate: "The likelihood, parameters and random-effects structure are specified from domain knowledge and the research question, and every prior is stated and justified (informative vs weakly-informative, and why)."
     missing: "Model structure appears without rationale; priors absent or unstated 'defaults' with no account of what they encode."
 
   - id: S2
     name: Prior predictive checks
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Simulating data from the prior before collecting any real data exposes what the priors imply and lets implausible assumptions be fixed up front."
     adequate: "Data are simulated from the prior(+likelihood) BEFORE seeing the real data, summarised on domain-relevant quantities, and priors/model are revised when the implied data are implausible."
     missing: "No prior predictive reasoning; priors never sanity-checked against plausible data ranges; priors tuned to the observed data."
 
   - id: S3
     name: Computational faithfulness (simulation-based calibration)
-    essential_for: [methodological, numerical_experiment]
-    recommended_for: [empirical]
+    essential_for: [model_development, method_development, software_development, theoretical_analysis, numerical_analysis]
+    recommended_for: [data_analysis]
     why: "Simulation-based calibration verifies the model+algorithm actually recover the prior — without it a 'fit' may be systematically biased and you would never know."
     adequate: "Simulation-based calibration is run (sample from prior → simulate → fit → rank the true value in the posterior) and the rank histograms are uniform — no systematic bias, over/under-dispersion, or autocorrelation."
     missing: "No SBC / calibration check; the model+algorithm are assumed faithful without evidence; non-uniform ranks ignored."
@@ -71,8 +74,8 @@ steps:
 
   - id: S4
     name: Model sensitivity (a-priori parameter recovery)
-    essential_for: [methodological, numerical_experiment]
-    recommended_for: [empirical]
+    essential_for: [model_development, method_development, software_development, theoretical_analysis, numerical_analysis]
+    recommended_for: [data_analysis]
     why: "A pre-data design analysis asks whether the study can even recover the parameters of interest — guarding against running an experiment that cannot answer the question."
     adequate: "Before collecting data, the design's ability to recover parameters is assessed — posterior z-scores near 0 (low bias) and high posterior contraction (the data are informative for the question)."
     missing: "No assessment of whether the design/model can actually answer the question; sensitivity (bias/contraction) never examined."
@@ -82,8 +85,8 @@ steps:
 
   - id: S5
     name: Model fitting & convergence diagnostics
-    essential_for: [empirical, numerical_experiment]
-    recommended_for: [methodological]
+    essential_for: [data_analysis, numerical_analysis]
+    recommended_for: [model_development, method_development, software_development, theoretical_analysis]
     why: "On the real data, convergence diagnostics confirm the sampler approximated the posterior; ignoring them risks reporting artifacts of a failed fit."
     na_when: "Exact/analytic posterior — no sampler to diagnose. Mark not_applicable, do not penalize."
     gate:
@@ -97,15 +100,15 @@ steps:
 
   - id: S6
     name: Posterior predictive checks
-    essential_for: [empirical]
-    recommended_for: [numerical_experiment, methodological]
+    essential_for: [data_analysis]
+    recommended_for: [numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Posterior predictive checks test whether the fitted model can reproduce the observed data — the core check of model adequacy."
     adequate: "The fitted model's predictions are compared to the observed data on domain-relevant summary statistics; the observed data fall within the predictive distribution, and discrepancies are acted on."
     missing: "No posterior predictive check; fit asserted without checking; clear misfit ignored."
 
   - id: S7
     name: Model adequacy & inference
-    essential_for: [empirical, numerical_experiment, methodological]
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Inference is only as good as the model's adequacy; conclusions must be tied to posterior quantities with uncertainty, and inadequacy must drive iteration or an honestly narrowed claim."
     adequate: "Posterior quantities are interpreted with uncertainty to answer the scientific question; model inadequacy (when found) drives iteration or an honestly narrowed claim."
     missing: "Point estimates without uncertainty; over-claiming beyond what the model/data support; inadequacy ignored."

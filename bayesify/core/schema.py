@@ -186,14 +186,17 @@ class Relevance(_Base):
 
 
 class PaperClass(_Base):
-    primary: PaperClassLabel
-    secondary: PaperClassLabel | None = None
+    labels: list[PaperClassLabel] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
     evidence_refs: list[int] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _refs_discipline(self) -> PaperClass:
+        if not self.labels:
+            raise ValueError("PaperClass requires >=1 label")
+        if len(self.labels) != len(set(self.labels)):
+            raise ValueError("PaperClass.labels must not contain duplicates")
         if not self.rationale.strip():
             raise ValueError("PaperClass.rationale must be non-empty")
         if not self.evidence_refs:

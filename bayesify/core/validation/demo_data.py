@@ -58,14 +58,14 @@ class DemoPaper:
 
 
 def _engine(
-    primary: PaperClassLabel, gate: GateFacts, overrides: dict[str, StepStatus]
+    label: PaperClassLabel, gate: GateFacts, overrides: dict[str, StepStatus]
 ) -> ScoredResult:
     """A relevant engine ScoredResult, scored for real over assessments whose applicability matches
     the resolver (so score() is happy); ``overrides`` set the status of given applicable steps."""
-    pc = PaperClass(primary=primary, confidence=0.9, rationale="demo", evidence_refs=[0])
+    pc = PaperClass(labels=[label], confidence=0.9, rationale="demo", evidence_refs=[0])
     assessments: list[StepAssessment] = []
     for step in _RUBRIC.steps:
-        appl = step_applicability(step, primary, gate)
+        appl = step_applicability(step, label, gate)
         if not appl.applicable:
             assessments.append(
                 StepAssessment(
@@ -108,7 +108,7 @@ def _engine(
 
 
 def _rating(
-    primary: PaperClassLabel,
+    label: PaperClassLabel,
     gate: GateFacts,
     overrides: dict[str, StepStatus],
     rater_id: str,
@@ -116,7 +116,7 @@ def _rating(
 ) -> Rating:
     steps: list[StepRating] = []
     for step in _RUBRIC.steps:
-        appl = step_applicability(step, primary, gate)
+        appl = step_applicability(step, label, gate)
         if not appl.applicable:
             steps.append(
                 StepRating(
@@ -143,7 +143,7 @@ def _rating(
         relationship=rel,
         relevance_label=RelevanceLabel.yes,
         relevance_rationale="fits a Bayesian model",
-        paper_class_label=primary,
+        paper_class_labels=[label],
         gate_facts=gate,
         steps=steps,
     )
@@ -152,15 +152,15 @@ def _rating(
 def _human(
     work_id: str,
     sha: str,
-    primary: PaperClassLabel,
+    label: PaperClassLabel,
     gate: GateFacts,
     consensus_overrides: dict[str, StepStatus],
     tier: GoldTier = GoldTier.A,
 ) -> HumanReport:
     # two independent blind raters who agree with each other, plus the adjudicated consensus.
-    r1 = _rating(primary, gate, consensus_overrides, "r1", RaterRelationship.independent)
-    r2 = _rating(primary, gate, consensus_overrides, "r2", RaterRelationship.independent)
-    cons = _rating(primary, gate, consensus_overrides, "consensus", RaterRelationship.consensus)
+    r1 = _rating(label, gate, consensus_overrides, "r1", RaterRelationship.independent)
+    r2 = _rating(label, gate, consensus_overrides, "r2", RaterRelationship.independent)
+    cons = _rating(label, gate, consensus_overrides, "consensus", RaterRelationship.consensus)
     return HumanReport(
         work_id=work_id,
         source_sha256=sha,
@@ -210,22 +210,22 @@ def _decoy(work_id: str, sha: str) -> DemoPaper:
 
 def build_demo_dataset() -> list[DemoPaper]:
     """Five fabricated papers exercising the metric surfaces. Deterministic."""
-    empirical = PaperClassLabel.empirical
-    numerical = PaperClassLabel.numerical_experiment
+    data_analysis = PaperClassLabel.data_analysis
+    numerical_analysis = PaperClassLabel.numerical_analysis
     return [
         # 1) high agreement
         DemoPaper(
             "demo-agree",
             "sha-agree",
-            _human("demo-agree", "sha-agree", empirical, _DEFAULT_GATE, {}),
-            _engine(empirical, _DEFAULT_GATE, {}),
+            _human("demo-agree", "sha-agree", data_analysis, _DEFAULT_GATE, {}),
+            _engine(data_analysis, _DEFAULT_GATE, {}),
         ),
         # 2) absence-FPR: engine cries 'missing' on S5, human saw it (adequate)
         DemoPaper(
             "demo-fpr",
             "sha-fpr",
-            _human("demo-fpr", "sha-fpr", empirical, _DEFAULT_GATE, {}),
-            _engine(empirical, _DEFAULT_GATE, {"S5": StepStatus.missing}),
+            _human("demo-fpr", "sha-fpr", data_analysis, _DEFAULT_GATE, {}),
+            _engine(data_analysis, _DEFAULT_GATE, {"S5": StepStatus.missing}),
         ),
         # 3) status disagreement: engine adequate, human partial on S1 + S3
         DemoPaper(
@@ -234,11 +234,11 @@ def build_demo_dataset() -> list[DemoPaper]:
             _human(
                 "demo-status",
                 "sha-status",
-                numerical,
+                numerical_analysis,
                 _DEFAULT_GATE,
                 {"S1": StepStatus.partial, "S3": StepStatus.partial},
             ),
-            _engine(numerical, _DEFAULT_GATE, {}),
+            _engine(numerical_analysis, _DEFAULT_GATE, {}),
         ),
         # 4) a relevance='no' decoy (Tier B)
         _decoy("demo-decoy", "sha-decoy"),
@@ -248,9 +248,9 @@ def build_demo_dataset() -> list[DemoPaper]:
             "demo-analytic",
             "sha-analytic",
             _human(
-                "demo-analytic", "sha-analytic", empirical, _ANALYTIC_GATE, {}, tier=GoldTier.C
+                "demo-analytic", "sha-analytic", data_analysis, _ANALYTIC_GATE, {}, tier=GoldTier.C
             ),
-            _engine(empirical, _ANALYTIC_GATE, {}),
+            _engine(data_analysis, _ANALYTIC_GATE, {}),
         ),
     ]
 

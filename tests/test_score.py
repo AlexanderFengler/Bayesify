@@ -9,7 +9,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from bayesify.core.rubric.applicability import step_applicability
+from bayesify.core.rubric.applicability import step_applicability_for_labels
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.schema import (
     CostLedger,
@@ -50,7 +50,7 @@ def _facts(**over) -> GateFacts:
 
 
 def _assessments(
-    paper_class: PaperClassLabel,
+    paper_classes: list[PaperClassLabel],
     gate_facts: GateFacts,
     statuses: dict[str, StepStatus] | None = None,
     *,
@@ -61,7 +61,7 @@ def _assessments(
     statuses = statuses or {}
     out = []
     for step in _RUBRIC.steps:
-        ap = step_applicability(step, paper_class, gate_facts)
+        ap = step_applicability_for_labels(step, paper_classes, gate_facts)
         status = (
             statuses.get(step.id, StepStatus.adequate)
             if ap.applicable
@@ -85,7 +85,7 @@ def _relevance(label=RelevanceLabel.yes) -> Relevance:
 
 
 _EMPIRICAL = PaperClass(
-    primary=PaperClassLabel.empirical, confidence=0.9, rationale="real data", evidence_refs=[0]
+    labels=[PaperClassLabel.data_analysis], confidence=0.9, rationale="real data", evidence_refs=[0]
 )
 
 
@@ -93,7 +93,7 @@ def _score(paper_class, gate_facts, statuses=None, *, confidence=0.9, relevance=
     return score(
         relevance or _relevance(),
         paper_class,
-        _assessments(paper_class.primary, gate_facts, statuses, confidence=confidence),
+        _assessments(paper_class.labels, gate_facts, statuses, confidence=confidence),
         gate_facts,
         _RUBRIC,
         _META,
@@ -174,13 +174,13 @@ def test_empty_assessments_raises() -> None:
 
 
 def test_missing_step_assessment_raises() -> None:
-    full = _assessments(PaperClassLabel.empirical, _facts())
+    full = _assessments([PaperClassLabel.data_analysis], _facts())
     with pytest.raises(ContractError):
         score(_relevance(), _EMPIRICAL, full[:-1], _facts(), _RUBRIC, _META)  # drop S10
 
 
 def test_applicability_mismatch_raises() -> None:
-    full = _assessments(PaperClassLabel.empirical, _facts())
+    full = _assessments([PaperClassLabel.data_analysis], _facts())
     # flip S1 (always applicable) to applicable=False → disagrees with the resolver
     bad = [
         a.model_copy(update={"applicable": False, "status": StepStatus.not_applicable})

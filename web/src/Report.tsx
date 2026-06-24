@@ -151,9 +151,7 @@ export function Report({
                 <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 5, mt: 2, transition: "opacity 240ms", opacity: expanded ? 0 : 1 }}>
                   <Stat label="relevance" value={r.relevance.label} />
                   <Stat label="rubric" value={r.rubric_profile} />
-                  {r.paper_class && (
-                    <Stat label="paper type" value={r.paper_class.primary.replace(/_/g, " ")} />
-                  )}
+                  {r.paper_class && <Stat label="paper type" value={formatLabels(r.paper_class.labels)} />}
                 </Box>
               </Collapse>
             </Box>
@@ -281,6 +279,7 @@ function RelevanceGate({ r }: { r: ScoredResult }) {
 }
 
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const formatLabels = (labels: string[]) => labels.map((label) => label.replace(/_/g, " ")).join(", ");
 
 // A small all-caps label over a larger, slightly bolder, sentence-cased value — the relevance / rubric
 // / paper-type row under the title.
@@ -835,7 +834,7 @@ function NotApplicable({
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {isReview && r.paper_class
-                  ? `classified ${r.paper_class.primary} · ${Math.round(r.paper_class.confidence * 100)}%`
+                  ? `classified ${formatLabels(r.paper_class.labels)} · ${Math.round(r.paper_class.confidence * 100)}%`
                   : `gate confidence ${Math.round(r.relevance.confidence * 100)}%`}
               </Typography>
             </Box>

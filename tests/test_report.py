@@ -37,7 +37,7 @@ def _result(step_assessments, profile_steps) -> ScoredResult:
             label=RelevanceLabel.yes, confidence=0.9, rationale="x", evidence_refs=[0]
         ),
         paper_class=PaperClass(
-            primary=PaperClassLabel.empirical, confidence=0.9, rationale="x", evidence_refs=[0]
+            labels=[PaperClassLabel.data_analysis], confidence=0.9, rationale="x", evidence_refs=[0]
         ),
         step_assessments=step_assessments,
         profile=Profile(

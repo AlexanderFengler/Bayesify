@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from bayesify.core import config
 from bayesify.core.context import evidence_digest, excerpt_context
 from bayesify.core.prompts import ASSESS_JUDGE_SYSTEM, ASSESS_REFUTE_SYSTEM
-from bayesify.core.rubric.applicability import step_applicability
+from bayesify.core.rubric.applicability import step_applicability_for_labels
 from bayesify.core.rubric.models import RubricSpec, RubricStep
 from bayesify.core.schema import (
     AdversarialVerdict,
@@ -162,7 +162,7 @@ def assess(
     cost: list[CostLedgerEntry] = []
 
     for step in rubric.steps:
-        ap = step_applicability(step, paper_class.primary, gate_facts)
+        ap = step_applicability_for_labels(step, paper_class.labels, gate_facts)
         if not ap.applicable:
             assessments.append(
                 StepAssessment(
