@@ -18,6 +18,16 @@ const PRIVACY_ACK_KEY = "bayesify.privacy.ack"; // set once the first-run disclo
 export function Layout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+
+  // Remember the last "meaningful" page (cover / start / a report) so the reference pages' Back
+  // buttons can return there, skipping transient stops like /processing. Defaults to the cover.
+  const lastMainRef = useRef("/");
+  useEffect(() => {
+    if (pathname === "/" || pathname === "/start" || pathname.startsWith("/paper/")) {
+      lastMainRef.current = pathname;
+    }
+  }, [pathname]);
+  const exitToMain = useCallback(() => navigate(lastMainRef.current), [navigate]);
   const [mode, setMode] = useState<"full" | "local">("full");
   const [profile, setProfile] = useState("synthesis");
   const [rubrics, setRubrics] = useState<RubricSummary[]>([]);
@@ -28,6 +38,10 @@ export function Layout() {
   const [running, setRunning] = useState(false);
   const [paper, setPaper] = useState<PaperState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // The paper id whose blind-rating pipeline is still running. The rate flow jumps straight to the
+  // rating page (no /processing flash) and waits there until this clears — the rating context needs
+  // the detector inventory, which isn't ready until the run finishes.
+  const [ratingPending, setRatingPending] = useState<string | null>(null);
   const [modal, setModal] = useState<"privacy" | null>(null);
   const [firstRun, setFirstRun] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -60,6 +74,7 @@ export function Layout() {
     setPaper(null);
     setError(null);
     setRunning(false);
+    setRatingPending(null);
     navigate("/start");
   }, [navigate]);
 
@@ -80,15 +95,18 @@ export function Layout() {
         async () => {
           const result = await getPaper(paperId);
           setPaper(result);
+          setRatingPending(null); // the inventory is ready now — the rating page can load its context
           if (result.status === "failed") {
             setError(result.error ?? "assessment failed");
           }
           // The paper page dispatches by payload (report / inventory / local notice / failed); the
-          // rate flow jumps straight to the blind form once the paper is ingested. We deliberately
-          // do NOT clear `running` here: react-router navigation is a concurrent transition, so an
-          // urgent setRunning(false) would render /processing for one frame with running=false and
-          // trip its idle state mid-flight. `running` is cleared only by reset()/the next run.
-          navigate(opts?.rateOnDone ? `/rate/${paperId}` : `/paper/${paperId}`);
+          // rate flow already navigated to the blind form (below) — re-navigating to the same URL is a
+          // harmless no-op. We deliberately do NOT clear `running` here: react-router navigation is a
+          // concurrent transition, so an urgent setRunning(false) would render /processing for one
+          // frame with running=false and trip its idle state mid-flight. `running` is cleared only by
+          // reset()/the next run. `replace`: /processing is a transient stop, so swap it out of
+          // history — browser-Back from the report lands on /start, not the processing screen.
+          navigate(opts?.rateOnDone ? `/rate/${paperId}` : `/paper/${paperId}`, { replace: true });
         },
       );
     },
@@ -104,14 +122,23 @@ export function Layout() {
       setStageState({});
       setError(null);
       setRunning(true);
-      navigate("/processing");
+      // Analyze shows the /processing screen; rate skips it — once we have an id we jump straight to
+      // the blind-rating page, which shows its own "loading the rating context" state while the
+      // (background) detector run finishes. ratingPending keeps that page in its loading state.
+      if (intent === "analyze") navigate("/processing");
       try {
         const paperId = await submitPaper({ file, identifier, mode: runMode, profile });
+        if (intent === "rate") {
+          setRatingPending(paperId);
+          navigate(`/rate/${paperId}`, { replace: true });
+        }
         track(paperId, { rateOnDone: intent === "rate" });
       } catch (err) {
-        // Stay on /processing and surface the error there. Keep `running` set so the route's error
-        // branch (checked before the !running redirect) wins without a race. reset() clears it.
+        // Surface the error on /processing (its error branch wins before the !running redirect). Keep
+        // `running` set so there's no race; reset() clears it. Route there even on the rate path,
+        // where a submit failure means we never reached the rating page.
         setError(err instanceof Error ? err.message : String(err));
+        navigate("/processing");
       }
     },
     [file, identifier, mode, profile, track, navigate],
@@ -151,6 +178,7 @@ export function Layout() {
       setDragging,
       fileInput,
       running,
+      ratingPending,
       stageState,
       paper,
       setPaper,
@@ -159,6 +187,7 @@ export function Layout() {
       rerunPaper,
       reset,
       openPrivacy,
+      exitToMain,
     }),
     [
       mode,
@@ -168,6 +197,7 @@ export function Layout() {
       file,
       dragging,
       running,
+      ratingPending,
       stageState,
       paper,
       error,
@@ -175,6 +205,7 @@ export function Layout() {
       rerunPaper,
       reset,
       openPrivacy,
+      exitToMain,
     ],
   );
 

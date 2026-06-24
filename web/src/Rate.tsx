@@ -93,7 +93,15 @@ function RateShell({ children }: { children: React.ReactNode }) {
 // The blind rating form: a rater walks the same rubric the engine walks and authors a Rating,
 // WITHOUT ever seeing the engine's verdict (the context endpoint serves no ScoredResult). Statuses
 // start blank — nothing is pre-filled from the engine or the gate resolver, so the rater judges cold.
-export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void }) {
+export function Rate({
+  paperId,
+  onExit,
+  pending = false,
+}: {
+  paperId: string;
+  onExit: () => void;
+  pending?: boolean; // a background run is still producing the rating context — show loading, don't fetch yet
+}) {
   const [ctx, setCtx] = useState<RateContext | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [profile, setProfile] = useState("synthesis"); // which rubric the rater rates against
@@ -124,10 +132,11 @@ export function Rate({ paperId, onExit }: { paperId: string; onExit: () => void 
   useEffect(() => {
     setCtx(null);
     setPerStep({}); // a different rubric has different steps — clear stale per-step drafts
+    if (pending) return; // wait for the background run to finish; ctx stays null → loading state
     fetchRateContext(paperId, profile)
       .then(setCtx)
       .catch((e) => setLoadErr(e instanceof Error ? e.message : String(e)));
-  }, [paperId, profile]);
+  }, [paperId, profile, pending]);
 
   const draft = (id: string) => perStep[id] ?? EMPTY;
   const setStep = (id: string, patch: Partial<StepDraft>) =>

@@ -5,10 +5,10 @@ import type { StepStatus } from "./types";
 // the two never drift.
 export const STATUS_OPTIONS: StepStatus[] = ["adequate", "partial", "missing", "not_applicable"];
 export const STATUS_LABEL: Record<StepStatus, string> = {
-  adequate: "adequate",
-  partial: "partial",
-  missing: "missing",
-  not_applicable: "not applicable",
+  adequate: "Adequate",
+  partial: "Partial",
+  missing: "Missing",
+  not_applicable: "Not Applicable",
 };
 
 // The compiled rubric served by GET /api/rubric — the single source of truth for step names + the

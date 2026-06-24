@@ -1,11 +1,15 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArticleIcon from "@mui/icons-material/Article";
+import CancelIcon from "@mui/icons-material/Cancel";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import DataObjectIcon from "@mui/icons-material/DataObject";
 import DownloadIcon from "@mui/icons-material/Download";
+import ErrorIcon from "@mui/icons-material/Error";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
+import InfoIcon from "@mui/icons-material/Info";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   Box,
   Button,
@@ -18,12 +22,15 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
+  Slide,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { alpha, type Theme } from "@mui/material/styles";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { SwitchTransition } from "react-transition-group";
 import { recordOverride } from "./api";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import type {
@@ -36,12 +43,21 @@ import type {
   Suggestion,
 } from "./types";
 
-// "error"-severity findings read as "omission" (a missing/incomplete workflow step) — names what's
-// wrong without sounding like an accusation. The colour mapping below keeps error/warning/info hues.
-const SEV_LABEL: Record<string, string> = { error: "omission", warning: "warning", info: "info" };
-const sevLabel = (sev: string): string => SEV_LABEL[sev] ?? sev;
-const sevColor = (sev: string): "error" | "warning" | "info" =>
-  sev === "error" ? "error" : sev === "warning" ? "warning" : "info";
+// A filled status dot per severity, matching the green CheckCircle used for the "did well" items:
+// a red ✕ dot for error, an amber ! dot for warning, a blue i dot for info.
+function SeverityIcon({ severity }: { severity: string }) {
+  const sx = { fontSize: 18, mt: "1px", flex: "0 0 auto" } as const;
+  if (severity === "error") return <CancelIcon sx={{ ...sx, color: "error.main" }} />;
+  if (severity === "warning") return <ErrorIcon sx={{ ...sx, color: "warning.main" }} />;
+  return <InfoIcon sx={{ ...sx, color: "info.main" }} />;
+}
+
+// Confidence → a reliability colour (high = green, medium = amber, low = red). Effort → an ease
+// colour (low effort is an easy win = green; high effort is costly = red). Used by the chips below.
+type ChipColor = "success" | "warning" | "error";
+const confidenceColor = (c: number): ChipColor => (c >= 0.8 ? "success" : c >= 0.5 ? "warning" : "error");
+const EFFORT_COLOR: Record<string, ChipColor> = { low: "success", medium: "warning", high: "error" };
+const effortColor = (ease: string): ChipColor => EFFORT_COLOR[ease] ?? "warning";
 
 // One place mapping a step status onto a palette colour + label, used by the dots, pills and borders.
 type PaletteKey = "success" | "warning" | "error";
@@ -96,8 +112,9 @@ export function Report({
   // Records of expert disagreements made this session (step_id -> corrected status). Purely a UI
   // indicator; the engine output is never mutated (A5).
   const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
-  // which step's detail is open on the full report; default to the first step
-  const [selected, setSelected] = useState<string | null>(r.step_assessments[0]?.step_id ?? null);
+  // which step's detail is expanded inline under "Steps at a glance"; null = none open (just chips)
+  const [selected, setSelected] = useState<string | null>(null);
+  const toggleSelected = (id: string) => setSelected((cur) => (cur === id ? null : id));
 
   const rubric = useRubric(r.rubric_profile); // the rubric this paper was graded against
   const stepNames = useStepNames(r.rubric_profile);
@@ -112,10 +129,6 @@ export function Report({
   const title = paper.paper_title ?? paper.source_label;
   const selectedStep = r.step_assessments.find((a) => a.step_id === selected) ?? null;
   const base = `/paper/${paper.paper_id}`;
-  const openFull = (stepId?: string) => {
-    if (stepId) setSelected(stepId);
-    navigate(`${base}/full`);
-  };
 
   return (
     <>
@@ -137,9 +150,11 @@ export function Report({
               </Typography>
               {/* chips under the title — persist across both views; hidden on the narrowest screens */}
               <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 5, mt: 2 }}>
-                <Stat label="relevance" value={r.relevance.label} />
-                <Stat label="rubric" value={r.rubric_profile} />
-                {r.paper_class && <Stat label="paper type" value={formatLabels(r.paper_class.labels)} />}
+                <Stat label="relevance" value={r.relevance.label} info={STAT_INFO.relevance} />
+                <Stat label="rubric" value={r.rubric_profile} info={STAT_INFO.rubric} />
+                {r.paper_class && (
+                  <Stat label="paper type" value={formatLabels(r.paper_class.labels)} info={STAT_INFO.paperType} />
+                )}
               </Box>
             </Box>
             <ScoreMetrics r={r} />
@@ -182,48 +197,67 @@ export function Report({
             </Box>
           </Box>
 
-          {/* steps at a glance — persists across both views, titles kept in both */}
-          <Box sx={{ mt: { xs: 3, md: 4 } }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-              <Typography variant="overline" color="text.secondary">
-                Steps at a glance
-              </Typography>
-              <Legend />
-            </Box>
-            <StepGlance
-              steps={r.step_assessments}
-              stepNames={stepNames}
-              selected={expanded ? selected : null}
-              showTitles
-              onSelect={expanded ? setSelected : openFull}
-            />
+          {/* the body swipes between two views: the interactive "Steps at a glance" (click a chip to
+              expand that step's detail inline) and the full-report document (every step, read-only,
+              like the .md). The summary/full toggle button above drives `expanded`. */}
+          <Box sx={{ mt: { xs: 3, md: 4 }, overflowX: "hidden" }}>
+            <SwitchTransition mode="out-in">
+              <Slide
+                key={expanded ? "full" : "glance"}
+                direction={expanded ? "left" : "right"}
+                timeout={280}
+                appear={false}
+                mountOnEnter
+                unmountOnExit
+              >
+                <Box>
+                  {expanded ? (
+                    <FullReportDoc steps={r.step_assessments} stepNames={stepNames} stepWhy={stepWhy} />
+                  ) : (
+                    <>
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+                        <Typography variant="overline" color="text.secondary">
+                          Steps at a glance
+                        </Typography>
+                        <Legend />
+                      </Box>
+                      <StepGlance
+                        steps={r.step_assessments}
+                        stepNames={stepNames}
+                        selected={selected}
+                        showTitles
+                        onSelect={toggleSelected}
+                      />
+                      <Collapse in={!!selectedStep} timeout={300}>
+                        <Box sx={{ mt: 3 }}>
+                          {selectedStep && (
+                            <StepDetail
+                              a={selectedStep}
+                              stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
+                              why={stepWhy[selectedStep.step_id]}
+                              fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
+                              overridden={overrides[selectedStep.step_id]}
+                              onOverride={async (status, rationale) => {
+                                await recordOverride(
+                                  paper.paper_id,
+                                  selectedStep.step_id,
+                                  status,
+                                  rationale,
+                                  selectedStep.status,
+                                  r.rubric_profile,
+                                );
+                                setOverrides((prev) => ({ ...prev, [selectedStep.step_id]: status }));
+                              }}
+                            />
+                          )}
+                        </Box>
+                      </Collapse>
+                    </>
+                  )}
+                </Box>
+              </Slide>
+            </SwitchTransition>
           </Box>
-
-          {/* the detailed report — full report only; fades in underneath */}
-          <Collapse in={expanded} timeout={300}>
-            <Box sx={{ mt: 3, transition: "opacity 320ms", opacity: expanded ? 1 : 0 }}>
-              {selectedStep && (
-                <StepDetail
-                  a={selectedStep}
-                  stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
-                  why={stepWhy[selectedStep.step_id]}
-                  fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
-                  overridden={overrides[selectedStep.step_id]}
-                  onOverride={async (status, rationale) => {
-                    await recordOverride(
-                      paper.paper_id,
-                      selectedStep.step_id,
-                      status,
-                      rationale,
-                      selectedStep.status,
-                      r.rubric_profile,
-                    );
-                    setOverrides((prev) => ({ ...prev, [selectedStep.step_id]: status }));
-                  }}
-                />
-              )}
-            </Box>
-          </Collapse>
         </Container>
       </Box>
       <ProvenanceFooter r={r} />
@@ -272,16 +306,105 @@ function RelevanceGate({ r }: { r: ScoredResult }) {
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const formatLabels = (labels: string[]) => labels.map((label) => label.replace(/_/g, " ")).join(", ");
 
+// Hover explanations for the three header stats — a one-line description plus the possible categories.
+type StatInfo = { what: string; categories: string[] };
+const STAT_INFO: Record<"relevance" | "rubric" | "paperType", StatInfo> = {
+  relevance: {
+    what: "Does the paper actually apply Bayesian statistical methodology? This gate decides whether the rubric applies.",
+    categories: ["yes", "partial", "no"],
+  },
+  rubric: {
+    what: "Which rubric the paper was graded against — the default synthesis standard or a source-pure profile.",
+    categories: ["Synthesis", "Gelman (2020)", "Schad (2021)"],
+  },
+  paperType: {
+    what: "How the paper was classified. This sets which workflow steps are applicable.",
+    categories: [
+      "model development",
+      "method development",
+      "software development",
+      "data analysis",
+      "numerical analysis",
+      "theoretical analysis",
+      "review",
+    ],
+  },
+};
+
+// A frosted-glass info popover (matching the app's panels): a short description, a hairline rule, then
+// the categories as small chips. Shared by the three header stats.
+function InfoTooltip({ info, children }: { info: StatInfo; children: React.ReactElement }) {
+  return (
+    <Tooltip
+      arrow
+      enterTouchDelay={0}
+      slotProps={{
+        tooltip: {
+          sx: (t) => {
+            // a clearly translucent frosted pane — lower alpha than the solid-ish panel glass token,
+            // leaning on a strong backdrop blur to stay legible over the aurora.
+            const fill = t.palette.mode === "dark" ? "rgba(40,16,72,0.42)" : "rgba(255,255,255,0.46)";
+            return {
+              maxWidth: 290,
+              p: 0,
+              bgcolor: fill,
+              color: "text.primary",
+              backdropFilter: "blur(18px)",
+              WebkitBackdropFilter: "blur(18px)",
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+              boxShadow: "0 14px 36px rgba(0,0,0,0.22)",
+            };
+          },
+        },
+        arrow: {
+          sx: (t) => ({ color: t.palette.mode === "dark" ? "rgba(40,16,72,0.42)" : "rgba(255,255,255,0.46)" }),
+        },
+      }}
+      title={
+        <Box sx={{ p: 1.5 }}>
+          <Typography variant="body2" sx={{ color: "text.primary", lineHeight: 1.4 }}>
+            {info.what}
+          </Typography>
+          <Divider sx={{ my: 1.25 }} />
+          <Typography
+            sx={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary", display: "block", mb: 0.75 }}
+          >
+            Categories
+          </Typography>
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {info.categories.map((c) => (
+              <Chip key={c} label={c} size="small" variant="outlined" sx={{ height: 22, fontSize: "0.72rem" }} />
+            ))}
+          </Box>
+        </Box>
+      }
+    >
+      {children}
+    </Tooltip>
+  );
+}
+
 // A small all-caps label over a larger, slightly bolder, sentence-cased value — the relevance / rubric
-// / paper-type row under the title.
-function Stat({ label, value }: { label: string; value: string }) {
+// / paper-type row under the title. `info` adds a hover-explained info icon beside the label.
+function Stat({ label, value, info }: { label: string; value: string; info?: StatInfo }) {
   return (
     <Box>
-      <Typography
-        sx={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary" }}
-      >
-        {label}
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+        <Typography
+          sx={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary" }}
+        >
+          {label}
+        </Typography>
+        {info && (
+          <InfoTooltip info={info}>
+            <InfoOutlinedIcon
+              sx={{ fontSize: 15, color: "text.disabled", cursor: "help", transition: "color 120ms", "&:hover": { color: "primary.main" } }}
+            />
+          </InfoTooltip>
+        )}
+      </Box>
       <Typography sx={{ fontSize: "1.35rem", fontWeight: 600, lineHeight: 1.2 }}>{cap(value)}</Typography>
     </Box>
   );
@@ -296,6 +419,29 @@ function Legend() {
           <Box sx={{ width: 9, height: 9, borderRadius: "50%", bgcolor: statusSx(statusMeta(s).color) }} />
           <Typography variant="caption" color="text.secondary">
             {STATUS_LABEL[s]}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+// The finding-dot legend — explains the icons used inside each step of the full report (the green
+// "did well" check and the severity dots), in place of the status-colour legend.
+function SeverityLegend() {
+  const items = [
+    { icon: <CheckCircleIcon sx={{ fontSize: 16, color: "success.main" }} />, label: "did well" },
+    { icon: <InfoIcon sx={{ fontSize: 16, color: "info.main" }} />, label: "info" },
+    { icon: <ErrorIcon sx={{ fontSize: 16, color: "warning.main" }} />, label: "warning" },
+    { icon: <CancelIcon sx={{ fontSize: 16, color: "error.main" }} />, label: "omission" },
+  ];
+  return (
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+      {items.map((it) => (
+        <Box key={it.label} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {it.icon}
+          <Typography variant="caption" color="text.secondary">
+            {it.label}
           </Typography>
         </Box>
       ))}
@@ -342,7 +488,7 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
               <Typography sx={{ fontSize: "1.15rem", color: "text.secondary", fontWeight: 600 }}>/ 100</Typography>
             )}
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, fontWeight: 700 }}>
             Bayesify Score
           </Typography>
           {quality != null && (
@@ -495,13 +641,152 @@ function StepGlance({
               }}
             >
               <Box className="step-rule" sx={{ borderTop: "1px solid", borderColor: "divider", my: 1 }} />
-              <Typography sx={{ fontSize: "0.78rem", fontWeight: 600, lineHeight: 1.2, textAlign: "left", color: "inherit" }}>
+              <Typography sx={{ fontSize: "0.9rem", fontWeight: 600, lineHeight: 1.25, textAlign: "left", color: "inherit" }}>
                 {stepNames[a.step_id] ?? a.step_id}
               </Typography>
             </Box>
           </ButtonBase>
         );
       })}
+    </Box>
+  );
+}
+
+// The full-report document: every step laid out top-to-bottom like the downloadable .md, read-only.
+// It mirrors the .md content minus the unbolded suggestion bodies (how-to) and the effort chips — the
+// suggestion's headline finding and its severity dot are kept. No disagree control, no disclosures.
+function FullReportDoc({
+  steps,
+  stepNames,
+  stepWhy,
+}: {
+  steps: StepAssessment[];
+  stepNames: Record<string, string>;
+  stepWhy: Record<string, string>;
+}) {
+  return (
+    <Box>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+        <Typography variant="overline" color="text.secondary">
+          Full report
+        </Typography>
+        <SeverityLegend />
+      </Box>
+      <Box sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: 4 }}>
+        {steps.map((a) => (
+          <FullReportStep
+            key={a.step_id}
+            a={a}
+            stepName={stepNames[a.step_id] ?? a.step_id}
+            why={stepWhy[a.step_id]}
+          />
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
+function FullReportStep({ a, stepName, why }: { a: StepAssessment; stepName: string; why?: string }) {
+  const na = a.status === "not_applicable";
+  const meta = statusMeta(a.status);
+  const suggestions = [...a.suggestions].sort(
+    (x, y) => (SEV_RANK[x.severity] ?? 9) - (SEV_RANK[y.severity] ?? 9),
+  );
+  return (
+    <Box sx={{ pl: 2.5, borderLeft: "4px solid", borderColor: statusSx(meta.color) }}>
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, flexWrap: "wrap" }}>
+        <Typography component="span" sx={{ fontWeight: 700, color: "text.secondary" }}>
+          {a.step_id}
+        </Typography>
+        <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
+          {stepName}
+        </Typography>
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mt: 1 }}>
+        <Chip
+          size="small"
+          label={meta.label}
+          sx={{
+            color: na ? "text.secondary" : "common.white",
+            bgcolor: na ? "action.selected" : statusSx(meta.color),
+          }}
+        />
+        {!na && (
+          <Chip
+            size="small"
+            variant="outlined"
+            color={confidenceColor(a.confidence)}
+            label={`${Math.round(a.confidence * 100)}% confidence`}
+          />
+        )}
+      </Box>
+
+      {why && (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: "italic" }}>
+          {why}
+        </Typography>
+      )}
+
+      {na ? (
+        <Typography variant="body2" sx={{ mt: 1.5 }}>
+          {a.applicability_reason}
+        </Typography>
+      ) : (
+        <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+          {a.did_well.length > 0 && (
+            <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
+              {a.did_well.map((d, i) => (
+                <Box component="li" key={i} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                  <CheckCircleIcon sx={{ fontSize: 18, color: "success.main", mt: "1px", flex: "0 0 auto" }} />
+                  <Typography variant="body2">{d}</Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {suggestions.length > 0 && (
+            <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
+              {suggestions.map((sug, i) => (
+                <Box component="li" key={i} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+                  <SeverityIcon severity={sug.severity} />
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {sug.text}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {a.standards.length > 0 && (
+            <Box>
+              <Typography variant="overline" color="text.secondary">
+                Standard applied
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                {a.standards.map((s, i) => (
+                  <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    <Typography variant="body2">
+                      {s.citation}
+                      {s.locator && <Box component="span" sx={{ color: "text.secondary" }}> · {s.locator}</Box>}
+                    </Typography>
+                    {s.verified ? (
+                      <Chip size="small" color="success" variant="outlined" label="verified" sx={{ ml: "auto" }} />
+                    ) : (
+                      <Chip size="small" variant="outlined" label="unverified" sx={{ ml: "auto" }} />
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {a.adversarial_verdict?.challenged && (
+            <Typography variant="body2" color="text.secondary">
+              <strong>Adversarial check</strong> {a.adversarial_verdict.notes}
+            </Typography>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -526,13 +811,16 @@ function StepDetail({
   const meta = statusMeta(a.status);
   return (
     <Box sx={{ pl: 2.5, borderLeft: "4px solid", borderColor: statusSx(meta.color) }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+      {/* the heading text on its own line; the status + confidence chips sit on the line below */}
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, flexWrap: "wrap" }}>
         <Typography component="span" sx={{ fontWeight: 700, color: "text.secondary" }}>
           {a.step_id}
         </Typography>
         <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
           {stepName}
         </Typography>
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mt: 1 }}>
         <Chip
           size="small"
           label={meta.label}
@@ -542,9 +830,13 @@ function StepDetail({
           }}
         />
         {!na && (
-          <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }} title="engine confidence (uncalibrated at this milestone)">
-            {Math.round(a.confidence * 100)}% Confidence
-          </Typography>
+          <Chip
+            size="small"
+            variant="outlined"
+            color={confidenceColor(a.confidence)}
+            label={`${Math.round(a.confidence * 100)}% confidence`}
+            title="engine confidence (uncalibrated at this milestone)"
+          />
         )}
       </Box>
 
@@ -578,15 +870,19 @@ function StepDetail({
               <Typography variant="overline" color="text.secondary">
                 Standard applied
               </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
                 {a.standards.map((s, i) => (
-                  <Typography key={i} variant="body2">
-                    {s.citation}
-                    {s.locator && <Box component="span" sx={{ color: "text.secondary" }}> · {s.locator}</Box>}{" "}
-                    <Box component="span" sx={{ color: s.verified ? "success.main" : "text.disabled", fontSize: "0.75rem" }}>
-                      {s.verified ? "✓ verified" : "unverified"}
-                    </Box>
-                  </Typography>
+                  <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    <Typography variant="body2">
+                      {s.citation}
+                      {s.locator && <Box component="span" sx={{ color: "text.secondary" }}> · {s.locator}</Box>}
+                    </Typography>
+                    {s.verified ? (
+                      <Chip size="small" color="success" variant="outlined" label="verified" sx={{ ml: "auto" }} />
+                    ) : (
+                      <Chip size="small" variant="outlined" label="unverified" sx={{ ml: "auto" }} />
+                    )}
+                  </Box>
                 ))}
               </Box>
             </Box>
@@ -699,23 +995,32 @@ function FixesAndEvidence({
 function SuggestionRow({ sug, impact }: { sug: Pick<Suggestion, "severity" | "text" | "how_to" | "ease">; impact?: string }) {
   return (
     <Box>
+      {/* the effort chip sits on its own line; the severity reads as a status dot beside the text */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-        <Chip size="small" color={sevColor(sug.severity)} variant="outlined" label={sevLabel(sug.severity)} />
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-          {sug.text}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ ml: "auto" }} title="estimated effort">
-          {sug.ease} effort
-        </Typography>
+        <Chip
+          size="small"
+          variant="outlined"
+          color={effortColor(sug.ease)}
+          label={`${sug.ease} effort`}
+          title="estimated effort"
+        />
       </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-        {sug.how_to}
-      </Typography>
-      {impact && (
-        <Typography variant="caption" sx={{ color: "success.main" }}>
-          {impact}
-        </Typography>
-      )}
+      <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", mt: 0.75 }}>
+        <SeverityIcon severity={sug.severity} />
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {sug.text}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {sug.how_to}
+          </Typography>
+          {impact && (
+            <Typography variant="caption" sx={{ color: "success.main", display: "block", mt: 0.5 }}>
+              {impact}
+            </Typography>
+          )}
+        </Box>
+      </Box>
     </Box>
   );
 }
