@@ -81,7 +81,11 @@ class MongoDBService:
     def save_event(self, payload: dict[str, Any]) -> str | None:
         """Persist one report event envelope. Returns the Mongo ``_id`` string when saved."""
         if not self._ready:
-            self.start()
+            now = time.monotonic()
+            if now >= self._next_retry_monotonic:
+                self.start()
+                if not self._ready:
+                    self._next_retry_monotonic = now + 5.0
         events = self._events_collection()
         event = payload.get("event")
         if events is None:
