@@ -35,14 +35,17 @@ const LIGHT_SIGNIFIER: Signifier = {
   blueSoft: "#e8f1fb",
 };
 
-// Dark mode — brighter signifiers (better contrast on the dark purple) over translucent tints.
+// Dark mode — brighter signifiers (better contrast on the dark purple) over translucent tints. The
+// hues are chosen to read clearly *against* the purple aurora and apart from each other: a vivid
+// emerald (not a muted sage), a warm amber (not a pale yellow), and a true red pulled away from the
+// pink/magenta family so "missing" never blends into the purple background.
 const DARK_SIGNIFIER: Signifier = {
-  green: "#5fd68a",
-  greenSoft: "rgba(95,214,138,0.18)",
-  amber: "#f7c948",
-  amberSoft: "rgba(247,201,72,0.18)",
-  red: "#fb7185",
-  redSoft: "rgba(251,113,133,0.18)",
+  green: "#4ade80",
+  greenSoft: "rgba(74,222,128,0.20)",
+  amber: "#fbbf24",
+  amberSoft: "rgba(251,191,36,0.20)",
+  red: "#ff6b6b",
+  redSoft: "rgba(255,107,107,0.20)",
   blue: "#60a5fa",
   blueSoft: "rgba(96,165,250,0.18)",
 };

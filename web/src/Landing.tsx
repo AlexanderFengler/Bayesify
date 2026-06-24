@@ -12,6 +12,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { Link as RouterLink } from "react-router-dom";
 import type { RubricSummary } from "./api";
 import { HeroShell } from "./HeroShell";
@@ -109,7 +110,15 @@ function UploadPanel(
   return (
     <Paper
       elevation={0}
-      sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3, boxShadow: "0 12px 40px rgba(20, 30, 50, 0.18)" }}
+      // Highlighted like the rubric cards on hover: a primary-tinted border and glow, so the panel
+      // stands out from the aurora in dark mode (the old flat dark drop-shadow vanished against it).
+      sx={{
+        p: { xs: 2.5, md: 3 },
+        borderRadius: 3,
+        border: "1px solid",
+        borderColor: "primary.main",
+        boxShadow: (t) => `0 14px 36px ${alpha(t.palette.primary.main, 0.22)}`,
+      }}
     >
       {/* dropzone */}
       <Box

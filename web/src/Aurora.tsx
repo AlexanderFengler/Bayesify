@@ -6,7 +6,8 @@ import { Box } from "@mui/material";
 // Its colours come from the active theme variant (teal default / indigo dark), so toggling the theme
 // re-paints it. Several over-sized radial pools drift over a base gradient, each on its own path so
 // the colours merge and separate organically. Falls back to a flat fill for reduced-motion users.
-export function Aurora() {
+// `fast` doubles the drift speed (used on the processing page, so the wait *feels* quicker).
+export function Aurora({ fast = false }: { fast?: boolean }) {
   return (
     <Box
       aria-hidden
@@ -18,7 +19,7 @@ export function Aurora() {
         backgroundColor: t.tokens.aurora.base,
         backgroundImage: t.tokens.aurora.image,
         backgroundSize: t.tokens.aurora.size,
-        animation: "heroFlow 28s ease-in-out infinite",
+        animation: `heroFlow ${fast ? 14 : 28}s ease-in-out infinite`,
         "@keyframes heroFlow": {
           "0%": { backgroundPosition: "0% 0%, 100% 50%, 50% 100%, 0% 100%, 0% 50%" },
           "50%": { backgroundPosition: "100% 100%, 0% 60%, 0% 0%, 100% 0%, 100% 50%" },
