@@ -1,7 +1,7 @@
 """MongoDB startup plumbing for report persistence.
 
-For this first slice, the API starts a client and logs the report payloads at the write points.
-Actual collection writes can be added behind these same seams once the schema settles.
+The API maintains a singleton Mongo client and writes report/rating events to the `events` collection.
+When MongoDB is unavailable, writes fail gracefully (logged) and the API continues serving requests.
 """
 
 from __future__ import annotations
