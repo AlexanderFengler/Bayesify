@@ -44,21 +44,22 @@ class MongoDBService:
         uri = config.mongodb_uri()
         database = config.mongodb_database()
         self._client = MongoClient(uri, serverSelectionTimeoutMS=500)
-        if not self._ping(database):
-            if self._try_start_local_mongod(uri):
-                for _ in range(10):
-                    if self._ping(database):
-                        break
-                    time.sleep(0.5)
-            if not self._ping(database):
-                self._log.warning(
-                    "MongoDB client created, but no server answered at %s/%s. "
-                    "Report events will not be saved to MongoDB until it is available.",
-                    uri,
-                    database,
-                )
-                self._ready = False
-                return
+        ping_ok = self._ping(database)
+        if not ping_ok and self._try_start_local_mongod(uri):
+            for _ in range(10):
+                if self._ping(database):
+                    ping_ok = True
+                    break
+                time.sleep(0.5)
+        if not ping_ok:
+            self._log.warning(
+                "MongoDB client created, but no server answered at %s/%s. "
+                "Report events will not be saved to MongoDB until it is available.",
+                uri,
+                database,
+            )
+            self._ready = False
+            return
 
         self._ensure_indexes()
         self._ready = True
