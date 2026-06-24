@@ -17,6 +17,7 @@ const PRIVACY_ACK_KEY = "bayesify.privacy.ack"; // set once the first-run disclo
 // navigate. Every route renders into <Outlet />.
 export function Layout() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [mode, setMode] = useState<"full" | "local">("full");
   const [profile, setProfile] = useState("synthesis");
   const [rubrics, setRubrics] = useState<RubricSummary[]>([]);
@@ -179,8 +180,8 @@ export function Layout() {
 
   return (
     <AppContext.Provider value={value}>
-      {/* the living gradient, fixed behind everything */}
-      <Aurora />
+      {/* the living gradient, fixed behind everything — drifts twice as fast while processing */}
+      <Aurora fast={pathname === "/processing"} />
       {/* the app frame: header + footer are transparent and pinned outside the scroll area, so the
           aurora shows through them at all times and content never slides underneath. Only the middle
           scrolls. */}

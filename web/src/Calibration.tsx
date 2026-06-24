@@ -22,7 +22,7 @@ import { type CalibrationReport, getCalibration, type MetricStat, type TierCCase
 // so the column width stays constant. The header is permanent (Layout) and lives above this.
 function CalibrationShell({ children }: { children: React.ReactNode }) {
   return (
-    <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
+    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
       {children}
     </Container>
   );

@@ -237,7 +237,7 @@ def _parse_pymupdf(sha256: str, data: bytes) -> tuple[list[_RawSection], str | N
             user_message="This looks like a scanned PDF; OCR is not supported in this version.",
         )
 
-    title = _pdf_title_from_page1(doc)
+    title = _pdf_title(doc)
 
     # Degraded heuristic sectioning: split on heading-like lines, pull out captions + references.
     current = _RawSection(kind="body", title="", doc_sha256=sha256)
@@ -310,6 +310,41 @@ def _pdf_title_from_page1(doc) -> str | None:  # doc: fitz.Document
     if 8 <= len(title) <= 250 and not _NON_TITLE_RE.match(title):
         return title
     return None
+
+
+# Embedded /Title metadata is a useful fallback when the visual heuristic finds nothing, but PDF
+# producers routinely dump junk there — the source filename, a Word/LaTeX artefact, or a generic
+# placeholder — so we filter hard before trusting it.
+_JUNK_TITLE_RE = re.compile(
+    r"^(microsoft word\b|untitled\b|no title\b|main\b|paper\b|manuscript\b|article\b|template\b"
+    r"|preprint\b|document\b|title\b|slide\b)",
+    re.IGNORECASE,
+)
+
+
+def _pdf_title_from_metadata(doc) -> str | None:  # doc: fitz.Document
+    """The embedded /Title, when it looks like a real paper title (not a filename/placeholder)."""
+    try:
+        raw = (doc.metadata or {}).get("title") or ""
+    except Exception:
+        return None
+    title = re.sub(r"\s+", " ", raw).strip()
+    if not (8 <= len(title) <= 250):
+        return None
+    if _NON_TITLE_RE.match(title) or _JUNK_TITLE_RE.match(title):
+        return None
+    # a filename masquerading as a title (no spaces, but underscores or a trailing extension)
+    if " " not in title and re.search(r"_|\.\w{2,4}$", title):
+        return None
+    return title
+
+
+def _pdf_title(doc) -> str | None:  # doc: fitz.Document
+    """Best-effort paper title for an uploaded PDF, taken from the document itself: the visually
+    largest text at the top of page 1 (what a reader reads as the title), falling back to the
+    embedded /Title metadata. Conservative on both paths — returns None rather than a wrong/junk
+    title, so the caller can fall back to the filename."""
+    return _pdf_title_from_page1(doc) or _pdf_title_from_metadata(doc)
 
 
 # --- helpers --------------------------------------------------------------------------------------

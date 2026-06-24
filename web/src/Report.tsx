@@ -1,3 +1,5 @@
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ArticleIcon from "@mui/icons-material/Article";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import DataObjectIcon from "@mui/icons-material/DataObject";
@@ -119,23 +121,10 @@ export function Report({
     <>
       <Box sx={{ flex: 1 }}>
         <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
-          {/* back to summary — full report only, pinned at the top */}
-          <Collapse in={expanded} timeout={300}>
-            <Box sx={{ mb: 2 }}>
-              <Link
-                component="button"
-                type="button"
-                underline="hover"
-                onClick={() => navigate(base)}
-                sx={{ fontWeight: 600, fontSize: "0.875rem" }}
-              >
-                ← Summary
-              </Link>
-            </Box>
-          </Collapse>
-
-          {/* top row: the title block (left) and the score data (right), tops aligned to "REPORT" */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 3, flexWrap: "wrap" }}>
+          {/* top row: the title block (left) and the score data (right). The row stretches so the
+              score block spans the left column's full height — title plus the relevance/rubric/paper-
+              type row — and centres its numbers within that span rather than topping out at "REPORT". */}
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "stretch", gap: 3, flexWrap: "wrap" }}>
             <Box>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
                 <Typography variant="overline" color="text.secondary">
@@ -146,52 +135,54 @@ export function Report({
               <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
                 {title}
               </Typography>
-              {/* chips under the title — collapse away in the full report; hidden on the narrowest screens */}
-              <Collapse in={!expanded} timeout={300}>
-                <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 5, mt: 2, transition: "opacity 240ms", opacity: expanded ? 0 : 1 }}>
-                  <Stat label="relevance" value={r.relevance.label} />
-                  <Stat label="rubric" value={r.rubric_profile} />
-                  {r.paper_class && <Stat label="paper type" value={formatLabels(r.paper_class.labels)} />}
-                </Box>
-              </Collapse>
+              {/* chips under the title — persist across both views; hidden on the narrowest screens */}
+              <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 5, mt: 2 }}>
+                <Stat label="relevance" value={r.relevance.label} />
+                <Stat label="rubric" value={r.rubric_profile} />
+                {r.paper_class && <Stat label="paper type" value={formatLabels(r.paper_class.labels)} />}
+              </Box>
             </Box>
             <ScoreMetrics r={r} />
           </Box>
 
           <Divider sx={{ mt: 2.5 }} />
 
-          {/* relevance gate + actions — summary only */}
-          <Collapse in={!expanded} timeout={300}>
-            <Box
-              sx={{
-                mt: 2.5,
-                display: "flex",
-                flexDirection: "column",
-                gap: 2.5,
-                transition: "opacity 240ms",
-                opacity: expanded ? 0 : 1,
-              }}
-            >
-              <RelevanceGate r={r} />
-              {r.relevance.overridden && (
+          {/* relevance gate + actions — the gate and the summary/full toggle persist across both
+              views; the override notice and the secondary actions are summary-only. */}
+          <Box sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: 2.5 }}>
+            <RelevanceGate r={r} />
+            {r.relevance.overridden && (
+              <Collapse in={!expanded} timeout={300}>
                 <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "warning.light", color: "text.primary", fontSize: "0.875rem" }}>
                   Graded on request. The relevance gate did not classify this as a Bayesian paper; you
                   asked for a full assessment anyway, so treat coverage and quality as provisional.
                 </Box>
-              )}
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-                <Button variant="contained" disableElevation onClick={() => openFull()}>
-                  Read full report
-                </Button>
-                <Downloads paperId={paper.paper_id} />
-                <Button variant="outlined" onClick={onReset}>
-                  Analyze another
-                </Button>
-              </Box>
+              </Collapse>
+            )}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              {/* one button, two jobs: forward into the full report, or back to the summary */}
+              <Button
+                variant="contained"
+                disableElevation
+                startIcon={expanded ? <ArrowBackIcon /> : undefined}
+                endIcon={expanded ? undefined : <ArrowForwardIcon />}
+                onClick={() => navigate(expanded ? base : `${base}/full`)}
+              >
+                {expanded ? "Back to summary" : "Read full report"}
+              </Button>
+              <Collapse in={!expanded} timeout={300} orientation="horizontal">
+                {/* width:max-content + nowrap keep these on one line as the collapse squeezes the width */}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pr: 0.25, width: "max-content", whiteSpace: "nowrap" }}>
+                  <Downloads paperId={paper.paper_id} />
+                  <Button variant="outlined" onClick={onReset} sx={{ flexShrink: 0 }}>
+                    Analyze another
+                  </Button>
+                </Box>
+              </Collapse>
             </Box>
-          </Collapse>
+          </Box>
 
-          {/* steps at a glance — persists; titles in the summary, none in the full report */}
+          {/* steps at a glance — persists across both views, titles kept in both */}
           <Box sx={{ mt: { xs: 3, md: 4 } }}>
             <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
               <Typography variant="overline" color="text.secondary">
@@ -203,7 +194,7 @@ export function Report({
               steps={r.step_assessments}
               stepNames={stepNames}
               selected={expanded ? selected : null}
-              showTitles={!expanded}
+              showTitles
               onSelect={expanded ? setSelected : openFull}
             />
           </Box>
@@ -325,18 +316,18 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
   const quality = r.quality_score;
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
-      <Box sx={{ display: "flex", gap: 3 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: 1 }}>
+      <Box sx={{ display: "flex", gap: { xs: 3, md: 4 } }}>
         <Box>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
-            <Typography sx={{ fontSize: "2.5rem", fontWeight: 700, lineHeight: 1, color: "primary.main" }}>
+            <Typography sx={{ fontSize: { xs: "2.75rem", md: "3.75rem" }, fontWeight: 700, lineHeight: 1, color: "primary.main" }}>
               {coverageText}
             </Typography>
             {cov && (
-              <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>/ {cov.applicable}</Typography>
+              <Typography sx={{ fontSize: "1.15rem", color: "text.secondary", fontWeight: 600 }}>/ {cov.applicable}</Typography>
             )}
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.25 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.25 }}>
             applicable steps
             <br />
             present
@@ -344,18 +335,18 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
         </Box>
         <Box>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
-            <Typography sx={{ fontSize: "2.5rem", fontWeight: 700, lineHeight: 1 }}>
+            <Typography sx={{ fontSize: { xs: "2.75rem", md: "3.75rem" }, fontWeight: 700, lineHeight: 1 }}>
               {quality == null ? "—" : Math.round(quality * 100)}
             </Typography>
             {quality != null && (
-              <Typography sx={{ color: "text.secondary", fontWeight: 600 }}>/ 100</Typography>
+              <Typography sx={{ fontSize: "1.15rem", color: "text.secondary", fontWeight: 600 }}>/ 100</Typography>
             )}
           </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
             Bayesify Score
           </Typography>
           {quality != null && (
-            <Box sx={{ mt: 0.75, height: 6, borderRadius: 3, bgcolor: "action.hover", overflow: "hidden", width: 120 }}>
+            <Box sx={{ mt: 1, height: 8, borderRadius: 4, bgcolor: "action.hover", overflow: "hidden", width: 160 }}>
               <Box sx={{ height: "100%", width: `${Math.round(quality * 100)}%`, bgcolor: "primary.main" }} />
             </Box>
           )}
@@ -427,8 +418,21 @@ function StepGlance({
   showTitles: boolean; // summary cells carry the step title; full-report cells are compact
   onSelect: (id: string) => void;
 }) {
+  // overflowX:auto also clips the y-axis, which would shave the 2px selection/hover outline off the
+  // top, bottom and outer edges of the tiles. A little padding gives the outline room; the equal
+  // negative margin bleeds it back out so the tiles still align to the column edges.
   return (
-    <Box sx={{ mt: 1.5, display: "flex", flexWrap: "nowrap", gap: 1, overflowX: "auto" }}>
+    <Box
+      sx={{
+        mt: 1.5,
+        display: "flex",
+        flexWrap: "nowrap",
+        gap: 1,
+        overflowX: "auto",
+        p: "3px",
+        mx: "-3px",
+      }}
+    >
       {steps.map((a) => {
         const isSel = a.step_id === selected;
         return (
@@ -448,17 +452,29 @@ function StepGlance({
               justifyContent: "flex-start", // override ButtonBase's default centring
               p: 1.25,
               borderRadius: 1, // less round
-              // frosted-glass tile, tinted by the status colour (like the start-page panels)
-              bgcolor: (t) => alpha(statusMainColor(t, a.status), 0.16),
               backdropFilter: "blur(8px)",
               border: "1px solid",
-              borderColor: (t) => alpha(statusMainColor(t, a.status), 0.4),
-              color: "text.primary",
-              // selection (and hover) read as a ring in the status colour so the tint stays intact
-              outline: "2px solid",
-              outlineColor: isSel ? (t) => statusMainColor(t, a.status) : "transparent",
-              transition: "outline-color 120ms",
-              "&:hover": { outlineColor: isSel ? undefined : "primary.main" },
+              // punchcard: inactive tiles are a frosted tint of the status colour; the active tile
+              // (selected, or under the pointer) is "punched" — a solid status fill with the dot and
+              // labels inverted to white for the high-contrast card-flip read.
+              bgcolor: (t) =>
+                isSel ? statusMainColor(t, a.status) : alpha(statusMainColor(t, a.status), 0.16),
+              borderColor: (t) =>
+                isSel ? statusMainColor(t, a.status) : alpha(statusMainColor(t, a.status), 0.4),
+              color: isSel ? "common.white" : "text.primary",
+              transition: "background-color 140ms ease, border-color 140ms ease, color 140ms ease",
+              "& .step-dot": {
+                bgcolor: (t) => (isSel ? t.palette.common.white : statusMainColor(t, a.status)),
+                transition: "background-color 140ms ease",
+              },
+              "& .step-rule": { borderColor: isSel ? "rgba(255,255,255,0.45)" : "divider" },
+              "&:hover": {
+                bgcolor: (t) => statusMainColor(t, a.status),
+                borderColor: (t) => statusMainColor(t, a.status),
+                color: "common.white",
+              },
+              "&:hover .step-dot": { bgcolor: "common.white" },
+              "&:hover .step-rule": { borderColor: "rgba(255,255,255,0.45)" },
             }}
           >
             {/* top: step number, with its status indicator as a circle dot */}
@@ -466,9 +482,7 @@ function StepGlance({
               <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 13, fontWeight: 700 }}>
                 {a.step_id}
               </Box>
-              <Box
-                sx={{ width: 12, height: 12, borderRadius: "50%", flexShrink: 0, bgcolor: (t) => statusMainColor(t, a.status) }}
-              />
+              <Box className="step-dot" sx={{ width: 12, height: 12, borderRadius: "50%", flexShrink: 0 }} />
             </Box>
             {/* a divider, then the short title — both collapse away in the full report */}
             <Box
@@ -480,8 +494,8 @@ function StepGlance({
                 transition: "max-height 300ms ease, opacity 200ms ease",
               }}
             >
-              <Box sx={{ borderTop: "1px solid", borderColor: "divider", my: 1 }} />
-              <Typography sx={{ fontSize: "0.78rem", fontWeight: 600, lineHeight: 1.2, textAlign: "left", color: "text.primary" }}>
+              <Box className="step-rule" sx={{ borderTop: "1px solid", borderColor: "divider", my: 1 }} />
+              <Typography sx={{ fontSize: "0.78rem", fontWeight: 600, lineHeight: 1.2, textAlign: "left", color: "inherit" }}>
                 {stepNames[a.step_id] ?? a.step_id}
               </Typography>
             </Box>

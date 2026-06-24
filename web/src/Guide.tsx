@@ -4,7 +4,7 @@
 // get a paper rated (authors/readers) and rate a paper blind (domain experts, the gold standard).
 export function Guide({ onExit }: { onExit: () => void }) {
   return (
-    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
+    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>

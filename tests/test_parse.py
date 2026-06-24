@@ -32,14 +32,24 @@ _BODY = [
 ]
 
 
-def _make_pdf(lines: list[str] | None = None) -> bytes:
+def _make_pdf(lines: list[str] | None = None, *, meta_title: str | None = None) -> bytes:
     doc = fitz.open()
     page = doc.new_page()
     y = 72
     for line in lines or []:
         page.insert_text((72, y), line, fontsize=11)
         y += 20
+    if meta_title is not None:
+        doc.set_metadata({"title": meta_title})
     return doc.tobytes()
+
+
+def _title_of(pdf_bytes: bytes) -> str | None:
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        return P._pdf_title(doc)
+    finally:
+        doc.close()
 
 
 def _source(blob: BlobStore, data: bytes):
@@ -58,6 +68,31 @@ def test_pymupdf_fallback_extracts_kinds(tmp_path: Path) -> None:
     # the caption is standalone — body text after it must NOT have been absorbed into the caption
     caption = next(r for r in raws if r.kind == "caption")
     assert "References" not in caption.text
+
+
+# --- PDF title extraction (page-1 visual heuristic + /Title metadata fallback) --------------------
+
+
+def test_pdf_title_prefers_the_visible_page1_title() -> None:
+    # the largest text at the top of page 1 is the title a reader sees; it wins over metadata
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 80), "The Visible Paper Title", fontsize=22)
+    page.insert_text((72, 130), "An author and an affiliation line.", fontsize=11)
+    doc.set_metadata({"title": "A Different Metadata Title That Should Lose"})
+    assert _title_of(doc.tobytes()) == "The Visible Paper Title"
+
+
+def test_pdf_title_falls_back_to_metadata_when_page1_heuristic_fails() -> None:
+    # page-1 has no usable title line (only a caption), so the embedded /Title is used instead
+    real = "A Robust Bayesian Workflow for Cognitive Models"
+    assert _title_of(_make_pdf(["Figure 1: an overview."], meta_title=real)) == real
+
+
+def test_pdf_title_rejects_junk_metadata() -> None:
+    # producer junk in /Title must not surface as the paper title (caller falls back to filename)
+    for junk in ("Microsoft Word - paper_final_v3.docx", "untitled", "main.dvi"):
+        assert _title_of(_make_pdf(["Figure 1: an overview."], meta_title=junk)) is None
 
 
 def test_pymupdf_blank_pdf_is_no_text_layer(tmp_path: Path) -> None:
