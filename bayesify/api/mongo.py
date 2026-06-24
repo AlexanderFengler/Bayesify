@@ -31,6 +31,7 @@ class MongoDBService:
         self._client = None
         self._mongod = None
         self._ready = False
+        self._next_retry_monotonic = 0.0
 
     def start(self) -> None:
         """Create the process-wide Mongo client and best-effort ping the configured database."""
