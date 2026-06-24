@@ -43,11 +43,11 @@ from bayesify.core.validation.rating_store import SubmittedRating
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    start_mongodb()
+    await asyncio.to_thread(start_mongodb)
     try:
         yield
     finally:
-        stop_mongodb()
+        await asyncio.to_thread(stop_mongodb)
 
 
 app = FastAPI(title="Bayesify API", version="0.1.0", lifespan=_lifespan)
