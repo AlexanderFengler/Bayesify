@@ -21,6 +21,7 @@ from pathlib import Path
 
 import httpx
 
+from bayesify.api.mongo import save_event
 from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.assess import assess
@@ -183,6 +184,32 @@ def _llm_client() -> LLMClient:
     return make_llm_client()
 
 
+def _analysis_report_payload(job: Job) -> dict:
+    """Mongo-ready shape for an analyze click once the report/inventory exists."""
+    return {
+        "event": "analysis_report_ready",
+        "paper_id": job.id,
+        "mode": job.mode,
+        "source_label": job.source_label,
+        "source_sha256": job.content_sha256,
+        "version_label": job.version_label,
+        "rubric_profile": job.profile,
+        "paper_title": job.paper_title,
+        "parser": job.parser,
+        "parser_version": job.parser_version,
+        "backend": job.backend,
+        "from_cache": job.from_cache,
+        "result": job.result.model_dump(mode="json") if job.result else None,
+        "inventory": job.inventory.model_dump(mode="json") if job.inventory else None,
+        "local_notice": job.local_notice,
+    }
+
+
+def _save_analysis_report_payload(job: Job) -> None:
+    """Persist one analysis report event when a user-triggered analysis completes."""
+    save_event(_analysis_report_payload(job))
+
+
 async def run_job(job: Job) -> None:
     """Drive a job to completion. An identifier with no uploaded file is fetched first (its OA PDF
     into the blob store). Then: local mode runs the on-device engine (ingest->parse->detect); full
@@ -271,6 +298,7 @@ async def _run_local(job: Job, *, source: s.SourceDoc | None = None) -> None:
     await _front_half(job, source=source)
     job.local_notice = _LOCAL_NOTICE
     job.status = "done"
+    _save_analysis_report_payload(job)
     job.emit({"type": "done"})
 
 
@@ -304,6 +332,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             for stage in STAGES:  # complete the UI stepper instantly
                 job.emit({"type": "stage", "stage": stage, "state": "done"})
             job.status = "done"
+            _save_analysis_report_payload(job)
             job.emit({"type": "done"})
             return
 
@@ -376,6 +405,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     if _cache_enabled():
         _results().put(key, {"backend": job.backend, "result": job.result.model_dump(mode="json")})
     job.status = "done"
+    _save_analysis_report_payload(job)
     job.emit({"type": "done"})
 
 
@@ -399,6 +429,7 @@ async def _run_stub(job: Job) -> None:
     job.result = build_stub_result(job.mode)
     job.backend = "stub"  # no credentials → the labelled placeholder engine
     job.status = "done"
+    _save_analysis_report_payload(job)
     job.emit({"type": "done"})
 
 
