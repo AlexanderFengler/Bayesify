@@ -1,6 +1,7 @@
 """MongoDB startup plumbing for report persistence.
 
-The API maintains a singleton Mongo client and writes report/rating events to the `events` collection.
+The API maintains a singleton Mongo client and writes report/rating events to the `events`
+collection.
 When MongoDB is unavailable, writes fail gracefully (logged) and the API continues serving requests.
 """
 
@@ -26,23 +27,25 @@ from bayesify.core import config
 class MongoDBService:
     """Process-wide MongoDB connection manager and event writer."""
 
-    def __init__(self) -> None:
+    def __init__(self):
         self._log = logging.getLogger("bayesify.mongo")
         self._client = None
+        self._events = None
         self._mongod = None
         self._ready = False
         self._next_retry_monotonic = 0.0
 
-    def start(self) -> None:
+    def start(self):
         """Create the process-wide Mongo client and best-effort ping the configured database."""
+        database = config.mongodb_database()
         if self._client is not None:
-            if not self._ready and self._ping(config.mongodb_database()):
+            if not self._ready and self._ping(database):
+                self._events = self._client[database]["events"]
                 self._ensure_indexes()
                 self._ready = True
             return
 
         uri = config.mongodb_uri()
-        database = config.mongodb_database()
         self._client = MongoClient(uri, serverSelectionTimeoutMS=500)
         ping_ok = self._ping(database)
         if not ping_ok and self._try_start_local_mongod(uri):
@@ -53,24 +56,24 @@ class MongoDBService:
                 time.sleep(0.5)
         if not ping_ok:
             self._log.warning(
-                "MongoDB client created, but no server answered at %s/%s. "
-                "Report events will not be saved to MongoDB until it is available.",
-                uri,
-                database,
+                f"MongoDB client created, but no server answered at {uri}/{database}. "
+                f"Report events will not be saved to MongoDB until it is available."
             )
             self._ready = False
             return
 
+        self._events = self._client[database]["events"]
         self._ensure_indexes()
         self._ready = True
-        self._log.info("MongoDB client started for %s/%s", uri, database)
+        self._log.info(f"MongoDB client started for {uri}/{database}")
 
-    def stop(self) -> None:
+    def stop(self):
         """Close the process-wide Mongo client and any local ``mongod`` this service spawned."""
         self._ready = False
         if self._client is not None:
             self._client.close()
             self._client = None
+            self._events = None
         if self._mongod is not None:
             self._mongod.terminate()
             try:
@@ -88,19 +91,20 @@ class MongoDBService:
                 self.start()
                 if not self._ready:
                     self._next_retry_monotonic = now + 5.0
-        events = self._events_collection()
+        events = self._events if self._ready else None
         event = payload.get("event")
         if events is None:
-            self._log.warning("MongoDB unavailable; event %s was not saved.", event)
+            self._log.warning(f"MongoDB unavailable; event {event} was not saved.")
             return None
         doc = {"created_at": datetime.now(UTC), **payload}
         try:
             inserted = events.insert_one(doc)
         except PyMongoError as exc:
-            self._log.warning("MongoDB save failed for event %s: %s", event, exc)
+            self._ready = False
+            self._log.warning(f"MongoDB save failed for event {event}: {exc}")
             return None
         event_id = str(inserted.inserted_id)
-        self._log.info("MongoDB saved event %s as %s", event, event_id)
+        self._log.info(f"MongoDB saved event {event} as {event_id}")
         return event_id
 
     @staticmethod
@@ -141,16 +145,15 @@ class MongoDBService:
         mongod = shutil.which("mongod")
         if mongod is None:
             self._log.warning(
-                "MongoDB is not running at %s and 'mongod' is not installed. "
-                "Start MongoDB locally, or set BAYESIFY_MONGODB_URI to a running server.",
-                uri,
+                f"MongoDB is not running at {uri} and 'mongod' is not installed. "
+                f"Start MongoDB locally, or set BAYESIFY_MONGODB_URI to a running server."
             )
             return False
         dbpath = self._mongodb_data_dir()
         try:
             dbpath.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
-            self._log.warning("Could not create MongoDB data directory %s: %s", dbpath, exc)
+            self._log.warning(f"Could not create MongoDB data directory {dbpath}: {exc}")
             return False
         self._mongod = subprocess.Popen(
             [
@@ -166,22 +169,20 @@ class MongoDBService:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        self._log.info("Started local MongoDB server at %s with dbpath %s", uri, dbpath)
+        self._log.info(f"Started local MongoDB server at {uri} with dbpath {dbpath}")
         return True
 
-    def _events_collection(self):
-        if self._client is None or not self._ready:
-            return None
-        return self._client[config.mongodb_database()]["events"]
-
-    def _ensure_indexes(self) -> None:
-        if self._client is None:
+    def _ensure_indexes(self):
+        if self._events is None:
             return
-        events = self._client[config.mongodb_database()]["events"]
-        events.create_index([("event", 1), ("created_at", -1)])
-        events.create_index([("paper_id", 1), ("created_at", -1)])
-        events.create_index([("source_sha256", 1), ("rubric_profile", 1), ("created_at", -1)])
-        events.create_index([("submission.source_sha256", 1), ("submission.rubric_profile", 1)])
+        self._events.create_index([("event", 1), ("created_at", -1)])
+        self._events.create_index([("paper_id", 1), ("created_at", -1)])
+        self._events.create_index(
+            [("source_sha256", 1), ("rubric_profile", 1), ("created_at", -1)]
+        )
+        self._events.create_index(
+            [("submission.source_sha256", 1), ("submission.rubric_profile", 1)]
+        )
 
 
 @lru_cache(maxsize=1)
