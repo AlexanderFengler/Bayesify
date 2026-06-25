@@ -75,7 +75,7 @@ steps:
     citations: [gabry2019, betancourt_workflow, schad2021]
 
   - id: S4
-    name: Computational faithfulness (convergence & sampling diagnostics)
+    name: Computational faithfulness
     essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     na_when: "Exact/analytic/conjugate posterior — no sampler. Mark not_applicable, do not penalize."
     gate:
@@ -124,7 +124,7 @@ steps:
     citations: [vehtari2017, schad2022_bf]
 
   - id: S7
-    name: Simulation-based calibration / algorithm validation
+    name: Simulation-based calibration
     essential_for: [model_development, method_development, software_development, theoretical_analysis, numerical_analysis]
     recommended_for: [data_analysis]
     na_when: "Routine fit with reliable self-diagnostics (S4) on a simple/standard model — may be done once per research program."

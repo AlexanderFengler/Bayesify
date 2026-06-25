@@ -23,6 +23,7 @@ export interface AppState {
 
   // the in-flight run (drives the /processing page)
   running: boolean;
+  ratingPending: string | null; // paper id whose rating-feeding run is still in flight (or null)
   stageState: Record<string, "running" | "done">;
   paper: PaperState | null;
   setPaper: (p: PaperState | null) => void;
@@ -33,6 +34,7 @@ export interface AppState {
   rerunPaper: (paperId: string) => void;
   reset: () => void;
   openPrivacy: () => void;
+  exitToMain: () => void; // return to the last cover/start/report page (reference-page Back)
 }
 
 export const AppContext = createContext<AppState | null>(null);

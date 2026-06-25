@@ -2,28 +2,30 @@
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import LockIcon from "@mui/icons-material/Lock";
 import PublicIcon from "@mui/icons-material/Public";
-import { AppBar, Box, Chip, Container, IconButton, Toolbar, Typography } from "@mui/material";
+import { AppBar, Box, Chip, Container, IconButton, Toolbar } from "@mui/material";
 import { Link as RouterLink, useLocation } from "react-router-dom";
 import { useApp } from "./AppContext";
 import { useColorMode } from "./ThemeMode";
 
-// The brand wordmark, a link to the home route.
+// The brand wordmark (an SVG lockup that already contains the "Bayesify" text), a link to the home
+// route. Two ink variants ship in web/public: the dark-ink logo for light mode, the white-ink logo
+// for dark mode — swap by the active theme so it always reads against the aurora.
 function Wordmark() {
+  const { variant } = useColorMode();
+  const src = variant === "dark" ? "/bayesify-light.svg" : "/bayesify-dark.svg";
   return (
-    <Typography
-      variant="h6"
+    <Box
       component={RouterLink}
       to="/"
       sx={{
-        fontWeight: 700,
-        letterSpacing: "-0.01em",
-        color: "inherit",
+        display: "flex",
+        alignItems: "center",
         textDecoration: "none",
         "&:hover": { opacity: 0.85 },
       }}
     >
-      Bayesify
-    </Typography>
+      <Box component="img" src={src} alt="Bayesify" sx={{ height: 28, width: "auto", display: "block" }} />
+    </Box>
   );
 }
 
@@ -57,8 +59,8 @@ export function Header() {
       elevation={0}
       sx={{ background: "transparent", color: "text.primary" }}
     >
-      <Container maxWidth={false}>
-        <Toolbar disableGutters sx={{ justifyContent: "space-between" }}>
+      <Container maxWidth={false} sx={{ px: { xs: 2.5, sm: 4, md: 5 } }}>
+        <Toolbar disableGutters sx={{ justifyContent: "space-between", py: 2.5, minHeight: { xs: 76, md: 88 } }}>
           <Wordmark />
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             {!isCover && <ModeChip mode={mode} />}

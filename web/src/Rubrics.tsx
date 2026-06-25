@@ -205,7 +205,7 @@ function RubricColumn({ rubric }: { rubric: Rubric }) {
             >
               {s.id}
             </Typography>
-            <Typography component="span" variant="body2">
+            <Typography component="span" sx={{ fontSize: "0.95rem" }}>
               {s.name}
             </Typography>
           </Box>

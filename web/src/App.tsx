@@ -13,6 +13,7 @@ import { Layout } from "./Layout";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
 import { Rubrics } from "./Rubrics";
+import { SupportedBy } from "./SupportedBy";
 import { LOCAL_STAGES, type PaperState, STAGES } from "./types";
 
 // The whole app is client-side routed: a single Layout holds the app-wide state (mode, the upload
@@ -34,6 +35,7 @@ export function App() {
           <Route path="/calibration" element={<CalibrationRoute />} />
           <Route path="/rubrics" element={<RubricsRoute />} />
           <Route path="/guide" element={<GuideRoute />} />
+          <Route path="/supported" element={<SupportedByRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -68,8 +70,8 @@ function LandingRoute() {
 }
 
 function RubricsRoute() {
-  const navigate = useNavigate();
-  return <Rubrics onExit={() => navigate(-1)} />;
+  const { exitToMain } = useApp();
+  return <Rubrics onExit={exitToMain} />;
 }
 
 function ProcessingRoute() {
@@ -143,19 +145,28 @@ function PaperRoute() {
 
 function RateRoute() {
   const { id } = useParams();
+  const { ratingPending } = useApp();
   const navigate = useNavigate();
   if (!id) return <Navigate to="/start" replace />;
-  return <Rate paperId={id} onExit={() => navigate(-1)} />;
+  // Cancelling or finishing a blind rating returns to the start page (a fresh analysis), not back
+  // into the rating's origin. `pending` holds the page in its loading state while the background
+  // detector run (which feeds the rating context) finishes — so the rate flow skips /processing.
+  return <Rate paperId={id} pending={ratingPending === id} onExit={() => navigate("/start")} />;
 }
 
 function CalibrationRoute() {
-  const navigate = useNavigate();
-  return <Calibration onExit={() => navigate(-1)} />;
+  const { exitToMain } = useApp();
+  return <Calibration onExit={exitToMain} />;
 }
 
 function GuideRoute() {
-  const navigate = useNavigate();
-  return <Guide onExit={() => navigate(-1)} />;
+  const { exitToMain } = useApp();
+  return <Guide onExit={exitToMain} />;
+}
+
+function SupportedByRoute() {
+  const { exitToMain } = useApp();
+  return <SupportedBy onExit={exitToMain} />;
 }
 
 // --- shared status pages (loading / error). The permanent header is supplied by Layout; these just
