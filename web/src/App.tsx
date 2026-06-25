@@ -13,6 +13,7 @@ import { Layout } from "./Layout";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
 import { Rubrics } from "./Rubrics";
+import { SupportedBy } from "./SupportedBy";
 import { LOCAL_STAGES, type PaperState, STAGES } from "./types";
 
 // The whole app is client-side routed: a single Layout holds the app-wide state (mode, the upload
@@ -34,6 +35,7 @@ export function App() {
           <Route path="/calibration" element={<CalibrationRoute />} />
           <Route path="/rubrics" element={<RubricsRoute />} />
           <Route path="/guide" element={<GuideRoute />} />
+          <Route path="/supported" element={<SupportedByRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -160,6 +162,11 @@ function CalibrationRoute() {
 function GuideRoute() {
   const { exitToMain } = useApp();
   return <Guide onExit={exitToMain} />;
+}
+
+function SupportedByRoute() {
+  const { exitToMain } = useApp();
+  return <SupportedBy onExit={exitToMain} />;
 }
 
 // --- shared status pages (loading / error). The permanent header is supplied by Layout; these just
