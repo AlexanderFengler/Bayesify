@@ -19,6 +19,11 @@ import os
 import shutil
 from dataclasses import dataclass
 
+ANTHROPIC_JUDGE_MODEL = "claude-opus-4-8"
+ANTHROPIC_SCREEN_MODEL = "claude-opus-4-8"
+OPENAI_JUDGE_MODEL = "gpt-5.5"
+OPENAI_SCREEN_MODEL = "gpt-5.4-mini"
+
 
 def openalex_api_key() -> str | None:
     return os.environ.get("OPENALEX_API_KEY") or None
@@ -37,6 +42,25 @@ def anthropic_api_key() -> str | None:
 def openai_api_key() -> str | None:
     """The OpenAI API key for the LLM stages when ``BAYESIFY_LLM_BACKEND=openai``."""
     return os.environ.get("OPENAI_API_KEY") or None
+
+
+def mongodb_uri() -> str:
+    """MongoDB connection URI for report persistence scaffolding."""
+    return os.environ.get("BAYESIFY_MONGODB_URI", "mongodb://localhost:27017")
+
+
+def mongodb_database() -> str:
+    """MongoDB database name for report persistence scaffolding."""
+    return os.environ.get("BAYESIFY_MONGODB_DB", "bayesify")
+
+
+def mongodb_autostart() -> bool:
+    """Whether the API may start a local ``mongod`` process when using a localhost URI."""
+    return os.environ.get("BAYESIFY_MONGODB_AUTOSTART", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+    )
 
 
 def claude_code_available() -> bool:
@@ -71,11 +95,6 @@ def llm_backend() -> str:
     if openai_api_key():
         return "openai"
     return "none"
-
-ANTHROPIC_JUDGE_MODEL = "claude-opus-4-8"
-ANTHROPIC_SCREEN_MODEL = "claude-opus-4-8"
-OPENAI_JUDGE_MODEL = "gpt-5.5"
-OPENAI_SCREEN_MODEL = "gpt-5.4-mini"
 
 
 def _default_judge_model() -> str:

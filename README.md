@@ -62,6 +62,14 @@ pixi run setup-web  # one-time: install the frontend's node_modules
 pixi run app        # builds the UI and serves it + the API at http://localhost:8000
 ```
 
+Bayesify uses MongoDB for report-persistence scaffolding. By default the API connects to
+`mongodb://localhost:27017` and database `bayesify`. If a local `mongod` binary is installed, the
+API will start it automatically with data under `~/.bayesify/mongodb`; otherwise start MongoDB
+yourself before running the app. Override with `BAYESIFY_MONGODB_URI`, `BAYESIFY_MONGODB_DB`, or set
+`BAYESIFY_MONGODB_AUTOSTART=0` to disable local auto-start. Report events are stored in the
+`events` collection; query by `event` (`analysis_report_ready` or `blind_rating_submitted`),
+`paper_id`, `source_sha256`, or `rubric_profile`.
+
 For frontend hot-reload during development, run the two dev servers instead (Vite proxies `/api`):
 
 ```sh

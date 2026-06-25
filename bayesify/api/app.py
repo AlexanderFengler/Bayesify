@@ -18,6 +18,8 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
 
@@ -30,6 +32,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from bayesify.api import jobs as jobsmod
 from bayesify.api.jobs import JobStore, event_stream, run_job
+from bayesify.api.mongo import save_event, start_mongodb, stop_mongodb
 from bayesify.core.report import fix_list
 from bayesify.core.rubric import RubricProfileError, available_rubrics, load_rubric
 from bayesify.core.schema import EvidenceKind
@@ -37,7 +40,17 @@ from bayesify.core.validation import Rating, harness, to_calibration_payload
 from bayesify.core.validation.override_store import Override
 from bayesify.core.validation.rating_store import SubmittedRating
 
-app = FastAPI(title="Bayesify API", version="0.1.0")
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    await asyncio.to_thread(start_mongodb)
+    try:
+        yield
+    finally:
+        await asyncio.to_thread(stop_mongodb)
+
+
+app = FastAPI(title="Bayesify API", version="0.1.0", lifespan=_lifespan)
 
 # Local-first dev: the Vite dev server runs on 5173.
 app.add_middleware(
@@ -394,6 +407,17 @@ async def rate_submit(body: RateSubmit) -> dict:
     rstore = jobsmod._ratings_store()
     rstore.add(sub)
     n = rstore.count_for(sub.source_sha256, sub.rubric_profile, sub.paper_id)
+    await asyncio.to_thread(
+        save_event,
+        {
+            "event": "blind_rating_submitted",
+            "paper_id": sub.paper_id,
+            "source_sha256": sub.source_sha256,
+            "rubric_profile": sub.rubric_profile,
+            "submission": sub.model_dump(mode="json"),
+            "n_ratings": n,
+        },
+    )
     return {"recorded": True, "n_ratings": n}
 
 
