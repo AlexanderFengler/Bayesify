@@ -12,6 +12,7 @@ dependencies = [
     "anthropic>=0.40",  # the LLM stages (screen/classify/assess); imported lazily in core.llm
     "claude-agent-sdk>=0.1.0",  # optional LLM backend: run on a Claude subscription (no API key)
     "openai>=1.80",  # optional LLM backend: OpenAI Responses API
+    "pymongo>=4.10",  # MongoDB report persistence client
 ]
 
 [project.optional-dependencies]
