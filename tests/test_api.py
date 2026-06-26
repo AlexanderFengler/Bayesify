@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from bayesify.api.app import app, store
-from bayesify.api.jobs import LOCAL_STAGES, STAGES, Job, event_stream, run_job
+from bayesify.api.jobs import LOCAL_STAGES, STAGES, Job, JobStore, event_stream, run_job
 
 client = TestClient(app)
 
@@ -67,6 +67,51 @@ def test_create_with_id_returns_paper_id() -> None:
     body = r.json()
     assert body["paper_id"]
     assert body["status"] in ("queued", "running", "done")
+
+
+def test_upload_rejects_oversize_pdf(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MAX_UPLOAD_MB", "1")
+    big = b"%PDF-" + b"0" * 1_200_000  # ~1.2 MB > the 1 MB cap → rejected before buffering
+    r = client.post(
+        "/api/papers", files={"file": ("big.pdf", big, "application/pdf")}, data={"mode": "local"}
+    )
+    assert r.status_code == 413
+
+
+def test_jobstore_evicts_least_recently_used_beyond_cap(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MAX_JOBS", "3")
+    s = JobStore()
+    ids = [s.create(mode="local", source_label=f"p{i}").id for i in range(5)]
+    assert s.get(ids[0]) is None and s.get(ids[1]) is None  # the two oldest were evicted
+    assert all(s.get(i) is not None for i in ids[2:])  # the three newest are retained
+
+
+def test_jobstore_get_keeps_a_job_warm(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MAX_JOBS", "2")
+    s = JobStore()
+    a = s.create(mode="local", source_label="a").id
+    s.create(mode="local", source_label="b")
+    assert s.get(a) is not None  # touch a → most-recently-used
+    c = s.create(mode="local", source_label="c").id  # evicts b (the LRU), not the warmed a
+    assert s.get(a) is not None and s.get(c) is not None
+
+
+def test_spawn_retains_then_discards_and_logs_failure(caplog) -> None:
+    import logging
+
+    from bayesify.api import jobs as jobsmod
+
+    async def main() -> None:
+        async def boom() -> None:
+            raise RuntimeError("kaboom")
+
+        await asyncio.gather(jobsmod.spawn(boom()), return_exceptions=True)
+        await asyncio.sleep(0)  # let the done-callback run
+
+    with caplog.at_level(logging.ERROR, logger="bayesify.jobs"):
+        asyncio.run(main())
+    assert jobsmod._background_tasks == set()  # the finished task was discarded from the set
+    assert any("background task failed" in r.getMessage() for r in caplog.records)
 
 
 def test_unknown_paper_is_404() -> None:

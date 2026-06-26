@@ -49,6 +49,20 @@ def evidence_digest(evidence: list[Evidence]) -> str:
     return "\n".join(lines)
 
 
+def validate_evidence_refs(refs: list[int], evidence: list[Evidence], *, where: str) -> None:
+    """Fail loud if the model cited an ``evidence_ref`` outside the indexed digest it was shown.
+
+    The grounding discipline (A3) is only real if every cited index points at a real detector hit:
+    ``evidence_digest`` shows ``[0..len-1]``, so a ref outside that range is a hallucinated citation
+    the report would later dereference into a dangling lookup. Reject it here instead."""
+    n = len(evidence)
+    out_of_range = [i for i in refs if not 0 <= i < n]
+    if out_of_range:
+        raise ValueError(
+            f"{where} cited evidence_refs {out_of_range} outside the {n} detector hits shown"
+        )
+
+
 def build_user(
     parsed: ParsedDoc, evidence: list[Evidence], *, max_chars: int = DEFAULT_MAX_CHARS
 ) -> str:

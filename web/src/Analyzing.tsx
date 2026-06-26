@@ -60,10 +60,12 @@ export function Analyzing({
   stageState,
   stages,
   source,
+  byline,
 }: {
   stageState: Record<string, "running" | "done">;
   stages: readonly string[];
   source?: string;
+  byline?: string | null;
 }) {
   const typed = useTypewriter(WORKING_WORDS);
   return (
@@ -90,8 +92,13 @@ export function Analyzing({
           </Box>
         </Typography>
         {source && (
-          <Typography sx={{ mt: 1, color: "text.secondary", wordBreak: "break-all" }}>
+          <Typography sx={{ mt: 1, color: "text.secondary", wordBreak: "break-word" }}>
             {source}
+          </Typography>
+        )}
+        {byline && (
+          <Typography variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
+            {byline}
           </Typography>
         )}
         <Box sx={{ mt: { xs: 5, md: 7 } }}>

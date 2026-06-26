@@ -78,6 +78,18 @@ def test_rating_store_round_trips_and_groups(tmp_path) -> None:
     assert RatingStore(tmp_path / "ratings").count_for("sha-p1", "synthesis") == 2
 
 
+def test_by_paper_skips_a_corrupt_rating_file(tmp_path) -> None:
+    # A partially-written / corrupt file in a bucket must not abort the whole assembly — every other
+    # rater's (irreplaceable) work in that bucket and all other buckets must still load.
+    store = RatingStore(tmp_path / "ratings")
+    store.add(_sub("p1", "r1"))
+    store.add(_sub("p1", "r2"))
+    bucket = tmp_path / "ratings" / "sha-p1__synthesis"
+    (bucket / "r3.json").write_text("{not valid", encoding="utf-8")
+    grouped = store.by_paper()
+    assert {s.rating.rater_id for s in grouped["sha-p1__synthesis"]} == {"r1", "r2"}
+
+
 def test_same_paper_across_sessions_groups_into_one_bucket(tmp_path) -> None:
     store = RatingStore(tmp_path / "ratings")
     # two sessions (different ephemeral job ids) rate the SAME paper (same content sha): the durable

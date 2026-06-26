@@ -10,6 +10,7 @@ import { Guide } from "./Guide";
 import { Inventory, LocalNotice } from "./Inventory";
 import { Landing } from "./Landing";
 import { Layout } from "./Layout";
+import { formatByline } from "./paper";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
 import { Rubrics } from "./Rubrics";
@@ -75,7 +76,7 @@ function RubricsRoute() {
 }
 
 function ProcessingRoute() {
-  const { running, error, stageState, file, identifier, mode, reset } = useApp();
+  const { running, error, stageState, file, identifier, mode, reset, paper } = useApp();
   const navigate = useNavigate();
   if (error) return <ErrorPage error={error} onRetry={reset} />;
   // A direct hit / refresh on /processing has no run in flight. We show an idle panel rather than
@@ -100,7 +101,11 @@ function ProcessingRoute() {
       : mode === "local"
         ? LOCAL_STAGES
         : STAGES;
-  return <Analyzing stageState={stageState} stages={stages} source={file?.name ?? identifier} />;
+  // Once parse completes mid-run, prefer the extracted title (+ an authors · year byline) over the
+  // filename; until then fall back to the filename / pasted identifier.
+  const source = paper?.paper_title ?? file?.name ?? identifier;
+  const byline = paper ? formatByline(paper.paper_authors, paper.paper_year) : null;
+  return <Analyzing stageState={stageState} stages={stages} source={source} byline={byline} />;
 }
 
 // Dispatches a paper by payload (report / inventory / local notice / failed). Uses the in-memory
