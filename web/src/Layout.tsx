@@ -84,12 +84,20 @@ export function Layout() {
     (paperId: string, opts?: { rateOnDone?: boolean }) => {
       setStageState({});
       setError(null);
+      setPaper(null); // clear any prior run so the Analyzing screen starts clean
       setRunning(true);
+      let metaFetched = false;
       streamProgress(
         paperId,
         (e) => {
           if (e.type === "stage" && e.stage) {
             setStageState((prev) => ({ ...prev, [e.stage!]: e.state ?? "running" }));
+            // Once parsing is done the backend knows the paper's title/authors/year — pull them in
+            // (once) so the Analyzing screen shows the real paper, not the filename.
+            if (e.stage === "parse" && e.state === "done" && !metaFetched) {
+              metaFetched = true;
+              getPaper(paperId).then(setPaper).catch(() => {});
+            }
           }
         },
         async () => {

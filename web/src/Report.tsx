@@ -32,6 +32,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SwitchTransition } from "react-transition-group";
 import { recordOverride } from "./api";
+import { formatByline } from "./paper";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import type {
   Evidence,
@@ -127,6 +128,7 @@ export function Report({
   }
 
   const title = paper.paper_title ?? paper.source_label;
+  const byline = formatByline(paper.paper_authors, paper.paper_year);
   const selectedStep = r.step_assessments.find((a) => a.step_id === selected) ?? null;
   const base = `/paper/${paper.paper_id}`;
 
@@ -148,6 +150,11 @@ export function Report({
               <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
                 {title}
               </Typography>
+              {byline && (
+                <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {byline}
+                </Typography>
+              )}
               {/* chips under the title — persist across both views; hidden on the narrowest screens */}
               <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 5, mt: 2 }}>
                 <Stat label="relevance" value={r.relevance.label} info={STAT_INFO.relevance} />

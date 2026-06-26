@@ -77,20 +77,21 @@ pixi run api        # FastAPI with --reload on :8000
 pixi run web        # Vite dev server on http://localhost:5173 (in a second terminal)
 ```
 
-Drop a PDF and choose **Local-only** mode for an on-device evidence inventory (no LLM, nothing
+Drop a PDF and choose **Local** mode for an on-device evidence inventory (no LLM, nothing
 leaves the machine). PDF parsing uses PyMuPDF by default; `pixi run -e parse app` adds the richer
-Docling parser (layout, tables, captions).
+Docling parser (layout, tables, captions). (The two modes are **Connected** — text sent to an LLM
+for grading — and **Local** — on-device detectors only; the wire value stays `full`/`local`.)
 
-### LLM backend (Full mode)
+### LLM backend (Connected mode)
 
-Full mode (relevance + paper-type, with grading from M5) needs a model. Bayesify picks a backend
+Connected mode (relevance + paper-type, with grading from M5) needs a model. Bayesify picks a backend
 automatically (override with `BAYESIFY_LLM_BACKEND=agent-sdk|api|none`):
 
 1. **Claude subscription** via the Claude Agent SDK — used when the `claude` CLI is installed and
    logged in (`claude login`). **No API key**; bills your Pro/Max plan. To use it, make sure
    `ANTHROPIC_API_KEY` is **unset** (if it's set, the Agent SDK bills that key instead).
 2. **API key** — set `ANTHROPIC_API_KEY` (pay-as-you-go). Haiku screen+classify is ≈ $0.01/paper.
-3. **Neither** → Full mode falls back to the labelled stub engine; Local-only mode still works.
+3. **Neither** → Connected mode falls back to the labelled stub engine; Local mode still works.
 
 The active path is whatever `config.llm_backend()` resolves to. Run the live accuracy gates with
 `ANTHROPIC_API_KEY=... pixi run eval` (or on the subscription backend, just `pixi run eval`).
@@ -99,9 +100,9 @@ The active path is whatever `config.llm_backend()` resolves to. Run the live acc
 
 Phase 1 (research → rubric) complete; Phase 2 (MVP) is built through **M6 plus the M7 validation
 harness** — see [`plans/02-mvp-tool-plan.md`](plans/02-mvp-tool-plan.md) §5 for the milestone/gate
-map. The end-to-end flow works in both modes: upload a PDF → ingest/parse/detect → (Full mode)
+map. The end-to-end flow works in both modes: upload a PDF → ingest/parse/detect → (Connected mode)
 screen/classify/assess/score → an evidence-linked, per-step report with coverage and quality scores,
-downloadable as JSON/Markdown; Local-only mode runs the on-device detectors with nothing sent to a
+downloadable as JSON/Markdown; Local mode runs the on-device detectors with nothing sent to a
 model. There is a blind expert-rating flow and a `/calibration` page for engine-vs-expert agreement
 (behind a FAKE-DATA firewall — no real ratings exist yet; that's the remaining M7 work: freeze the
 rubric, recruit raters, run the live validation). Fetching a paper by identifier is not yet wired —

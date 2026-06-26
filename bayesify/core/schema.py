@@ -143,6 +143,8 @@ class ParsedDoc(_Base):
     parser: str  # "grobid" | "pymupdf"
     parser_version: str
     title: str | None = None  # best-effort paper title from the first page (None if undetected)
+    authors: list[str] = Field(default_factory=list)  # best-effort, from PDF/provider metadata
+    year: int | None = None  # best-effort publication year (PDF/provider metadata; may be missing)
 
 
 class EvidenceSpan(_Base):
