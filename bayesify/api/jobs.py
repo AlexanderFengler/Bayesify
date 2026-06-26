@@ -16,6 +16,7 @@ import asyncio
 import logging
 import os
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -63,6 +64,25 @@ _NEEDS_UPLOAD = (
 _TERMINAL = {"done", "failed"}
 _STAGE_DELAY_S = 0.45  # simulated per-stage work (stub paths) so progress is visible in the UI
 _log = logging.getLogger("bayesify.jobs")
+
+# Background tasks (the grade runs and the fire-and-forget Mongo writes) are held in a set with a
+# strong reference until they finish, so the event loop can't GC one mid-run, and a done-callback
+# logs any unexpected failure instead of letting it vanish as an unretrieved-exception warning.
+_background_tasks: set[asyncio.Task] = set()
+
+
+def spawn(coro) -> asyncio.Task:
+    """Create a tracked background task: retained until done, with unexpected failures logged."""
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_on_task_done)
+    return task
+
+
+def _on_task_done(task: asyncio.Task) -> None:
+    _background_tasks.discard(task)
+    if not task.cancelled() and task.exception() is not None:
+        _log.error("background task failed", exc_info=task.exception())
 
 
 def _data_root() -> Path:
@@ -133,11 +153,22 @@ class Job:
             q.put_nowait(event)
 
 
+def _max_jobs() -> int:
+    """Cap on retained in-memory jobs (overridable via ``BAYESIFY_MAX_JOBS``). Generous for local
+    single-user use; durable state (ratings/overrides/blobs/results) lives on disk, so eviction only
+    drops a finished job's in-memory view, never user data."""
+    try:
+        return max(1, int(os.environ.get("BAYESIFY_MAX_JOBS", "256")))
+    except ValueError:
+        return 256
+
+
 class JobStore:
     def __init__(self) -> None:
-        self._jobs: dict[str, Job] = {}
-        # Blind ratings and A5 overrides are persisted durably via `_ratings_store()` /
-        # `_overrides_store()`, not in memory — they must survive a restart.
+        # Bounded LRU so a long-running process can't grow without limit. Blind ratings and A5
+        # overrides are persisted durably via `_ratings_store()` / `_overrides_store()`, not here —
+        # this only holds the live/recent job views, which are safe to evict once finished.
+        self._jobs: OrderedDict[str, Job] = OrderedDict()
 
     def create(
         self,
@@ -158,11 +189,16 @@ class JobStore:
             identifier=identifier,
             profile=profile,
         )
-        self._jobs[job.id] = job
+        self._jobs[job.id] = job  # newest key is inserted last → most-recently-used
+        while len(self._jobs) > _max_jobs():
+            self._jobs.popitem(last=False)  # evict the least-recently-used
         return job
 
     def get(self, paper_id: str) -> Job | None:
-        return self._jobs.get(paper_id)
+        job = self._jobs.get(paper_id)
+        if job is not None:
+            self._jobs.move_to_end(paper_id)  # a touch keeps an active job warm (LRU)
+        return job
 
 
 def _fetcher() -> Fetcher:
@@ -204,7 +240,7 @@ def _analysis_report_payload(job: Job) -> dict:
 
 def _save_analysis_report_payload(job: Job) -> None:
     """Persist one analysis report event when a user-triggered analysis completes."""
-    asyncio.create_task(asyncio.to_thread(save_event, _analysis_report_payload(job)))
+    spawn(asyncio.to_thread(save_event, _analysis_report_payload(job)))
 
 
 async def run_job(job: Job) -> None:

@@ -63,6 +63,15 @@ app.add_middleware(
 store = JobStore()
 
 
+def _max_upload_bytes() -> int:
+    """Reject an upload larger than this *before* buffering it (a resource-exhaustion guard).
+    Default 50 MB — academic PDFs are well under; override with ``BAYESIFY_MAX_UPLOAD_MB``."""
+    try:
+        return max(1, int(os.environ.get("BAYESIFY_MAX_UPLOAD_MB", "50"))) * 1_000_000
+    except ValueError:
+        return 50_000_000
+
+
 def _source_label(file: UploadFile | None, arxiv_id, doi, openalex_id, url) -> str:
     if file is not None and file.filename:
         return file.filename
@@ -89,6 +98,10 @@ async def create_paper(
         )
     if mode not in ("full", "local"):
         raise HTTPException(status_code=422, detail="mode must be 'full' or 'local'.")
+    if file is not None and file.size is not None and file.size > _max_upload_bytes():
+        raise HTTPException(
+            status_code=413, detail=f"PDF too large (max {_max_upload_bytes() // 1_000_000} MB)."
+        )
     try:
         load_rubric(profile=profile)  # validate the chosen rubric exists (registry)
     except RubricProfileError as exc:
@@ -105,7 +118,7 @@ async def create_paper(
         identifier=identifier,
         profile=profile,
     )
-    asyncio.create_task(run_job(job))
+    jobsmod.spawn(run_job(job))
     return {"paper_id": job.id, "status": job.status}
 
 
@@ -263,7 +276,7 @@ async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dic
             value="force_grade" if is_review else relevance_override,
         )
     )
-    asyncio.create_task(run_job(job))
+    jobsmod.spawn(run_job(job))
     return {"paper_id": job.id, "status": job.status}
 
 
