@@ -101,7 +101,9 @@ def main() -> None:
 
     out = _HERE / "scored_result"
     out.mkdir(parents=True, exist_ok=True)
-    (out / "empirical_mixed.json").write_text(result.model_dump_json(indent=2) + "\n")
+    (out / "empirical_mixed.json").write_text(
+        result.model_dump_json(indent=2) + "\n", encoding="utf-8"
+    )
     print(f"wrote empirical_mixed.json: coverage {result.coverage.present}/{result.coverage.applicable}")
 
 

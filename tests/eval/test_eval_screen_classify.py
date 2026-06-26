@@ -25,7 +25,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 _CASES = json.loads(
-    (Path(__file__).parents[1] / "fixtures" / "screen" / "cases.json").read_text()
+    (Path(__file__).parents[1] / "fixtures" / "screen" / "cases.json").read_text(encoding="utf-8")
 )
 
 

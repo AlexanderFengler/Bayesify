@@ -107,7 +107,7 @@ def test_step_rating_has_no_engine_only_fields() -> None:
 
 def test_human_report_module_is_engine_free() -> None:
     # AST (not substring) so the docstring's own mentions of these names don't false-trip.
-    tree = ast.parse(pathlib.Path(hr.__file__).read_text())
+    tree = ast.parse(pathlib.Path(hr.__file__).read_text(encoding="utf-8"))
     referenced: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):

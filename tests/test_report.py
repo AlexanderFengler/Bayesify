@@ -105,7 +105,7 @@ def test_fix_list_orders_by_severity_then_weight_then_ease() -> None:
 
 
 def test_fix_list_carries_score_impact() -> None:
-    result = ScoredResult.model_validate_json(_FIX.read_text())
+    result = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     fixes = fix_list(result)
     assert fixes  # the fixture has suggestions
     s5 = next(f for f in fixes if f.step_id == "S5")  # missing expected step
@@ -132,7 +132,7 @@ def test_uncited_praise_is_flagged() -> None:
 
 
 def test_recorded_fixture_has_only_cited_praise() -> None:
-    result = ScoredResult.model_validate_json(_FIX.read_text())
+    result = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     assert uncited_praise(result) == []  # the committed fixture must model good (cited) praise
 
 
@@ -140,6 +140,6 @@ def test_recorded_fixture_has_only_cited_praise() -> None:
 
 
 def test_scored_result_round_trips_byte_identical() -> None:
-    text = _FIX.read_text()
+    text = _FIX.read_text(encoding="utf-8")
     result = ScoredResult.model_validate_json(text)
     assert json.loads(result.model_dump_json()) == json.loads(text)  # parse(report.json) == result

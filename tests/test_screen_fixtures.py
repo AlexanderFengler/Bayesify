@@ -25,7 +25,9 @@ from bayesify.core.schema import (
     RelevanceLabel,
 )
 
-_CASES = json.loads((Path(__file__).parent / "fixtures" / "screen" / "cases.json").read_text())
+_CASES = json.loads(
+    (Path(__file__).parent / "fixtures" / "screen" / "cases.json").read_text(encoding="utf-8")
+)
 _IDS = [c["id"] for c in _CASES]
 
 
