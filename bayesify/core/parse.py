@@ -68,7 +68,9 @@ def parse(
     supplements: tuple[s.SourceDoc, ...] = (),
 ) -> s.ParsedDoc:
     """Parse the primary document (+ optional supplements merged into one ``ParsedDoc``)."""
-    raws, parser, parser_version, title = _parse_doc(source.sha256, blob_store.get(source.sha256))
+    data = blob_store.get(source.sha256)
+    raws, parser, parser_version, title = _parse_doc(source.sha256, data)
+    authors, year = _pdf_meta(data)  # embedded PDF metadata (best-effort; providers are cleaner)
     for supp in supplements:
         s_raws, _, _, _ = _parse_doc(
             supp.sha256, blob_store.get(supp.sha256), force_supplement=True
@@ -94,7 +96,13 @@ def parse(
         for i, r in enumerate((r for r in raws if r.text), start=1)
     ]
     return s.ParsedDoc(
-        source=source, sections=sections, parser=parser, parser_version=parser_version, title=title
+        source=source,
+        sections=sections,
+        parser=parser,
+        parser_version=parser_version,
+        title=title,
+        authors=authors,
+        year=year,
     )
 
 
@@ -345,6 +353,49 @@ def _pdf_title(doc) -> str | None:  # doc: fitz.Document
     embedded /Title metadata. Conservative on both paths — returns None rather than a wrong/junk
     title, so the caller can fall back to the filename."""
     return _pdf_title_from_page1(doc) or _pdf_title_from_metadata(doc)
+
+
+# --- embedded PDF metadata (authors + year) -------------------------------------------------------
+# Best-effort, from the PDF's own /Author and /CreationDate. Often empty or stale (the creation date
+# is the file's, which only approximates the publication year), so both may be absent — a fetched
+# paper's provider metadata is preferred when available. We never invent: filtered, range-checked.
+_AUTHOR_SPLIT_RE = re.compile(r"\s*(?:;|\band\b|&|\n|/)\s*", re.IGNORECASE)
+
+
+def _split_authors(raw: str | None) -> list[str]:
+    """Split the /Author metadata into names on unambiguous separators (``;`` / ``and`` / ``&`` /
+    newline / ``/``). Commas are left intact — they ambiguously separate authors *or* a single
+    ``Last, First`` — so the display joins on ``, `` and reads correctly either way."""
+    if not raw:
+        return []
+    names = [re.sub(r"\s+", " ", p).strip() for p in _AUTHOR_SPLIT_RE.split(raw)]
+    # Drop empties and obvious non-names (emails, or blobs too long to be a person's name).
+    names = [n for n in names if n and "@" not in n and len(n) <= 80]
+    return names[:25]
+
+
+def _meta_year(raw: str | None) -> int | None:
+    """The 4-digit year from a PDF date string (``D:20210315...``), range-checked. Best-effort."""
+    if not raw:
+        return None
+    m = re.search(r"\d{4}", raw)
+    if not m:
+        return None
+    year = int(m.group(0))
+    return year if 1900 <= year <= 2100 else None
+
+
+def _pdf_meta(data: bytes) -> tuple[list[str], int | None]:
+    """Authors + year from the PDF's embedded metadata (PyMuPDF, always available). Returns
+    ``([], None)`` on any error — metadata is a best-effort enrichment, never a hard failure."""
+    try:
+        import fitz  # PyMuPDF — a base dep
+
+        with fitz.open(stream=data, filetype="pdf") as doc:
+            meta = doc.metadata or {}
+    except Exception:
+        return [], None
+    return _split_authors(meta.get("author")), _meta_year(meta.get("creationDate"))
 
 
 # --- helpers --------------------------------------------------------------------------------------

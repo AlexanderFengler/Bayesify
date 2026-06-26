@@ -117,3 +117,14 @@ def test_screen_fails_closed_on_persistent_llm_error() -> None:
     client = FakeLLMClient(LLMTransientError("x"), LLMTransientError("y"), LLMTransientError("z"))
     with pytest.raises(LLMError):
         S.screen(_parsed((SectionKind.body, "B", "text")), [], client=client)
+
+
+def test_screen_rejects_out_of_range_evidence_ref() -> None:
+    # The model cites index 99 but only one detector hit (index 0) was shown — a hallucinated
+    # citation that would become a dangling ref in the report. Reject it (fail loud).
+    evidence = [_ev("software.stan", EvidenceKind.software_mention)]
+    canned = Relevance(
+        label=RelevanceLabel.yes, confidence=0.9, rationale="Bayesian", evidence_refs=[99]
+    )
+    with pytest.raises(ValueError, match="evidence_refs"):
+        S.screen(_parsed((SectionKind.body, "B", "text")), evidence, client=FakeLLMClient(canned))

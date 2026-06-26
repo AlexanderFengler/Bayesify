@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from bayesify.core.context import build_user, evidence_digest, excerpt_context
+import pytest
+
+from bayesify.core.context import (
+    build_user,
+    evidence_digest,
+    excerpt_context,
+    validate_evidence_refs,
+)
 from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
@@ -66,3 +73,17 @@ def test_build_user_combines_excerpts_and_hits() -> None:
     user = build_user(parsed, [_ev("software.stan", EvidenceKind.software_mention, "in Stan")])
     assert "PAPER EXCERPTS" in user and "DETECTOR HITS" in user
     assert "Bayesian model in Stan" in user and "[0] software.stan" in user
+
+
+def test_validate_evidence_refs_accepts_in_range_and_empty() -> None:
+    evidence = [_ev("software.stan", EvidenceKind.software_mention, "in Stan")]
+    validate_evidence_refs([0], evidence, where="relevance")  # in range
+    validate_evidence_refs([], evidence, where="relevance")  # empty is fine (caller enforces >=1)
+
+
+def test_validate_evidence_refs_rejects_out_of_range() -> None:
+    evidence = [_ev("software.stan", EvidenceKind.software_mention, "in Stan")]  # only [0] exists
+    with pytest.raises(ValueError, match="evidence_refs"):
+        validate_evidence_refs([0, 5], evidence, where="relevance")
+    with pytest.raises(ValueError, match="evidence_refs"):
+        validate_evidence_refs([-1], evidence, where="relevance")
