@@ -194,6 +194,55 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
     assert r.status_code == 422
 
 
+def test_rate_submit_survives_an_expired_job(tmp_path, monkeypatch) -> None:
+    # A blind rating is ~an hour of work: if the in-memory job has expired (e.g. an API restart)
+    # between rating and submit, it must NOT be dropped. The SPA echoes the paper provenance it got
+    # from rate/context, and the server persists it instead of 404ing (mirrors record_override).
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    rating = {
+        "rater_id": "r1",
+        "relationship": "independent",
+        "relevance_label": "yes",
+        "relevance_rationale": "fits a hierarchical Bayesian model",
+        "paper_class_labels": ["data_analysis"],
+        "paper_class_rationale": "fit to behavioural data",
+        "gate_facts": {
+            "inference_method": "mcmc",
+            "n_models": 1,
+            "bf_claimed": False,
+            "prior_informativeness": "weakly_informative",
+        },
+        "steps": [
+            {
+                "step_id": "S1",
+                "applicable": True,
+                "status": "adequate",
+                "confidence": 0.9,
+                "evidence": [{"section_id": "s01", "quote": "hierarchical drift-diffusion model"}],
+                "rationale": "the model is specified and justified",
+            }
+        ],
+    }
+    # No job with this id exists in the store (it expired); submit with client-sent provenance.
+    ok = client.post(
+        "/api/rate/submit",
+        json={
+            "paper_id": "expired-job-id",
+            "rating": rating,
+            "source_sha256": "cd" * 32,
+            "version_label": "uploaded PDF",
+        },
+    )
+    assert ok.status_code == 200 and ok.json()["recorded"] is True
+    # Durable: persisted under the bucket keyed by the client-sent sha, with the version pinned.
+    from bayesify.api import jobs as jobsmod
+
+    bucket = f"{'cd' * 32}__synthesis"
+    assert jobsmod._ratings_store().count_for("cd" * 32, "synthesis") == 1
+    subs = jobsmod._ratings_store().by_paper()[bucket]
+    assert [s.version_label for s in subs] == ["uploaded PDF"]
+
+
 def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeypatch) -> None:
     # Degraded path: no live job for "abc" (e.g. it expired) — the correction is still recorded,
     # never dropped, with the client-sent/defaulted provenance.

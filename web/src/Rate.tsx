@@ -210,7 +210,10 @@ export function Rate({
     setFormError(null);
     setSubmitting(true);
     try {
-      await submitRating(paperId, r, profile);
+      await submitRating(paperId, r, profile, {
+        source_sha256: ctx?.source_sha256,
+        version_label: ctx?.version_label,
+      });
       setDone(true);
     } catch (e) {
       setFormError(e instanceof Error ? e.message : String(e));

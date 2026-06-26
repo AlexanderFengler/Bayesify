@@ -371,6 +371,7 @@ async def rate_context(paper_id: str, profile: str = "synthesis") -> dict:
         "paper_id": job.id,
         "source_label": job.source_label,
         "source_sha256": job.content_sha256,
+        "version_label": job.version_label,  # echoed back on submit (job-expiry fallback)
         "rubric": rubric,
         "evidence": evidence,
         "where_looked": where_looked,
@@ -381,6 +382,10 @@ class RateSubmit(BaseModel):
     model_config = ConfigDict(extra="forbid")
     paper_id: str
     profile: str = "synthesis"  # which rubric the rater rated against (registry id)
+    # Client fallbacks for the durable paper provenance, used only when the live job has expired
+    # (rate/context handed both to the SPA). Mirror record_override so a rating is never dropped.
+    source_sha256: str = ""
+    version_label: str = ""
     rating: Rating  # validated by its own contract (relevance/class/gate + per-step grounding)
 
 
@@ -388,18 +393,23 @@ class RateSubmit(BaseModel):
 async def rate_submit(body: RateSubmit) -> dict:
     """Record one rater's blind ``Rating`` to **durable** storage (append-only; A5 — never mutates
     engine output), capturing the paper's sha256/version so `assemble-goldset` can pin the gold
-    record. Grouping ratings into a HumanReport with auto-consensus is `assemble-goldset`."""
+    record. Grouping ratings into a HumanReport with auto-consensus is `assemble-goldset`.
+
+    A blind rating is ~an hour of expert work, so it is **never dropped**: the live job is the
+    authoritative source for the paper's sha/version, but when it has expired (a restart between
+    rating and submit) we fall back to the client-sent provenance instead of 404ing — mirroring
+    record_override."""
     job = store.get(body.paper_id)
-    if job is None:
-        raise HTTPException(status_code=404, detail="unknown paper_id")
     try:
         rubric = load_rubric(profile=body.profile)  # the rubric the rater rated against
     except RubricProfileError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    source_sha256 = (job.content_sha256 if job is not None else None) or body.source_sha256
+    version_label = (job.version_label if job is not None else None) or body.version_label
     sub = SubmittedRating(
         paper_id=body.paper_id,
-        source_sha256=job.content_sha256 or "",
-        version_label=job.version_label or "",
+        source_sha256=source_sha256,
+        version_label=version_label,
         rubric_version=rubric.rubric_version,
         rubric_profile=body.profile,
         rating=body.rating,
