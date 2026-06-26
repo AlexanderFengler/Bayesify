@@ -10,7 +10,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from bayesify.api.app import app, store
+from bayesify.api.app import RateSubmit, app, rate_submit, store
 from bayesify.api.jobs import LOCAL_STAGES, STAGES, Job, JobStore, event_stream, run_job
 
 client = TestClient(app)
@@ -205,8 +205,16 @@ def test_rate_context_is_blind(tmp_path, monkeypatch) -> None:
 
 def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
-    job = store.create(mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
-    asyncio.run(run_job(job))
+    saved_events: list[dict] = []
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: saved_events.append(payload))
+
+    async def inline_to_thread(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("bayesify.api.app.asyncio.to_thread", inline_to_thread)
+    job = store.create(mode="local", source_label="ddm.pdf")
+    job.content_sha256 = "ab" * 32
+    job.version_label = "uploaded PDF (ddm.pdf)"
     rating = {
         "rater_id": "r1",
         "relationship": "independent",
@@ -231,12 +239,66 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
             }
         ],
     }
-    ok = client.post("/api/rate/submit", json={"paper_id": job.id, "rating": rating})
-    assert ok.status_code == 200 and ok.json()["recorded"] is True
+    ok = asyncio.run(rate_submit(RateSubmit(paper_id=job.id, rating=rating)))
+    assert ok["recorded"] is True
+    assert len(saved_events) == 1
+    event = saved_events[0]
+    assert event["event"] == "blind_rating_submitted"
+    assert event["rater_id"] == "r1"
+    assert event["relationship"] == "independent"
+    assert event["relevance_label"] == "yes"
+    assert event["relevance_rationale"] == "fits a hierarchical Bayesian model"
+    assert event["paper_class_labels"] == ["data_analysis"]
+    assert event["gate_facts"]["inference_method"] == "mcmc"
+    assert event["steps"][0]["step_id"] == "S1"
+    assert event["submission"]["rating"]["relevance_label"] == "yes"
     # the Rating contract is enforced at the boundary: 'partial' relevance needs a paper_class
     bad = {**rating, "relevance_label": "partial", "paper_class_labels": []}
-    r = client.post("/api/rate/submit", json={"paper_id": job.id, "rating": bad})
-    assert r.status_code == 422
+    with pytest.raises(ValueError):
+        RateSubmit(paper_id=job.id, rating=bad)
+
+
+def test_rate_submit_records_no_relevance_fields(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    saved_events: list[dict] = []
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: saved_events.append(payload))
+
+    async def inline_to_thread(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("bayesify.api.app.asyncio.to_thread", inline_to_thread)
+    rating = {
+        "rater_id": "r-no",
+        "relationship": "independent",
+        "relevance_label": "no",
+        "relevance_rationale": "not a Bayesian statistical-methodology paper",
+        "paper_class_labels": [],
+        "paper_class_rationale": "",
+        "gate_facts": None,
+        "steps": [],
+    }
+
+    ok = asyncio.run(
+        rate_submit(
+            RateSubmit(
+                paper_id="paper-no",
+                rating=rating,
+                source_sha256="ef" * 32,
+                version_label="uploaded PDF",
+            )
+        )
+    )
+
+    assert ok["recorded"] is True
+    assert len(saved_events) == 1
+    event = saved_events[0]
+    assert event["rater_id"] == "r-no"
+    assert event["relevance_label"] == "no"
+    assert event["relevance_rationale"] == "not a Bayesian statistical-methodology paper"
+    assert event["paper_class_labels"] == []
+    assert event["gate_facts"] is None
+    assert event["steps"] == []
+    assert event["submission"]["rating"]["relevance_label"] == "no"
 
 
 def test_rate_submit_survives_an_expired_job(tmp_path, monkeypatch) -> None:
@@ -345,6 +407,11 @@ def test_run_job_emits_every_stage_then_done_and_attaches_result(monkeypatch) ->
     # Full mode with bytes but NO credentials → the labelled stub: all stages, then a stub result.
     # (monkeypatch is scoped, so forcing the backend off here does not affect other tests.)
     monkeypatch.setenv("BAYESIFY_LLM_BACKEND", "none")
+    saved_reports: list[str] = []
+    monkeypatch.setattr(
+        "bayesify.api.jobs._save_analysis_report_payload",
+        lambda job: saved_reports.append(job.id),
+    )
     job = Job(id="t1", mode="full", source_label="paper.pdf", data=b"%PDF-stub-bytes")
     asyncio.run(run_job(job))
     stages_done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
@@ -353,6 +420,65 @@ def test_run_job_emits_every_stage_then_done_and_attaches_result(monkeypatch) ->
     assert job.status == "done"
     assert job.result is not None and job.result.coverage is not None
     assert job.backend == "stub"
+    assert saved_reports == []  # no analysis event for the placeholder path; no LLM ran
+
+
+def test_local_completion_does_not_save_analysis_event(monkeypatch) -> None:
+    from bayesify.api import jobs as jobsmod
+
+    saved_reports: list[str] = []
+    monkeypatch.setattr(
+        jobsmod,
+        "_save_analysis_report_payload",
+        lambda job: saved_reports.append(job.id),
+    )
+
+    async def fake_front_half(job, *, source=None):
+        job.content_sha256 = "ab" * 32
+        job.version_label = "uploaded PDF"
+        return None, []
+
+    monkeypatch.setattr(jobsmod, "_front_half", fake_front_half)
+    job = Job(id="loc-nosave", mode="local", source_label="paper.pdf")
+
+    asyncio.run(jobsmod._run_local(job))
+
+    assert job.status == "done"
+    assert saved_reports == []
+
+
+def test_fresh_full_llm_completion_saves_analysis_event(monkeypatch) -> None:
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core.stub import build_stub_result
+
+    saved_reports: list[str] = []
+    monkeypatch.setattr(
+        jobsmod,
+        "_save_analysis_report_payload",
+        lambda job: saved_reports.append(job.id),
+    )
+    monkeypatch.setattr(jobsmod, "_cache_enabled", lambda: False)
+    monkeypatch.setattr(jobsmod.config, "llm_backend", lambda: "api")
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: object())
+
+    async def fake_front_half(job, *, source=None):
+        job.content_sha256 = "ab" * 32
+        job.version_label = "uploaded PDF"
+        return object(), []
+
+    async def fake_to_thread(func, *args, **kwargs):
+        if func is jobsmod.grade_parsed:
+            return build_stub_result("full")
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(jobsmod, "_front_half", fake_front_half)
+    monkeypatch.setattr(jobsmod.asyncio, "to_thread", fake_to_thread)
+    job = Job(id="full-save", mode="full", source_label="paper.pdf", data=b"%PDF-fake")
+
+    asyncio.run(jobsmod._run_full(job))
+
+    assert job.status == "done"
+    assert saved_reports == ["full-save"]
 
 
 def test_no_input_shows_honest_needs_upload_notice() -> None:

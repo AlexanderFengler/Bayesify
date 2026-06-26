@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 import time
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -20,8 +21,22 @@ from urllib.parse import urlparse
 
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
+from pymongo.server_api import ServerApi
 
 from bayesify.core import config
+
+
+@dataclass(frozen=True)
+class MongoDBStatus:
+    """Startup-visible MongoDB connection state."""
+
+    ready: bool
+    uri: str
+    database: str
+    mode: str
+    server_api: str | None
+    autostart: bool
+    message: str
 
 
 class MongoDBService:
@@ -34,19 +49,36 @@ class MongoDBService:
         self._mongod = None
         self._ready = False
         self._next_retry_monotonic = 0.0
+        self._last_status: MongoDBStatus | None = None
 
-    def start(self):
+    def start(self) -> MongoDBStatus:
         """Create the process-wide Mongo client and best-effort ping the configured database."""
+        uri = config.mongodb_uri()
         database = config.mongodb_database()
         if self._client is not None:
             if not self._ready and self._ping(database):
                 self._events = self._client[database]["events"]
                 self._ensure_indexes()
                 self._ready = True
-            return
+            message = "connected" if self._ready else "unavailable; will retry on writes"
+            self._last_status = self._make_status(uri, database, message=message)
+            return self._last_status
 
-        uri = config.mongodb_uri()
-        self._client = MongoClient(uri, serverSelectionTimeoutMS=500)
+        try:
+            self._client = self._create_client(uri)
+        except PyMongoError as exc:
+            location = self._safe_uri(uri)
+            self._ready = False
+            self._last_status = self._make_status(
+                uri,
+                database,
+                message=f"client creation failed: {exc}",
+            )
+            self._log.warning(
+                f"MongoDB client could not be created for {location}/{database}: {exc}. "
+                f"Report events will not be saved to MongoDB until it is available."
+            )
+            return self._last_status
         ping_ok = self._ping(database)
         if not ping_ok and self._try_start_local_mongod(uri):
             for _ in range(10):
@@ -55,17 +87,25 @@ class MongoDBService:
                     break
                 time.sleep(0.5)
         if not ping_ok:
+            location = self._safe_uri(uri)
             self._log.warning(
-                f"MongoDB client created, but no server answered at {uri}/{database}. "
+                f"MongoDB client created, but no server answered at {location}/{database}. "
                 f"Report events will not be saved to MongoDB until it is available."
             )
             self._ready = False
-            return
+            self._last_status = self._make_status(
+                uri,
+                database,
+                message="server did not answer ping; will retry on writes",
+            )
+            return self._last_status
 
         self._events = self._client[database]["events"]
         self._ensure_indexes()
         self._ready = True
-        self._log.info(f"MongoDB client started for {uri}/{database}")
+        self._log.info(f"MongoDB client started for {self._safe_uri(uri)}/{database}")
+        self._last_status = self._make_status(uri, database, message="connected")
+        return self._last_status
 
     def stop(self):
         """Close the process-wide Mongo client and any local ``mongod`` this service spawned."""
@@ -120,6 +160,52 @@ class MongoDBService:
     def _local_port(uri: str) -> int:
         return urlparse(uri).port or 27017
 
+    @classmethod
+    def _create_client(cls, uri: str) -> MongoClient:
+        kwargs: dict[str, Any] = {
+            "serverSelectionTimeoutMS": cls._server_selection_timeout_ms(uri),
+        }
+        api_version = config.mongodb_server_api()
+        if api_version is not None and not cls._is_local_uri(uri):
+            kwargs["server_api"] = ServerApi(api_version)
+        return MongoClient(uri, **kwargs)
+
+    @staticmethod
+    def _server_selection_timeout_ms(uri: str) -> int:
+        configured = os.environ.get("BAYESIFY_MONGODB_TIMEOUT_MS")
+        if configured:
+            try:
+                return max(1, int(configured))
+            except ValueError:
+                return 5000
+        return 500 if MongoDBService._is_local_uri(uri) else 5000
+
+    @staticmethod
+    def _safe_uri(uri: str) -> str:
+        parsed = urlparse(uri)
+        if "@" not in parsed.netloc:
+            return uri
+        userinfo, hosts = parsed.netloc.rsplit("@", 1)
+        username = userinfo.split(":", 1)[0]
+        return parsed._replace(netloc=f"{username}:***@{hosts}").geturl()
+
+    @classmethod
+    def _mode(cls, uri: str) -> str:
+        if cls._is_local_uri(uri):
+            return "local"
+        return "atlas/remote" if urlparse(uri).scheme == "mongodb+srv" else "remote"
+
+    def _make_status(self, uri: str, database: str, *, message: str) -> MongoDBStatus:
+        return MongoDBStatus(
+            ready=self._ready,
+            uri=self._safe_uri(uri),
+            database=database,
+            mode=self._mode(uri),
+            server_api=config.mongodb_server_api() if not self._is_local_uri(uri) else None,
+            autostart=config.mongodb_autostart() and self._is_local_uri(uri),
+            message=message,
+        )
+
     @staticmethod
     def _mongodb_data_dir() -> Path:
         root = os.environ.get("BAYESIFY_MONGODB_DATA_DIR")
@@ -145,7 +231,7 @@ class MongoDBService:
         mongod = shutil.which("mongod")
         if mongod is None:
             self._log.warning(
-                f"MongoDB is not running at {uri} and 'mongod' is not installed. "
+                f"MongoDB is not running at {self._safe_uri(uri)} and 'mongod' is not installed. "
                 f"Start MongoDB locally, or set BAYESIFY_MONGODB_URI to a running server."
             )
             return False
@@ -169,7 +255,9 @@ class MongoDBService:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        self._log.info(f"Started local MongoDB server at {uri} with dbpath {dbpath}")
+        self._log.info(
+            f"Started local MongoDB server at {self._safe_uri(uri)} with dbpath {dbpath}"
+        )
         return True
 
     def _ensure_indexes(self):
@@ -191,8 +279,8 @@ def mongodb() -> MongoDBService:
     return MongoDBService()
 
 
-def start_mongodb() -> None:
-    mongodb().start()
+def start_mongodb() -> MongoDBStatus:
+    return mongodb().start()
 
 
 def save_event(payload: dict[str, Any]) -> str | None:
