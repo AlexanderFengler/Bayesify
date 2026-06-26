@@ -39,8 +39,8 @@ export function Guide({ onExit }: { onExit: () => void }) {
             fetches the open-access copy.
           </GuideStep>
           <GuideStep n={2} head="Pick a mode.">
-            <em>Full</em> sends the extracted text to the configured LLM provider and returns the graded report;{" "}
-            <em>Local-only</em> runs the on-device detectors with nothing leaving your machine (an
+            <em>Connected</em> sends the extracted text to the configured LLM provider and returns the graded report;{" "}
+            <em>Local</em> runs the on-device detectors with nothing leaving your machine (an
             evidence inventory, no scores).
           </GuideStep>
           <GuideStep n={3} head="Click Analyze.">

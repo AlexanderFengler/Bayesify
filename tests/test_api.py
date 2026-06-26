@@ -11,7 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from bayesify.api.app import app, store
-from bayesify.api.jobs import LOCAL_STAGES, STAGES, Job, event_stream, run_job
+from bayesify.api.jobs import LOCAL_STAGES, STAGES, Job, JobStore, event_stream, run_job
 
 client = TestClient(app)
 
@@ -67,6 +67,51 @@ def test_create_with_id_returns_paper_id() -> None:
     body = r.json()
     assert body["paper_id"]
     assert body["status"] in ("queued", "running", "done")
+
+
+def test_upload_rejects_oversize_pdf(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MAX_UPLOAD_MB", "1")
+    big = b"%PDF-" + b"0" * 1_200_000  # ~1.2 MB > the 1 MB cap → rejected before buffering
+    r = client.post(
+        "/api/papers", files={"file": ("big.pdf", big, "application/pdf")}, data={"mode": "local"}
+    )
+    assert r.status_code == 413
+
+
+def test_jobstore_evicts_least_recently_used_beyond_cap(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MAX_JOBS", "3")
+    s = JobStore()
+    ids = [s.create(mode="local", source_label=f"p{i}").id for i in range(5)]
+    assert s.get(ids[0]) is None and s.get(ids[1]) is None  # the two oldest were evicted
+    assert all(s.get(i) is not None for i in ids[2:])  # the three newest are retained
+
+
+def test_jobstore_get_keeps_a_job_warm(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MAX_JOBS", "2")
+    s = JobStore()
+    a = s.create(mode="local", source_label="a").id
+    s.create(mode="local", source_label="b")
+    assert s.get(a) is not None  # touch a → most-recently-used
+    c = s.create(mode="local", source_label="c").id  # evicts b (the LRU), not the warmed a
+    assert s.get(a) is not None and s.get(c) is not None
+
+
+def test_spawn_retains_then_discards_and_logs_failure(caplog) -> None:
+    import logging
+
+    from bayesify.api import jobs as jobsmod
+
+    async def main() -> None:
+        async def boom() -> None:
+            raise RuntimeError("kaboom")
+
+        await asyncio.gather(jobsmod.spawn(boom()), return_exceptions=True)
+        await asyncio.sleep(0)  # let the done-callback run
+
+    with caplog.at_level(logging.ERROR, logger="bayesify.jobs"):
+        asyncio.run(main())
+    assert jobsmod._background_tasks == set()  # the finished task was discarded from the set
+    assert any("background task failed" in r.getMessage() for r in caplog.records)
 
 
 def test_unknown_paper_is_404() -> None:
@@ -192,6 +237,55 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
     bad = {**rating, "relevance_label": "partial", "paper_class_labels": []}
     r = client.post("/api/rate/submit", json={"paper_id": job.id, "rating": bad})
     assert r.status_code == 422
+
+
+def test_rate_submit_survives_an_expired_job(tmp_path, monkeypatch) -> None:
+    # A blind rating is ~an hour of work: if the in-memory job has expired (e.g. an API restart)
+    # between rating and submit, it must NOT be dropped. The SPA echoes the paper provenance it got
+    # from rate/context, and the server persists it instead of 404ing (mirrors record_override).
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    rating = {
+        "rater_id": "r1",
+        "relationship": "independent",
+        "relevance_label": "yes",
+        "relevance_rationale": "fits a hierarchical Bayesian model",
+        "paper_class_labels": ["data_analysis"],
+        "paper_class_rationale": "fit to behavioural data",
+        "gate_facts": {
+            "inference_method": "mcmc",
+            "n_models": 1,
+            "bf_claimed": False,
+            "prior_informativeness": "weakly_informative",
+        },
+        "steps": [
+            {
+                "step_id": "S1",
+                "applicable": True,
+                "status": "adequate",
+                "confidence": 0.9,
+                "evidence": [{"section_id": "s01", "quote": "hierarchical drift-diffusion model"}],
+                "rationale": "the model is specified and justified",
+            }
+        ],
+    }
+    # No job with this id exists in the store (it expired); submit with client-sent provenance.
+    ok = client.post(
+        "/api/rate/submit",
+        json={
+            "paper_id": "expired-job-id",
+            "rating": rating,
+            "source_sha256": "cd" * 32,
+            "version_label": "uploaded PDF",
+        },
+    )
+    assert ok.status_code == 200 and ok.json()["recorded"] is True
+    # Durable: persisted under the bucket keyed by the client-sent sha, with the version pinned.
+    from bayesify.api import jobs as jobsmod
+
+    bucket = f"{'cd' * 32}__synthesis"
+    assert jobsmod._ratings_store().count_for("cd" * 32, "synthesis") == 1
+    subs = jobsmod._ratings_store().by_paper()[bucket]
+    assert [s.version_label for s in subs] == ["uploaded PDF"]
 
 
 def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeypatch) -> None:

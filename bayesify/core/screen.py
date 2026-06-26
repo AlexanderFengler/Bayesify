@@ -17,7 +17,7 @@ Two deterministic guards wrap the LLM (d-screen-classify.md):
 from __future__ import annotations
 
 from bayesify.core import config
-from bayesify.core.context import build_user
+from bayesify.core.context import build_user, validate_evidence_refs
 from bayesify.core.prompts import SCREEN_SYSTEM
 from bayesify.core.schema import (
     CostLedgerEntry,
@@ -61,8 +61,10 @@ def screen(
     )
     # `overridden` is a human-only provenance flag; the model never owns it. Force it off here so a
     # stray model value can't bypass the grounding discipline — only the API rerun path sets it.
-    relevance = response.parsed.model_copy(update={"overridden": False})
-    return _apply_floor(relevance, evidence), ledger_entry("screen", response)
+    relevance = _apply_floor(response.parsed.model_copy(update={"overridden": False}), evidence)
+    # A3: a cited index must resolve to a real detector hit (no dangling refs in the report).
+    validate_evidence_refs(relevance.evidence_refs, evidence, where="relevance")
+    return relevance, ledger_entry("screen", response)
 
 
 def _bayes_families(evidence: list[Evidence]) -> set[str]:
