@@ -16,6 +16,7 @@ import asyncio
 import logging
 import os
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -24,18 +25,15 @@ import httpx
 from bayesify.api.mongo import save_event
 from bayesify.core import config
 from bayesify.core import schema as s
-from bayesify.core.assess import assess
 from bayesify.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
-from bayesify.core.classify import classify
 from bayesify.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
+from bayesify.core.engine import grade_parsed
 from bayesify.core.errors import IngestError
 from bayesify.core.fetcher import Fetcher
 from bayesify.core.ingest import ingest_upload, parse_input
 from bayesify.core.parse import parse
-from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.rubric.loader import load_rubric
-from bayesify.core.score import ScoreMeta, score
-from bayesify.core.stub import ENGINE_VERSION, build_stub_result, cost_ledger
+from bayesify.core.stub import ENGINE_VERSION, build_stub_result
 from bayesify.core.validation.override_store import OverrideStore
 from bayesify.core.validation.rating_store import RatingStore
 from bayesify.llm import LLMClient, make_llm_client
@@ -55,7 +53,7 @@ STAGES: tuple[str, ...] = (
 # Local-only mode (F3): parse + detectors only — no LLM, no scores. Fewer stages, honestly.
 LOCAL_STAGES: tuple[str, ...] = ("ingest", "parse", "detect")
 _LOCAL_NOTICE = (
-    "Local-only detection: deterministic detectors ran on this machine — no LLM, no scores, and "
+    "Local detection: deterministic detectors ran on this machine — no LLM, no scores, and "
     "the paper text was not sent to any model. This is an evidence inventory (what was detected "
     "and where the engine looked), not a graded assessment."
 )
@@ -66,6 +64,25 @@ _NEEDS_UPLOAD = (
 _TERMINAL = {"done", "failed"}
 _STAGE_DELAY_S = 0.45  # simulated per-stage work (stub paths) so progress is visible in the UI
 _log = logging.getLogger("bayesify.jobs")
+
+# Background tasks (the grade runs and the fire-and-forget Mongo writes) are held in a set with a
+# strong reference until they finish, so the event loop can't GC one mid-run, and a done-callback
+# logs any unexpected failure instead of letting it vanish as an unretrieved-exception warning.
+_background_tasks: set[asyncio.Task] = set()
+
+
+def spawn(coro) -> asyncio.Task:
+    """Create a tracked background task: retained until done, with unexpected failures logged."""
+    task = asyncio.create_task(coro)
+    _background_tasks.add(task)
+    task.add_done_callback(_on_task_done)
+    return task
+
+
+def _on_task_done(task: asyncio.Task) -> None:
+    _background_tasks.discard(task)
+    if not task.cancelled() and task.exception() is not None:
+        _log.error("background task failed", exc_info=task.exception())
 
 
 def _data_root() -> Path:
@@ -119,6 +136,8 @@ class Job:
     parser: str | None = None  # which parser ran (docling | pymupdf), surfaced in the local report
     parser_version: str | None = None
     paper_title: str | None = None  # best-effort title for display (provider/page-1; may be None)
+    paper_authors: list[str] = field(default_factory=list)  # best-effort (provider/PDF metadata)
+    paper_year: int | None = None  # best-effort publication year (provider/PDF metadata)
     backend: str | None = None  # who produced the result: "agent-sdk" | "api" | "openai" | "stub"
     from_cache: bool = False  # this result was a cache replay, not a fresh run (surfaced in the UI)
     force_fresh: bool = False  # bypass the cache for this run (set by the rerun escape hatch)
@@ -136,11 +155,22 @@ class Job:
             q.put_nowait(event)
 
 
+def _max_jobs() -> int:
+    """Cap on retained in-memory jobs (overridable via ``BAYESIFY_MAX_JOBS``). Generous for local
+    single-user use; durable state (ratings/overrides/blobs/results) lives on disk, so eviction only
+    drops a finished job's in-memory view, never user data."""
+    try:
+        return max(1, int(os.environ.get("BAYESIFY_MAX_JOBS", "256")))
+    except ValueError:
+        return 256
+
+
 class JobStore:
     def __init__(self) -> None:
-        self._jobs: dict[str, Job] = {}
-        # Blind ratings and A5 overrides are persisted durably via `_ratings_store()` /
-        # `_overrides_store()`, not in memory — they must survive a restart.
+        # Bounded LRU so a long-running process can't grow without limit. Blind ratings and A5
+        # overrides are persisted durably via `_ratings_store()` / `_overrides_store()`, not here —
+        # this only holds the live/recent job views, which are safe to evict once finished.
+        self._jobs: OrderedDict[str, Job] = OrderedDict()
 
     def create(
         self,
@@ -161,11 +191,16 @@ class JobStore:
             identifier=identifier,
             profile=profile,
         )
-        self._jobs[job.id] = job
+        self._jobs[job.id] = job  # newest key is inserted last → most-recently-used
+        while len(self._jobs) > _max_jobs():
+            self._jobs.popitem(last=False)  # evict the least-recently-used
         return job
 
     def get(self, paper_id: str) -> Job | None:
-        return self._jobs.get(paper_id)
+        job = self._jobs.get(paper_id)
+        if job is not None:
+            self._jobs.move_to_end(paper_id)  # a touch keeps an active job warm (LRU)
+        return job
 
 
 def _fetcher() -> Fetcher:
@@ -195,6 +230,8 @@ def _analysis_report_payload(job: Job) -> dict:
         "version_label": job.version_label,
         "rubric_profile": job.profile,
         "paper_title": job.paper_title,
+        "paper_authors": job.paper_authors,
+        "paper_year": job.paper_year,
         "parser": job.parser,
         "parser_version": job.parser_version,
         "backend": job.backend,
@@ -207,7 +244,7 @@ def _analysis_report_payload(job: Job) -> dict:
 
 def _save_analysis_report_payload(job: Job) -> None:
     """Persist one analysis report event when a user-triggered analysis completes."""
-    asyncio.create_task(asyncio.to_thread(save_event, _analysis_report_payload(job)))
+    spawn(asyncio.to_thread(save_event, _analysis_report_payload(job)))
 
 
 async def run_job(job: Job) -> None:
@@ -253,7 +290,10 @@ async def _fetch_into(job: Job) -> s.SourceDoc:
     parsed = parse_input(job.identifier)
     fetched = await asyncio.to_thread(_fetcher().fetch, parsed)
     job.data = _blobs().get(fetched.source_doc.sha256)
-    job.paper_title = fetched.title  # the provider/webpage title — preferred over the parsed one
+    # Provider metadata is preferred over the parsed-PDF metadata (cleaner, structured).
+    job.paper_title = fetched.title
+    job.paper_authors = fetched.authors
+    job.paper_year = fetched.year
     job.emit({"type": "stage", "stage": "fetch", "state": "done"})
     return fetched.source_doc
 
@@ -281,8 +321,10 @@ async def _front_half(
     job.emit({"type": "stage", "stage": "parse", "state": "running"})
     parsed = await asyncio.to_thread(parse, source, blobs)
     job.parser, job.parser_version = parsed.parser, parsed.parser_version
-    # Prefer the provider/webpage title (set during fetch); for uploads, use the page-1 title.
+    # Prefer the provider metadata (set during fetch); for uploads, use the parsed-PDF metadata.
     job.paper_title = job.paper_title or parsed.title
+    job.paper_authors = job.paper_authors or parsed.authors
+    job.paper_year = job.paper_year or parsed.year
     job.emit({"type": "stage", "stage": "parse", "state": "done"})
 
     job.stage = "detect"
@@ -340,66 +382,32 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     client = _llm_client()
     job.backend = config.llm_backend()  # "agent-sdk" | "api" | "openai" — shown in the report
 
-    job.stage = "screen"
-    job.emit({"type": "stage", "stage": "screen", "state": "running"})
-    relevance, paper_class, costs = await asyncio.to_thread(
-        screen_and_classify, parsed, evidence, client=client
+    # Grade through the ONE shared composition (engine.grade_parsed) — the same path the validation
+    # harness runs — so the app and the harness can never grade a paper differently. grade_parsed is
+    # CPU/IO-bound and runs in a worker thread; its stage events are bounced back onto the loop so
+    # job.emit (which touches asyncio queues) only ever runs on the event-loop thread.
+    loop = asyncio.get_running_loop()
+
+    def on_stage(stage: str, state: str) -> None:
+        def apply() -> None:
+            if state == "running":
+                job.stage = stage
+            job.emit({"type": "stage", "stage": stage, "state": state})
+
+        loop.call_soon_threadsafe(apply)
+
+    job.result = await asyncio.to_thread(
+        grade_parsed,
+        parsed,
+        evidence,
+        client=client,
+        rubric=rubric,
+        engine_version=ENGINE_VERSION,
+        rubric_version=rubric.rubric_version,
+        relevance_override=job.relevance_override,
+        force_grade=job.force_grade,
+        on_stage=on_stage,
     )
-    job.emit({"type": "stage", "stage": "screen", "state": "done"})
-
-    # Escape hatch (rerun): the user forces a relevance so a short-circuited paper is graded anyway.
-    # Cite whatever the detectors found (better grounding for a false-negative screen); the override
-    # is a human provenance, so it's exempt from the "relevant ⇒ ≥1 ref" rule even with no hits.
-    if job.relevance_override:
-        relevance = relevance.model_copy(
-            update={
-                "label": s.RelevanceLabel(job.relevance_override),
-                "overridden": True,
-                "evidence_refs": relevance.evidence_refs or list(range(len(evidence)))[:3],
-                "rationale": relevance.rationale + " [User override: graded as "
-                f"{job.relevance_override} on request.]",
-            }
-        )
-
-    review_only = paper_class is not None and paper_class.labels == [s.PaperClassLabel.review]
-    if relevance.label is s.RelevanceLabel.no:
-        job.result = s.ScoredResult.short_circuit(
-            relevance=relevance,
-            engine_version=ENGINE_VERSION,
-            rubric_version=rubric.rubric_version,
-            rubric_profile=job.profile,
-            cost_ledger=cost_ledger(costs),
-        )
-    elif review_only and not job.force_grade:
-        # Discusses the workflow, doesn't apply it: rubric N/A unless force-graded as advisory.
-        job.result = s.ScoredResult.short_circuit(
-            relevance=relevance,
-            reason="not_an_application",
-            paper_class=paper_class,
-            engine_version=ENGINE_VERSION,
-            rubric_version=rubric.rubric_version,
-            rubric_profile=job.profile,
-            cost_ledger=cost_ledger(costs),
-        )
-    else:
-        if paper_class is None:  # the gate had said 'no' but the user forced grading → classify now
-            paper_class, classify_cost = await asyncio.to_thread(
-                classify, parsed, evidence, client=client
-            )
-            costs = costs + [classify_cost]
-        job.emit({"type": "stage", "stage": "classify", "state": "done"})
-        job.stage = "assess"
-        job.emit({"type": "stage", "stage": "assess", "state": "running"})
-        assessments, gate_facts, assess_costs = await asyncio.to_thread(
-            assess, parsed, evidence, relevance, paper_class, rubric, client=client
-        )
-        job.emit({"type": "stage", "stage": "assess", "state": "done"})
-        job.stage = "score"
-        job.emit({"type": "stage", "stage": "score", "state": "running"})
-        ledger = cost_ledger(costs + assess_costs)
-        meta = ScoreMeta(engine_version=ENGINE_VERSION, cost_ledger=ledger)
-        job.result = score(relevance, paper_class, assessments, gate_facts, rubric, meta)
-        job.emit({"type": "stage", "stage": "score", "state": "done"})
 
     # Cache only on success (we reached here without raising) — never mask a broken run.
     if _cache_enabled():

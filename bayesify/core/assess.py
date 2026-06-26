@@ -99,6 +99,27 @@ _RANK = {StepStatus.missing: 0, StepStatus.partial: 1, StepStatus.adequate: 2}
 _NEGATIVE = (StepStatus.missing, StepStatus.partial)
 _REFUTER_BUDGET = 14_000
 
+# Detectors that imply the posterior was sampled or approximated, not closed-form. They override a
+# stray "conjugate prior"/"analytic posterior" mention so a mixed-method paper (conjugate block +
+# NUTS elsewhere) is not misread as exact_analytic, which would wrongly gate S4 (R-hat/ESS) N/A.
+_SAMPLING_EVIDENCE = frozenset(
+    {
+        "method.mcmc",
+        "method.variational",
+        "diag.rhat",
+        "diag.ess",
+        "diag.divergences",
+        "diag.trace_plot",
+        "diag.rank_plot",
+        "diag.treedepth",
+        "diag.bfmi",
+        "diag.mcse",
+        "sampler.chains",
+        "sampler.iterations",
+        "sampler.warmup",
+    }
+)
+
 
 def derive_gate_facts(evidence: list[Evidence], paper_class: PaperClass) -> GateFacts:
     """Best-effort, deterministic facts that drive applicability gates (G6). n_models is not
@@ -108,7 +129,7 @@ def derive_gate_facts(evidence: list[Evidence], paper_class: PaperClass) -> Gate
     very paper whose LOO comparison the engine detected. BF / prior / inference come from detectors.
     """
     ids = {e.detector_id for e in evidence}
-    if "method.analytic" in ids:
+    if "method.analytic" in ids and not (ids & _SAMPLING_EVIDENCE):
         inference = InferenceMethod.exact_analytic
     elif "method.variational" in ids:
         inference = InferenceMethod.variational

@@ -7,6 +7,9 @@ from datetime import datetime
 from bayesify.core.llm import FakeLLMClient
 from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.schema import (
+    Evidence,
+    EvidenceKind,
+    EvidenceSpan,
     PaperClass,
     PaperClassLabel,
     ParsedDoc,
@@ -24,6 +27,15 @@ def _parsed() -> ParsedDoc:
     src = SourceDoc(sha256="a" * 64, version_label="t", source="upload", fetched_at=_WHEN)
     secs = [Section(id="s01", kind=SectionKind.body, title="B", text="text")]
     return ParsedDoc(source=src, sections=secs, parser="test", parser_version="0")
+
+
+def _ev() -> Evidence:
+    return Evidence(
+        detector_id="software.stan",
+        detector_version="0.1.0",
+        kind=EvidenceKind.software_mention,
+        span=EvidenceSpan(section_id="s01", page=1, quote="in Stan"),
+    )
 
 
 def test_no_short_circuits_and_skips_classify() -> None:
@@ -51,7 +63,7 @@ def test_relevant_runs_both_stages() -> None:
             evidence_refs=[0],
         ),
     )
-    rel, cls, costs = screen_and_classify(_parsed(), [], client=client)
+    rel, cls, costs = screen_and_classify(_parsed(), [_ev()], client=client)
 
     assert rel.label is RelevanceLabel.yes
     assert cls is not None and cls.labels == [PaperClassLabel.data_analysis]
