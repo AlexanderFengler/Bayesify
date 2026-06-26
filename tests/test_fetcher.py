@@ -19,6 +19,9 @@ ARXIV_FEED = """<?xml version="1.0" encoding="UTF-8"?>
   <entry>
     <id>http://arxiv.org/abs/2011.01808v3</id>
     <title>Bayesian Workflow</title>
+    <published>2020-11-03T00:00:00Z</published>
+    <author><name>Andrew Gelman</name></author>
+    <author><name>Aki Vehtari</name></author>
     <arxiv:license>http://creativecommons.org/licenses/by/4.0/</arxiv:license>
   </entry>
 </feed>"""
@@ -29,6 +32,11 @@ OA_WITH = {
     "id": "https://openalex.org/W1",
     "ids": {"openalex": "https://openalex.org/W1", "doi": "https://doi.org/10.1038/withpdf"},
     "title": "OA Paper",
+    "publication_year": 2021,
+    "authorships": [
+        {"author": {"display_name": "Andrew Gelman"}},
+        {"author": {"display_name": "Aki Vehtari"}},
+    ],
     "best_oa_location": {
         "pdf_url": "https://oa.example.org/paper.pdf",
         "license": "cc-by",
@@ -90,6 +98,7 @@ def test_arxiv_fetch_captures_version_and_license(fetcher: Fetcher) -> None:
     assert fs.source_doc.version_label == "arXiv v3"  # learned from the API, not the bare id
     assert fs.source_doc.ids.arxiv_id == "2011.01808"
     assert "creativecommons.org/licenses/by" in (fs.license or "")
+    assert fs.authors == ["Andrew Gelman", "Aki Vehtari"] and fs.year == 2020  # provider metadata
     assert fetcher._blobs.exists(fs.source_doc.sha256)
 
 
@@ -104,6 +113,7 @@ def test_doi_resolved_via_openalex(fetcher: Fetcher) -> None:
     assert fs.license == "cc-by"
     assert fs.source_doc.ids.doi == "10.1038/withpdf"
     assert fs.source_doc.ids.openalex_id == "W1"  # learned during resolution
+    assert fs.authors == ["Andrew Gelman", "Aki Vehtari"] and fs.year == 2021  # provider metadata
 
 
 def test_doi_falls_through_openalex_to_unpaywall(fetcher: Fetcher) -> None:
