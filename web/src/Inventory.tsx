@@ -85,7 +85,7 @@ function SummaryColumn({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
       <Box>
-        <Chip size="small" variant="outlined" color="success" label="Local-only · detection mode" sx={{ mb: 1 }} />
+        <Chip size="small" variant="outlined" color="success" label="Local · detection mode" sx={{ mb: 1 }} />
         <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
           {paper.source_label}
         </Typography>

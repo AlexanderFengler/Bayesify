@@ -53,7 +53,7 @@ STAGES: tuple[str, ...] = (
 # Local-only mode (F3): parse + detectors only — no LLM, no scores. Fewer stages, honestly.
 LOCAL_STAGES: tuple[str, ...] = ("ingest", "parse", "detect")
 _LOCAL_NOTICE = (
-    "Local-only detection: deterministic detectors ran on this machine — no LLM, no scores, and "
+    "Local detection: deterministic detectors ran on this machine — no LLM, no scores, and "
     "the paper text was not sent to any model. This is an evidence inventory (what was detected "
     "and where the engine looked), not a graded assessment."
 )

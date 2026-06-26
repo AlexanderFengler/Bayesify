@@ -56,7 +56,7 @@ function PrivacyMode({ mode, children }: { mode: "full" | "local"; children: Rea
           bgcolor: full ? "warning.light" : "success.light",
         }}
       >
-        {full ? "Full mode" : "Local-only mode"}
+        {full ? "Connected mode" : "Local mode"}
       </Box>
       <Typography variant="body2" color="text.secondary">
         {children}
@@ -94,7 +94,7 @@ export function PrivacyModal({ onClose, firstRun }: { onClose: () => void; first
       </PrivacyMode>
 
       <PrivacyMode mode="local">
-        <strong>Nothing leaves this machine.</strong> Local-only runs the parser and the
+        <strong>Nothing leaves this machine.</strong> Local mode runs the parser and the
         deterministic detectors only - no LLM call, no text sent anywhere. It produces an evidence
         inventory (what was found and where), <strong>not a graded report</strong>: there are no
         coverage or quality scores, because scoring requires the model&rsquo;s judgment.
