@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 import httpx
@@ -48,6 +48,8 @@ class FetchedSource:
     license: str | None  # the fetched copy's own license (cc-by / cc0 / publisher / None=unknown)
     is_oa: bool = True
     title: str | None = None  # the paper title from the provider metadata (the "webpage"), if known
+    authors: list[str] = field(default_factory=list)  # author names from the provider metadata
+    year: int | None = None  # publication year from the provider metadata
 
 
 class Fetcher:
@@ -97,6 +99,12 @@ class Fetcher:
         version = parsed.version_hint or _arxiv_version(id_url)
         license_url = entry.findtext("arxiv:license", default=None, namespaces=_ARXIV_NS)
         title = entry.findtext("atom:title", "", _ARXIV_NS)  # paper title from arXiv metadata
+        authors = [
+            (n.text or "").strip()
+            for n in entry.findall("atom:author/atom:name", _ARXIV_NS)
+            if (n.text or "").strip()
+        ]
+        year = _year_prefix(entry.findtext("atom:published", "", _ARXIV_NS))  # "2020-11-03T..."
         data = self._download(f"{self.ARXIV_PDF}/{parsed.value}{version}")
         return self._store(
             data,
@@ -105,6 +113,8 @@ class Fetcher:
             source="arxiv",
             license=license_url,
             title=title,
+            authors=authors,
+            year=year,
         )
 
     def _fetch_doi_or_openalex(self, parsed: ParsedIdentifier) -> FetchedSource:
@@ -116,6 +126,8 @@ class Fetcher:
         )
         ids = _ids_from_openalex(resp)
         title = resp.get("title") or resp.get("display_name")  # the paper title from OpenAlex
+        authors = _openalex_authors(resp)
+        year = resp.get("publication_year")  # an int, or None
         loc = resp.get("best_oa_location") or resp.get("primary_location") or {}
         pdf_url = loc.get("pdf_url")
         if pdf_url:
@@ -127,6 +139,8 @@ class Fetcher:
                 source="openalex",
                 license=loc.get("license"),
                 title=title,
+                authors=authors,
+                year=year,
             )
         # 2) Unpaywall (needs an email; skip if not configured).
         if parsed.kind == "doi" and self._email:
@@ -146,6 +160,8 @@ class Fetcher:
                     source="unpaywall",
                     license=uloc.get("license"),
                     title=title or self._crossref_title(parsed.value),
+                    authors=authors,
+                    year=year,
                 )
         # 3) No OA copy — name the paper so the UI can invite a manual upload.
         title = resp.get("title") or self._crossref_title(parsed.value)
@@ -218,6 +234,8 @@ class Fetcher:
         source: str,
         license: str | None,
         title: str | None = None,
+        authors: list[str] | None = None,
+        year: int | None = None,
     ) -> FetchedSource:
         sha = self._blobs.put(data)
         doc = s.SourceDoc(
@@ -227,7 +245,14 @@ class Fetcher:
             source=source,
             fetched_at=datetime.now(UTC),
         )
-        return FetchedSource(source_doc=doc, license=license, is_oa=True, title=_clean_title(title))
+        return FetchedSource(
+            source_doc=doc,
+            license=license,
+            is_oa=True,
+            title=_clean_title(title),
+            authors=authors or [],
+            year=year,
+        )
 
 
 def _clean_title(title: str | None) -> str | None:
@@ -236,6 +261,18 @@ def _clean_title(title: str | None) -> str | None:
         return None
     cleaned = re.sub(r"\s+", " ", title).strip()
     return cleaned or None
+
+
+def _year_prefix(date: str | None) -> int | None:
+    """The leading 4-digit year of an ISO-ish date string (``2020-11-03T...``), else None."""
+    head = (date or "")[:4]
+    return int(head) if head.isdigit() else None
+
+
+def _openalex_authors(resp: dict) -> list[str]:
+    """Author display names from an OpenAlex work's ``authorships`` (in order)."""
+    names = [(a.get("author") or {}).get("display_name") for a in resp.get("authorships") or []]
+    return [n.strip() for n in names if n and n.strip()]
 
 
 def _arxiv_version(id_url: str) -> str:
