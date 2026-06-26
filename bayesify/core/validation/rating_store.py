@@ -12,11 +12,15 @@ consensus. ``root`` defaults under the data dir (``~/.bayesify/ratings``, like t
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
+from bayesify.core.atomic import atomic_write_text
 from bayesify.core.validation.human_report import Rating
+
+_log = logging.getLogger("bayesify.rating_store")
 
 
 class _Base(BaseModel):
@@ -57,9 +61,10 @@ class RatingStore:
 
     def add(self, sub: SubmittedRating) -> Path:
         paper_dir = self.root / bucket_key(sub.source_sha256, sub.rubric_profile, sub.paper_id)
-        paper_dir.mkdir(parents=True, exist_ok=True)
         path = paper_dir / f"{_safe(sub.rating.rater_id)}.json"
-        path.write_text(sub.model_dump_json(indent=2), encoding="utf-8")
+        # Atomic write: a re-rate that crashes mid-write must not destroy the prior good file or
+        # leave a partial one that by_paper() chokes on. (It also mkdirs the bucket.)
+        atomic_write_text(path, sub.model_dump_json(indent=2))
         return path
 
     def count_for(
@@ -75,10 +80,14 @@ class RatingStore:
         if not self.root.is_dir():
             return out
         for paper_dir in sorted(p for p in self.root.iterdir() if p.is_dir()):
-            subs = [
-                SubmittedRating.model_validate_json(f.read_text(encoding="utf-8"))
-                for f in sorted(paper_dir.glob("*.json"))
-            ]
+            subs: list[SubmittedRating] = []
+            for f in sorted(paper_dir.glob("*.json")):
+                # Skip-and-report a single corrupt/partial file rather than aborting the whole
+                # goldset assembly — one bad rating must not lose every other rater's work.
+                try:
+                    subs.append(SubmittedRating.model_validate_json(f.read_text(encoding="utf-8")))
+                except (OSError, ValueError) as exc:
+                    _log.warning("skipping unreadable rating file %s: %s", f, exc)
             if subs:
                 out[paper_dir.name] = subs
         return out

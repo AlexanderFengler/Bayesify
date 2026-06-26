@@ -13,7 +13,7 @@ on LLM error, and meters its single call into the cost ledger (stage tag ``class
 from __future__ import annotations
 
 from bayesify.core import config
-from bayesify.core.context import build_user
+from bayesify.core.context import build_user, validate_evidence_refs
 from bayesify.core.prompts import CLASSIFY_SYSTEM
 from bayesify.core.schema import CostLedgerEntry, Evidence, PaperClass, ParsedDoc
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
@@ -32,4 +32,10 @@ def classify(
     response = call_with_policy(
         client, model=model, system=CLASSIFY_SYSTEM, user=user, schema=PaperClass, max_tokens=600
     )
-    return response.parsed, ledger_entry("classify", response)
+    paper_class = response.parsed
+    # A3: reject a hallucinated citation before it becomes a dangling ref. Guarded on `evidence`
+    # because the only zero-evidence caller is the forced rerun escape hatch (which grades without
+    # grounding by design); the normal relevance gate only reaches classify when evidence exists.
+    if evidence:
+        validate_evidence_refs(paper_class.evidence_refs, evidence, where="paper_class")
+    return paper_class, ledger_entry("classify", response)

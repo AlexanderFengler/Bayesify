@@ -8,9 +8,12 @@ It is a flat audit log (corrections are many-per-paper), not yet used to change 
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
+
+_log = logging.getLogger("bayesify.override_store")
 
 
 class _Base(BaseModel):
@@ -56,5 +59,14 @@ class OverrideStore:
     def all(self) -> list[Override]:
         if not self.path.exists():
             return []
-        lines = self.path.read_text(encoding="utf-8").splitlines()
-        return [Override.model_validate_json(line) for line in lines if line.strip()]
+        out: list[Override] = []
+        for line in self.path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            # A crash mid-append can leave a torn final line; skip it rather than abort the whole
+            # log (every prior correction is intact and must still load).
+            try:
+                out.append(Override.model_validate_json(line))
+            except ValueError as exc:
+                _log.warning("skipping unparseable override line: %s", exc)
+        return out

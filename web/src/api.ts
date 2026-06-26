@@ -119,6 +119,7 @@ export interface RateContext {
   paper_id: string;
   source_label: string;
   source_sha256: string | null;
+  version_label: string | null;
   rubric: Rubric;
   evidence: RateContextSpan[];
   where_looked: { section_id: string; title: string; kind: string; page: number | null }[];
@@ -164,17 +165,26 @@ export interface RatingInput {
 }
 
 // Record one blind Rating. The server validates it against the contract; a 422 detail is surfaced.
+// `provenance` (the sha/version from rate/context) is echoed back so the server can still pin the
+// gold record if the in-memory job has expired — otherwise an hour-long blind pass would be lost.
 export async function submitRating(
   paperId: string,
   rating: RatingInput,
   profile = "synthesis",
+  provenance: { source_sha256?: string | null; version_label?: string | null } = {},
 ): Promise<void> {
   await fetchJson(
     "/api/rate/submit",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ paper_id: paperId, profile, rating }),
+      body: JSON.stringify({
+        paper_id: paperId,
+        profile,
+        rating,
+        source_sha256: provenance.source_sha256 ?? "",
+        version_label: provenance.version_label ?? "",
+      }),
     },
     { detail: true, error: "rating rejected" },
   );

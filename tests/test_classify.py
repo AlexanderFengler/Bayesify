@@ -72,3 +72,15 @@ def test_classify_fails_closed() -> None:
     client = FakeLLMClient(LLMTransientError("a"), LLMTransientError("b"), LLMTransientError("c"))
     with pytest.raises(LLMError):
         C.classify(_parsed("text"), [_ev()], client=client)
+
+
+def test_classify_rejects_out_of_range_evidence_ref() -> None:
+    # Only one detector hit (index 0) was shown; a ref to index 3 is a hallucinated citation.
+    canned = PaperClass(
+        labels=[PaperClassLabel.data_analysis],
+        confidence=0.85,
+        rationale="fits real data",
+        evidence_refs=[3],
+    )
+    with pytest.raises(ValueError, match="evidence_refs"):
+        C.classify(_parsed("We fit a model."), [_ev()], client=FakeLLMClient(canned))

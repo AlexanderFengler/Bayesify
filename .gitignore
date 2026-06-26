@@ -28,6 +28,8 @@ research/sources/pdfs/
 uploads/
 .cache/
 *.lock
+# pixi.lock IS committed (reproducible envs + CI caching); the blanket *.lock is for stray lockfiles.
+!pixi.lock
 # Regenerated validation outputs (the fake-goldset INPUTS are committed; the harness OUTPUTS are not)
 validation/_fake_reports/
 validation/reports/
