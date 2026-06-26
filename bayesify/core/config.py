@@ -46,12 +46,27 @@ def openai_api_key() -> str | None:
 
 def mongodb_uri() -> str:
     """MongoDB connection URI for report persistence scaffolding."""
-    return os.environ.get("BAYESIFY_MONGODB_URI", "mongodb://localhost:27017")
+    return (
+        os.environ.get("BAYESIFY_MONGODB_URI")
+        or os.environ.get("MONGODB_URI")
+        or "mongodb://localhost:27017"
+    )
 
 
 def mongodb_database() -> str:
     """MongoDB database name for report persistence scaffolding."""
-    return os.environ.get("BAYESIFY_MONGODB_DB", "bayesify")
+    return (
+        os.environ.get("BAYESIFY_MONGODB_DB")
+        or os.environ.get("MONGODB_DATABASE")
+        or os.environ.get("MONGO_DATABASE")
+        or "bayesify"
+    )
+
+
+def mongodb_server_api() -> str | None:
+    """MongoDB Stable API version for hosted clusters such as Atlas."""
+    value = os.environ.get("BAYESIFY_MONGODB_SERVER_API", "1").strip()
+    return None if value.lower() in ("", "0", "false", "no") else value
 
 
 def mongodb_autostart() -> bool:

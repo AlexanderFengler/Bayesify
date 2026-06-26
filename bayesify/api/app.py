@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -41,9 +42,35 @@ from bayesify.core.validation.override_store import Override
 from bayesify.core.validation.rating_store import SubmittedRating
 
 
+def _app_logger() -> logging.Logger:
+    logger = logging.getLogger("bayesify.api")
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(levelname)s:     %(message)s"))
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    return logger
+
+
+_log = _app_logger()
+
+
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    await asyncio.to_thread(start_mongodb)
+    mongo_status = await asyncio.to_thread(start_mongodb)
+    detail = (
+        f"MongoDB status: {mongo_status.message}; "
+        f"uri={mongo_status.uri}; db={mongo_status.database}; mode={mongo_status.mode}"
+    )
+    if mongo_status.server_api:
+        detail += f"; server_api=v{mongo_status.server_api}"
+    if mongo_status.autostart:
+        detail += "; local_autostart=enabled"
+    if mongo_status.ready:
+        _log.info(detail)
+    else:
+        _log.warning(detail)
     try:
         yield
     finally:
@@ -432,6 +459,7 @@ async def rate_submit(body: RateSubmit) -> dict:
     rstore = jobsmod._ratings_store()
     rstore.add(sub)
     n = rstore.count_for(sub.source_sha256, sub.rubric_profile, sub.paper_id)
+    rating_payload = body.rating.model_dump(mode="json")
     await asyncio.to_thread(
         save_event,
         {
@@ -439,6 +467,16 @@ async def rate_submit(body: RateSubmit) -> dict:
             "paper_id": sub.paper_id,
             "source_sha256": sub.source_sha256,
             "rubric_profile": sub.rubric_profile,
+            "rubric_version": sub.rubric_version,
+            "version_label": sub.version_label,
+            "rater_id": rating_payload["rater_id"],
+            "relationship": rating_payload["relationship"],
+            "relevance_label": rating_payload["relevance_label"],
+            "relevance_rationale": rating_payload["relevance_rationale"],
+            "paper_class_labels": rating_payload["paper_class_labels"],
+            "paper_class_rationale": rating_payload["paper_class_rationale"],
+            "gate_facts": rating_payload["gate_facts"],
+            "steps": rating_payload["steps"],
             "submission": sub.model_dump(mode="json"),
             "n_ratings": n,
         },

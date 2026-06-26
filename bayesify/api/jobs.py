@@ -340,7 +340,6 @@ async def _run_local(job: Job, *, source: s.SourceDoc | None = None) -> None:
     await _front_half(job, source=source)
     job.local_notice = _LOCAL_NOTICE
     job.status = "done"
-    _save_analysis_report_payload(job)
     job.emit({"type": "done"})
 
 
@@ -374,7 +373,6 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             for stage in STAGES:  # complete the UI stepper instantly
                 job.emit({"type": "stage", "stage": stage, "state": "done"})
             job.status = "done"
-            _save_analysis_report_payload(job)
             job.emit({"type": "done"})
             return
 
@@ -437,7 +435,6 @@ async def _run_stub(job: Job) -> None:
     job.result = build_stub_result(job.mode)
     job.backend = "stub"  # no credentials → the labelled placeholder engine
     job.status = "done"
-    _save_analysis_report_payload(job)
     job.emit({"type": "done"})
 
 

@@ -13,6 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from pymongo.errors import PyMongoError
+from pymongo.server_api import ServerApi
 
 from bayesify.api.mongo import MongoDBService
 
@@ -106,6 +107,75 @@ def test_is_local_uri() -> None:
 def test_local_port() -> None:
     assert MongoDBService._local_port("mongodb://localhost:27018") == 27018
     assert MongoDBService._local_port("mongodb://localhost") == 27017  # default port
+
+
+def test_remote_uris_use_longer_timeout() -> None:
+    assert MongoDBService._server_selection_timeout_ms("mongodb://localhost:27017") == 500
+    assert (
+        MongoDBService._server_selection_timeout_ms(
+            "mongodb+srv://user:pass@example.mongodb.net/?appName=bayesify"
+        )
+        == 5000
+    )
+
+
+def test_timeout_override(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MONGODB_TIMEOUT_MS", "42")
+    assert MongoDBService._server_selection_timeout_ms("mongodb://localhost:27017") == 42
+
+
+def test_safe_uri_masks_password() -> None:
+    safe = MongoDBService._safe_uri(
+        "mongodb+srv://atlas_user:secret@example.mongodb.net/?appName=bayesify"
+    )
+    assert safe == "mongodb+srv://atlas_user:***@example.mongodb.net/?appName=bayesify"
+    assert "secret" not in safe
+
+
+def test_status_masks_atlas_uri_and_reports_mode(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MONGODB_SERVER_API", "1")
+    svc = MongoDBService()
+    svc._ready = True
+    status = svc._make_status(
+        "mongodb+srv://atlas_user:secret@example.mongodb.net/?appName=bayesify",
+        "bayesify",
+        message="connected",
+    )
+    assert status.ready is True
+    assert status.uri == "mongodb+srv://atlas_user:***@example.mongodb.net/?appName=bayesify"
+    assert status.database == "bayesify"
+    assert status.mode == "atlas/remote"
+    assert status.server_api == "1"
+    assert "secret" not in status.uri
+
+
+def test_create_client_uses_stable_api_for_atlas(monkeypatch) -> None:
+    calls: list[tuple[str, dict]] = []
+
+    def fake_client(uri: str, **kwargs):
+        calls.append((uri, kwargs))
+        return object()
+
+    monkeypatch.setattr("bayesify.api.mongo.MongoClient", fake_client)
+    MongoDBService._create_client("mongodb+srv://user:pass@example.mongodb.net/?appName=bayesify")
+
+    _, kwargs = calls[0]
+    assert kwargs["serverSelectionTimeoutMS"] == 5000
+    assert isinstance(kwargs["server_api"], ServerApi)
+
+
+def test_create_client_skips_stable_api_for_local(monkeypatch) -> None:
+    calls: list[tuple[str, dict]] = []
+
+    def fake_client(uri: str, **kwargs):
+        calls.append((uri, kwargs))
+        return object()
+
+    monkeypatch.setattr("bayesify.api.mongo.MongoClient", fake_client)
+    MongoDBService._create_client("mongodb://localhost:27017")
+
+    _, kwargs = calls[0]
+    assert kwargs == {"serverSelectionTimeoutMS": 500}
 
 
 def test_mongodb_data_dir(monkeypatch, tmp_path) -> None:

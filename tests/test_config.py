@@ -33,6 +33,32 @@ def test_zero_tokens_zero_cost() -> None:
     assert config.estimate_cost(config.JUDGE_MODEL, 0, 0) == 0.0
 
 
+# --- MongoDB / Atlas configuration ----------------------------------------------------------------
+
+
+def test_mongodb_uri_accepts_atlas_style_alias(monkeypatch) -> None:
+    monkeypatch.delenv("BAYESIFY_MONGODB_URI", raising=False)
+    monkeypatch.setenv("MONGODB_URI", "mongodb+srv://user:pass@example.mongodb.net/?appName=bayesify")
+    assert config.mongodb_uri() == "mongodb+srv://user:pass@example.mongodb.net/?appName=bayesify"
+
+
+def test_mongodb_uri_prefers_bayesify_override(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MONGODB_URI", "mongodb://localhost:27018")
+    monkeypatch.setenv("MONGODB_URI", "mongodb+srv://user:pass@example.mongodb.net")
+    assert config.mongodb_uri() == "mongodb://localhost:27018"
+
+
+def test_mongodb_database_accepts_common_aliases(monkeypatch) -> None:
+    monkeypatch.delenv("BAYESIFY_MONGODB_DB", raising=False)
+    monkeypatch.setenv("MONGODB_DATABASE", "atlas_db")
+    assert config.mongodb_database() == "atlas_db"
+
+
+def test_mongodb_server_api_can_be_disabled(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MONGODB_SERVER_API", "0")
+    assert config.mongodb_server_api() is None
+
+
 # --- LLM backend selection (subscription-first) ---------------------------------------------------
 
 
