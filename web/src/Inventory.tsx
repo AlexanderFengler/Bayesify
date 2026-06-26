@@ -1,5 +1,6 @@
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import { Box, Button, Chip, Container, Link, Typography } from "@mui/material";
+import { formatByline } from "./paper";
 import type { EvidenceInventory, InventoryFamily, InventoryHit, PaperState } from "./types";
 
 const FAMILY_NAMES: Record<string, string> = {
@@ -87,8 +88,13 @@ function SummaryColumn({
       <Box>
         <Chip size="small" variant="outlined" color="success" label="Local · detection mode" sx={{ mb: 1 }} />
         <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-          {paper.source_label}
+          {paper.paper_title ?? paper.source_label}
         </Typography>
+        {formatByline(paper.paper_authors, paper.paper_year) && (
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {formatByline(paper.paper_authors, paper.paper_year)}
+          </Typography>
+        )}
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 1.5, flexWrap: "wrap" }}>
           {/* Blind entry: rate from the no-grade detection view, never from the engine's report. */}
           <Button size="small" variant="contained" disableElevation onClick={() => onRate(paper.paper_id)}>

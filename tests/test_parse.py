@@ -101,6 +101,42 @@ def test_pymupdf_blank_pdf_is_no_text_layer(tmp_path: Path) -> None:
     assert exc.value.reason == "no_text_layer"
 
 
+# --- embedded metadata: authors + year (best-effort, PyMuPDF) -------------------------------------
+
+
+def test_split_authors_splits_on_unambiguous_separators_only() -> None:
+    assert P._split_authors("Jane Doe; John Smith") == ["Jane Doe", "John Smith"]
+    assert P._split_authors("Ann Lee and Bo Ng & Cy Oh") == ["Ann Lee", "Bo Ng", "Cy Oh"]
+    assert P._split_authors("Smith, John") == ["Smith, John"]  # a lone Last, First stays one entry
+    assert P._split_authors("a@b.com") == [] and P._split_authors(None) == []
+
+
+def test_meta_year_reads_a_pdf_date_string() -> None:
+    assert P._meta_year("D:20210315120000Z") == 2021
+    assert P._meta_year("nonsense") is None and P._meta_year(None) is None
+
+
+def test_pdf_meta_extracts_authors_and_year() -> None:
+    doc = fitz.open()
+    doc.new_page()
+    doc.set_metadata({"author": "Jane Doe; John Smith", "creationDate": "D:20190701000000Z"})
+    authors, year = P._pdf_meta(doc.tobytes())
+    assert authors == ["Jane Doe", "John Smith"] and year == 2019
+
+
+def test_parse_surfaces_authors_and_year(tmp_path: Path) -> None:
+    doc = fitz.open()
+    page = doc.new_page()
+    y = 72
+    for line in _BODY:  # enough text to clear the no-text-layer floor
+        page.insert_text((72, y), line, fontsize=11)
+        y += 20
+    doc.set_metadata({"author": "Ann Lee and Bo Ng", "creationDate": "D:20220101000000Z"})
+    blob = BlobStore(tmp_path)
+    parsed = P.parse(_source(blob, doc.tobytes()), blob)
+    assert parsed.authors == ["Ann Lee", "Bo Ng"] and parsed.year == 2022
+
+
 # --- Docling primary (needs the model stack) ------------------------------------------------------
 
 
