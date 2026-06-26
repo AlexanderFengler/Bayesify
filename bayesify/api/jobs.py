@@ -24,18 +24,15 @@ import httpx
 from bayesify.api.mongo import save_event
 from bayesify.core import config
 from bayesify.core import schema as s
-from bayesify.core.assess import assess
 from bayesify.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
-from bayesify.core.classify import classify
 from bayesify.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
+from bayesify.core.engine import grade_parsed
 from bayesify.core.errors import IngestError
 from bayesify.core.fetcher import Fetcher
 from bayesify.core.ingest import ingest_upload, parse_input
 from bayesify.core.parse import parse
-from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.rubric.loader import load_rubric
-from bayesify.core.score import ScoreMeta, score
-from bayesify.core.stub import ENGINE_VERSION, build_stub_result, cost_ledger
+from bayesify.core.stub import ENGINE_VERSION, build_stub_result
 from bayesify.core.validation.override_store import OverrideStore
 from bayesify.core.validation.rating_store import RatingStore
 from bayesify.llm import LLMClient, make_llm_client
@@ -340,66 +337,32 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     client = _llm_client()
     job.backend = config.llm_backend()  # "agent-sdk" | "api" | "openai" — shown in the report
 
-    job.stage = "screen"
-    job.emit({"type": "stage", "stage": "screen", "state": "running"})
-    relevance, paper_class, costs = await asyncio.to_thread(
-        screen_and_classify, parsed, evidence, client=client
+    # Grade through the ONE shared composition (engine.grade_parsed) — the same path the validation
+    # harness runs — so the app and the harness can never grade a paper differently. grade_parsed is
+    # CPU/IO-bound and runs in a worker thread; its stage events are bounced back onto the loop so
+    # job.emit (which touches asyncio queues) only ever runs on the event-loop thread.
+    loop = asyncio.get_running_loop()
+
+    def on_stage(stage: str, state: str) -> None:
+        def apply() -> None:
+            if state == "running":
+                job.stage = stage
+            job.emit({"type": "stage", "stage": stage, "state": state})
+
+        loop.call_soon_threadsafe(apply)
+
+    job.result = await asyncio.to_thread(
+        grade_parsed,
+        parsed,
+        evidence,
+        client=client,
+        rubric=rubric,
+        engine_version=ENGINE_VERSION,
+        rubric_version=rubric.rubric_version,
+        relevance_override=job.relevance_override,
+        force_grade=job.force_grade,
+        on_stage=on_stage,
     )
-    job.emit({"type": "stage", "stage": "screen", "state": "done"})
-
-    # Escape hatch (rerun): the user forces a relevance so a short-circuited paper is graded anyway.
-    # Cite whatever the detectors found (better grounding for a false-negative screen); the override
-    # is a human provenance, so it's exempt from the "relevant ⇒ ≥1 ref" rule even with no hits.
-    if job.relevance_override:
-        relevance = relevance.model_copy(
-            update={
-                "label": s.RelevanceLabel(job.relevance_override),
-                "overridden": True,
-                "evidence_refs": relevance.evidence_refs or list(range(len(evidence)))[:3],
-                "rationale": relevance.rationale + " [User override: graded as "
-                f"{job.relevance_override} on request.]",
-            }
-        )
-
-    review_only = paper_class is not None and paper_class.labels == [s.PaperClassLabel.review]
-    if relevance.label is s.RelevanceLabel.no:
-        job.result = s.ScoredResult.short_circuit(
-            relevance=relevance,
-            engine_version=ENGINE_VERSION,
-            rubric_version=rubric.rubric_version,
-            rubric_profile=job.profile,
-            cost_ledger=cost_ledger(costs),
-        )
-    elif review_only and not job.force_grade:
-        # Discusses the workflow, doesn't apply it: rubric N/A unless force-graded as advisory.
-        job.result = s.ScoredResult.short_circuit(
-            relevance=relevance,
-            reason="not_an_application",
-            paper_class=paper_class,
-            engine_version=ENGINE_VERSION,
-            rubric_version=rubric.rubric_version,
-            rubric_profile=job.profile,
-            cost_ledger=cost_ledger(costs),
-        )
-    else:
-        if paper_class is None:  # the gate had said 'no' but the user forced grading → classify now
-            paper_class, classify_cost = await asyncio.to_thread(
-                classify, parsed, evidence, client=client
-            )
-            costs = costs + [classify_cost]
-        job.emit({"type": "stage", "stage": "classify", "state": "done"})
-        job.stage = "assess"
-        job.emit({"type": "stage", "stage": "assess", "state": "running"})
-        assessments, gate_facts, assess_costs = await asyncio.to_thread(
-            assess, parsed, evidence, relevance, paper_class, rubric, client=client
-        )
-        job.emit({"type": "stage", "stage": "assess", "state": "done"})
-        job.stage = "score"
-        job.emit({"type": "stage", "stage": "score", "state": "running"})
-        ledger = cost_ledger(costs + assess_costs)
-        meta = ScoreMeta(engine_version=ENGINE_VERSION, cost_ledger=ledger)
-        job.result = score(relevance, paper_class, assessments, gate_facts, rubric, meta)
-        job.emit({"type": "stage", "stage": "score", "state": "done"})
 
     # Cache only on success (we reached here without raising) — never mask a broken run.
     if _cache_enabled():
