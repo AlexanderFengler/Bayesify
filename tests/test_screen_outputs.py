@@ -13,11 +13,11 @@ from bayesify.core.schema import PaperClass, Relevance, RelevanceLabel
 
 _FIX = Path(__file__).parent / "fixtures"
 _SCREEN = _FIX / "screen"
-_EVIDENCE = json.loads((_FIX / "evidence" / "empirical_hddm.json").read_text())
+_EVIDENCE = json.loads((_FIX / "evidence" / "empirical_hddm.json").read_text(encoding="utf-8"))
 
 
 def test_relevant_output_is_valid_and_refs_resolve() -> None:
-    data = json.loads((_SCREEN / "empirical_hddm.screen.json").read_text())
+    data = json.loads((_SCREEN / "empirical_hddm.screen.json").read_text(encoding="utf-8"))
     rel = Relevance.model_validate(data["relevance"])
     cls = PaperClass.model_validate(data["paper_class"])
     assert rel.label is RelevanceLabel.yes and rel.evidence_refs
@@ -27,7 +27,7 @@ def test_relevant_output_is_valid_and_refs_resolve() -> None:
 
 
 def test_short_circuit_output_is_valid() -> None:
-    data = json.loads((_SCREEN / "nonbayesian.screen.json").read_text())
+    data = json.loads((_SCREEN / "nonbayesian.screen.json").read_text(encoding="utf-8"))
     rel = Relevance.model_validate(data["relevance"])
     assert rel.label is RelevanceLabel.no  # 'no' may carry empty refs
     assert data["paper_class"] is None  # classify skipped on short-circuit

@@ -34,7 +34,7 @@
       "evidence": [],
       "standards": [],
       "did_well": [
-        "States a hierarchical drift-diffusion generative model (§s02)."
+        "States a hierarchical drift-diffusion generative model (Â§s02)."
       ],
       "suggestions": [],
       "adversarial_verdict": null
@@ -79,7 +79,7 @@
       "evidence": [],
       "standards": [],
       "did_well": [
-        "Reports \"all R-hat < 1.01\" and ESS for every parameter (§s02)."
+        "Reports \"all R-hat < 1.01\" and ESS for every parameter (Â§s02)."
       ],
       "suggestions": [],
       "adversarial_verdict": null

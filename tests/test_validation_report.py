@@ -84,7 +84,7 @@ def _human(sr: ScoredResult, work_id: str, sha: str) -> HumanReport:
 
 
 def test_build_report_produces_one_watermarked_object() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     pairs = [(_human(sr, "w1", "aa"), sr), (_human(sr, "w2", "bb"), sr)]
     rep = build_report(
         pairs,
@@ -110,7 +110,7 @@ def test_human_coverage_is_derived_not_typed() -> None:
     # the consensus statuses via the engine's own arithmetic.
     assert "coverage" not in HumanReport.model_fields
     assert "quality_score" not in HumanReport.model_fields
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     rep = build_report(
         [(_human(sr, "w1", "aa"), sr)],
         _RUBRIC,
@@ -123,7 +123,7 @@ def test_human_coverage_is_derived_not_typed() -> None:
 
 
 def test_test_retest_kappa_from_two_engine_runs() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     pairs = [(_human(sr, "w1", "aa"), sr)]
     # identical second run → perfect test-retest (the engine agrees with itself)
     perfect = build_report(
@@ -147,7 +147,7 @@ def test_test_retest_kappa_from_two_engine_runs() -> None:
 
 
 def test_no_retest_pairs_leaves_kappa_unmeasured() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     rep = build_report(
         [(_human(sr, "w1", "aa"), sr)],
         _RUBRIC,
@@ -160,7 +160,7 @@ def test_no_retest_pairs_leaves_kappa_unmeasured() -> None:
 
 
 def test_tier_c_papers_are_cased_not_pooled() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     a = _human(sr, "w1", "aa")  # Tier A → pooled
     c = _human(sr, "w2", "bb").model_copy(update={"tier": GoldTier.C})  # Tier C → cased
     rep = build_report(
@@ -191,7 +191,7 @@ def test_tier_c_papers_are_cased_not_pooled() -> None:
 
 
 def test_inadmissible_papers_are_excluded_not_dropped() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     good = _human(sr, "w1", "aa")
     # no consensus → inadmissible (must be excluded-and-counted, never silently dropped)
     bad = _human(sr, "w2", "bb").model_copy(update={"consensus": None})

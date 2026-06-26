@@ -102,7 +102,9 @@ def test_assemble_writes_admissible_record(tmp_path) -> None:
         ratings_dir=tmp_path / "ratings", out_dir=out, origin=GoldOrigin.blind_human
     )
     assert written == ["sha-p1__synthesis"] and skipped == []
-    hr = HumanReport.model_validate_json((out / "sha-p1__synthesis.json").read_text())
+    hr = HumanReport.model_validate_json(
+        (out / "sha-p1__synthesis.json").read_text(encoding="utf-8")
+    )
     assert hr.consensus is not None and hr.source_sha256 == "sha-p1"
     assert hr.work_id == "sha-p1__synthesis"
     assert hr.provenance.origin is GoldOrigin.blind_human
@@ -120,8 +122,12 @@ def test_assemble_separates_one_paper_rated_under_two_rubrics(tmp_path) -> None:
     out = tmp_path / "goldset"
     written, skipped = assemble(ratings_dir=tmp_path / "ratings", out_dir=out)
     assert set(written) == {"sha-dual__synthesis", "sha-dual__gelman"} and skipped == []
-    syn = HumanReport.model_validate_json((out / "sha-dual__synthesis.json").read_text())
-    gel = HumanReport.model_validate_json((out / "sha-dual__gelman.json").read_text())
+    syn = HumanReport.model_validate_json(
+        (out / "sha-dual__synthesis.json").read_text(encoding="utf-8")
+    )
+    gel = HumanReport.model_validate_json(
+        (out / "sha-dual__gelman.json").read_text(encoding="utf-8")
+    )
     assert syn.rubric_profile == "synthesis" and gel.rubric_profile == "gelman"
     assert syn.source_sha256 == gel.source_sha256 == "sha-dual"  # same paper, cleanly separated
 
