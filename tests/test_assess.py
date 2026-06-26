@@ -11,6 +11,7 @@ from datetime import datetime
 from bayesify.core import assess as A
 from bayesify.core.assess import RefuterVerdict, StepJudgment, derive_gate_facts
 from bayesify.core.llm import LLMResponse
+from bayesify.core.rubric.applicability import step_applicability
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.schema import (
     Evidence,
@@ -100,6 +101,31 @@ def test_gate_facts_analytic() -> None:
     ev = [_ev("method.analytic", EvidenceKind.method_mention, "conjugate prior")]
     gf = derive_gate_facts(ev, _EMPIRICAL)
     assert gf.inference_method is InferenceMethod.exact_analytic
+
+
+def test_analytic_mention_does_not_override_sampling() -> None:
+    # A mixed-method paper: a conjugate prior on one block but NUTS (with R-hat) for the rest. The
+    # "conjugate prior" mention must NOT collapse inference to exact_analytic, which would wrongly
+    # mark S4 (convergence: R-hat/ESS/divergences) N/A on a paper that plainly sampled.
+    ev = [
+        _ev("method.analytic", EvidenceKind.method_mention, "a conjugate prior on the variance"),
+        _ev("method.mcmc", EvidenceKind.method_mention, "NUTS for the regression coefficients"),
+        _ev("diag.rhat", EvidenceKind.diagnostic_value, "all R-hat < 1.01"),
+    ]
+    gf = derive_gate_facts(ev, _EMPIRICAL)
+    assert gf.inference_method is InferenceMethod.hmc_nuts  # sampling wins, not analytic
+    s4 = next(s for s in _RUBRIC.steps if s.id == "S4")  # and S4 stays applicable (not gated N/A)
+    assert step_applicability(s4, PaperClassLabel.data_analysis, gf).applicable
+
+
+def test_sampling_diagnostics_override_analytic_without_explicit_method() -> None:
+    # Even with no explicit MCMC method word, convergence diagnostics imply sampling, so a
+    # "conjugate prior" mention alongside ESS must not yield exact_analytic.
+    ev = [
+        _ev("method.analytic", EvidenceKind.method_mention, "conjugate prior"),
+        _ev("diag.ess", EvidenceKind.diagnostic_value, "bulk-ESS 1500"),
+    ]
+    assert derive_gate_facts(ev, _EMPIRICAL).inference_method is not InferenceMethod.exact_analytic
 
 
 def test_loo_detector_implies_multiple_models() -> None:
