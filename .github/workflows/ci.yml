@@ -1,0 +1,25 @@
+# Runs the project's own gate (`pixi run check` = ruff lint + import contracts + pytest) on every PR
+# and on pushes to the integration branches, so the contracts and tests are enforced automatically
+# rather than relying on each developer remembering to run them locally.
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [dev, main]
+
+# A newer push to the same ref supersedes an in-flight run.
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Provisions the locked default environment from pixi.lock (reproducible; cached by lock hash).
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          cache: true
+      - run: pixi run check
