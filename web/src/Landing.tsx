@@ -238,11 +238,12 @@ function UploadPanel(
           onChange={(_, v) => v && p.setMode(v)}
           aria-label="analysis mode"
         >
+          {/* Display labels only; the wire value stays "full"/"local" (Connected = full). */}
           <ToggleButton value="full" sx={{ px: 2 }}>
-            Full
+            Connected
           </ToggleButton>
           <ToggleButton value="local" sx={{ px: 2 }}>
-            Local-only
+            Local
           </ToggleButton>
         </ToggleButtonGroup>
 

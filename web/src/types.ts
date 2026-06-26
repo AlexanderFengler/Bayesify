@@ -129,6 +129,8 @@ export interface PaperState {
   mode: string;
   source_label: string;
   paper_title: string | null; // best-effort title from parsing; falls back to source_label for display
+  paper_authors: string[]; // best-effort author names (provider or PDF metadata); may be empty
+  paper_year: number | null; // best-effort publication year (provider or PDF metadata); may be null
 
   relevance_override: string | null; // set when the user forced a short-circuited paper to be graded
   result: ScoredResult | null;

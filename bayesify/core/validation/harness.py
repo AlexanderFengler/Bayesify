@@ -19,6 +19,7 @@ data with ``pixi run demo-data``. The real run (``--real`` over ``validation/gol
 from __future__ import annotations
 
 import argparse
+import logging
 from collections.abc import Callable
 from pathlib import Path
 
@@ -35,6 +36,8 @@ from bayesify.core.validation.report import (
 # An engine source produces the engine's ScoredResult for one gold-set paper. Two implementations:
 # fixtures (the demo, paired by work_id) and live (fetch the rated bytes by sha256, run the engine).
 EngineSource = Callable[[HumanReport], "ScoredResult | None"]
+
+_log = logging.getLogger("bayesify.harness")
 
 REAL_GOLDSET_DIR = "validation/goldset"
 FAKE_GOLDSET_DIR = "validation/_fake_goldset"
@@ -104,11 +107,15 @@ class LiveEngineSource:
 
 def load_goldset(goldset_dir: str | Path) -> list[HumanReport]:
     """Load every ``*.json`` HumanReport in the directory (non-recursive, so an ``_engine/`` sibling
-    of engine results is not picked up)."""
-    return [
-        HumanReport.model_validate_json(p.read_text(encoding="utf-8"))
-        for p in sorted(Path(goldset_dir).glob("*.json"))
-    ]
+    of engine results is not picked up). A corrupt/partial file is skipped-and-reported rather than
+    aborting the whole gold-set load."""
+    out: list[HumanReport] = []
+    for p in sorted(Path(goldset_dir).glob("*.json")):
+        try:
+            out.append(HumanReport.model_validate_json(p.read_text(encoding="utf-8")))
+        except (OSError, ValueError) as exc:
+            _log.warning("skipping unreadable gold record %s: %s", p, exc)
+    return out
 
 
 def load_engine(engine_dir: str | Path) -> dict[str, ScoredResult]:
