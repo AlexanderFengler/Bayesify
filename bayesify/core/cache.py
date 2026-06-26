@@ -21,6 +21,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from bayesify.core.atomic import atomic_write_bytes, atomic_write_text
+
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
@@ -82,7 +84,9 @@ class BlobStore:
         digest = sha256_bytes(data)
         path = self._path(digest)
         if not path.exists():  # content-addressed: identical bytes are stored once
-            path.write_bytes(data)
+            # Atomic: a crash mid-write never leaves a truncated blob carrying the (correct) sha
+            # name, which exists() would then trust forever and get() would replay as corrupt bytes.
+            atomic_write_bytes(path, data)
         return digest
 
     def get(self, sha256: str) -> bytes:
@@ -117,7 +121,7 @@ class ResultCache:
         return json.loads(path.read_text(encoding="utf-8"))
 
     def put(self, key: FullResultKey, result_json: dict) -> None:
-        self._path(key).write_text(json.dumps(result_json), encoding="utf-8")
+        atomic_write_text(self._path(key), json.dumps(result_json))
 
     def delete(self, key: FullResultKey) -> bool:
         path = self._path(key)
