@@ -546,6 +546,7 @@ def _render_markdown(job: jobsmod.Job) -> str:
     paper_types = (
         ", ".join(label.value for label in r.paper_class.labels) if r.paper_class else "n/a"
     )
+    weights = {p.step_id: p.weight for p in r.profile.steps} if r.profile else {}
     lines = [f"# Bayesify report — {job.source_label}", ""]
     if r.coverage:
         lo, hi = (
@@ -555,7 +556,10 @@ def _render_markdown(job: jobsmod.Job) -> str:
         rng = f"{lo}" if lo == hi else f"{lo}–{hi}"
         lines.append(f"**Coverage:** {rng} / {r.coverage.applicable} applicable steps present")
     if r.quality_score is not None:
-        lines.append(f"**Quality:** {r.quality_score}")
+        lines.append(
+            f"**Quality:** {r.quality_score} "
+            "_(weighted mean of sub-scores over applicable steps; per-step weights below)_"
+        )
     lines += [
         f"**Relevance:** {r.relevance.label.value} · **Paper type:** "
         f"{paper_types} · "
@@ -572,7 +576,9 @@ def _render_markdown(job: jobsmod.Job) -> str:
             )
         lines.append("")
     for a in r.step_assessments:
-        lines.append(f"## {a.step_id} — {a.status.value}")
+        w = weights.get(a.step_id)
+        suffix = f" · weight {w}" if a.applicable and w is not None else ""
+        lines.append(f"## {a.step_id} — {a.status.value}{suffix}")
         for d in a.did_well:
             lines.append(f"- ✓ {d}")
         for sug in a.suggestions:

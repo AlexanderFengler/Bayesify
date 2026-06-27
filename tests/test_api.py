@@ -655,6 +655,16 @@ def test_full_upload_grades_end_to_end(tmp_path, monkeypatch) -> None:
     done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
     assert done == ["ingest", "parse", "detect", "screen", "classify", "assess", "score"]
 
+    # Per-class weights flow into the scored profile and surface in the Markdown export. The
+    # data_analysis vector down-weights only SBC/recovery (S7 = 0.5; everything else 1.0).
+    from bayesify.api.app import _render_markdown
+
+    wmap = {p.step_id: p.weight for p in r.profile.steps}
+    assert wmap["S7"] == 0.5 and wmap["S1"] == 1.0
+    md = _render_markdown(job)
+    assert "weight 0.5" in md and "weight 1.0" in md  # per-step weight annotations
+    assert "weighted mean" in md  # the quality note
+
 
 def test_full_upload_short_circuits_on_no(tmp_path, monkeypatch) -> None:
     from bayesify.api import jobs as jobsmod

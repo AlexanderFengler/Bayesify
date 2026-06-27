@@ -4,6 +4,7 @@
 export type StepStatus = "adequate" | "partial" | "missing" | "not_applicable";
 export type Severity = "error" | "warning" | "info";
 export type Ease = "low" | "medium" | "high";
+export type ExpectationTier = "expected" | "recommended" | "none";
 
 export interface EvidenceSpan {
   section_id: string;
@@ -52,6 +53,22 @@ export interface Coverage {
   strict: number;
   lenient: number;
 }
+// Per-step scoring profile: the weight (relevance of the step to this paper type, in [0,1]) that
+// feeds the weighted-mean quality, plus the expectation tier. Joined to StepAssessment by step_id.
+export interface StepProfile {
+  step_id: string;
+  applicable: boolean;
+  status: StepStatus;
+  sub_score: number | null;
+  weight: number;
+  tier: ExpectationTier;
+}
+export interface Profile {
+  steps: StepProfile[];
+  n_applicable: number;
+  n_na: number;
+  n_uncertain: number;
+}
 export interface Relevance {
   label: "yes" | "partial" | "no";
   confidence: number;
@@ -72,6 +89,7 @@ export interface ScoredResult {
   relevance: Relevance;
   paper_class: PaperClass | null;
   step_assessments: StepAssessment[];
+  profile: Profile | null; // per-step weights + tiers (drives the weighted-mean quality)
   coverage: Coverage | null;
   quality_score: number | null;
   not_applicable_reason: string | null; // "not_bayesian" | "not_an_application" when not graded

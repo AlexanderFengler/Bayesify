@@ -131,6 +131,10 @@ export function Report({
   const byline = formatByline(paper.paper_authors, paper.paper_year);
   const selectedStep = r.step_assessments.find((a) => a.step_id === selected) ?? null;
   const base = `/paper/${paper.paper_id}`;
+  // Per-step weights (relevance of the step to this paper type) drive the weighted-mean quality;
+  // join them to the assessments by step_id and surface them per card + as a header indicator.
+  const weightById = new Map((r.profile?.steps ?? []).map((p) => [p.step_id, p.weight] as const));
+  const anyReduced = (r.profile?.steps ?? []).some((p) => p.applicable && p.weight !== 1);
 
   return (
     <>
@@ -161,6 +165,9 @@ export function Report({
                 <Stat label="rubric" value={r.rubric_profile} info={STAT_INFO.rubric} />
                 {r.paper_class && (
                   <Stat label="paper type" value={formatLabels(r.paper_class.labels)} info={STAT_INFO.paperType} />
+                )}
+                {r.profile && (
+                  <Stat label="weighting" value={anyReduced ? "weighted" : "uniform"} info={STAT_INFO.weighting} />
                 )}
               </Box>
             </Box>
@@ -219,7 +226,7 @@ export function Report({
               >
                 <Box>
                   {expanded ? (
-                    <FullReportDoc steps={r.step_assessments} stepNames={stepNames} stepWhy={stepWhy} />
+                    <FullReportDoc steps={r.step_assessments} stepNames={stepNames} stepWhy={stepWhy} weightById={weightById} />
                   ) : (
                     <>
                       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
@@ -242,6 +249,7 @@ export function Report({
                               a={selectedStep}
                               stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
                               why={stepWhy[selectedStep.step_id]}
+                              weight={weightById.get(selectedStep.step_id)}
                               fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
                               overridden={overrides[selectedStep.step_id]}
                               onOverride={async (status, rationale) => {
@@ -315,7 +323,7 @@ const formatLabels = (labels: string[]) => labels.map((label) => label.replace(/
 
 // Hover explanations for the three header stats — a one-line description plus the possible categories.
 type StatInfo = { what: string; categories: string[] };
-const STAT_INFO: Record<"relevance" | "rubric" | "paperType", StatInfo> = {
+const STAT_INFO: Record<"relevance" | "rubric" | "paperType" | "weighting", StatInfo> = {
   relevance: {
     what: "Does the paper actually apply Bayesian statistical methodology? This gate decides whether the rubric applies.",
     categories: ["yes", "partial", "no"],
@@ -335,6 +343,11 @@ const STAT_INFO: Record<"relevance" | "rubric" | "paperType", StatInfo> = {
       "theoretical analysis",
       "review",
     ],
+  },
+  weighting: {
+    what:
+      "How the Bayesify Score weights each step for this paper type. Each step carries a weight (its relevance to this paper type, 0–1, shown on its card); the score is their weighted mean over applicable steps. Multi-label papers take the max weight per step. Coverage is unweighted.",
+    categories: ["weighted", "uniform"],
   },
 };
 
@@ -666,10 +679,12 @@ function FullReportDoc({
   steps,
   stepNames,
   stepWhy,
+  weightById,
 }: {
   steps: StepAssessment[];
   stepNames: Record<string, string>;
   stepWhy: Record<string, string>;
+  weightById: Map<string, number>;
 }) {
   return (
     <Box>
@@ -686,6 +701,7 @@ function FullReportDoc({
             a={a}
             stepName={stepNames[a.step_id] ?? a.step_id}
             why={stepWhy[a.step_id]}
+            weight={weightById.get(a.step_id)}
           />
         ))}
       </Box>
@@ -693,7 +709,34 @@ function FullReportDoc({
   );
 }
 
-function FullReportStep({ a, stepName, why }: { a: StepAssessment; stepName: string; why?: string }) {
+// The per-step scoring weight (relevance of the step to this paper type, 0–1) that feeds the
+// weighted-mean Bayesify Score. Rendered only for applicable steps (N/A steps are excluded from
+// scoring); a reduced (<1) weight is drawn in amber to mark a step that counts less for this type.
+function WeightChip({ weight }: { weight?: number }) {
+  if (weight === undefined) return null;
+  return (
+    <Tooltip title="This step's weight (its relevance to this paper type, 0–1). The Bayesify Score is the weighted mean of applicable steps; coverage is unweighted.">
+      <Chip
+        size="small"
+        variant="outlined"
+        color={weight < 1 ? "warning" : "default"}
+        label={`weight ${weight.toFixed(1)}`}
+      />
+    </Tooltip>
+  );
+}
+
+function FullReportStep({
+  a,
+  stepName,
+  why,
+  weight,
+}: {
+  a: StepAssessment;
+  stepName: string;
+  why?: string;
+  weight?: number;
+}) {
   const na = a.status === "not_applicable";
   const meta = statusMeta(a.status);
   const suggestions = [...a.suggestions].sort(
@@ -726,6 +769,7 @@ function FullReportStep({ a, stepName, why }: { a: StepAssessment; stepName: str
             label={`${Math.round(a.confidence * 100)}% confidence`}
           />
         )}
+        {!na && <WeightChip weight={weight} />}
       </Box>
 
       {why && (
@@ -803,6 +847,7 @@ function StepDetail({
   a,
   stepName,
   why,
+  weight,
   fixes,
   overridden,
   onOverride,
@@ -810,6 +855,7 @@ function StepDetail({
   a: StepAssessment;
   stepName: string;
   why?: string;
+  weight?: number;
   fixes: FixItem[];
   overridden?: StepStatus;
   onOverride: (status: StepStatus, rationale: string) => Promise<void>;
@@ -845,6 +891,7 @@ function StepDetail({
             title="engine confidence (uncalibrated at this milestone)"
           />
         )}
+        {!na && <WeightChip weight={weight} />}
       </Box>
 
       {why && (
