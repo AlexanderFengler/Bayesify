@@ -1112,6 +1112,7 @@ function NotApplicable({
   const r = paper.result!;
   const [busy, setBusy] = useState(false);
   const isReview = r.not_applicable_reason === "not_an_application";
+  const byline = formatByline(paper.paper_authors, paper.paper_year);
   return (
     <>
       <Box sx={{ flex: 1 }}>
@@ -1125,8 +1126,21 @@ function NotApplicable({
                 <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
               </Box>
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                {paper.source_label}
+                {paper.paper_title ?? paper.source_label}
               </Typography>
+              {byline && (
+                <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {byline}
+                </Typography>
+              )}
+              {/* The actual categorization, so the "Paper type" header has a value (not just the title) */}
+              {isReview && r.paper_class && (
+                <Chip
+                  size="small"
+                  label={formatLabels(r.paper_class.labels)}
+                  sx={{ mt: 1, textTransform: "capitalize", fontWeight: 600 }}
+                />
+              )}
             </Box>
             <Button variant="outlined" onClick={onReset}>
               Analyze another
