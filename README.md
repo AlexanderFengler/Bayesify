@@ -62,19 +62,6 @@ pixi run setup-web  # one-time: install the frontend's node_modules
 pixi run app        # builds the UI and serves it + the API at http://localhost:8000
 ```
 
-Bayesify uses MongoDB for report-persistence scaffolding. Set `BAYESIFY_MONGODB_URI` (or the Atlas
-onboarding variable `MONGODB_URI`) to a MongoDB Atlas SRV URI such as
-`mongodb+srv://<user>:<password>@<cluster>/?appName=bayesify`; the API uses MongoDB Stable API v1
-for hosted clusters. The database defaults to `bayesify` and can be overridden with
-`BAYESIFY_MONGODB_DB` or `MONGODB_DATABASE`.
-
-Without a configured URI, the API falls back to `mongodb://localhost:27017`. If a local `mongod`
-binary is installed, the API will start it automatically with data under `~/.bayesify/mongodb`;
-otherwise start MongoDB yourself before running the app. Set `BAYESIFY_MONGODB_AUTOSTART=0` to
-disable local auto-start. Report events are stored in the `events` collection; query by `event`
-(`analysis_report_ready` or `blind_rating_submitted`), `paper_id`, `source_sha256`, or
-`rubric_profile`.
-
 For frontend hot-reload during development, run the two dev servers instead (Vite proxies `/api`):
 
 ```sh
@@ -86,6 +73,96 @@ Drop a PDF and choose **Local** mode for an on-device evidence inventory (no LLM
 leaves the machine). PDF parsing uses PyMuPDF by default; `pixi run -e parse app` adds the richer
 Docling parser (layout, tables, captions). (The two modes are **Connected** — text sent to an LLM
 for grading — and **Local** — on-device detectors only; the wire value stays `full`/`local`.)
+
+### Database (MongoDB / Atlas)
+
+The API persists each analysis report and blind rating as an event in MongoDB (the `events`
+collection). Persistence is **best-effort**: if MongoDB is unreachable the app keeps serving — the
+events just aren't saved — and the startup log reports which database it reached. Use the shared
+**MongoDB Atlas** cluster for a team setup, or a **local** MongoDB for solo/offline work.
+
+#### Connect to the shared Atlas cluster
+
+Each collaborator authenticates as their **own** database user — an X.509 client certificate (the
+team default) or a username + password — so nothing shared is ever committed to git. One-time setup:
+
+1. **Get invited.** Ask a project owner to add you to the Atlas project. In the Atlas console,
+   database users and the IP allowlist both live under **Security → Database & Network Access**.
+
+2. **Allow your IP.** Database & Network Access → **Network Access** → **Add Current IP Address**.
+   Atlas denies every IP by default — skipping this is the most common "can't connect" cause.
+
+3. **Find your database user** under **Database Users** (e.g. `yourname_db_user`); the **auth method**
+   column (X.509 or SCRAM) tells you which path below to follow.
+
+4. **Get your credentials.**
+   - **X.509 (certificate):** **Edit** your user → **Download certificate** (pick a validity, e.g.
+     6–12 months). You receive one `.pem` containing the certificate *and* its private key — treat it
+     as a secret. Save it in the gitignored `secrets/` folder and lock it down:
+     ```sh
+     mkdir -p secrets
+     mv ~/Downloads/X509-cert-*.pem secrets/atlas-x509.pem
+     chmod 600 secrets/atlas-x509.pem
+     ```
+   - **Password (SCRAM):** note your username and password (set one under **Edit** if you don't have
+     it — never reuse another user's credentials).
+
+5. **Create a local env file** — any `*.env` name, gitignored — e.g. `bayesify.env` at the repo root,
+   holding the connection string for your auth method (your cluster host is shown in Atlas under
+   **Connect → Drivers → Python**):
+   ```sh
+   # X.509 — identity comes from the cert (no user/password). Use the ABSOLUTE path to the .pem,
+   # keep %24external url-encoded, and single-quote the whole value.
+   MONGODB_URI='mongodb+srv://bayesify.zrwhvfo.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&appName=bayesify&tlsCertificateKeyFile=/abs/path/to/secrets/atlas-x509.pem'
+
+   # Password (SCRAM) — url-encode special chars in the password (@ -> %40, : -> %3A, / -> %2F):
+   # MONGODB_URI='mongodb+srv://<user>:<password>@bayesify.zrwhvfo.mongodb.net/?appName=bayesify'
+   ```
+
+6. **Run.** The app **auto-loads** `bayesify.env` at startup (override the path with `BAYESIFY_ENV_FILE`)
+   — no `source` needed, and a variable already set in your shell still takes precedence:
+   ```sh
+   pixi run app
+   ```
+   (Equivalent if you prefer to export it yourself: `set -a && source bayesify.env && set +a`.)
+
+7. **Verify the startup log** reads:
+   ```
+   INFO:     Loaded 1 setting(s) from bayesify.env: MONGODB_URI
+   INFO:     MongoDB status: connected; uri=mongodb+srv://bayesify.zrwhvfo.mongodb.net/bayesify; db=bayesify; mode=atlas/remote; server_api=v1
+   ```
+   A `WARNING` means it did not connect — check, in order: (1) your IP is allowlisted, (2) the `.pem`
+   path is correct and the cert hasn't expired, (3) a SCRAM password is url-encoded. The credential is
+   redacted in the log, so it is safe to share.
+
+8. **Confirm writes land.** Analyze a paper or submit a blind rating, then open Atlas
+   **Database → Data Explorer → `bayesify` → `events`** — you'll see `analysis_report_ready` /
+   `blind_rating_submitted` documents.
+
+#### Local MongoDB (solo / offline)
+
+Without a configured URI the API falls back to `mongodb://localhost:27017` and database `bayesify`.
+If a local `mongod` binary is installed it auto-starts with data under `~/.bayesify/mongodb`;
+otherwise start MongoDB yourself, or set `BAYESIFY_MONGODB_AUTOSTART=0` to disable auto-start.
+
+#### Configuration reference
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `MONGODB_URI` / `BAYESIFY_MONGODB_URI` | Connection string (the `BAYESIFY_` form wins) | `mongodb://localhost:27017` |
+| `MONGODB_DATABASE` / `BAYESIFY_MONGODB_DB` | Database name | `bayesify` |
+| `BAYESIFY_MONGODB_SERVER_API` | MongoDB Stable API version for hosted clusters (`0` disables) | `1` |
+| `BAYESIFY_MONGODB_TIMEOUT_MS` | Server-selection timeout (ms) | `5000` remote / `500` local |
+| `BAYESIFY_MONGODB_AUTOSTART` | Auto-start a local `mongod` for a localhost URI | enabled |
+| `BAYESIFY_ENV_FILE` | Path to the local env file auto-loaded at startup | `bayesify.env` |
+
+Query the `events` collection by `event` (`analysis_report_ready` / `blind_rating_submitted`),
+`paper_id`, `source_sha256`, or `rubric_profile`.
+
+> **Never commit secrets.** `secrets/`, `*.pem`, and `*.env` are gitignored — confirm with
+> `git check-ignore secrets/atlas-x509.pem bayesify.env`. The `.pem` holds a private key: keep it
+> `chmod 600` and out of any build or Docker context. Atlas-managed X.509 certificates expire —
+> re-download and replace the `.pem` when they lapse.
 
 ### LLM backend (Connected mode)
 

@@ -56,8 +56,39 @@ def _app_logger() -> logging.Logger:
 _log = _app_logger()
 
 
+def _load_env_file() -> None:
+    """Best-effort load of a local ``KEY=VALUE`` env file (``./bayesify.env`` by default; override
+    with ``BAYESIFY_ENV_FILE``) into the environment, without overriding variables already set — so
+    secrets like the Atlas ``MONGODB_URI`` live in a gitignored file instead of an ``export`` each
+    shell. A missing/unreadable file is a no-op. Handles ``#`` comments, blank lines, an optional
+    ``export`` prefix, and quoted values; inline comments are not stripped (values may contain
+    ``#``), so keep comments on their own line."""
+    path = Path(os.environ.get("BAYESIFY_ENV_FILE", "bayesify.env"))
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    loaded: list[str] = []
+    for raw in text.splitlines():
+        line = raw.strip().removeprefix("export ").lstrip()
+        if not line or line.startswith("#"):
+            continue
+        key, sep, value = line.partition("=")
+        key = key.strip()
+        if not sep or not key or key in os.environ:  # malformed, or already set
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]  # strip one matching pair of surrounding quotes
+        os.environ[key] = value
+        loaded.append(key)
+    if loaded:
+        _log.info(f"Loaded {len(loaded)} setting(s) from {path}: {', '.join(sorted(loaded))}")
+
+
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    _load_env_file()  # load a local *.env (e.g. the Atlas MONGODB_URI) before connecting
     mongo_status = await asyncio.to_thread(start_mongodb)
     detail = (
         f"MongoDB status: {mongo_status.message}; "
