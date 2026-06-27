@@ -13,7 +13,7 @@
 #   (this whole file; the default, to be developed into the gold standard) or a source-pure
 #   profile compiled by filtering steps/thresholds on `citations` provenance (first: `schad2021`).
 
-rubric_version: "0.1-draft"
+rubric_version: "0.2-draft"
 label: "Synthesis (merged gold standard)"
 summary: >
   The default Bayesify rubric: a merged, provenance-tracked standard drawing on the major
@@ -67,8 +67,10 @@ steps:
 
   - id: S3
     name: Prior predictive / prior pushforward checks
-    essential_for: [model_development, method_development, software_development, theoretical_analysis]
-    recommended_for: [data_analysis, numerical_analysis]
+    # method_development demoted to recommended (2026-06: a methods paper whose data work is
+    # illustrative shouldn't be held to a substantive-analysis prior-predictive check by default).
+    essential_for: [model_development, software_development, theoretical_analysis]
+    recommended_for: [data_analysis, numerical_analysis, method_development]
     why: "Simulating from the prior before seeing data catches implausible assumptions while they are still cheap to fix, and before the data can bias the prior choice."
     adequate: "Simulations from prior(+likelihood) shown/described BEFORE data; implausible implications caught & priors revised."
     missing: "No prior predictive reasoning; priors never sanity-checked; priors set from the data (uses data twice)."
@@ -135,8 +137,10 @@ steps:
 
   - id: S8
     name: Prior / model sensitivity analysis
-    essential_for: [model_development, method_development, software_development, theoretical_analysis]
-    recommended_for: [data_analysis, numerical_analysis]
+    # method_development demoted to recommended (2026-06): same rationale as S3. The gate below still
+    # re-escalates S8 to expected when (weakly-)informative priors or a BF claim are detected.
+    essential_for: [model_development, software_development, theoretical_analysis]
+    recommended_for: [data_analysis, numerical_analysis, method_development]
     na_when: "Likelihood clearly dominates and priors are immaterial AND no BF/informative prior used."
     mandatory_when: "Informative/weakly-informative priors used, OR any Bayes-factor claim (WAMBS; Schad 2022)."
     gate:               # G6: informative priors or a BF claim escalate S8 to expected (any class)

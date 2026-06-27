@@ -115,3 +115,40 @@ def test_s1_expected_for_every_graded_class() -> None:
 def test_s5_expected_for_empirical_recommended_otherwise() -> None:
     assert _ap("S5", PaperClassLabel.data_analysis).tier is ExpectationTier.expected
     assert _ap("S5", PaperClassLabel.numerical_analysis).tier is ExpectationTier.recommended
+
+
+# --- S3/S8: method_development demoted to recommended (the 0.2-draft tier change) -----------------
+
+
+def test_s3_recommended_for_method_development() -> None:
+    # Demoted essential → recommended: a methods paper's illustrative data work isn't held to a
+    # substantive prior-predictive check by default. Still APPLICABLE (stays in coverage/quality);
+    # only the suggestion severity softens — a tier move never changes the score.
+    ap = _ap("S3", PaperClassLabel.method_development)
+    assert ap.applicable is True and ap.tier is ExpectationTier.recommended
+
+
+def test_s8_recommended_for_method_development_by_default() -> None:
+    ap = _ap("S8", PaperClassLabel.method_development)  # default priors, no BF
+    assert ap.applicable is True and ap.tier is ExpectationTier.recommended
+
+
+def test_s8_method_development_still_escalates_under_informative_priors() -> None:
+    # The demotion only softens the DEFAULT expectation; the evidence gate still re-escalates S8.
+    ap = _ap(
+        "S8",
+        PaperClassLabel.method_development,
+        prior_informativeness=PriorInformativeness.weakly_informative,
+    )
+    assert ap.tier is ExpectationTier.expected
+
+
+def test_s3_s8_still_essential_for_other_development_classes() -> None:
+    # The demotion is scoped to method_development; model/software/theoretical stay expected.
+    for pc in (
+        PaperClassLabel.model_development,
+        PaperClassLabel.software_development,
+        PaperClassLabel.theoretical_analysis,
+    ):
+        assert _ap("S3", pc).tier is ExpectationTier.expected
+        assert _ap("S8", pc).tier is ExpectationTier.expected
