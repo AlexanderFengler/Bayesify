@@ -354,13 +354,14 @@ def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeyp
     # Degraded path: no live job for "abc" (e.g. it expired) — the correction is still recorded,
     # never dropped, with the client-sent/defaulted provenance.
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)  # don't touch Mongo
     r = client.post(
         "/api/assessments/abc/steps/S4/override",
         data={"corrected_status": "partial", "rationale": "supplement has it"},
     )
     body = r.json()
     assert body["recorded"] is True
-    assert "not yet used" in body["note"]
+    assert body["trusted"] is False and "advisory" in body["note"]  # no token → advisory only
     # durable: a fresh store (a "restart") still sees the correction
     from bayesify.core.validation.override_store import OverrideStore
 
@@ -375,6 +376,7 @@ def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch
     # status for that step), the rubric, and the durable paper sha — all recorded with the fix.
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("BAYESIFY_LLM_BACKEND", "none")  # billing-safe: the labelled stub
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)  # don't touch Mongo
     job = Job(id="ovr1", mode="full", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     store._jobs[job.id] = job
     asyncio.run(run_job(job))  # labelled stub → a full ScoredResult with step_assessments
@@ -398,6 +400,145 @@ def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch
     assert o.original_status == step.status.value  # WHAT WAS OVERRIDDEN (engine verdict)
     assert o.rubric_profile == job.profile == "synthesis"  # which rubric the correction is against
     assert o.source_sha256 == job.content_sha256  # durable paper identity, not the ephemeral job id
+
+
+def test_trusted_token_promotes_override_and_sets_author(tmp_path, monkeypatch) -> None:
+    # A valid token marks the override trusted, stamps the author from the token (client author
+    # ignored), and mirrors it to the central override_recorded log.
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_TRUSTED_TOKENS", "alice:s3cret, bob:other")
+    captured: list[dict] = []
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: captured.append(payload))
+    r = client.post(
+        "/api/assessments/abc/steps/S4/override",
+        data={
+            "corrected_status": "adequate",
+            "rationale": "supplement has it",
+            "author": "impostor",  # ignored when a valid token is present
+            "token": "s3cret",
+        },
+    )
+    body = r.json()
+    assert body["recorded"] is True and body["trusted"] is True
+    from bayesify.core.validation.override_store import OverrideStore
+
+    o = OverrideStore(tmp_path).all()[0]
+    assert o.trusted is True and o.author == "alice"  # authoritative identity from the token
+    assert captured and captured[0]["event"] == "override_recorded"
+    assert captured[0]["trusted"] is True and captured[0]["author"] == "alice"
+    assert captured[0]["step_id"] == "S4" and captured[0]["corrected_status"] == "adequate"
+
+
+def test_invalid_token_stays_advisory(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_TRUSTED_TOKENS", "alice:s3cret")
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)
+    r = client.post(
+        "/api/assessments/abc/steps/S4/override",
+        data={"corrected_status": "adequate", "rationale": "x", "token": "wrong"},
+    )
+    assert r.json()["trusted"] is False
+    from bayesify.core.validation.override_store import OverrideStore
+
+    assert OverrideStore(tmp_path).all()[0].trusted is False  # only a valid token is trusted
+
+
+def test_override_captures_rich_bank_context(tmp_path, monkeypatch) -> None:
+    # Each bank entry is richly encoded — the engine's reasoning + cited quotes for the step, the
+    # paper title + class — so the override-review pass can judge relevance against a new paper.
+    import pathlib
+
+    from bayesify.core.schema import ScoredResult
+
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    job = Job(id="rich1", mode="full", source_label="d.pdf")
+    job.result = result
+    job.content_sha256 = "ab" * 32
+    job.paper_title = "A Study of Things"
+    store._jobs[job.id] = job
+    step = next(a for a in result.step_assessments if a.applicable)
+
+    r = client.post(
+        f"/api/assessments/{job.id}/steps/{step.step_id}/override",
+        data={"corrected_status": "adequate", "rationale": "supplement has it"},
+    )
+    assert r.json()["recorded"] is True
+    from bayesify.core.validation.override_store import OverrideStore
+
+    o = OverrideStore(tmp_path).all()[0]
+    assert o.paper_title == "A Study of Things"
+    assert o.original_status == step.status.value  # the engine verdict this corrects
+    assert o.paper_class_labels == [c.value for c in result.paper_class.labels]
+    assert isinstance(o.engine_rationale, str) and isinstance(o.evidence_quotes, list)
+
+
+def test_review_overlay_applies_trusted_correction_and_surfaces_provenance(monkeypatch) -> None:
+    import pathlib
+
+    from bayesify.api import jobs as jobsmod
+    from bayesify.api.app import _job_payload
+    from bayesify.core import config
+    from bayesify.core.override_review import BankOverride, ReviewVerdict
+    from bayesify.core.rubric.loader import load_rubric
+    from bayesify.core.schema import ScoredResult, StepStatus
+    from bayesify.llm import FakeLLMClient
+
+    monkeypatch.setattr(config, "llm_backend", lambda: "api")  # a live backend (not 'none')
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    target = next(
+        a for a in result.step_assessments if a.applicable and a.status is StepStatus.missing
+    )
+    bank = {
+        target.step_id: [
+            BankOverride(step_id=target.step_id, original_status="missing",
+                         corrected_status="adequate", rationale="supp", paper_title="Prior",
+                         author="alice")
+        ]
+    }
+    monkeypatch.setattr(jobsmod, "_override_bank", lambda profile: bank)  # no Mongo
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: FakeLLMClient(
+        ReviewVerdict(
+            relevant=True, corrected_status="adequate", used_override=0, justification="ok"
+        )
+    ))
+
+    job = Job(id="rev1", mode="full", source_label="d.pdf")
+    job.result = result
+    job.profile = result.rubric_profile
+    asyncio.run(jobsmod._review_overlay(job, load_rubric()))
+
+    new = next(a for a in job.result.step_assessments if a.step_id == target.step_id)
+    assert new.status is StepStatus.partial  # nudged one level
+    assert job.applied_corrections and job.applied_corrections[0].source_paper_title == "Prior"
+    payload = _job_payload(job)
+    assert payload["applied_corrections"][0]["to_status"] == "partial"
+    assert payload["base_quality"] is not None
+
+
+def test_review_overlay_skipped_without_a_live_backend(monkeypatch) -> None:
+    import pathlib
+
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core import config
+    from bayesify.core.rubric.loader import load_rubric
+    from bayesify.core.schema import ScoredResult
+
+    monkeypatch.setattr(config, "llm_backend", lambda: "none")  # stub/none → no review pass
+
+    def _boom(profile):
+        raise AssertionError("the bank must not be read without a live backend")
+
+    monkeypatch.setattr(jobsmod, "_override_bank", _boom)
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    job = Job(id="rev2", mode="full", source_label="d.pdf")
+    job.result = result
+    asyncio.run(jobsmod._review_overlay(job, load_rubric()))
+    assert job.result is result and job.applied_corrections == []  # untouched
 
 
 # --- async job machinery --------------------------------------------------------------------------
