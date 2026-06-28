@@ -78,6 +78,20 @@ def mongodb_autostart() -> bool:
     )
 
 
+def trusted_tokens() -> dict[str, str]:
+    """Shared-secret token -> author name for **trusted** reviewers, parsed from
+    ``BAYESIFY_TRUSTED_TOKENS`` (e.g. ``"alice:tok1,bob:tok2"``). A disagreement carrying one of
+    these tokens may affect production grading; any other is advisory-only. Unset = no trusted
+    reviewers. A small-team shared secret (assume HTTPS), not per-user crypto."""
+    tokens: dict[str, str] = {}
+    for entry in os.environ.get("BAYESIFY_TRUSTED_TOKENS", "").split(","):
+        name, sep, token = entry.partition(":")
+        name, token = name.strip(), token.strip()
+        if sep and name and token:
+            tokens[token] = name
+    return tokens
+
+
 def claude_code_available() -> bool:
     """True if the Claude Agent SDK can run on the local Claude Code session: the ``claude`` CLI is
     on PATH and ``claude_agent_sdk`` is importable. This is the no-API-key path that bills the
@@ -110,6 +124,22 @@ def llm_backend() -> str:
     if openai_api_key():
         return "openai"
     return "none"
+
+
+def assess_concurrency() -> int:
+    """Worker threads for the assess stage's per-step judge/refute fan-out.
+
+    The per-step chains are independent, so this only overlaps the I/O-bound LLM calls to cut
+    wall-clock — call count, tokens, and outputs are unchanged. Defaults are backend-aware: the
+    agent-SDK (Claude subscription) path handled parallel ``claude`` sessions well in testing, the
+    rate-limited HTTP backends use a lower default, and ``none`` stays serial. Override with
+    ``BAYESIFY_ASSESS_CONCURRENCY``; clamped to >= 1 (1 = sequential).
+    """
+    default = {"api": 4, "openai": 4, "agent-sdk": 6}.get(llm_backend(), 1)
+    try:
+        return max(1, int(os.environ.get("BAYESIFY_ASSESS_CONCURRENCY", str(default))))
+    except ValueError:
+        return default
 
 
 def _default_judge_model() -> str:

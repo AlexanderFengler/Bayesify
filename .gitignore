@@ -1,12 +1,16 @@
 # Pixi (env dir is local)
 .pixi/
 
+# Local secrets — never commit (Atlas X.509 cert + private key, env files, etc.)
+secrets/
+*.pem
+*.env
+
 # Python
 __pycache__/
 *.py[cod]
 .venv/
 venv/
-*.env
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
@@ -39,3 +43,8 @@ validation/reports/
 .idea/
 .vscode/
 *.swp
+
+# Secrets
+secrets/
+*.pem
+*.env

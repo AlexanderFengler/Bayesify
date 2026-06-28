@@ -35,6 +35,7 @@ import { recordOverride } from "./api";
 import { formatByline } from "./paper";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import type {
+  AppliedCorrection,
   Evidence,
   FixItem,
   PaperState,
@@ -131,6 +132,14 @@ export function Report({
   const byline = formatByline(paper.paper_authors, paper.paper_year);
   const selectedStep = r.step_assessments.find((a) => a.step_id === selected) ?? null;
   const base = `/paper/${paper.paper_id}`;
+  // Per-step weights (relevance of the step to this paper type) drive the weighted-mean quality;
+  // join them to the assessments by step_id and surface them per card + as a header indicator.
+  const weightById = new Map((r.profile?.steps ?? []).map((p) => [p.step_id, p.weight] as const));
+  const anyReduced = (r.profile?.steps ?? []).some((p) => p.applicable && p.weight !== 1);
+  // trusted-override corrections the override-review pass applied, joined to their steps for the
+  // per-step "corrected" badge + the engine→corrected score delta.
+  const corrections = paper.applied_corrections ?? [];
+  const correctionByStep = new Map(corrections.map((c) => [c.step_id, c] as const));
 
   return (
     <>
@@ -162,9 +171,12 @@ export function Report({
                 {r.paper_class && (
                   <Stat label="paper type" value={formatLabels(r.paper_class.labels)} info={STAT_INFO.paperType} />
                 )}
+                {r.profile && (
+                  <Stat label="weighting" value={anyReduced ? "weighted" : "uniform"} info={STAT_INFO.weighting} />
+                )}
               </Box>
             </Box>
-            <ScoreMetrics r={r} />
+            <ScoreMetrics r={r} baseQuality={paper.base_quality} nCorrections={corrections.length} />
           </Box>
 
           <Divider sx={{ mt: 2.5 }} />
@@ -219,7 +231,13 @@ export function Report({
               >
                 <Box>
                   {expanded ? (
-                    <FullReportDoc steps={r.step_assessments} stepNames={stepNames} stepWhy={stepWhy} />
+                    <FullReportDoc
+                      steps={r.step_assessments}
+                      stepNames={stepNames}
+                      stepWhy={stepWhy}
+                      weightById={weightById}
+                      correctionByStep={correctionByStep}
+                    />
                   ) : (
                     <>
                       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
@@ -242,6 +260,8 @@ export function Report({
                               a={selectedStep}
                               stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
                               why={stepWhy[selectedStep.step_id]}
+                              weight={weightById.get(selectedStep.step_id)}
+                              correction={correctionByStep.get(selectedStep.step_id)}
                               fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
                               overridden={overrides[selectedStep.step_id]}
                               onOverride={async (status, rationale) => {
@@ -315,7 +335,7 @@ const formatLabels = (labels: string[]) => labels.map((label) => label.replace(/
 
 // Hover explanations for the three header stats — a one-line description plus the possible categories.
 type StatInfo = { what: string; categories: string[] };
-const STAT_INFO: Record<"relevance" | "rubric" | "paperType", StatInfo> = {
+const STAT_INFO: Record<"relevance" | "rubric" | "paperType" | "weighting", StatInfo> = {
   relevance: {
     what: "Does the paper actually apply Bayesian statistical methodology? This gate decides whether the rubric applies.",
     categories: ["yes", "partial", "no"],
@@ -335,6 +355,11 @@ const STAT_INFO: Record<"relevance" | "rubric" | "paperType", StatInfo> = {
       "theoretical analysis",
       "review",
     ],
+  },
+  weighting: {
+    what:
+      "How the Bayesify Score weights each step for this paper type. Each step carries a weight (its relevance to this paper type, 0–1, shown on its card); the score is their weighted mean over applicable steps. Multi-label papers take the max weight per step. Coverage is unweighted.",
+    categories: ["weighted", "uniform"],
   },
 };
 
@@ -456,7 +481,15 @@ function SeverityLegend() {
   );
 }
 
-function ScoreMetrics({ r }: { r: ScoredResult }) {
+function ScoreMetrics({
+  r,
+  baseQuality,
+  nCorrections = 0,
+}: {
+  r: ScoredResult;
+  baseQuality?: number | null;
+  nCorrections?: number;
+}) {
   const cov = r.coverage;
   let coverageText = "—";
   let rangeNote: string | null = null;
@@ -502,6 +535,12 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
             <Box sx={{ mt: 1, height: 8, borderRadius: 4, bgcolor: "action.hover", overflow: "hidden", width: 160 }}>
               <Box sx={{ height: "100%", width: `${Math.round(quality * 100)}%`, bgcolor: "primary.main" }} />
             </Box>
+          )}
+          {nCorrections > 0 && baseQuality != null && quality != null && (
+            <Typography variant="caption" sx={{ mt: 0.75, display: "block", color: "secondary.main", fontWeight: 600 }}>
+              engine {Math.round(baseQuality * 100)} → {Math.round(quality * 100)} · {nCorrections}{" "}
+              expert correction{nCorrections > 1 ? "s" : ""}
+            </Typography>
           )}
         </Box>
       </Box>
@@ -666,10 +705,14 @@ function FullReportDoc({
   steps,
   stepNames,
   stepWhy,
+  weightById,
+  correctionByStep,
 }: {
   steps: StepAssessment[];
   stepNames: Record<string, string>;
   stepWhy: Record<string, string>;
+  weightById: Map<string, number>;
+  correctionByStep: Map<string, AppliedCorrection>;
 }) {
   return (
     <Box>
@@ -686,6 +729,8 @@ function FullReportDoc({
             a={a}
             stepName={stepNames[a.step_id] ?? a.step_id}
             why={stepWhy[a.step_id]}
+            weight={weightById.get(a.step_id)}
+            correction={correctionByStep.get(a.step_id)}
           />
         ))}
       </Box>
@@ -693,7 +738,72 @@ function FullReportDoc({
   );
 }
 
-function FullReportStep({ a, stepName, why }: { a: StepAssessment; stepName: string; why?: string }) {
+// The per-step scoring weight (relevance of the step to this paper type, 0–1) that feeds the
+// weighted-mean Bayesify Score. Rendered only for applicable steps (N/A steps are excluded from
+// scoring); a reduced (<1) weight is drawn in amber to mark a step that counts less for this type.
+function WeightChip({ weight }: { weight?: number }) {
+  if (weight === undefined) return null;
+  return (
+    <Tooltip title="This step's weight (its relevance to this paper type, 0–1). The Bayesify Score is the weighted mean of applicable steps; coverage is unweighted.">
+      <Chip
+        size="small"
+        variant="outlined"
+        color={weight < 1 ? "warning" : "default"}
+        label={`weight ${weight.toFixed(1)}`}
+      />
+    </Tooltip>
+  );
+}
+
+// A trusted expert correction the override-review pass applied to this step: the from→to nudge, with
+// a tooltip linking the source paper it was learned from, the expert's rationale, and why it applied.
+function CorrectionBadge({ c }: { c: AppliedCorrection }) {
+  const tip = (
+    <Box sx={{ maxWidth: 320 }}>
+      <Typography variant="caption" sx={{ fontWeight: 700, display: "block" }}>
+        Adjusted by a trusted expert override
+      </Typography>
+      <Typography variant="caption" sx={{ display: "block", mt: 0.5 }}>
+        Source: {c.source_paper_title || "(untitled paper)"}
+        {c.override_author ? ` · ${c.override_author}` : ""}
+      </Typography>
+      {c.override_rationale && (
+        <Typography variant="caption" sx={{ display: "block", mt: 0.5 }}>
+          Expert: &ldquo;{c.override_rationale}&rdquo;
+        </Typography>
+      )}
+      {c.justification && (
+        <Typography variant="caption" sx={{ display: "block", mt: 0.5, color: "text.secondary" }}>
+          Why applied: {c.justification}
+        </Typography>
+      )}
+    </Box>
+  );
+  return (
+    <Tooltip title={tip} arrow>
+      <Chip
+        size="small"
+        color="secondary"
+        variant="outlined"
+        label={`corrected ${STATUS_LABEL[c.from_status]} → ${STATUS_LABEL[c.to_status]}`}
+      />
+    </Tooltip>
+  );
+}
+
+function FullReportStep({
+  a,
+  stepName,
+  why,
+  weight,
+  correction,
+}: {
+  a: StepAssessment;
+  stepName: string;
+  why?: string;
+  weight?: number;
+  correction?: AppliedCorrection;
+}) {
   const na = a.status === "not_applicable";
   const meta = statusMeta(a.status);
   const suggestions = [...a.suggestions].sort(
@@ -726,6 +836,8 @@ function FullReportStep({ a, stepName, why }: { a: StepAssessment; stepName: str
             label={`${Math.round(a.confidence * 100)}% confidence`}
           />
         )}
+        {!na && <WeightChip weight={weight} />}
+        {correction && <CorrectionBadge c={correction} />}
       </Box>
 
       {why && (
@@ -803,6 +915,8 @@ function StepDetail({
   a,
   stepName,
   why,
+  weight,
+  correction,
   fixes,
   overridden,
   onOverride,
@@ -810,6 +924,8 @@ function StepDetail({
   a: StepAssessment;
   stepName: string;
   why?: string;
+  weight?: number;
+  correction?: AppliedCorrection;
   fixes: FixItem[];
   overridden?: StepStatus;
   onOverride: (status: StepStatus, rationale: string) => Promise<void>;
@@ -845,6 +961,8 @@ function StepDetail({
             title="engine confidence (uncalibrated at this milestone)"
           />
         )}
+        {!na && <WeightChip weight={weight} />}
+        {correction && <CorrectionBadge c={correction} />}
       </Box>
 
       {why && (
@@ -1112,6 +1230,7 @@ function NotApplicable({
   const r = paper.result!;
   const [busy, setBusy] = useState(false);
   const isReview = r.not_applicable_reason === "not_an_application";
+  const byline = formatByline(paper.paper_authors, paper.paper_year);
   return (
     <>
       <Box sx={{ flex: 1 }}>
@@ -1125,8 +1244,21 @@ function NotApplicable({
                 <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
               </Box>
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                {paper.source_label}
+                {paper.paper_title ?? paper.source_label}
               </Typography>
+              {byline && (
+                <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
+                  {byline}
+                </Typography>
+              )}
+              {/* The actual categorization, so the "Paper type" header has a value (not just the title) */}
+              {isReview && r.paper_class && (
+                <Chip
+                  size="small"
+                  label={formatLabels(r.paper_class.labels)}
+                  sx={{ mt: 1, textTransform: "capitalize", fontWeight: 600 }}
+                />
+              )}
             </Box>
             <Button variant="outlined" onClick={onReset}>
               Analyze another
