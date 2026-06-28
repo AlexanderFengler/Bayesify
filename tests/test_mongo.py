@@ -196,9 +196,11 @@ def test_ensure_indexes_builds_the_query_indexes() -> None:
     svc = MongoDBService()
     svc._events = fake
     svc._ensure_indexes()
-    assert len(fake.indexes) == 4
+    assert len(fake.indexes) == 5
     assert [("event", 1), ("created_at", -1)] in fake.indexes  # query-by-event (README)
     assert [("paper_id", 1), ("created_at", -1)] in fake.indexes  # query-by-paper
+    # the global override-bank read (override-review pass)
+    assert [("rubric_profile", 1), ("event", 1), ("created_at", -1)] in fake.indexes
 
 
 def test_ensure_indexes_noops_without_a_collection() -> None:

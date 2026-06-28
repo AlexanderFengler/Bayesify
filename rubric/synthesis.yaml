@@ -13,7 +13,7 @@
 #   (this whole file; the default, to be developed into the gold standard) or a source-pure
 #   profile compiled by filtering steps/thresholds on `citations` provenance (first: `schad2021`).
 
-rubric_version: "0.2-draft"
+rubric_version: "0.3-draft"
 label: "Synthesis (merged gold standard)"
 summary: >
   The default Bayesify rubric: a merged, provenance-tracked standard drawing on the major
@@ -28,20 +28,28 @@ scoring_rule: >
   MUST NOT alone lower the headline number). quality = weighted mean sub-score over
   applicable steps. essential_for now sets expectation tier (severity), not a verdict.
   The machine-evaluable scoring block + applicability gates below are the G5 half
-  (M5); weights are a uniform v0 placeholder (B3 v1 differentiates them).
+  (M5); weights are differentiated per paper class by the rule-set in the scoring block.
 
 # G5 scoring block — the machine half f-score (core/score.py) reads; nothing hardcoded.
 scoring:
   sub_score: { adequate: 1.0, partial: 0.5, missing: 0.0 }   # not_applicable is excluded
   low_confidence_threshold: 0.6   # an absence below this confidence is "uncertain" (widens the range)
   weight_default: 1.0
-  weights:                # per-class step-weight overrides; omitted steps use weight_default.
-    data_analysis: {}         # v0: uniform weights — a documented placeholder (B3 v1 differentiates).
-    numerical_analysis: {}
-    model_development: {}
-    method_development: {}
-    software_development: {}
-    theoretical_analysis: {}
+  weights:
+    # weight = relevance of a step to this paper type, in [0,1]: 1.0 = fully relevant (the default),
+    # 0.5 = secondary. quality is a normalized weighted mean, so only ratios matter (no weight > 1.0).
+    # Recorded fully (one 10-step vector per scored class); generated from two rules, which
+    # tests/test_rubric_weights.py asserts the matrix against so it can never silently drift:
+    #   R1  development (model/method/software_development, numerical/theoretical_analysis):
+    #         S3, S5, S8 = 0.5 -- illustrative data, so the data-understanding steps are secondary.
+    #   R2  data_analysis: S7 = 0.5 -- SBC/recovery is recommended-not-essential for an applied claim.
+    #   R0  everything else = 1.0.  ('review' short-circuits and has no weight vector.)
+    data_analysis:        { S1: 1.0, S2: 1.0, S3: 1.0, S4: 1.0, S5: 1.0, S6: 1.0, S7: 0.5, S8: 1.0, S9: 1.0, S10: 1.0 }
+    numerical_analysis:   { S1: 1.0, S2: 1.0, S3: 0.5, S4: 1.0, S5: 0.5, S6: 1.0, S7: 1.0, S8: 0.5, S9: 1.0, S10: 1.0 }
+    model_development:    { S1: 1.0, S2: 1.0, S3: 0.5, S4: 1.0, S5: 0.5, S6: 1.0, S7: 1.0, S8: 0.5, S9: 1.0, S10: 1.0 }
+    method_development:   { S1: 1.0, S2: 1.0, S3: 0.5, S4: 1.0, S5: 0.5, S6: 1.0, S7: 1.0, S8: 0.5, S9: 1.0, S10: 1.0 }
+    software_development: { S1: 1.0, S2: 1.0, S3: 0.5, S4: 1.0, S5: 0.5, S6: 1.0, S7: 1.0, S8: 0.5, S9: 1.0, S10: 1.0 }
+    theoretical_analysis: { S1: 1.0, S2: 1.0, S3: 0.5, S4: 1.0, S5: 0.5, S6: 1.0, S7: 1.0, S8: 0.5, S9: 1.0, S10: 1.0 }
   mixing_rule: max        # multi-label papers use the maximum weight across selected labels.
 
 steps:

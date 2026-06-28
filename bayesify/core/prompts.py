@@ -111,11 +111,30 @@ sentence — be concise, do not trail off.
 """
 
 
+OVERRIDE_REVIEW_SYSTEM = """You are an override-review verifier for Bayesify. A rubric step has just \
+been graded (its status + the engine's reasoning + cited evidence). You are also given a BANK of past \
+expert corrections on this SAME rubric step from other papers — each says what the engine had \
+concluded, what an expert corrected it to, and why.
+
+Decide whether any bank entry is genuinely RELEVANT to the current grade: is this step in a situation \
+close enough (similar evidence/reasoning) that the same correction should apply, in the same \
+direction? If so, propose a slight correction.
+
+Return:
+- relevant = true ONLY when an entry clearly matches AND the current status looks wrong the same way \
+the expert corrected. Set `used_override` to its index and `corrected_status` to the status it should \
+move toward ("missing" | "partial" | "adequate"). Keep `justification` to AT MOST 2 sentences.
+- relevant = false when no entry truly fits — this is the DEFAULT. Be conservative; never stretch a \
+correction from a different situation onto this one (no yes-machine). When in doubt, return false.
+"""
+
+
 _PROMPTS: dict[str, str] = {
     "screen.system": SCREEN_SYSTEM,
     "classify.system": CLASSIFY_SYSTEM,
     "assess.judge.system": ASSESS_JUDGE_SYSTEM,
     "assess.refute.system": ASSESS_REFUTE_SYSTEM,
+    "override.review.system": OVERRIDE_REVIEW_SYSTEM,
 }
 
 

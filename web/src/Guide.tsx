@@ -1,4 +1,7 @@
-﻿import { Box, Button, Container, Typography } from "@mui/material";
+﻿import { Box, Button, Container, TextField, Typography } from "@mui/material";
+import { useState } from "react";
+
+import { getReviewerToken, setReviewerToken } from "./api";
 
 // A short in-app explainer reached from the footer. Two audiences, two flows shown side by side:
 // get a paper rated (authors/readers) and rate a paper blind (domain experts, the gold standard).
@@ -85,12 +88,72 @@ export function Guide({ onExit }: { onExit: () => void }) {
         </GuideColumn>
       </Box>
 
+      <ReviewerTokenField />
+
       <Typography variant="body2" color="text.secondary" sx={{ mt: { xs: 4, md: 5 } }}>
         Bayesify runs locally and is honest about its limits: the engine is not yet validated against
         expert ratings &mdash; which is exactly what blind rating contributes to. See the{" "}
         <strong>Calibration</strong> link for the current agreement metrics.
       </Typography>
     </Container>
+  );
+}
+
+// Trusted-reviewer token: a shared secret that promotes this browser's "Disagree?" corrections to
+// trusted ones, which enter the global override bank and can adjust grading on similar papers.
+function ReviewerTokenField() {
+  const [token, setToken] = useState(getReviewerToken());
+  const [saved, setSaved] = useState(false);
+  return (
+    <Box sx={{ mt: { xs: 4, md: 5 }, p: 2, borderRadius: 2, bgcolor: "action.hover", maxWidth: 620 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+        Trusted reviewer token
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+        If you&rsquo;re a trusted reviewer, paste your shared-secret token. Your <em>Disagree?</em>{" "}
+        corrections then become trusted &mdash; they enter the global override bank and can adjust how
+        similar steps are graded on other papers. Stored in this browser only.
+      </Typography>
+      <Box sx={{ display: "flex", gap: 1, mt: 1.5, alignItems: "center", flexWrap: "wrap" }}>
+        <TextField
+          size="small"
+          type="password"
+          placeholder="reviewer token"
+          value={token}
+          onChange={(e) => {
+            setToken(e.target.value);
+            setSaved(false);
+          }}
+          sx={{ minWidth: 240 }}
+        />
+        <Button
+          variant="outlined"
+          onClick={() => {
+            setReviewerToken(token.trim());
+            setSaved(true);
+          }}
+        >
+          Save
+        </Button>
+        {token && (
+          <Button
+            color="inherit"
+            onClick={() => {
+              setToken("");
+              setReviewerToken("");
+              setSaved(false);
+            }}
+          >
+            Clear
+          </Button>
+        )}
+        {saved && (
+          <Typography variant="caption" color="success.main">
+            saved to this browser
+          </Typography>
+        )}
+      </Box>
+    </Box>
   );
 }
 

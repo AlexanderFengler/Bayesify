@@ -13,6 +13,17 @@ def test_estimate_cost_uses_per_mtok_pricing() -> None:
     assert cost == pytest.approx(30.0)
 
 
+def test_trusted_tokens_parses_name_token_pairs(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_TRUSTED_TOKENS", " alice:tok1, bob:tok2 ,bad,empty: ")
+    # token -> name; whitespace trimmed, malformed/empty entries dropped.
+    assert config.trusted_tokens() == {"tok1": "alice", "tok2": "bob"}
+
+
+def test_trusted_tokens_empty_when_unset(monkeypatch) -> None:
+    monkeypatch.delenv("BAYESIFY_TRUSTED_TOKENS", raising=False)
+    assert config.trusted_tokens() == {}
+
+
 def test_cheap_tier_exists_in_pricing() -> None:
     # The C6 cheap-before-expensive gate relies on a cheaper screen tier existing in the table.
     # (SCREEN_MODEL is temporarily Opus during M4 bring-up; this asserts the pricing fact, not which
