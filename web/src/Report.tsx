@@ -35,6 +35,7 @@ import { recordOverride } from "./api";
 import { formatByline } from "./paper";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import type {
+  AppliedCorrection,
   Evidence,
   FixItem,
   PaperState,
@@ -135,6 +136,10 @@ export function Report({
   // join them to the assessments by step_id and surface them per card + as a header indicator.
   const weightById = new Map((r.profile?.steps ?? []).map((p) => [p.step_id, p.weight] as const));
   const anyReduced = (r.profile?.steps ?? []).some((p) => p.applicable && p.weight !== 1);
+  // trusted-override corrections the override-review pass applied, joined to their steps for the
+  // per-step "corrected" badge + the engine→corrected score delta.
+  const corrections = paper.applied_corrections ?? [];
+  const correctionByStep = new Map(corrections.map((c) => [c.step_id, c] as const));
 
   return (
     <>
@@ -171,7 +176,7 @@ export function Report({
                 )}
               </Box>
             </Box>
-            <ScoreMetrics r={r} />
+            <ScoreMetrics r={r} baseQuality={paper.base_quality} nCorrections={corrections.length} />
           </Box>
 
           <Divider sx={{ mt: 2.5 }} />
@@ -226,7 +231,13 @@ export function Report({
               >
                 <Box>
                   {expanded ? (
-                    <FullReportDoc steps={r.step_assessments} stepNames={stepNames} stepWhy={stepWhy} weightById={weightById} />
+                    <FullReportDoc
+                      steps={r.step_assessments}
+                      stepNames={stepNames}
+                      stepWhy={stepWhy}
+                      weightById={weightById}
+                      correctionByStep={correctionByStep}
+                    />
                   ) : (
                     <>
                       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
@@ -250,6 +261,7 @@ export function Report({
                               stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
                               why={stepWhy[selectedStep.step_id]}
                               weight={weightById.get(selectedStep.step_id)}
+                              correction={correctionByStep.get(selectedStep.step_id)}
                               fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
                               overridden={overrides[selectedStep.step_id]}
                               onOverride={async (status, rationale) => {
@@ -469,7 +481,15 @@ function SeverityLegend() {
   );
 }
 
-function ScoreMetrics({ r }: { r: ScoredResult }) {
+function ScoreMetrics({
+  r,
+  baseQuality,
+  nCorrections = 0,
+}: {
+  r: ScoredResult;
+  baseQuality?: number | null;
+  nCorrections?: number;
+}) {
   const cov = r.coverage;
   let coverageText = "—";
   let rangeNote: string | null = null;
@@ -515,6 +535,12 @@ function ScoreMetrics({ r }: { r: ScoredResult }) {
             <Box sx={{ mt: 1, height: 8, borderRadius: 4, bgcolor: "action.hover", overflow: "hidden", width: 160 }}>
               <Box sx={{ height: "100%", width: `${Math.round(quality * 100)}%`, bgcolor: "primary.main" }} />
             </Box>
+          )}
+          {nCorrections > 0 && baseQuality != null && quality != null && (
+            <Typography variant="caption" sx={{ mt: 0.75, display: "block", color: "secondary.main", fontWeight: 600 }}>
+              engine {Math.round(baseQuality * 100)} → {Math.round(quality * 100)} · {nCorrections}{" "}
+              expert correction{nCorrections > 1 ? "s" : ""}
+            </Typography>
           )}
         </Box>
       </Box>
@@ -680,11 +706,13 @@ function FullReportDoc({
   stepNames,
   stepWhy,
   weightById,
+  correctionByStep,
 }: {
   steps: StepAssessment[];
   stepNames: Record<string, string>;
   stepWhy: Record<string, string>;
   weightById: Map<string, number>;
+  correctionByStep: Map<string, AppliedCorrection>;
 }) {
   return (
     <Box>
@@ -702,6 +730,7 @@ function FullReportDoc({
             stepName={stepNames[a.step_id] ?? a.step_id}
             why={stepWhy[a.step_id]}
             weight={weightById.get(a.step_id)}
+            correction={correctionByStep.get(a.step_id)}
           />
         ))}
       </Box>
@@ -726,16 +755,54 @@ function WeightChip({ weight }: { weight?: number }) {
   );
 }
 
+// A trusted expert correction the override-review pass applied to this step: the from→to nudge, with
+// a tooltip linking the source paper it was learned from, the expert's rationale, and why it applied.
+function CorrectionBadge({ c }: { c: AppliedCorrection }) {
+  const tip = (
+    <Box sx={{ maxWidth: 320 }}>
+      <Typography variant="caption" sx={{ fontWeight: 700, display: "block" }}>
+        Adjusted by a trusted expert override
+      </Typography>
+      <Typography variant="caption" sx={{ display: "block", mt: 0.5 }}>
+        Source: {c.source_paper_title || "(untitled paper)"}
+        {c.override_author ? ` · ${c.override_author}` : ""}
+      </Typography>
+      {c.override_rationale && (
+        <Typography variant="caption" sx={{ display: "block", mt: 0.5 }}>
+          Expert: &ldquo;{c.override_rationale}&rdquo;
+        </Typography>
+      )}
+      {c.justification && (
+        <Typography variant="caption" sx={{ display: "block", mt: 0.5, color: "text.secondary" }}>
+          Why applied: {c.justification}
+        </Typography>
+      )}
+    </Box>
+  );
+  return (
+    <Tooltip title={tip} arrow>
+      <Chip
+        size="small"
+        color="secondary"
+        variant="outlined"
+        label={`corrected ${STATUS_LABEL[c.from_status]} → ${STATUS_LABEL[c.to_status]}`}
+      />
+    </Tooltip>
+  );
+}
+
 function FullReportStep({
   a,
   stepName,
   why,
   weight,
+  correction,
 }: {
   a: StepAssessment;
   stepName: string;
   why?: string;
   weight?: number;
+  correction?: AppliedCorrection;
 }) {
   const na = a.status === "not_applicable";
   const meta = statusMeta(a.status);
@@ -770,6 +837,7 @@ function FullReportStep({
           />
         )}
         {!na && <WeightChip weight={weight} />}
+        {correction && <CorrectionBadge c={correction} />}
       </Box>
 
       {why && (
@@ -848,6 +916,7 @@ function StepDetail({
   stepName,
   why,
   weight,
+  correction,
   fixes,
   overridden,
   onOverride,
@@ -856,6 +925,7 @@ function StepDetail({
   stepName: string;
   why?: string;
   weight?: number;
+  correction?: AppliedCorrection;
   fixes: FixItem[];
   overridden?: StepStatus;
   onOverride: (status: StepStatus, rationale: string) => Promise<void>;
@@ -892,6 +962,7 @@ function StepDetail({
           />
         )}
         {!na && <WeightChip weight={weight} />}
+        {correction && <CorrectionBadge c={correction} />}
       </Box>
 
       {why && (
