@@ -443,6 +443,38 @@ def test_invalid_token_stays_advisory(tmp_path, monkeypatch) -> None:
     assert OverrideStore(tmp_path).all()[0].trusted is False  # only a valid token is trusted
 
 
+def test_override_captures_rich_bank_context(tmp_path, monkeypatch) -> None:
+    # Each bank entry is richly encoded — the engine's reasoning + cited quotes for the step, the
+    # paper title + class — so the override-review pass can judge relevance against a new paper.
+    import pathlib
+
+    from bayesify.core.schema import ScoredResult
+
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    job = Job(id="rich1", mode="full", source_label="d.pdf")
+    job.result = result
+    job.content_sha256 = "ab" * 32
+    job.paper_title = "A Study of Things"
+    store._jobs[job.id] = job
+    step = next(a for a in result.step_assessments if a.applicable)
+
+    r = client.post(
+        f"/api/assessments/{job.id}/steps/{step.step_id}/override",
+        data={"corrected_status": "adequate", "rationale": "supplement has it"},
+    )
+    assert r.json()["recorded"] is True
+    from bayesify.core.validation.override_store import OverrideStore
+
+    o = OverrideStore(tmp_path).all()[0]
+    assert o.paper_title == "A Study of Things"
+    assert o.original_status == step.status.value  # the engine verdict this corrects
+    assert o.paper_class_labels == [c.value for c in result.paper_class.labels]
+    assert isinstance(o.engine_rationale, str) and isinstance(o.evidence_quotes, list)
+
+
 # --- async job machinery --------------------------------------------------------------------------
 
 

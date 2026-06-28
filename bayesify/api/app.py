@@ -309,9 +309,16 @@ def _trusted_author(token: str) -> str | None:
     return None
 
 
+def _engine_step_rationale(assessment) -> str:
+    """A compact snapshot of the engine's reasoning for one step (its did-well points + suggested
+    fixes) — the bank entry's context the override-review pass judges for relevance."""
+    parts = list(assessment.did_well) + [s.text for s in assessment.suggestions]
+    return " ".join(p.strip() for p in parts if p.strip())[:1200]
+
+
 def _override_event_payload(ov: Override) -> dict:
-    """Mongo-ready envelope for one override — the central audit log + the source the Phase-2
-    overlay reads back. Mirrors the analysis/rating events; only ``trusted`` records are applied."""
+    """Mongo-ready envelope for one override — the central audit log + the bank the override-review
+    pass reads back. Mirrors the analysis/rating events; only ``trusted`` records are applied."""
     return {
         "event": "override_recorded",
         "kind": ov.kind,
@@ -325,6 +332,10 @@ def _override_event_payload(ov: Override) -> dict:
         "author": ov.author,
         "trusted": ov.trusted,
         "rationale": ov.rationale,
+        "paper_title": ov.paper_title,
+        "paper_class_labels": ov.paper_class_labels,
+        "engine_rationale": ov.engine_rationale,
+        "evidence_quotes": ov.evidence_quotes,
         "value": ov.value,
     }
 
@@ -404,16 +415,23 @@ async def record_override(
     profile = rubric_profile
     source_sha256 = ""
     version_label = ""
+    paper_title = ""
+    engine_rationale = ""
+    evidence_quotes: list[str] = []
+    paper_class_labels: list[str] = []
     if job is not None:
         profile = job.profile
         source_sha256 = job.content_sha256 or ""
         version_label = job.version_label or ""
-        if job.result is not None:  # authoritative: the engine verdict for this very step
-            engine_status = next(
-                (a.status.value for a in job.result.step_assessments if a.step_id == step_id), None
-            )
-            if engine_status is not None:
-                overridden = engine_status
+        paper_title = job.paper_title or ""
+        if job.result is not None:  # authoritative: the engine's verdict + reasoning for this step
+            sa = next((a for a in job.result.step_assessments if a.step_id == step_id), None)
+            if sa is not None:
+                overridden = sa.status.value
+                engine_rationale = _engine_step_rationale(sa)
+                evidence_quotes = [e.span.quote for e in sa.evidence if e.span and e.span.quote][:5]
+            if job.result.paper_class is not None:
+                paper_class_labels = [c.value for c in job.result.paper_class.labels]
     trusted_author = _trusted_author(token)
     if trusted_author is not None:
         author = trusted_author  # authoritative identity from the token; client author is ignored
@@ -429,6 +447,10 @@ async def record_override(
         rationale=rationale,
         author=author,
         trusted=trusted_author is not None,
+        paper_title=paper_title,
+        paper_class_labels=paper_class_labels,
+        engine_rationale=engine_rationale,
+        evidence_quotes=evidence_quotes,
     )
     jobsmod._overrides_store().add(ov)
     await asyncio.to_thread(save_event, _override_event_payload(ov))

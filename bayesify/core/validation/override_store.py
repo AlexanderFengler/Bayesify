@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 _log = logging.getLogger("bayesify.override_store")
 
@@ -43,6 +43,12 @@ class Override(_Base):
     rationale: str = ""
     author: str = ""
     trusted: bool = False  # true only with a valid BAYESIFY_TRUSTED_TOKENS token
+    # Rich encoding (kind="step_status"): each override is a self-contained correction *example* the
+    # override-review pass judges for relevance against a new paper's step.
+    paper_title: str = ""  # the source paper — shown in the provenance link
+    paper_class_labels: list[str] = Field(default_factory=list)
+    engine_rationale: str = ""  # engine reasoning for the step at override time (did-well + fixes)
+    evidence_quotes: list[str] = Field(default_factory=list)  # the engine's cited quotes
     value: str | None = None
 
 
