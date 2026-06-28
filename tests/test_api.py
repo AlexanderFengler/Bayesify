@@ -475,6 +475,72 @@ def test_override_captures_rich_bank_context(tmp_path, monkeypatch) -> None:
     assert isinstance(o.engine_rationale, str) and isinstance(o.evidence_quotes, list)
 
 
+def test_review_overlay_applies_trusted_correction_and_surfaces_provenance(monkeypatch) -> None:
+    import pathlib
+
+    from bayesify.api import jobs as jobsmod
+    from bayesify.api.app import _job_payload
+    from bayesify.core import config
+    from bayesify.core.override_review import BankOverride, ReviewVerdict
+    from bayesify.core.rubric.loader import load_rubric
+    from bayesify.core.schema import ScoredResult, StepStatus
+    from bayesify.llm import FakeLLMClient
+
+    monkeypatch.setattr(config, "llm_backend", lambda: "api")  # a live backend (not 'none')
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    target = next(
+        a for a in result.step_assessments if a.applicable and a.status is StepStatus.missing
+    )
+    bank = {
+        target.step_id: [
+            BankOverride(step_id=target.step_id, original_status="missing",
+                         corrected_status="adequate", rationale="supp", paper_title="Prior",
+                         author="alice")
+        ]
+    }
+    monkeypatch.setattr(jobsmod, "_override_bank", lambda profile: bank)  # no Mongo
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: FakeLLMClient(
+        ReviewVerdict(
+            relevant=True, corrected_status="adequate", used_override=0, justification="ok"
+        )
+    ))
+
+    job = Job(id="rev1", mode="full", source_label="d.pdf")
+    job.result = result
+    job.profile = result.rubric_profile
+    asyncio.run(jobsmod._review_overlay(job, load_rubric()))
+
+    new = next(a for a in job.result.step_assessments if a.step_id == target.step_id)
+    assert new.status is StepStatus.partial  # nudged one level
+    assert job.applied_corrections and job.applied_corrections[0].source_paper_title == "Prior"
+    payload = _job_payload(job)
+    assert payload["applied_corrections"][0]["to_status"] == "partial"
+    assert payload["base_quality"] is not None
+
+
+def test_review_overlay_skipped_without_a_live_backend(monkeypatch) -> None:
+    import pathlib
+
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core import config
+    from bayesify.core.rubric.loader import load_rubric
+    from bayesify.core.schema import ScoredResult
+
+    monkeypatch.setattr(config, "llm_backend", lambda: "none")  # stub/none → no review pass
+
+    def _boom(profile):
+        raise AssertionError("the bank must not be read without a live backend")
+
+    monkeypatch.setattr(jobsmod, "_override_bank", _boom)
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    job = Job(id="rev2", mode="full", source_label="d.pdf")
+    job.result = result
+    asyncio.run(jobsmod._review_overlay(job, load_rubric()))
+    assert job.result is result and job.applied_corrections == []  # untouched
+
+
 # --- async job machinery --------------------------------------------------------------------------
 
 

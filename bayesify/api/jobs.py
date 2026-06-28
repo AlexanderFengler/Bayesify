@@ -22,7 +22,7 @@ from pathlib import Path
 
 import httpx
 
-from bayesify.api.mongo import save_event
+from bayesify.api.mongo import find_trusted_step_overrides, save_event
 from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
@@ -31,6 +31,7 @@ from bayesify.core.engine import grade_parsed
 from bayesify.core.errors import IngestError
 from bayesify.core.fetcher import Fetcher
 from bayesify.core.ingest import ingest_upload, parse_input
+from bayesify.core.override_review import AppliedCorrection, BankOverride, review_overrides
 from bayesify.core.parse import parse
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.stub import ENGINE_VERSION, build_stub_result
@@ -143,6 +144,11 @@ class Job:
     force_fresh: bool = False  # bypass the cache for this run (set by the rerun escape hatch)
     local_notice: str | None = None  # the labelled local-mode explanation
     error: str | None = None
+    # override-review provenance: the trusted corrections applied to the displayed result + the
+    # pre-overlay engine coverage/quality, so the report can show what changed and by how much.
+    applied_corrections: list[AppliedCorrection] = field(default_factory=list)
+    base_coverage: s.Coverage | None = None
+    base_quality: float | None = None
     _seq: int = 0
     events: list[dict] = field(default_factory=list)
     subscribers: set[asyncio.Queue] = field(default_factory=set)
@@ -343,6 +349,69 @@ async def _run_local(job: Job, *, source: s.SourceDoc | None = None) -> None:
     job.emit({"type": "done"})
 
 
+_BANK_PER_STEP = 8  # cap candidate overrides per step so the relevance prompt stays bounded
+
+
+def _local_trusted_overrides(profile: str) -> list[dict]:
+    """Trusted step-status overrides from the on-disk log — the fallback bank when Atlas is down.
+    Append-only (oldest→newest), so we reverse to newest-first like the Atlas read."""
+    out = [
+        o.model_dump()
+        for o in _overrides_store().all()
+        if o.kind == "step_status" and o.trusted and o.step_id and o.rubric_profile == profile
+    ]
+    out.reverse()
+    return out
+
+
+def _override_bank(profile: str) -> dict[str, list[BankOverride]]:
+    """The global correction bank for one rubric, grouped by step (newest-first, capped). Atlas is
+    the source of truth (every machine's corrections); the local log is the fallback when down."""
+    docs = find_trusted_step_overrides(profile)
+    if docs is None:
+        docs = _local_trusted_overrides(profile)
+    bank: dict[str, list[BankOverride]] = {}
+    for d in docs:
+        step_id = d.get("step_id")
+        if not step_id or not d.get("corrected_status"):
+            continue
+        bucket = bank.setdefault(step_id, [])
+        if len(bucket) >= _BANK_PER_STEP:
+            continue
+        bucket.append(
+            BankOverride(
+                step_id=step_id,
+                original_status=d.get("original_status") or "",
+                corrected_status=d["corrected_status"],
+                rationale=d.get("rationale") or "",
+                engine_rationale=d.get("engine_rationale") or "",
+                paper_title=d.get("paper_title") or "",
+                author=d.get("author") or "",
+                evidence_quotes=list(d.get("evidence_quotes") or []),
+            )
+        )
+    return bank
+
+
+async def _review_overlay(job: Job, rubric) -> None:
+    """Run the override-review pass over the graded result and overlay any trusted corrections (for
+    display only — the raw result was already cached + saved to Atlas). Requires a live LLM backend;
+    a no-op on stub/none, or when the bank has no candidates (zero LLM calls)."""
+    if job.result is None or not job.result.step_assessments or config.llm_backend() == "none":
+        return
+    bank = await asyncio.to_thread(_override_bank, job.profile)
+    if not bank:
+        return
+    corrected, applied, _cost = await asyncio.to_thread(
+        review_overrides, job.result, bank, rubric, client=_llm_client(), model=config.JUDGE_MODEL
+    )
+    if applied:
+        job.base_coverage = job.result.coverage
+        job.base_quality = job.result.quality_score
+        job.result = corrected
+        job.applied_corrections = applied
+
+
 async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     """Full mode (upload + credentials): the whole real engine — ingest -> parse -> detect ->
     screen -> classify -> assess -> score.
@@ -373,6 +442,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             for stage in STAGES:  # complete the UI stepper instantly
                 job.emit({"type": "stage", "stage": stage, "state": "done"})
             job.status = "done"
+            await _review_overlay(job, rubric)
             job.emit({"type": "done"})
             return
 
@@ -411,7 +481,8 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     if _cache_enabled():
         _results().put(key, {"backend": job.backend, "result": job.result.model_dump(mode="json")})
     job.status = "done"
-    _save_analysis_report_payload(job)
+    _save_analysis_report_payload(job)  # the RAW engine result is what's persisted to Atlas
+    await _review_overlay(job, rubric)  # trusted corrections overlay only for display
     job.emit({"type": "done"})
 
 
