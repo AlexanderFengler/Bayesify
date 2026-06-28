@@ -15,6 +15,8 @@ The step→detector map and per-step synonym lists live here as v0 constants; th
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 from pydantic import BaseModel, Field
 
 from bayesify.core import config
@@ -175,30 +177,57 @@ def assess(
     *,
     client: LLMClient,
     model: str = config.JUDGE_MODEL,
+    concurrency: int | None = None,
 ) -> tuple[list[StepAssessment], GateFacts, list[CostLedgerEntry]]:
     """Produce one ``StepAssessment`` per rubric step, plus the minted ``GateFacts`` and cost ledger
     entries. Raises ``AssessError`` if the judge returns an unparseable status (fail loud).
 
     Each applicable step is judged (and adversarially refuted) independently of every other step —
-    they share only the read-only paper + evidence — so the per-step work is factored into
-    ``_assess_one_step``. The loop here is strictly sequential; the bounded-parallel variant builds
-    on this factoring. Assessments and ledger entries come out in rubric-step order regardless.
+    they share only the read-only paper + evidence — so the per-step work (``_assess_one_step``) is
+    fanned out across up to ``concurrency`` worker threads to overlap the I/O-bound LLM calls.
+    ``concurrency`` defaults to ``config.assess_concurrency()`` (``None``); ``1`` is the strictly
+    sequential path. This is a pure latency optimization: assessments and ledger entries are always
+    reassembled in rubric-step order, so the result is byte-identical to the serial run.
     """
     gate_facts = derive_gate_facts(evidence, paper_class)
     searched = _scanned_section_ids(parsed)  # paper-level; identical for every step
 
-    assessments: list[StepAssessment] = []
-    cost: list[CostLedgerEntry] = []
-    for step in rubric.steps:
-        ap = step_applicability_for_labels(step, paper_class.labels, gate_facts)
-        if not ap.applicable:
-            assessments.append(_not_applicable_assessment(step, ap))
-            continue
-        assessment, step_cost = _assess_one_step(
+    # Applicability is deterministic and LLM-free; resolve it up front so the only thing that fans
+    # out is the independent (and expensive) per-step judge/refute work.
+    plans = [
+        (step, step_applicability_for_labels(step, paper_class.labels, gate_facts))
+        for step in rubric.steps
+    ]
+    applicable = [(step, ap) for step, ap in plans if ap.applicable]
+
+    def run(item):
+        step, ap = item
+        return _assess_one_step(
             step, ap, parsed, evidence, searched, rubric, client=client, model=model
         )
-        assessments.append(assessment)
-        cost.extend(step_cost)
+
+    k = concurrency if concurrency is not None else config.assess_concurrency()
+    workers = min(k, len(applicable))
+    if workers <= 1:
+        graded = [run(item) for item in applicable]  # strictly sequential — the original path
+    else:
+        # ThreadPoolExecutor (stdlib) keeps the engine web-free and nests fine inside the API's
+        # asyncio.to_thread(grade_parsed). map() returns in input order and, on with-block exit,
+        # waits for in-flight calls before re-raising the first failure (fail loud, like the loop).
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            graded = list(pool.map(run, applicable))
+
+    # Reassemble in rubric-step order regardless of completion order; N/A steps cost no LLM call.
+    assessments: list[StepAssessment] = []
+    cost: list[CostLedgerEntry] = []
+    graded_iter = iter(graded)
+    for step, ap in plans:
+        if ap.applicable:
+            assessment, step_cost = next(graded_iter)
+            assessments.append(assessment)
+            cost.extend(step_cost)
+        else:
+            assessments.append(_not_applicable_assessment(step, ap))
 
     return assessments, gate_facts, cost
 
