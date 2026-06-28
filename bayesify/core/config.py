@@ -117,11 +117,11 @@ def assess_concurrency() -> int:
 
     The per-step chains are independent, so this only overlaps the I/O-bound LLM calls to cut
     wall-clock — call count, tokens, and outputs are unchanged. Defaults are backend-aware: the
-    rate-limited HTTP backends tolerate several in-flight calls, the agent-SDK (Claude subscription)
-    path spins a local ``claude`` session per call so it stays conservative, and ``none`` stays
-    serial. Override with ``BAYESIFY_ASSESS_CONCURRENCY``; clamped to >= 1 (1 = sequential).
+    agent-SDK (Claude subscription) path handled parallel ``claude`` sessions well in testing, the
+    rate-limited HTTP backends use a lower default, and ``none`` stays serial. Override with
+    ``BAYESIFY_ASSESS_CONCURRENCY``; clamped to >= 1 (1 = sequential).
     """
-    default = {"api": 4, "openai": 4, "agent-sdk": 3}.get(llm_backend(), 1)
+    default = {"api": 4, "openai": 4, "agent-sdk": 6}.get(llm_backend(), 1)
     try:
         return max(1, int(os.environ.get("BAYESIFY_ASSESS_CONCURRENCY", str(default))))
     except ValueError:
