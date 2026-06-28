@@ -177,57 +177,90 @@ def assess(
     model: str = config.JUDGE_MODEL,
 ) -> tuple[list[StepAssessment], GateFacts, list[CostLedgerEntry]]:
     """Produce one ``StepAssessment`` per rubric step, plus the minted ``GateFacts`` and cost ledger
-    entries. Raises ``AssessError`` if the judge returns an unparseable status (fail loud)."""
+    entries. Raises ``AssessError`` if the judge returns an unparseable status (fail loud).
+
+    Each applicable step is judged (and adversarially refuted) independently of every other step —
+    they share only the read-only paper + evidence — so the per-step work is factored into
+    ``_assess_one_step``. The loop here is strictly sequential; the bounded-parallel variant builds
+    on this factoring. Assessments and ledger entries come out in rubric-step order regardless.
+    """
     gate_facts = derive_gate_facts(evidence, paper_class)
+    searched = _scanned_section_ids(parsed)  # paper-level; identical for every step
+
     assessments: list[StepAssessment] = []
     cost: list[CostLedgerEntry] = []
-
     for step in rubric.steps:
         ap = step_applicability_for_labels(step, paper_class.labels, gate_facts)
         if not ap.applicable:
-            assessments.append(
-                StepAssessment(
-                    step_id=step.id,
-                    applicable=False,
-                    applicability_reason=ap.reason,
-                    status=StepStatus.not_applicable,
-                    confidence=1.0,
-                    adversarial_verdict=AdversarialVerdict(challenged=False, refuted=False),
-                )
-            )
+            assessments.append(_not_applicable_assessment(step, ap))
             continue
-
-        step_ev = _step_evidence(step.id, evidence)
-        searched = _scanned_section_ids(parsed)
-        judge = call_with_policy(
-            client,
-            model=model,
-            system=ASSESS_JUDGE_SYSTEM,
-            user=_build_judge_user(step, parsed, step_ev, rubric),
-            schema=StepJudgment,
-            max_tokens=1500,
+        assessment, step_cost = _assess_one_step(
+            step, ap, parsed, evidence, searched, rubric, client=client, model=model
         )
-        cost.append(ledger_entry("assess", judge, step_id=step.id, pass_label="judge"))
-        assessment = _to_assessment(step, ap, judge.parsed, parsed, step_ev, searched, rubric)
-
-        if assessment.status in _NEGATIVE:  # A4: adversarially challenge every negative finding
-            refute = call_with_policy(
-                client,
-                model=model,
-                system=ASSESS_REFUTE_SYSTEM,
-                user=_build_refuter_user(step, parsed, assessment),
-                schema=RefuterVerdict,
-                max_tokens=800,
-            )
-            cost.append(ledger_entry("assess", refute, step_id=step.id, pass_label="refute"))
-            assessment = _apply_refutation(assessment, refute.parsed, parsed)
-        else:
-            assessment = assessment.model_copy(
-                update={"adversarial_verdict": AdversarialVerdict(challenged=False, refuted=False)}
-            )
         assessments.append(assessment)
+        cost.extend(step_cost)
 
     return assessments, gate_facts, cost
+
+
+def _not_applicable_assessment(step: RubricStep, ap) -> StepAssessment:
+    """The zero-LLM-cost assessment for a step gated N/A for this paper class."""
+    return StepAssessment(
+        step_id=step.id,
+        applicable=False,
+        applicability_reason=ap.reason,
+        status=StepStatus.not_applicable,
+        confidence=1.0,
+        adversarial_verdict=AdversarialVerdict(challenged=False, refuted=False),
+    )
+
+
+def _assess_one_step(
+    step: RubricStep,
+    ap,
+    parsed,
+    evidence: list[Evidence],
+    searched: list[str],
+    rubric: RubricSpec,
+    *,
+    client: LLMClient,
+    model: str,
+) -> tuple[StepAssessment, list[CostLedgerEntry]]:
+    """Judge one applicable step, then (A4) adversarially refute it if the finding is negative.
+
+    Self-contained over shared state — reads only ``parsed``/``evidence`` and returns this step's
+    assessment plus its (judge[, refute]) ledger entries in order — so the caller may run these
+    concurrently across steps. Raises ``AssessError`` on a bad judge status.
+    """
+    cost: list[CostLedgerEntry] = []
+    step_ev = _step_evidence(step.id, evidence)
+    judge = call_with_policy(
+        client,
+        model=model,
+        system=ASSESS_JUDGE_SYSTEM,
+        user=_build_judge_user(step, parsed, step_ev, rubric),
+        schema=StepJudgment,
+        max_tokens=1500,
+    )
+    cost.append(ledger_entry("assess", judge, step_id=step.id, pass_label="judge"))
+    assessment = _to_assessment(step, ap, judge.parsed, parsed, step_ev, searched, rubric)
+
+    if assessment.status in _NEGATIVE:  # A4: adversarially challenge every negative finding
+        refute = call_with_policy(
+            client,
+            model=model,
+            system=ASSESS_REFUTE_SYSTEM,
+            user=_build_refuter_user(step, parsed, assessment),
+            schema=RefuterVerdict,
+            max_tokens=800,
+        )
+        cost.append(ledger_entry("assess", refute, step_id=step.id, pass_label="refute"))
+        assessment = _apply_refutation(assessment, refute.parsed, parsed)
+    else:
+        assessment = assessment.model_copy(
+            update={"adversarial_verdict": AdversarialVerdict(challenged=False, refuted=False)}
+        )
+    return assessment, cost
 
 
 def _build_judge_user(
