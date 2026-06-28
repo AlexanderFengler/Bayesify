@@ -42,6 +42,51 @@ web/               React/Vite/TypeScript single-page UI (upload, report, blind r
 tests/             pytest suite for bayesify-core + the API.
 ```
 
+## Scoring: coverage, quality & step weights
+
+Each graded paper gets two summary numbers, both derived purely from the per-step judgments — no extra
+magic (see [`rubric/synthesis.yaml`](rubric/synthesis.yaml) and [`bayesify/core/score.py`](bayesify/core/score.py)):
+
+- **Coverage** — the share of *applicable* steps that are **present** (`adequate` or `partial`), reported
+  as a strict–lenient range when some absences are low-confidence. **Unweighted** — an honest count where
+  every step counts the same; not-applicable steps are excluded from the denominator and never penalise.
+- **Quality** (the "Bayesify Score") — a **weighted mean** of per-step sub-scores
+  (`adequate` = 1.0, `partial` = 0.5, `missing` = 0.0) over the applicable steps.
+
+### Step weights
+
+A step's weight is **how relevant that step is to this paper's type**, on a `[0, 1]` scale where
+**1.0 = fully relevant** (the default) and **0.5 = secondary**. Because quality is a *normalized* weighted
+mean (`Σ wᵢ·sᵢ / Σ wᵢ`), only the *ratios* between weights matter — so no weight ever needs to exceed 1.0:
+paper-type fit is expressed purely by **down-weighting** the less-relevant steps.
+
+Weights are recorded **per paper class** in `rubric/synthesis.yaml` under `scoring.weights` — one full
+10-step vector for each of the six scorable classes (`review` short-circuits and has no vector). Rather than
+hand-tuning 60 cells, the matrix is generated from **two rules**; a test
+([`tests/test_rubric_weights.py`](tests/test_rubric_weights.py)) asserts the YAML matches them so they can't
+silently drift:
+
+| Rule | Applies to | Effect | Why |
+| --- | --- | --- | --- |
+| **R1** | development classes¹ | S3, S5, S8 → **0.5** | a methods paper's data work is illustrative, so the *data-understanding* steps (prior-predictive, posterior-predictive, sensitivity) are secondary |
+| **R2** | `data_analysis` | S7 → **0.5** | SBC / parameter-recovery is recommended-not-essential for an applied claim |
+| R0 | everything else | **1.0** | every step is fully relevant by default |
+
+¹ `model_development`, `method_development`, `software_development`, `numerical_analysis`, `theoretical_analysis`.
+
+The resulting vectors (S1…S10) are **development** = `1, 1, 0.5, 1, 0.5, 1, 1, 0.5, 1, 1` and **applied**
+(`data_analysis`) = `1, 1, 1, 1, 1, 1, 0.5, 1, 1, 1`. Note **S4 (computational faithfulness) stays at full
+weight for every class** — a missing convergence diagnostic always counts.
+
+- **Multi-label papers** take the **maximum** weight per step across their classes (`mixing_rule: max`), so a
+  step that is secondary for only one of a paper's classes is rescued to full weight.
+- Each step's resolved weight is shown on its card in the report (and in the JSON / Markdown export); the
+  report header shows whether the active scheme is `weighted` or `uniform`. **Weights feed only quality —
+  coverage is always unweighted.**
+
+> The weights are a **draft** (`rubric_version` `0.3-draft`), anchored to the workflow literature and to be
+> refined and frozen before the M7 expert-validation run — not tuned to make any single paper score better.
+
 ## Development
 
 Environments are managed with [pixi](https://pixi.sh) (conda-forge, Python 3.12); `pixi.lock` pins
