@@ -69,6 +69,19 @@ export interface Profile {
   n_na: number;
   n_uncertain: number;
 }
+// One trusted expert correction the override-review pass applied to a step, with the link back to
+// the source paper it was learned from (shown in a tooltip) and how much it moved the scores.
+export interface AppliedCorrection {
+  step_id: string;
+  from_status: StepStatus;
+  to_status: StepStatus;
+  coverage_delta: number;
+  quality_delta: number;
+  override_author: string;
+  override_rationale: string;
+  source_paper_title: string;
+  justification: string;
+}
 export interface Relevance {
   label: "yes" | "partial" | "no";
   confidence: number;
@@ -158,6 +171,11 @@ export interface PaperState {
   parser_version: string | null;
   backend: string | null; // "agent-sdk" | "api" | "openai" | "stub" - who produced the result
   from_cache: boolean; // true if this was a cached replay, not a fresh run
+  // override-review provenance: trusted corrections overlaid on `result` + the pre-overlay engine
+  // coverage/quality, so the report can show what changed and link the source paper.
+  applied_corrections: AppliedCorrection[];
+  base_coverage: Coverage | null;
+  base_quality: number | null;
   local_notice: string | null;
   error: string | null;
 }
