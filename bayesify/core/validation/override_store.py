@@ -42,6 +42,7 @@ class Override(_Base):
     version_label: str = ""  # which doc version was being corrected
     rationale: str = ""
     author: str = ""
+    trusted: bool = False  # true only with a valid BAYESIFY_TRUSTED_TOKENS token
     value: str | None = None
 
 

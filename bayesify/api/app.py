@@ -19,6 +19,7 @@ import asyncio
 import json
 import logging
 import os
+import secrets
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from functools import lru_cache
@@ -34,6 +35,7 @@ from sse_starlette.sse import EventSourceResponse
 from bayesify.api import jobs as jobsmod
 from bayesify.api.jobs import JobStore, event_stream, run_job
 from bayesify.api.mongo import save_event, start_mongodb, stop_mongodb
+from bayesify.core import config
 from bayesify.core.report import fix_list
 from bayesify.core.rubric import RubricProfileError, available_rubrics, load_rubric
 from bayesify.core.schema import EvidenceKind
@@ -265,8 +267,41 @@ async def get_rubrics() -> list[dict]:
     return [r.model_dump(mode="json") for r in available_rubrics()]
 
 
+def _trusted_author(token: str) -> str | None:
+    """The configured author name for a valid trusted token, else None. Constant-time compare so a
+    token can't be probed by timing; an unmatched token is simply advisory, never an error."""
+    if not token:
+        return None
+    for tok, name in config.trusted_tokens().items():
+        if secrets.compare_digest(tok, token):
+            return name
+    return None
+
+
+def _override_event_payload(ov: Override) -> dict:
+    """Mongo-ready envelope for one override — the central audit log + the source the Phase-2
+    overlay reads back. Mirrors the analysis/rating events; only ``trusted`` records are applied."""
+    return {
+        "event": "override_recorded",
+        "kind": ov.kind,
+        "paper_id": ov.paper_id,
+        "step_id": ov.step_id,
+        "corrected_status": ov.corrected_status,
+        "original_status": ov.original_status,
+        "source_sha256": ov.source_sha256,
+        "version_label": ov.version_label,
+        "rubric_profile": ov.rubric_profile,
+        "author": ov.author,
+        "trusted": ov.trusted,
+        "rationale": ov.rationale,
+        "value": ov.value,
+    }
+
+
 @app.post("/api/papers/{paper_id}/rerun")
-async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dict:
+async def rerun(
+    paper_id: str, relevance_override: str = Form("partial"), token: str = Form("")
+) -> dict:
     """Escape hatch: grade a short-circuited paper anyway. A not-Bayesian paper is graded under a
     forced relevance; a review/opinion piece is force-graded as advisory (the right mechanism is
     chosen from the prior short-circuit reason, not the caller). A5-recorded."""
@@ -294,17 +329,20 @@ async def rerun(paper_id: str, relevance_override: str = Form("partial")) -> dic
     job.from_cache = False
     job.force_fresh = True  # an explicit rerun always bypasses the cache (verify the live path)
     job.events.clear()
-    jobsmod._overrides_store().add(
-        Override(
-            paper_id=paper_id,
-            kind="relevance_rerun",
-            original_status=overridden,  # the short-circuit the user is overriding
-            rubric_profile=job.profile,
-            source_sha256=job.content_sha256 or "",
-            version_label=job.version_label or "",
-            value="force_grade" if is_review else relevance_override,
-        )
+    trusted_author = _trusted_author(token)
+    ov = Override(
+        paper_id=paper_id,
+        kind="relevance_rerun",
+        original_status=overridden,  # the short-circuit the user is overriding
+        rubric_profile=job.profile,
+        source_sha256=job.content_sha256 or "",
+        version_label=job.version_label or "",
+        author=trusted_author or "",
+        trusted=trusted_author is not None,
+        value="force_grade" if is_review else relevance_override,
     )
+    jobsmod._overrides_store().add(ov)
+    await asyncio.to_thread(save_event, _override_event_payload(ov))
     jobsmod.spawn(run_job(job))
     return {"paper_id": job.id, "status": job.status}
 
@@ -318,14 +356,18 @@ async def record_override(
     author: str = Form("anonymous"),
     original_status: str = Form(""),  # client fallback for what was overridden (if job expired)
     rubric_profile: str = Form("synthesis"),  # client fallback for the rubric (if job expired)
+    token: str = Form(""),  # a BAYESIFY_TRUSTED_TOKENS secret promotes this to a trusted correction
 ) -> dict:
-    """A5 scaffolding: record an expert correction. Append-only; never mutates engine output, and
-    (honestly) not yet used to change judgments.
+    """Record an expert disagreement on one step. Append-only; never mutates the engine output.
+
+    A valid ``token`` (in ``BAYESIFY_TRUSTED_TOKENS``) marks the override **trusted** and stamps
+    the author from the token (the client ``author`` is ignored); only trusted corrections are
+    applied to grading (Phase 2). Any other disagreement is an advisory note. Every override is
+    also mirrored to the Atlas events log (central audit + read-back).
 
     We record the correction *and what it overrode*: the live job is the authoritative source for
-    the engine's original status, the rubric, and the durable paper sha. When the job has expired
-    we still record the correction (never dropped), using the client-sent fallbacks for the
-    status/rubric so a disagreement is never lost."""
+    the engine's original status, the rubric, and the durable paper sha; when the job has expired
+    we use the client-sent fallbacks so a disagreement is never lost."""
     job = store.get(assessment_id)
     overridden = original_status or None
     profile = rubric_profile
@@ -341,23 +383,32 @@ async def record_override(
             )
             if engine_status is not None:
                 overridden = engine_status
-    jobsmod._overrides_store().add(
-        Override(
-            paper_id=assessment_id,
-            kind="step_status",
-            step_id=step_id,
-            corrected_status=corrected_status,
-            original_status=overridden,
-            rubric_profile=profile,
-            source_sha256=source_sha256,
-            version_label=version_label,
-            rationale=rationale,
-            author=author,
-        )
+    trusted_author = _trusted_author(token)
+    if trusted_author is not None:
+        author = trusted_author  # authoritative identity from the token; client author is ignored
+    ov = Override(
+        paper_id=assessment_id,
+        kind="step_status",
+        step_id=step_id,
+        corrected_status=corrected_status,
+        original_status=overridden,
+        rubric_profile=profile,
+        source_sha256=source_sha256,
+        version_label=version_label,
+        rationale=rationale,
+        author=author,
+        trusted=trusted_author is not None,
     )
+    jobsmod._overrides_store().add(ov)
+    await asyncio.to_thread(save_event, _override_event_payload(ov))
     return {
         "recorded": True,
-        "note": "recorded for the v1 learning loop — not yet used to change judgments",
+        "trusted": ov.trusted,
+        "note": (
+            "recorded as a trusted correction"
+            if ov.trusted
+            else "recorded as an advisory note (not applied to grading)"
+        ),
     }
 
 
