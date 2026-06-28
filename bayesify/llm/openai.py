@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+
 from pydantic import BaseModel, ValidationError
 
 from bayesify.llm.base import LLMError, LLMResponse, LLMTransientError, brace_json, usage_tokens
@@ -13,12 +15,17 @@ class OpenAIClient:
     def __init__(self, api_key: str | None = None) -> None:
         self._api_key = api_key
         self._sdk_client = None
+        self._init_lock = threading.Lock()
 
     def _client(self):
+        # Double-checked lock: the client is shared across the parallel assess fan-out, so the
+        # lazy init must not race (two threads building, one SDK client silently discarded).
         if self._sdk_client is None:
-            from openai import OpenAI
+            with self._init_lock:
+                if self._sdk_client is None:
+                    from openai import OpenAI
 
-            self._sdk_client = OpenAI(api_key=self._api_key)
+                    self._sdk_client = OpenAI(api_key=self._api_key)
         return self._sdk_client
 
     def complete[T: BaseModel](

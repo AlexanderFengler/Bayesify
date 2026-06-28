@@ -281,3 +281,43 @@ def test_cost_ledger_meters_judge_and_refute_passes() -> None:
     _, _, cost, _ = _assess(parsed, [], judge, refute=RefuterVerdict(refuted=False, notes="x"))
     stages = {(c.stage, c.pass_label) for c in cost}
     assert ("assess", "judge") in stages and ("assess", "refute") in stages
+
+
+def test_parallel_assess_matches_sequential() -> None:
+    """Fan-out is a pure latency change: K=1 and K=6 must produce byte-identical assessments and an
+    identically-ordered cost ledger. The judge varies status by step id so both the judge-only and
+    judge+refute paths are exercised across the rubric."""
+    parsed = _parsed(
+        (
+            SectionKind.body,
+            "Methods",
+            "We fit the model with NUTS in Stan; R-hat < 1.01; weakly informative priors; "
+            "posterior predictive checks; code on GitHub.",
+        ),
+    )
+    evidence = [
+        _ev("method.mcmc", EvidenceKind.method_mention, "NUTS"),
+        _ev("diag.rhat", EvidenceKind.diagnostic_value, "R-hat < 1.01"),
+    ]
+
+    def judge(user: str) -> StepJudgment:
+        sid = user.split("RUBRIC STEP ", 1)[1].split(":", 1)[0]
+        n = int("".join(c for c in sid if c.isdigit()) or "0")
+        status = "missing" if n % 2 == 0 else "adequate"  # alternate → some refuters fire
+        return StepJudgment(status=status, confidence=0.7, rationale="r")
+
+    seq_a, _, seq_c = A.assess(
+        parsed, evidence, _REL, _EMPIRICAL, _RUBRIC, client=_Fake(judge), concurrency=1
+    )
+    par_a, _, par_c = A.assess(
+        parsed, evidence, _REL, _EMPIRICAL, _RUBRIC, client=_Fake(judge), concurrency=6
+    )
+
+    assert [a.model_dump() for a in par_a] == [a.model_dump() for a in seq_a]  # identical output
+    assert [(e.stage, e.step_id, e.pass_label) for e in par_c] == [
+        (e.stage, e.step_id, e.pass_label) for e in seq_c
+    ]  # ledger same order
+    assert [a.step_id for a in par_a] == [s.id for s in _RUBRIC.steps]  # rubric order preserved
+    assert any(  # at least one refuter actually ran under fan-out
+        a.adversarial_verdict and a.adversarial_verdict.challenged for a in par_a
+    )
