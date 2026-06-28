@@ -172,6 +172,11 @@ def _job_payload(job: jobsmod.Job) -> dict:
         "parser_version": job.parser_version,
         "backend": job.backend,
         "from_cache": job.from_cache,
+        # Trusted-override overlay provenance: the corrections applied to the displayed `result` and
+        # the pre-overlay engine coverage/quality (so the report can show what changed).
+        "applied_corrections": [c.model_dump(mode="json") for c in job.applied_corrections],
+        "base_coverage": job.base_coverage.model_dump(mode="json") if job.base_coverage else None,
+        "base_quality": job.base_quality,
         "local_notice": job.local_notice,
         "error": job.error,
     }

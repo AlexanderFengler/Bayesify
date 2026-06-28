@@ -22,7 +22,7 @@ from pathlib import Path
 
 import httpx
 
-from bayesify.api.mongo import save_event
+from bayesify.api.mongo import find_trusted_step_overrides, save_event
 from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
@@ -31,6 +31,7 @@ from bayesify.core.engine import grade_parsed
 from bayesify.core.errors import IngestError
 from bayesify.core.fetcher import Fetcher
 from bayesify.core.ingest import ingest_upload, parse_input
+from bayesify.core.overrides import AppliedCorrection, TrustedOverride, apply_step_overrides
 from bayesify.core.parse import parse
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.stub import ENGINE_VERSION, build_stub_result
@@ -143,6 +144,11 @@ class Job:
     force_fresh: bool = False  # bypass the cache for this run (set by the rerun escape hatch)
     local_notice: str | None = None  # the labelled local-mode explanation
     error: str | None = None
+    # trusted-override overlay provenance (Phase 2): applied corrections + pre-overlay engine
+    # coverage/quality, so the report can show what changed and by how much.
+    applied_corrections: list[AppliedCorrection] = field(default_factory=list)
+    base_coverage: s.Coverage | None = None
+    base_quality: float | None = None
     _seq: int = 0
     events: list[dict] = field(default_factory=list)
     subscribers: set[asyncio.Queue] = field(default_factory=set)
@@ -343,6 +349,74 @@ async def _run_local(job: Job, *, source: s.SourceDoc | None = None) -> None:
     job.emit({"type": "done"})
 
 
+_STATUS_BY_VALUE = {member.value: member for member in s.StepStatus}
+
+
+def _local_trusted_overrides(source_sha256: str, profile: str) -> list[dict]:
+    """Trusted step-status corrections from the on-disk log — used when Atlas is unreachable.
+    The log is append-only, so a later entry for a step wins."""
+    latest: dict[str, dict] = {}
+    for o in _overrides_store().all():
+        if (
+            o.kind == "step_status"
+            and o.trusted
+            and o.step_id
+            and o.source_sha256 == source_sha256
+            and o.rubric_profile == profile
+        ):
+            latest[o.step_id] = {
+                "step_id": o.step_id,
+                "corrected_status": o.corrected_status,
+                "author": o.author,
+                "rationale": o.rationale,
+                "created_at": None,
+            }
+    return list(latest.values())
+
+
+def _trusted_step_overrides(source_sha256: str, profile: str) -> list[TrustedOverride]:
+    """Newest trusted per-step correction for this paper+rubric. Atlas is the source of truth (every
+    machine's corrections); fall back to the local log only when Atlas is unreachable (``None``)."""
+    if not source_sha256:
+        return []
+    docs = find_trusted_step_overrides(source_sha256, profile)
+    if docs is None:
+        docs = _local_trusted_overrides(source_sha256, profile)
+    out: list[TrustedOverride] = []
+    for d in docs:
+        status = _STATUS_BY_VALUE.get(d.get("corrected_status"))
+        if d.get("step_id") and status is not None:
+            created = d.get("created_at")
+            out.append(
+                TrustedOverride(
+                    step_id=d["step_id"],
+                    corrected_status=status,
+                    author=d.get("author") or "",
+                    rationale=d.get("rationale") or "",
+                    recorded_at=str(created) if created else None,
+                )
+            )
+    return out
+
+
+async def _apply_trusted_overlay(job: Job, rubric, source_sha256: str) -> None:
+    """Overlay trusted corrections onto the (raw) engine result for display: swap the corrected step
+    statuses and re-score. The raw result is what was cached + saved to Atlas; this runs on every
+    finalize (fresh OR cache replay), so a new correction takes effect with no re-grade. Never runs
+    inside ``grade_parsed``, so the validation harness keeps measuring the raw engine."""
+    if job.result is None or not job.result.step_assessments:
+        return
+    overrides = await asyncio.to_thread(_trusted_step_overrides, source_sha256, job.profile)
+    if not overrides:
+        return
+    corrected, applied = apply_step_overrides(job.result, overrides, rubric)
+    if applied:
+        job.base_coverage = job.result.coverage
+        job.base_quality = job.result.quality_score
+        job.result = corrected
+        job.applied_corrections = applied
+
+
 async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     """Full mode (upload + credentials): the whole real engine — ingest -> parse -> detect ->
     screen -> classify -> assess -> score.
@@ -373,6 +447,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             for stage in STAGES:  # complete the UI stepper instantly
                 job.emit({"type": "stage", "stage": stage, "state": "done"})
             job.status = "done"
+            await _apply_trusted_overlay(job, rubric, key.content_sha256)
             job.emit({"type": "done"})
             return
 
@@ -411,7 +486,8 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     if _cache_enabled():
         _results().put(key, {"backend": job.backend, "result": job.result.model_dump(mode="json")})
     job.status = "done"
-    _save_analysis_report_payload(job)
+    _save_analysis_report_payload(job)  # the RAW engine result is what's persisted to Atlas
+    await _apply_trusted_overlay(job, rubric, key.content_sha256)  # overlay only for display
     job.emit({"type": "done"})
 
 

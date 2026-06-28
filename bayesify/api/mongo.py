@@ -147,6 +147,43 @@ class MongoDBService:
         self._log.info(f"MongoDB saved event {event} as {event_id}")
         return event_id
 
+    def find_trusted_step_overrides(
+        self, source_sha256: str, rubric_profile: str
+    ) -> list[dict[str, Any]] | None:
+        """The newest **trusted** step-status override per step for one paper+rubric, read back from
+        the events log (the central, cross-machine source the grading overlay applies). Returns
+        ``None`` when Mongo is unavailable — the caller then falls back to the local override log —
+        and ``[]`` when reachable but empty (uses the source_sha256 + rubric_profile index)."""
+        if not self._ready:
+            now = time.monotonic()
+            if now >= self._next_retry_monotonic:
+                self.start()
+                if not self._ready:
+                    self._next_retry_monotonic = now + 5.0
+        events = self._events if self._ready else None
+        if events is None:
+            return None
+        try:
+            cursor = events.find(
+                {
+                    "event": "override_recorded",
+                    "kind": "step_status",
+                    "trusted": True,
+                    "source_sha256": source_sha256,
+                    "rubric_profile": rubric_profile,
+                }
+            ).sort("created_at", 1)  # ascending → the last write per step wins
+            latest: dict[str, dict[str, Any]] = {}
+            for doc in cursor:
+                step_id = doc.get("step_id")
+                if step_id:
+                    latest[step_id] = doc
+            return list(latest.values())
+        except PyMongoError as exc:
+            self._ready = False
+            self._log.warning(f"MongoDB override read failed: {exc}")
+            return None
+
     @staticmethod
     def _is_local_uri(uri: str) -> bool:
         parsed = urlparse(uri)
@@ -285,6 +322,12 @@ def start_mongodb() -> MongoDBStatus:
 
 def save_event(payload: dict[str, Any]) -> str | None:
     return mongodb().save_event(payload)
+
+
+def find_trusted_step_overrides(
+    source_sha256: str, rubric_profile: str
+) -> list[dict[str, Any]] | None:
+    return mongodb().find_trusted_step_overrides(source_sha256, rubric_profile)
 
 
 def stop_mongodb() -> None:

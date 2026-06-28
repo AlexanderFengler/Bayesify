@@ -443,6 +443,60 @@ def test_invalid_token_stays_advisory(tmp_path, monkeypatch) -> None:
     assert OverrideStore(tmp_path).all()[0].trusted is False  # only a valid token is trusted
 
 
+def test_trusted_overlay_corrects_the_job_and_surfaces_provenance(tmp_path, monkeypatch) -> None:
+    # The overlay swaps a trusted-corrected step, re-scores, and the payload exposes the provenance
+    # (what changed + the pre-overlay base score). The cached/persisted engine output stays raw.
+    import pathlib
+
+    from bayesify.api import jobs as jobsmod
+    from bayesify.api.app import _job_payload
+    from bayesify.core.rubric.loader import load_rubric
+    from bayesify.core.schema import ScoredResult, StepStatus
+
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    target = next(
+        a for a in result.step_assessments if a.applicable and a.status is StepStatus.missing
+    )
+    # the trusted correction as it comes back from the Atlas read-back (source of truth)
+    monkeypatch.setattr(
+        "bayesify.api.jobs.find_trusted_step_overrides",
+        lambda sha, profile: [
+            {"step_id": target.step_id, "corrected_status": "adequate",
+             "author": "alice", "rationale": "supp", "created_at": None}
+        ],
+    )
+    job = Job(id="ovl1", mode="full", source_label="d.pdf")
+    job.result = result
+    job.profile = result.rubric_profile
+    asyncio.run(jobsmod._apply_trusted_overlay(job, load_rubric(), "cd" * 32))
+
+    corrected = next(a for a in job.result.step_assessments if a.step_id == target.step_id)
+    assert corrected.status is StepStatus.adequate
+    assert job.applied_corrections and job.applied_corrections[0].author == "alice"
+    assert job.base_quality is not None and (job.result.quality_score or 0) > job.base_quality
+
+    payload = _job_payload(job)
+    assert payload["applied_corrections"][0]["to_status"] == "adequate"
+    assert payload["base_quality"] == job.base_quality and payload["base_coverage"] is not None
+
+
+def test_no_trusted_overrides_leaves_the_grade_untouched(monkeypatch) -> None:
+    import pathlib
+
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core.rubric.loader import load_rubric
+    from bayesify.core.schema import ScoredResult
+
+    monkeypatch.setattr("bayesify.api.jobs.find_trusted_step_overrides", lambda sha, profile: [])
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    job = Job(id="ovl2", mode="full", source_label="d.pdf")
+    job.result = result
+    asyncio.run(jobsmod._apply_trusted_overlay(job, load_rubric(), "cd" * 32))
+    assert job.result is result and job.applied_corrections == []  # untouched, same object
+
+
 # --- async job machinery --------------------------------------------------------------------------
 
 
