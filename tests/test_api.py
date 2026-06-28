@@ -354,13 +354,14 @@ def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeyp
     # Degraded path: no live job for "abc" (e.g. it expired) — the correction is still recorded,
     # never dropped, with the client-sent/defaulted provenance.
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)  # don't touch Mongo
     r = client.post(
         "/api/assessments/abc/steps/S4/override",
         data={"corrected_status": "partial", "rationale": "supplement has it"},
     )
     body = r.json()
     assert body["recorded"] is True
-    assert "not yet used" in body["note"]
+    assert body["trusted"] is False and "advisory" in body["note"]  # no token → advisory only
     # durable: a fresh store (a "restart") still sees the correction
     from bayesify.core.validation.override_store import OverrideStore
 
@@ -375,6 +376,7 @@ def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch
     # status for that step), the rubric, and the durable paper sha — all recorded with the fix.
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("BAYESIFY_LLM_BACKEND", "none")  # billing-safe: the labelled stub
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)  # don't touch Mongo
     job = Job(id="ovr1", mode="full", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     store._jobs[job.id] = job
     asyncio.run(run_job(job))  # labelled stub → a full ScoredResult with step_assessments
@@ -398,6 +400,47 @@ def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch
     assert o.original_status == step.status.value  # WHAT WAS OVERRIDDEN (engine verdict)
     assert o.rubric_profile == job.profile == "synthesis"  # which rubric the correction is against
     assert o.source_sha256 == job.content_sha256  # durable paper identity, not the ephemeral job id
+
+
+def test_trusted_token_promotes_override_and_sets_author(tmp_path, monkeypatch) -> None:
+    # A valid token marks the override trusted, stamps the author from the token (client author
+    # ignored), and mirrors it to the central override_recorded log.
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_TRUSTED_TOKENS", "alice:s3cret, bob:other")
+    captured: list[dict] = []
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: captured.append(payload))
+    r = client.post(
+        "/api/assessments/abc/steps/S4/override",
+        data={
+            "corrected_status": "adequate",
+            "rationale": "supplement has it",
+            "author": "impostor",  # ignored when a valid token is present
+            "token": "s3cret",
+        },
+    )
+    body = r.json()
+    assert body["recorded"] is True and body["trusted"] is True
+    from bayesify.core.validation.override_store import OverrideStore
+
+    o = OverrideStore(tmp_path).all()[0]
+    assert o.trusted is True and o.author == "alice"  # authoritative identity from the token
+    assert captured and captured[0]["event"] == "override_recorded"
+    assert captured[0]["trusted"] is True and captured[0]["author"] == "alice"
+    assert captured[0]["step_id"] == "S4" and captured[0]["corrected_status"] == "adequate"
+
+
+def test_invalid_token_stays_advisory(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_TRUSTED_TOKENS", "alice:s3cret")
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)
+    r = client.post(
+        "/api/assessments/abc/steps/S4/override",
+        data={"corrected_status": "adequate", "rationale": "x", "token": "wrong"},
+    )
+    assert r.json()["trusted"] is False
+    from bayesify.core.validation.override_store import OverrideStore
+
+    assert OverrideStore(tmp_path).all()[0].trusted is False  # only a valid token is trusted
 
 
 # --- async job machinery --------------------------------------------------------------------------

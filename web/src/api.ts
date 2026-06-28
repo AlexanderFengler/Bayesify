@@ -69,8 +69,33 @@ export async function getPaper(paperId: string): Promise<PaperState> {
   return fetchJson<PaperState>(`/api/papers/${paperId}`, undefined, { error: "could not fetch paper" });
 }
 
-// Record an expert disagreement on one step (A5). Append-only; never mutates the engine output —
-// "recorded for the v1 learning loop, not yet used to change judgments".
+// A trusted reviewer's shared-secret token (matched against BAYESIFY_TRUSTED_TOKENS on the server).
+// Stored locally; when present, a recorded disagreement is promoted to a trusted correction that
+// adjusts the grade. Absent → the disagreement is advisory only.
+const REVIEWER_TOKEN_KEY = "bayesify.reviewerToken";
+export function getReviewerToken(): string {
+  try {
+    return localStorage.getItem(REVIEWER_TOKEN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+export function setReviewerToken(token: string): void {
+  try {
+    if (token) localStorage.setItem(REVIEWER_TOKEN_KEY, token);
+    else localStorage.removeItem(REVIEWER_TOKEN_KEY);
+  } catch {
+    /* localStorage unavailable (e.g. private mode) — the token just won't persist */
+  }
+}
+
+export interface OverrideResult {
+  recorded: boolean;
+  trusted: boolean; // true when a valid reviewer token promoted this to a trusted correction
+}
+
+// Record an expert disagreement on one step. A trusted reviewer token promotes it to a correction
+// that adjusts the grade; otherwise it is recorded as an advisory note. Never mutates engine output.
 export async function recordOverride(
   paperId: string,
   stepId: string,
@@ -78,14 +103,16 @@ export async function recordOverride(
   rationale: string,
   originalStatus?: string, // the engine verdict being disagreed with (what was overridden)
   rubricProfile?: string, // which rubric this report was graded under
-): Promise<void> {
+): Promise<OverrideResult> {
   const form = new FormData();
   form.set("corrected_status", correctedStatus);
   form.set("rationale", rationale);
   form.set("author", "you");
   if (originalStatus) form.set("original_status", originalStatus);
   if (rubricProfile) form.set("rubric_profile", rubricProfile);
-  await fetchJson(
+  const token = getReviewerToken();
+  if (token) form.set("token", token);
+  return await fetchJson<OverrideResult>(
     `/api/assessments/${paperId}/steps/${stepId}/override`,
     { method: "POST", body: form },
     { error: "could not record override" },
