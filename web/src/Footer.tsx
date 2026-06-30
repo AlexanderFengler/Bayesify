@@ -1,10 +1,10 @@
-import { Box, Container, Link, Typography } from "@mui/material";
+import { Box, Container, Link } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "./AppContext";
 
 // The permanent app footer: a single transparent bar rendered once by Layout (like the header), so
 // the dynamic aurora shows through and blends with it. A thin horizontal divider sits on top. It
-// carries the global nav: how-it-works, rubrics, privacy, calibration, and the supporters reference.
+// carries the global nav: how-it-works, rubrics, privacy, and the supporters reference.
 export function Footer() {
   const navigate = useNavigate();
   const { openPrivacy } = useApp();
@@ -19,22 +19,15 @@ export function Footer() {
             display: "flex",
             flexDirection: { xs: "column", sm: "row" },
             gap: 2,
-            justifyContent: "space-between",
+            justifyContent: { xs: "flex-start", sm: "flex-end" },
             alignItems: { xs: "flex-start", sm: "center" },
             py: 3,
           }}
         >
-          {/* the formative-report note */}
-          <Box sx={{ maxWidth: 720 }}>
-            <Typography variant="caption" sx={{ color: "text.secondary" }}>
-              Formative report, not a verdict — Bayesify reports per-step practice, not a pass/fail.
-            </Typography>
-          </Box>
           <Box sx={{ display: "flex", gap: 3 }}>
             <FooterLink onClick={() => navigate("/guide")}>How it works</FooterLink>
             <FooterLink onClick={() => navigate("/rubrics")}>Rubrics</FooterLink>
             <FooterLink onClick={openPrivacy}>Privacy</FooterLink>
-            <FooterLink onClick={() => navigate("/calibration")}>Calibration</FooterLink>
             <FooterLink onClick={() => navigate("/supported")}>Supported by</FooterLink>
           </Box>
         </Box>

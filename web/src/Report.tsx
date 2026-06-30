@@ -480,10 +480,10 @@ function Legend() {
 // "did well" check and the severity dots), in place of the status-colour legend.
 function SeverityLegend() {
   const items = [
-    { icon: <CheckCircleIcon sx={{ fontSize: 16, color: "success.main" }} />, label: "did well" },
-    { icon: <InfoIcon sx={{ fontSize: 16, color: "info.main" }} />, label: "info" },
-    { icon: <ErrorIcon sx={{ fontSize: 16, color: "warning.main" }} />, label: "warning" },
-    { icon: <CancelIcon sx={{ fontSize: 16, color: "error.main" }} />, label: "omission" },
+    { icon: <CheckCircleIcon sx={{ fontSize: 16, color: "success.main" }} />, label: "Did well" },
+    { icon: <InfoIcon sx={{ fontSize: 16, color: "info.main" }} />, label: "Info" },
+    { icon: <ErrorIcon sx={{ fontSize: 16, color: "warning.main" }} />, label: "Warning" },
+    { icon: <CancelIcon sx={{ fontSize: 16, color: "error.main" }} />, label: "Omission" },
   ];
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
@@ -772,6 +772,11 @@ function FullReportDoc({
             correction={correctionByStep.get(a.step_id)}
             fixes={fixList.filter((f) => f.step_id === a.step_id)}
             isLast={i === steps.length - 1}
+            // a skipped step dashes the connectors on BOTH sides of it: dash this item's connector
+            // when this step or the next one is not-applicable.
+            dashedConnector={
+              a.status === "not_applicable" || steps[i + 1]?.status === "not_applicable"
+            }
             overridden={overrides[a.step_id]}
             onOverride={(status, rationale) => onOverride(a.step_id, status, rationale, a.status)}
           />
@@ -781,6 +786,10 @@ function FullReportDoc({
   );
 }
 
+// Shared diameter for the timeline dot and the title row that sits beside it — keeping them equal is
+// what lets their vertical centres align on the first line.
+const DOT_SIZE = 38;
+
 function FullReportTimelineItem({
   a,
   stepName,
@@ -789,6 +798,7 @@ function FullReportTimelineItem({
   correction,
   fixes,
   isLast,
+  dashedConnector,
   overridden,
   onOverride,
 }: {
@@ -799,6 +809,7 @@ function FullReportTimelineItem({
   correction?: AppliedCorrection;
   fixes: FixItem[];
   isLast: boolean;
+  dashedConnector: boolean;
   overridden?: StepStatus;
   onOverride: (status: StepStatus, rationale: string) => Promise<void>;
 }) {
@@ -808,12 +819,13 @@ function FullReportTimelineItem({
   return (
     <TimelineItem>
       <TimelineSeparator>
-        {/* the dot is the step index, tinted by status (reusing the shared status palette) */}
+        {/* the dot is the step index, tinted by status (reusing the shared status palette). Its size
+            is shared with the title row (DOT_SIZE) so their vertical centres always line up. */}
         <TimelineDot
           sx={{
             m: 0,
-            width: 34,
-            height: 34,
+            width: DOT_SIZE,
+            height: DOT_SIZE,
             p: 0,
             display: "flex",
             alignItems: "center",
@@ -823,25 +835,39 @@ function FullReportTimelineItem({
             color: na ? "background.paper" : "common.white",
           }}
         >
-          <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 700 }}>
+          <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 13, fontWeight: 700 }}>
             {a.step_id}
           </Box>
         </TimelineDot>
-        {/* skipped (N/A) steps get a dashed connector; everyone else a solid one. Last item: none. */}
+        {/* a skipped step dashes the connectors on both sides of it (dashedConnector); everyone else
+            gets a solid one. Last item: none. */}
         {!isLast &&
-          (na ? (
+          (dashedConnector ? (
             <Box sx={{ flexGrow: 1, width: 0, my: 0.5, borderLeft: "2px dashed", borderColor: "divider" }} />
           ) : (
             <TimelineConnector />
           ))}
       </TimelineSeparator>
-      <TimelineContent sx={{ pb: 4, pt: 0.5 }}>
+      {/* pt:0 anchors the content's top to the dot's top; the title row is exactly DOT_SIZE tall with
+          its text vertically centred, so the dot centre and the title centre coincide on the first line. */}
+      <TimelineContent sx={{ pb: 4, pt: 0 }}>
         {/* header row stays visible; the chevron toggles the body below */}
         <ButtonBase
           onClick={() => setOpen((o) => !o)}
-          sx={{ width: "100%", justifyContent: "space-between", textAlign: "left", gap: 1, borderRadius: 1 }}
+          disableRipple
+          sx={{
+            width: "100%",
+            minHeight: DOT_SIZE,
+            justifyContent: "space-between",
+            alignItems: "center",
+            textAlign: "left",
+            gap: 1,
+            borderRadius: 1,
+            // no ripple/focus flash on toggle — keep the header inert-looking
+            "&:hover, &.Mui-focusVisible": { bgcolor: "transparent" },
+          }}
         >
-          <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
+          <Typography variant="h6" component="span" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
             {stepName}
           </Typography>
           <ExpandMoreIcon
