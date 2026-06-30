@@ -11,6 +11,15 @@ import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import InfoIcon from "@mui/icons-material/Info";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
+  Timeline,
+  TimelineConnector,
+  TimelineContent,
+  TimelineDot,
+  TimelineItem,
+  timelineItemClasses,
+  TimelineSeparator,
+} from "@mui/lab";
+import {
   Box,
   Button,
   ButtonBase,
@@ -32,14 +41,17 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SwitchTransition } from "react-transition-group";
 import { recordOverride } from "./api";
+import { MathText } from "./MathText";
 import { formatByline } from "./paper";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import type {
+  AdversarialVerdict,
   AppliedCorrection,
   Evidence,
   FixItem,
   PaperState,
   ScoredResult,
+  StandardRef,
   StepAssessment,
   StepStatus,
   Suggestion,
@@ -237,6 +249,12 @@ export function Report({
                       stepWhy={stepWhy}
                       weightById={weightById}
                       correctionByStep={correctionByStep}
+                      fixList={paper.fix_list ?? []}
+                      overrides={overrides}
+                      onOverride={async (stepId, status, rationale, fromStatus) => {
+                        await recordOverride(paper.paper_id, stepId, status, rationale, fromStatus, r.rubric_profile);
+                        setOverrides((prev) => ({ ...prev, [stepId]: status }));
+                      }}
                     />
                   ) : (
                     <>
@@ -324,7 +342,7 @@ function RelevanceGate({ r }: { r: ScoredResult }) {
         Relevance gate · {Math.round(r.relevance.confidence * 100)}% Confidence
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-        {r.relevance.rationale}
+        <MathText>{r.relevance.rationale}</MathText>
       </Typography>
     </Box>
   );
@@ -698,21 +716,28 @@ function StepGlance({
   );
 }
 
-// The full-report document: every step laid out top-to-bottom like the downloadable .md, read-only.
-// It mirrors the .md content minus the unbolded suggestion bodies (how-to) and the effort chips — the
-// suggestion's headline finding and its severity dot are kept. No disagree control, no disclosures.
+// The full-report document: a left-aligned MUI Timeline, one item per step. The dot carries the step
+// index tinted by its status; the connector turns dashed for a skipped (N/A) step. Each item's body
+// (the "bullet points down") collapses, expanded by default. Unlike before, it is interactive — it
+// shares the summary's disclosure row + Disagree control via StepBody.
 function FullReportDoc({
   steps,
   stepNames,
   stepWhy,
   weightById,
   correctionByStep,
+  fixList,
+  overrides,
+  onOverride,
 }: {
   steps: StepAssessment[];
   stepNames: Record<string, string>;
   stepWhy: Record<string, string>;
   weightById: Map<string, number>;
   correctionByStep: Map<string, AppliedCorrection>;
+  fixList: FixItem[];
+  overrides: Record<string, StepStatus>;
+  onOverride: (stepId: string, status: StepStatus, rationale: string, fromStatus: StepStatus) => Promise<void>;
 }) {
   return (
     <Box>
@@ -722,19 +747,120 @@ function FullReportDoc({
         </Typography>
         <SeverityLegend />
       </Box>
-      <Box sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: 4 }}>
-        {steps.map((a) => (
-          <FullReportStep
+      {/* left-aligned, no opposite content: collapse each item's leading ::before spacer (the slot
+          MUI reserves for opposite content) so the rail hugs the left and content flows right. p:0
+          strips the Timeline's default symmetric padding. */}
+      <Timeline
+        sx={{
+          p: 0,
+          mt: 2,
+          // Collapse each item's leading ::before spacer (MUI's opposite-content slot). Two gotchas in
+          // @mui/lab v9: (1) use real CSS props (`padding`), not sx shorthands (`p`) — shorthands aren't
+          // expanded inside a nested selector; (2) the default rule is now
+          // `:not(:has(.MuiTimelineOppositeContent-root))::before`, whose specificity ties the plain
+          // docs selector and wins on source order — so double the root class (`&&`) to outrank it.
+          [`&& .${timelineItemClasses.root}::before`]: { flex: 0, padding: 0 },
+        }}
+      >
+        {steps.map((a, i) => (
+          <FullReportTimelineItem
             key={a.step_id}
             a={a}
             stepName={stepNames[a.step_id] ?? a.step_id}
             why={stepWhy[a.step_id]}
             weight={weightById.get(a.step_id)}
             correction={correctionByStep.get(a.step_id)}
+            fixes={fixList.filter((f) => f.step_id === a.step_id)}
+            isLast={i === steps.length - 1}
+            overridden={overrides[a.step_id]}
+            onOverride={(status, rationale) => onOverride(a.step_id, status, rationale, a.status)}
           />
         ))}
-      </Box>
+      </Timeline>
     </Box>
+  );
+}
+
+function FullReportTimelineItem({
+  a,
+  stepName,
+  why,
+  weight,
+  correction,
+  fixes,
+  isLast,
+  overridden,
+  onOverride,
+}: {
+  a: StepAssessment;
+  stepName: string;
+  why?: string;
+  weight?: number;
+  correction?: AppliedCorrection;
+  fixes: FixItem[];
+  isLast: boolean;
+  overridden?: StepStatus;
+  onOverride: (status: StepStatus, rationale: string) => Promise<void>;
+}) {
+  const [open, setOpen] = useState(true); // collapsible from the bullet points down; open by default
+  const na = a.status === "not_applicable";
+  const meta = statusMeta(a.status);
+  return (
+    <TimelineItem>
+      <TimelineSeparator>
+        {/* the dot is the step index, tinted by status (reusing the shared status palette) */}
+        <TimelineDot
+          sx={{
+            m: 0,
+            width: 34,
+            height: 34,
+            p: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: "none",
+            bgcolor: statusSx(meta.color),
+            color: na ? "background.paper" : "common.white",
+          }}
+        >
+          <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 700 }}>
+            {a.step_id}
+          </Box>
+        </TimelineDot>
+        {/* skipped (N/A) steps get a dashed connector; everyone else a solid one. Last item: none. */}
+        {!isLast &&
+          (na ? (
+            <Box sx={{ flexGrow: 1, width: 0, my: 0.5, borderLeft: "2px dashed", borderColor: "divider" }} />
+          ) : (
+            <TimelineConnector />
+          ))}
+      </TimelineSeparator>
+      <TimelineContent sx={{ pb: 4, pt: 0.5 }}>
+        {/* header row stays visible; the chevron toggles the body below */}
+        <ButtonBase
+          onClick={() => setOpen((o) => !o)}
+          sx={{ width: "100%", justifyContent: "space-between", textAlign: "left", gap: 1, borderRadius: 1 }}
+        >
+          <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
+            {stepName}
+          </Typography>
+          <ExpandMoreIcon
+            sx={{ flex: "0 0 auto", color: "text.secondary", transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+          />
+        </ButtonBase>
+        <Box sx={{ mt: 1 }}>
+          <StepChips a={a} weight={weight} correction={correction} />
+        </Box>
+        {why && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: "italic" }}>
+            <MathText>{why}</MathText>
+          </Typography>
+        )}
+        <Collapse in={open}>
+          <StepBody a={a} fixes={fixes} overridden={overridden} onOverride={onOverride} />
+        </Collapse>
+      </TimelineContent>
+    </TimelineItem>
   );
 }
 
@@ -791,125 +917,6 @@ function CorrectionBadge({ c }: { c: AppliedCorrection }) {
   );
 }
 
-function FullReportStep({
-  a,
-  stepName,
-  why,
-  weight,
-  correction,
-}: {
-  a: StepAssessment;
-  stepName: string;
-  why?: string;
-  weight?: number;
-  correction?: AppliedCorrection;
-}) {
-  const na = a.status === "not_applicable";
-  const meta = statusMeta(a.status);
-  const suggestions = [...a.suggestions].sort(
-    (x, y) => (SEV_RANK[x.severity] ?? 9) - (SEV_RANK[y.severity] ?? 9),
-  );
-  return (
-    <Box sx={{ pl: 2.5, borderLeft: "4px solid", borderColor: statusSx(meta.color) }}>
-      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, flexWrap: "wrap" }}>
-        <Typography component="span" sx={{ fontWeight: 700, color: "text.secondary" }}>
-          {a.step_id}
-        </Typography>
-        <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
-          {stepName}
-        </Typography>
-      </Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mt: 1 }}>
-        <Chip
-          size="small"
-          label={meta.label}
-          sx={{
-            color: na ? "text.secondary" : "common.white",
-            bgcolor: na ? "action.selected" : statusSx(meta.color),
-          }}
-        />
-        {!na && (
-          <Chip
-            size="small"
-            variant="outlined"
-            color={confidenceColor(a.confidence)}
-            label={`${Math.round(a.confidence * 100)}% confidence`}
-          />
-        )}
-        {!na && <WeightChip weight={weight} />}
-        {correction && <CorrectionBadge c={correction} />}
-      </Box>
-
-      {why && (
-        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: "italic" }}>
-          {why}
-        </Typography>
-      )}
-
-      {na ? (
-        <Typography variant="body2" sx={{ mt: 1.5 }}>
-          {a.applicability_reason}
-        </Typography>
-      ) : (
-        <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-          {a.did_well.length > 0 && (
-            <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
-              {a.did_well.map((d, i) => (
-                <Box component="li" key={i} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-                  <CheckCircleIcon sx={{ fontSize: 18, color: "success.main", mt: "1px", flex: "0 0 auto" }} />
-                  <Typography variant="body2">{d}</Typography>
-                </Box>
-              ))}
-            </Box>
-          )}
-
-          {suggestions.length > 0 && (
-            <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
-              {suggestions.map((sug, i) => (
-                <Box component="li" key={i} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-                  <SeverityIcon severity={sug.severity} />
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {sug.text}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          )}
-
-          {a.standards.length > 0 && (
-            <Box>
-              <Typography variant="overline" color="text.secondary">
-                Standard applied
-              </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-                {a.standards.map((s, i) => (
-                  <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                    <Typography variant="body2">
-                      {s.citation}
-                      {s.locator && <Box component="span" sx={{ color: "text.secondary" }}> · {s.locator}</Box>}
-                    </Typography>
-                    {s.verified ? (
-                      <Chip size="small" color="success" variant="outlined" label="verified" sx={{ ml: "auto" }} />
-                    ) : (
-                      <Chip size="small" variant="outlined" label="unverified" sx={{ ml: "auto" }} />
-                    )}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {a.adversarial_verdict?.challenged && (
-            <Typography variant="body2" color="text.secondary">
-              <strong>Adversarial check</strong> {a.adversarial_verdict.notes}
-            </Typography>
-          )}
-        </Box>
-      )}
-    </Box>
-  );
-}
-
 // The de-carded step detail: an open section with a status-coloured left border (no card box).
 function StepDetail({
   a,
@@ -930,7 +937,6 @@ function StepDetail({
   overridden?: StepStatus;
   onOverride: (status: StepStatus, rationale: string) => Promise<void>;
 }) {
-  const na = a.status === "not_applicable";
   const meta = statusMeta(a.status);
   return (
     <Box sx={{ pl: 2.5, borderLeft: "4px solid", borderColor: statusSx(meta.color) }}>
@@ -943,92 +949,97 @@ function StepDetail({
           {stepName}
         </Typography>
       </Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mt: 1 }}>
-        <Chip
-          size="small"
-          label={meta.label}
-          sx={{
-            color: na ? "text.secondary" : "common.white",
-            bgcolor: na ? "action.selected" : statusSx(meta.color),
-          }}
-        />
-        {!na && (
-          <Chip
-            size="small"
-            variant="outlined"
-            color={confidenceColor(a.confidence)}
-            label={`${Math.round(a.confidence * 100)}% confidence`}
-            title="engine confidence (uncalibrated at this milestone)"
-          />
-        )}
-        {!na && <WeightChip weight={weight} />}
-        {correction && <CorrectionBadge c={correction} />}
+      <Box sx={{ mt: 1 }}>
+        <StepChips a={a} weight={weight} correction={correction} />
       </Box>
 
       {why && (
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: "italic" }}>
-          {why}
+          <MathText>{why}</MathText>
         </Typography>
       )}
 
-      {na ? (
-        <Typography variant="body2" sx={{ mt: 1.5 }}>
-          {a.applicability_reason}
-        </Typography>
-      ) : (
-        <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-          {a.did_well.length > 0 && (
-            <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
-              {a.did_well.map((d, i) => (
-                <Box component="li" key={i} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
-                  <CheckCircleIcon sx={{ fontSize: 18, color: "success.main", mt: "1px", flex: "0 0 auto" }} />
-                  <Typography variant="body2">{d}</Typography>
-                </Box>
-              ))}
-            </Box>
-          )}
+      <StepBody a={a} fixes={fixes} overridden={overridden} onOverride={onOverride} />
+    </Box>
+  );
+}
 
-          <FixesAndEvidence suggestions={a.suggestions} fixes={fixes} evidence={a.evidence} />
+// The status / confidence / weight / correction chip row — shared by the summary detail and the
+// full-report timeline item so the two never drift.
+function StepChips({ a, weight, correction }: { a: StepAssessment; weight?: number; correction?: AppliedCorrection }) {
+  const na = a.status === "not_applicable";
+  const meta = statusMeta(a.status);
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+      <Chip
+        size="small"
+        label={meta.label}
+        sx={{
+          color: na ? "text.secondary" : "common.white",
+          bgcolor: na ? "action.selected" : statusSx(meta.color),
+        }}
+      />
+      {!na && (
+        <Chip
+          size="small"
+          variant="outlined"
+          color={confidenceColor(a.confidence)}
+          label={`${Math.round(a.confidence * 100)}% confidence`}
+          title="engine confidence (uncalibrated at this milestone)"
+        />
+      )}
+      {!na && <WeightChip weight={weight} />}
+      {correction && <CorrectionBadge c={correction} />}
+    </Box>
+  );
+}
 
-          {a.standards.length > 0 && (
-            <Box>
-              <Typography variant="overline" color="text.secondary">
-                Standard applied
+// The shared step body (the "bullet points down"): the did-well list followed by the unified
+// disclosure row. An N/A step shows only its applicability reason. Used by both the summary detail
+// and the full-report timeline item.
+function StepBody({
+  a,
+  fixes,
+  overridden,
+  onOverride,
+}: {
+  a: StepAssessment;
+  fixes: FixItem[];
+  overridden?: StepStatus;
+  onOverride: (status: StepStatus, rationale: string) => Promise<void>;
+}) {
+  if (a.status === "not_applicable") {
+    return (
+      <Typography variant="body2" sx={{ mt: 1.5 }}>
+        <MathText>{a.applicability_reason}</MathText>
+      </Typography>
+    );
+  }
+  return (
+    <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+      {a.did_well.length > 0 && (
+        <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 0.75 }}>
+          {a.did_well.map((d, i) => (
+            <Box component="li" key={i} sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
+              <CheckCircleIcon sx={{ fontSize: 18, color: "success.main", mt: "1px", flex: "0 0 auto" }} />
+              <Typography variant="body2">
+                <MathText>{d}</MathText>
               </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
-                {a.standards.map((s, i) => (
-                  <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                    <Typography variant="body2">
-                      {s.citation}
-                      {s.locator && <Box component="span" sx={{ color: "text.secondary" }}> · {s.locator}</Box>}
-                    </Typography>
-                    {s.verified ? (
-                      <Chip size="small" color="success" variant="outlined" label="verified" sx={{ ml: "auto" }} />
-                    ) : (
-                      <Chip size="small" variant="outlined" label="unverified" sx={{ ml: "auto" }} />
-                    )}
-                  </Box>
-                ))}
-              </Box>
             </Box>
-          )}
-
-          {a.adversarial_verdict?.challenged && (
-            <Typography variant="body2" color="text.secondary">
-              <strong>Adversarial check</strong> {a.adversarial_verdict.notes}
-            </Typography>
-          )}
-
-          {overridden ? (
-            <Box sx={{ fontSize: "0.875rem", color: "text.secondary" }}>
-              Expert override recorded: <strong>{STATUS_LABEL[overridden]}</strong> — recorded for the
-              v1 learning loop, not yet used to change judgments.
-            </Box>
-          ) : (
-            <DisagreeControl currentStatus={a.status} onOverride={onOverride} />
-          )}
+          ))}
         </Box>
       )}
+
+      <StepDisclosures
+        suggestions={a.suggestions}
+        fixes={fixes}
+        evidence={a.evidence}
+        standards={a.standards}
+        adversarial={a.adversarial_verdict}
+        currentStatus={a.status}
+        overridden={overridden}
+        onOverride={onOverride}
+      />
     </Box>
   );
 }
@@ -1052,35 +1063,72 @@ function DisclosureToggle({ open, onClick, label }: { open: boolean; onClick: ()
   );
 }
 
-// Per-step "Suggested fixes" + "In the paper" — the two toggles share one row (same font); each opens
-// its own panel below. Fixes are sorted high→low by severity, with coverage impact from the fix-list.
-function FixesAndEvidence({
+// The unified per-step disclosure row: "Suggested fixes", "In the paper", "Standards applied" and
+// "Adversarial checks" all read as sibling toggles on one line (same font), each opening its own
+// panel below; the "Disagree?" control is pushed to the right of that same row (or, once an override
+// is recorded, a compact note in its place). Sections with nothing to show are omitted. Fixes are
+// sorted high→low by severity, with coverage impact joined from the fix-list.
+function StepDisclosures({
   suggestions,
   fixes,
   evidence,
+  standards,
+  adversarial,
+  currentStatus,
+  overridden,
+  onOverride,
 }: {
   suggestions: Suggestion[];
   fixes: FixItem[];
   evidence: Evidence[];
+  standards: StandardRef[];
+  adversarial: AdversarialVerdict | null;
+  currentStatus: StepStatus;
+  overridden?: StepStatus;
+  onOverride: (status: StepStatus, rationale: string) => Promise<void>;
 }) {
   const [showFixes, setShowFixes] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
+  const [showStandards, setShowStandards] = useState(false);
+  const [showAdversarial, setShowAdversarial] = useState(false);
+  const [showDisagree, setShowDisagree] = useState(false);
+
   const spans = evidence.filter((e) => e.kind !== "absence_search").map((e) => e.span);
   const sorted = [...suggestions].sort(
     (a, b) => (SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9),
   );
   const impact = new Map(fixes.map((f) => [f.text, f.coverage_delta]));
-  if (suggestions.length === 0 && spans.length === 0) return null;
+  const hasAdversarial = !!adversarial?.challenged;
+
   return (
     <Box>
-      <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
         {suggestions.length > 0 && (
           <DisclosureToggle open={showFixes} onClick={() => setShowFixes((o) => !o)} label={`Suggested fixes (${suggestions.length})`} />
         )}
         {spans.length > 0 && (
           <DisclosureToggle open={showEvidence} onClick={() => setShowEvidence((o) => !o)} label={`In the paper (${spans.length})`} />
         )}
+        {standards.length > 0 && (
+          <DisclosureToggle open={showStandards} onClick={() => setShowStandards((o) => !o)} label={`Standards applied (${standards.length})`} />
+        )}
+        {hasAdversarial && (
+          <DisclosureToggle open={showAdversarial} onClick={() => setShowAdversarial((o) => !o)} label="Adversarial checks" />
+        )}
+        {/* the Disagree control (or its recorded-override note) sits at the right of the same row */}
+        {overridden ? (
+          <Typography variant="body2" color="text.secondary" sx={{ ml: "auto" }}>
+            Override recorded: <strong>{STATUS_LABEL[overridden]}</strong>
+          </Typography>
+        ) : (
+          <Box sx={{ ml: "auto" }}>
+            <Link component="button" type="button" underline="hover" onClick={() => setShowDisagree((o) => !o)} sx={{ fontSize: "0.875rem", fontWeight: 600 }}>
+              Disagree?
+            </Link>
+          </Box>
+        )}
       </Box>
+
       <Collapse in={showFixes}>
         <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 2 }}>
           {sorted.map((sug, i) => {
@@ -1095,6 +1143,7 @@ function FixesAndEvidence({
           })}
         </Box>
       </Collapse>
+
       <Collapse in={showEvidence}>
         <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
           {spans.map((s, i) => (
@@ -1102,7 +1151,7 @@ function FixesAndEvidence({
               <Typography variant="body2" sx={{ display: "flex", gap: 0.5 }}>
                 <FormatQuoteIcon sx={{ fontSize: 16, color: "text.disabled", flex: "0 0 auto", mt: "2px" }} />
                 <span>
-                  {s.quote}
+                  <MathText>{s.quote}</MathText>
                   <Box component="span" sx={{ display: "block", color: "text.secondary", fontSize: "0.75rem", mt: 0.25 }}>
                     §{s.section_id}
                     {s.page != null && `, p.${s.page}`}
@@ -1111,6 +1160,42 @@ function FixesAndEvidence({
               </Typography>
             </Box>
           ))}
+        </Box>
+      </Collapse>
+
+      <Collapse in={showStandards}>
+        <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 0.75 }}>
+          {standards.map((s, i) => (
+            <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+              <Typography variant="body2">
+                <MathText>{s.citation}</MathText>
+                {s.locator && (
+                  <Box component="span" sx={{ color: "text.secondary" }}> · {s.locator}</Box>
+                )}
+              </Typography>
+              {s.verified ? (
+                <Chip size="small" color="success" variant="outlined" label="verified" sx={{ ml: "auto" }} />
+              ) : (
+                <Chip size="small" variant="outlined" label="unverified" sx={{ ml: "auto" }} />
+              )}
+            </Box>
+          ))}
+        </Box>
+      </Collapse>
+
+      {hasAdversarial && (
+        <Collapse in={showAdversarial}>
+          <Box sx={{ mt: 1.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              <MathText>{adversarial?.notes ?? ""}</MathText>
+            </Typography>
+          </Box>
+        </Collapse>
+      )}
+
+      <Collapse in={showDisagree && !overridden}>
+        <Box sx={{ mt: 1.5 }}>
+          <DisagreeForm currentStatus={currentStatus} onOverride={onOverride} onCancel={() => setShowDisagree(false)} />
         </Box>
       </Collapse>
     </Box>
@@ -1134,10 +1219,10 @@ function SuggestionRow({ sug, impact }: { sug: Pick<Suggestion, "severity" | "te
         <SeverityIcon severity={sug.severity} />
         <Box>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {sug.text}
+            <MathText>{sug.text}</MathText>
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            {sug.how_to}
+            <MathText>{sug.how_to}</MathText>
           </Typography>
           {impact && (
             <Typography variant="caption" sx={{ color: "success.main", display: "block", mt: 0.5 }}>
@@ -1150,27 +1235,20 @@ function SuggestionRow({ sug, impact }: { sug: Pick<Suggestion, "severity" | "te
   );
 }
 
-function DisagreeControl({
+// The override form (status select + optional rationale). The collapse + "Disagree?" trigger live in
+// StepDisclosures; this is just the body shown when it's open.
+function DisagreeForm({
   currentStatus,
   onOverride,
+  onCancel,
 }: {
   currentStatus: StepStatus;
   onOverride: (status: StepStatus, rationale: string) => Promise<void>;
+  onCancel: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<StepStatus>(currentStatus);
   const [rationale, setRationale] = useState("");
   const [busy, setBusy] = useState(false);
-
-  if (!open) {
-    return (
-      <Box>
-        <Link component="button" type="button" underline="hover" onClick={() => setOpen(true)} sx={{ fontSize: "0.875rem" }}>
-          Disagree?
-        </Link>
-      </Box>
-    );
-  }
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, maxWidth: 420 }}>
       <TextField
@@ -1210,7 +1288,7 @@ function DisagreeControl({
         >
           Record override
         </Button>
-        <Button onClick={() => setOpen(false)}>Cancel</Button>
+        <Button onClick={onCancel}>Cancel</Button>
       </Box>
     </Box>
   );

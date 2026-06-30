@@ -100,8 +100,8 @@ def _assessments() -> list[s.StepAssessment]:
                 s.Suggestion(
                     severity=s.Severity.warning,
                     text="Priors are stated but their choice is not justified against domain knowledge.",
-                    how_to="Add one sentence per prior explaining the scale (e.g. why Normal(0,1) is "
-                    "weakly informative on the standardized drift rate). Cite a source for any "
+                    how_to="Add one sentence per prior explaining the scale (e.g. why $\\mathrm{Normal}(0, 1)$ "
+                    "is weakly informative on the standardized drift rate). Cite a source for any "
                     "informative prior.",
                     ease=s.Ease.low,
                 ),
@@ -176,8 +176,9 @@ def _assessments() -> list[s.StepAssessment]:
                 _std("vehtari2021", "Vehtari et al. 2021, Improved R-hat", verified=False),
             ],
             did_well=[
-                "Reports both convergence (R-hat) and resolution (ESS) for every parameter, and states "
-                "the divergence count — the two-diagnostic standard BARG requires.",
+                "Reports both convergence ($\\hat{R} < 1.01$) and resolution ($\\mathrm{ESS} > 1500$) "
+                "for every parameter, and states the divergence count — the two-diagnostic standard BARG "
+                "requires.",
             ],
             suggestions=[],
             adversarial_verdict=s.AdversarialVerdict(challenged=False, refuted=False),
