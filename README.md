@@ -119,6 +119,41 @@ leaves the machine). PDF parsing uses PyMuPDF by default; `pixi run -e parse app
 Docling parser (layout, tables, captions). (The two modes are **Connected** — text sent to an LLM
 for grading — and **Local** — on-device detectors only; the wire value stays `full`/`local`.)
 
+### Test deploy
+
+The FastAPI app is importable at `bayesify.api.app:app`, and the root `main.py` re-exports it as
+`app` so FastAPI Cloud's default `fastapi run` auto-discovery can find it. For a hosted API smoke
+test, use:
+
+```sh
+fastapi run
+```
+
+Or provide the implementation path explicitly:
+
+```sh
+fastapi run bayesify/api/app.py --host 0.0.0.0 --port 8000
+```
+
+In Pixi, the same production-style command is available as:
+
+```sh
+pixi run serve
+```
+
+For FastAPI Cloud or another Python host, set these environment variables for a cheap test deploy:
+
+| Variable | Suggested test value | Why |
+| --- | --- | --- |
+| `BAYESIFY_MONGODB_AUTOSTART` | `0` | Hosted runtimes should not try to start a local `mongod`. |
+| `BAYESIFY_LLM_BACKEND` | `none` | Avoids live model calls; Connected mode uses the labelled stub. |
+| `BAYESIFY_DATA_DIR` | host-writable path, if provided | Keeps uploaded blobs/cache outside the app source tree. |
+| `BAYESIFY_MONGODB_URI` | Atlas URI, optional | Enables durable event writes; omitted is OK for a smoke test. |
+
+`GET /healthz` returns `{"status":"ok"}` for liveness checks. The React UI is served only when
+`web/dist` exists. For this MVP test deploy, `web/dist` is intentionally committed so FastAPI Cloud's
+default Python deploy can serve the UI without running a Node build step.
+
 ### Database (MongoDB / Atlas)
 
 The API persists each analysis report and blind rating as an event in MongoDB (the `events`

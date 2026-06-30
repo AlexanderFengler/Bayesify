@@ -13,6 +13,9 @@ dependencies = [
     "claude-agent-sdk>=0.1.0",  # optional LLM backend: run on a Claude subscription (no API key)
     "openai>=1.80",  # optional LLM backend: OpenAI Responses API
     "pymongo>=4.10",  # MongoDB report persistence client
+    "fastapi[standard]>=0.138.2,<0.139",  # API runtime + FastAPI CLI for hosted deploys
+    "sse-starlette>=2.0",  # SSE progress stream; imported by the FastAPI app at startup
+    "PyMuPDF>=1.24",  # deployed PDF parser fallback; Pixi also provides this from conda-forge
 ]
 
 [project.optional-dependencies]
@@ -172,6 +175,7 @@ assemble-goldset = "python -m bayesify.core.validation.assemble"
 # One-process run (recommended): builds the UI and serves it + the API on one port (http://localhost:8000).
 # Run `pixi run setup-web` once first (installs node_modules).
 app = { cmd = "uvicorn bayesify.api.app:app --port 8000", depends-on = ["web-build"] }
+serve = "fastapi run bayesify/api/app.py --host 0.0.0.0 --port 8000"
 # Hot-reload dev: run `pixi run api` and, in another terminal, `pixi run web` (Vite on :5173 proxies
 # /api to :8000 and hot-reloads the UI). The static mount is absent here (web/dist need not exist).
 api = "uvicorn bayesify.api.app:app --reload --port 8000"
