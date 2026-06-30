@@ -123,6 +123,13 @@ app.add_middleware(
 store = JobStore()
 
 
+@app.get("/healthz", include_in_schema=False)
+async def healthz() -> dict[str, str]:
+    """Liveness check for hosted runtimes. MongoDB and LLM backends are intentionally best-effort,
+    so this only answers whether the API process can import and serve requests."""
+    return {"status": "ok"}
+
+
 def _max_upload_bytes() -> int:
     """Reject an upload larger than this *before* buffering it (a resource-exhaustion guard).
     Default 50 MB — academic PDFs are well under; override with ``BAYESIFY_MAX_UPLOAD_MB``."""
@@ -729,3 +736,14 @@ _default_dist = Path(__file__).resolve().parents[2] / "web" / "dist"
 _web_dist = Path(os.environ.get("BAYESIFY_WEB_DIST", str(_default_dist)))
 if _web_dist.is_dir():
     app.mount("/", _SPAStaticFiles(directory=str(_web_dist), html=True), name="web")
+else:
+
+    @app.get("/", include_in_schema=False)
+    async def api_root() -> dict[str, str]:
+        """API-only deploy landing page when the built React app is not present."""
+        return {
+            "service": "Bayesify API",
+            "status": "ok",
+            "health": "/healthz",
+            "docs": "/docs",
+        }

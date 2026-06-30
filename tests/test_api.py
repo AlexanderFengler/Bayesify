@@ -56,6 +56,18 @@ _DECOY_PDF = _pdf(
 # --- synchronous endpoints ------------------------------------------------------------------------
 
 
+def test_healthz_is_a_simple_liveness_check() -> None:
+    assert client.get("/healthz").json() == {"status": "ok"}
+
+
+def test_api_only_root_is_a_smoke_landing_when_ui_is_unbuilt() -> None:
+    if any(getattr(r, "name", None) == "web" for r in app.routes):
+        pytest.skip("web/dist is built, so / is served by the SPA")
+    body = client.get("/").json()
+    assert body["service"] == "Bayesify API"
+    assert body["health"] == "/healthz"
+
+
 def test_create_requires_some_input() -> None:
     r = client.post("/api/papers", data={"mode": "full"})
     assert r.status_code == 422

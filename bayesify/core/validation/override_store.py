@@ -60,7 +60,7 @@ class OverrideStore:
 
     def add(self, override: Override) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self.path.open("a") as f:
+        with self.path.open("a", encoding="utf-8") as f:
             f.write(override.model_dump_json() + "\n")
 
     def all(self) -> list[Override]:
