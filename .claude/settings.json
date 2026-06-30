@@ -6,7 +6,28 @@
       "Bash(pixi run *)",
       "Bash(curl -s \"http://localhost:8000/api/rubric?profile=synthesis\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\({s['id']:s['name'] for s in d['steps'] if s['id'] in \\('S4','S7'\\)}\\)\")",
-      "Bash(grep -A1 \"id: S4$\\\\|id: S7$\" rubric/synthesis.yaml)"
+      "Bash(grep -A1 \"id: S4$\\\\|id: S7$\" rubric/synthesis.yaml)",
+      "Bash(npm install *)",
+      "Bash(echo \"launched pid $!\")",
+      "Bash(curl -sf -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:8000/)",
+      "Bash(npm init *)",
+      "Bash(/usr/bin/google-chrome --version)",
+      "Bash(echo \"chrome: $\\(/usr/bin/google-chrome --version \\)\")",
+      "Bash(node drive.mjs)",
+      "Bash(node drive5.mjs)",
+      "Bash(curl -s http://localhost:8011/)",
+      "Bash(node debug2.mjs)",
+      "Bash(pkill -f \"uvicorn bayesify.api.app:app --port 8011\")",
+      "Bash(curl -sf -o /dev/null http://localhost:8011/)",
+      "Bash(git -C /home/geraldine/Documents/Dev/Bayesify diff HEAD --stat -- web/src/Report.tsx web/src/MathText.tsx)",
+      "Bash(sed -i 's/.MuiTimelineContent-root h6/.MuiTimelineContent-root .MuiTypography-h6/' align.mjs)",
+      "Bash(node align.mjs)",
+      "Bash(node verify2.mjs)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:8011/)",
+      "Bash(.pixi/envs/default/bin/python3 -)",
+      "Bash(.pixi/envs/default/bin/python3 -c ' *)",
+      "Bash(sed -i '/const page2 = {/d' footer.mjs)",
+      "Bash(node footer.mjs)"
     ]
   }
 }

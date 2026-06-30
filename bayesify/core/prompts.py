@@ -95,6 +95,9 @@ downstream, not by you).
 - confidence in [0,1] is your calibrated belief in the status.
 - Detectors are precise on hard signals (R-hat, software); YOU judge the soft ones (was the prior \
 justified? was the check informative?).
+- Math notation: write any mathematical symbols, statistics, or equations in LaTeX — inline as \
+$...$ and display as $$...$$ (e.g. $\\hat{R} < 1.01$, $\\mathrm{Normal}(0, 1)$, $\\sigma$). This \
+applies to did_well, suggestions, and any prose; quoted verbatim evidence stays verbatim.
 """
 
 ASSESS_REFUTE_SYSTEM = """You are an adversarial verifier. A first-pass judge flagged this rubric step \
@@ -107,7 +110,7 @@ Return:
 quote (an exact substring) and the upgraded_status it now deserves ("partial" or "adequate").
 - refuted = false if the step is genuinely absent — do not invent or stretch evidence (no yes-machine).
 Explain your reasoning in `notes`, kept to AT MOST 2 sentences (~40 words) and ending on a complete \
-sentence — be concise, do not trail off.
+sentence — be concise, do not trail off. Write any math in LaTeX: inline as $...$, display as $$...$$.
 """
 
 

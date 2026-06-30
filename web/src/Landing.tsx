@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import type { RubricSummary } from "./api";
 import { HeroShell } from "./HeroShell";
@@ -107,6 +108,8 @@ function UploadPanel(
     rubricOptions: { id: string; label: string }[];
   },
 ) {
+  // AI (engine analysis) vs Human (blind self-rating); AI is the default.
+  const [intent, setIntent] = useState<"ai" | "human">("ai");
   return (
     <Paper
       elevation={0}
@@ -231,39 +234,36 @@ function UploadPanel(
           mt: 2.5,
         }}
       >
+        {/* Who assesses the paper: "AI" runs the engine (the connected analysis); "Human" opens the
+            blind self-rating form. AI is the default. The privacy mode stays "full" — Local is hidden. */}
         <ToggleButtonGroup
           exclusive
           size="small"
-          value={p.mode}
-          onChange={(_, v) => v && p.setMode(v)}
-          aria-label="analysis mode"
+          value={intent}
+          onChange={(_, v) => v && setIntent(v)}
+          aria-label="who assesses the paper"
         >
-          {/* Display labels only; the wire value stays "full"/"local" (Connected = full). */}
-          <ToggleButton value="full" sx={{ px: 2 }}>
-            Connected
+          <ToggleButton value="ai" sx={{ px: 2 }}>
+            AI
           </ToggleButton>
-          <ToggleButton value="local" sx={{ px: 2 }}>
-            Local
+          <ToggleButton value="human" sx={{ px: 2 }}>
+            Human
           </ToggleButton>
         </ToggleButtonGroup>
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "flex-end" }}>
           <Button
-            variant="text"
-            size="small"
-            disabled={!p.canStart}
-            onClick={() => p.onStart("rate")}
-            title="Rate this paper yourself against the rubric, blind to the engine's verdict"
-          >
-            Rate it yourself
-          </Button>
-          <Button
             variant="contained"
             disableElevation
             disabled={!p.canStart}
-            onClick={() => p.onStart("analyze")}
+            onClick={() => p.onStart(intent === "human" ? "rate" : "analyze")}
+            title={
+              intent === "human"
+                ? "Rate this paper yourself against the rubric, blind to the engine's verdict"
+                : undefined
+            }
           >
-            Analyze
+            {intent === "human" ? "Rate it yourself" : "Analyze"}
           </Button>
         </Box>
       </Box>
