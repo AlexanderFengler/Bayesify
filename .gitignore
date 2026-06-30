@@ -19,6 +19,8 @@ venv/
 # Node / frontend
 node_modules/
 dist/
+web/dist/
+web/dist/**
 .vite/
 *.local
 *.tsbuildinfo
