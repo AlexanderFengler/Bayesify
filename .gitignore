@@ -48,5 +48,3 @@ validation/reports/
 secrets/
 *.pem
 *.env
-.claude/launch.json
-.claude/settings.json
