@@ -35,13 +35,21 @@ body,
   margin: 0;
   height: 100%;
 }
+/* The app is fully MUI now: CssBaseline (dark theme) owns the body background/colour/font. We keep
+   only the resets here. Forcing a light background/ink colour would leak onto raw elements (e.g.
+   <code>) and fight the immersive dark UI, so those declarations are intentionally gone. */
 body {
-  background: var(--bg);
-  color: var(--ink);
-  font-family: var(--font);
-  font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Inline code on the dark glass: a faint pill so it reads as code without a light box. */
+code {
+  font-family: var(--mono, "SF Mono", ui-monospace, Menlo, Consolas, monospace);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+  font-size: 0.9em;
 }
 
 .page {
@@ -539,7 +547,7 @@ main.container {
   box-shadow: var(--shadow);
   padding: 18px 20px;
 }
-.step-card.status-done_well {
+.step-card.status-adequate {
   border-left-color: var(--green);
 }
 .step-card.status-partial {
@@ -587,7 +595,7 @@ main.container {
   border-radius: 999px;
   white-space: nowrap;
 }
-.status-pill.status-done_well {
+.status-pill.status-adequate {
   background: var(--green-soft);
   color: var(--green);
 }
@@ -1052,7 +1060,7 @@ main.container {
   font-size: 14px;
   line-height: 1;
 }
-.strip-cell.status-done_well {
+.strip-cell.status-adequate {
   background: var(--green-soft);
   color: var(--green);
 }
@@ -1085,7 +1093,7 @@ main.container {
   height: 11px;
   border-radius: 3px;
 }
-.strip-legend .dot.status-done_well {
+.strip-legend .dot.status-adequate {
   background: var(--green);
 }
 .strip-legend .dot.status-partial {
@@ -1414,6 +1422,23 @@ main.container {
   align-items: center;
   gap: 7px !important;
   align-self: flex-end;
+}
+.rate-class-field {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+.rate-class-field legend {
+  padding: 0;
+  margin-bottom: 8px;
+}
+.rate-class-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
 }
 .rate-rationale {
   width: 100%;

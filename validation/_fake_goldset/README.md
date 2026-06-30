@@ -10,7 +10,7 @@ These numbers are **not** a measurement of the engine's accuracy:
   optimistic vs real experts);
 - the set is tiny, so every metric is flagged *preliminary*.
 
-The honesty firewall (`veribayes/core/validation/harness.py`) guarantees this data can **never**
+The honesty firewall (`bayesify/core/validation/harness.py`) guarantees this data can **never**
 produce the public `VALIDATION.md`: a non-`blind_human` record under the real `validation/goldset/`
 is a hard `FakeDataInRealGoldset`, and emitting `VALIDATION.md` from a demo report is a hard
 `FakeDataInPublicReport`. The demo writes only `VALIDATION.demo.md` with a loud FAKE-DATA header.

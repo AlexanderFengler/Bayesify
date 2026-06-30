@@ -9,8 +9,9 @@
     "overridden": false
   },
   "paper_class": {
-    "primary": "empirical",
-    "secondary": null,
+    "labels": [
+      "data_analysis"
+    ],
     "confidence": 0.9,
     "rationale": "real RT data",
     "evidence_refs": [
@@ -27,8 +28,8 @@
     {
       "step_id": "S1",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for data_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [],
       "standards": [],
@@ -41,8 +42,8 @@
     {
       "step_id": "S2",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for data_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [],
       "standards": [],
@@ -53,7 +54,7 @@
     {
       "step_id": "S3",
       "applicable": true,
-      "applicability_reason": "Recommended for empirical papers.",
+      "applicability_reason": "Recommended for data_analysis papers.",
       "status": "partial",
       "confidence": 0.9,
       "evidence": [],
@@ -72,8 +73,8 @@
     {
       "step_id": "S4",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for data_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [],
       "standards": [],
@@ -86,7 +87,7 @@
     {
       "step_id": "S5",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "missing",
       "confidence": 0.9,
       "evidence": [],
@@ -117,7 +118,7 @@
     {
       "step_id": "S7",
       "applicable": true,
-      "applicability_reason": "Recommended for empirical papers.",
+      "applicability_reason": "Recommended for data_analysis papers.",
       "status": "missing",
       "confidence": 0.9,
       "evidence": [],
@@ -137,7 +138,7 @@
       "step_id": "S8",
       "applicable": true,
       "applicability_reason": "Expected: (weakly-)informative priors are used.",
-      "status": "done_well",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [],
       "standards": [],
@@ -148,7 +149,7 @@
     {
       "step_id": "S9",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
+      "applicability_reason": "Expected for data_analysis papers.",
       "status": "partial",
       "confidence": 0.9,
       "evidence": [],
@@ -167,8 +168,8 @@
     {
       "step_id": "S10",
       "applicable": true,
-      "applicability_reason": "Expected for empirical papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for data_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [],
       "standards": [],
@@ -182,7 +183,7 @@
       {
         "step_id": "S1",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -190,7 +191,7 @@
       {
         "step_id": "S2",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -206,7 +207,7 @@
       {
         "step_id": "S4",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -238,7 +239,7 @@
       {
         "step_id": "S8",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -254,7 +255,7 @@
       {
         "step_id": "S10",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -275,28 +276,28 @@
     {
       "step_id": "S3",
       "from_status": "partial",
-      "to_status": "done_well",
+      "to_status": "adequate",
       "coverage_delta": 0.0,
       "quality_delta": 0.05555555555555558
     },
     {
       "step_id": "S5",
       "from_status": "missing",
-      "to_status": "done_well",
+      "to_status": "adequate",
       "coverage_delta": 0.11111111111111105,
       "quality_delta": 0.11111111111111116
     },
     {
       "step_id": "S7",
       "from_status": "missing",
-      "to_status": "done_well",
+      "to_status": "adequate",
       "coverage_delta": 0.11111111111111105,
       "quality_delta": 0.11111111111111116
     },
     {
       "step_id": "S9",
       "from_status": "partial",
-      "to_status": "done_well",
+      "to_status": "adequate",
       "coverage_delta": 0.0,
       "quality_delta": 0.05555555555555558
     }

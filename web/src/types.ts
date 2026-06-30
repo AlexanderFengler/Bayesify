@@ -1,9 +1,10 @@
-// TypeScript mirror of the fields of veribayes.core.schema.ScoredResult that the report renders.
-// The contract is owned by core/schema.py (§4.3); this is the read-side view.
+﻿// TypeScript mirror of the fields of bayesify.core.schema.ScoredResult that the report renders.
+// The contract is owned by core/schema.py (Â§4.3); this is the read-side view.
 
-export type StepStatus = "done_well" | "partial" | "missing" | "not_applicable";
+export type StepStatus = "adequate" | "partial" | "missing" | "not_applicable";
 export type Severity = "error" | "warning" | "info";
 export type Ease = "low" | "medium" | "high";
+export type ExpectationTier = "expected" | "recommended" | "none";
 
 export interface EvidenceSpan {
   section_id: string;
@@ -52,6 +53,35 @@ export interface Coverage {
   strict: number;
   lenient: number;
 }
+// Per-step scoring profile: the weight (relevance of the step to this paper type, in [0,1]) that
+// feeds the weighted-mean quality, plus the expectation tier. Joined to StepAssessment by step_id.
+export interface StepProfile {
+  step_id: string;
+  applicable: boolean;
+  status: StepStatus;
+  sub_score: number | null;
+  weight: number;
+  tier: ExpectationTier;
+}
+export interface Profile {
+  steps: StepProfile[];
+  n_applicable: number;
+  n_na: number;
+  n_uncertain: number;
+}
+// One trusted expert correction the override-review pass applied to a step, with the link back to
+// the source paper it was learned from (shown in a tooltip) and how much it moved the scores.
+export interface AppliedCorrection {
+  step_id: string;
+  from_status: StepStatus;
+  to_status: StepStatus;
+  coverage_delta: number;
+  quality_delta: number;
+  override_author: string;
+  override_rationale: string;
+  source_paper_title: string;
+  justification: string;
+}
 export interface Relevance {
   label: "yes" | "partial" | "no";
   confidence: number;
@@ -59,8 +89,7 @@ export interface Relevance {
   overridden: boolean; // true when a human overrode the gate (the rerun escape hatch)
 }
 export interface PaperClass {
-  primary: string;
-  secondary: string | null;
+  labels: string[];
   confidence: number;
   rationale: string;
 }
@@ -73,6 +102,7 @@ export interface ScoredResult {
   relevance: Relevance;
   paper_class: PaperClass | null;
   step_assessments: StepAssessment[];
+  profile: Profile | null; // per-step weights + tiers (drives the weighted-mean quality)
   coverage: Coverage | null;
   quality_score: number | null;
   not_applicable_reason: string | null; // "not_bayesian" | "not_an_application" when not graded
@@ -129,14 +159,23 @@ export interface PaperState {
   stage: string | null;
   mode: string;
   source_label: string;
+  paper_title: string | null; // best-effort title from parsing; falls back to source_label for display
+  paper_authors: string[]; // best-effort author names (provider or PDF metadata); may be empty
+  paper_year: number | null; // best-effort publication year (provider or PDF metadata); may be null
+
   relevance_override: string | null; // set when the user forced a short-circuited paper to be graded
   result: ScoredResult | null;
   fix_list: FixItem[] | null;
   inventory: EvidenceInventory | null;
   parser: string | null;
   parser_version: string | null;
-  backend: string | null; // "agent-sdk" | "api" | "stub" — who produced the result
+  backend: string | null; // "agent-sdk" | "api" | "openai" | "stub" - who produced the result
   from_cache: boolean; // true if this was a cached replay, not a fresh run
+  // override-review provenance: trusted corrections overlaid on `result` + the pre-overlay engine
+  // coverage/quality, so the report can show what changed and link the source paper.
+  applied_corrections: AppliedCorrection[];
+  base_coverage: Coverage | null;
+  base_quality: number | null;
   local_notice: string | null;
   error: string | null;
 }
@@ -150,6 +189,7 @@ export const STAGES = [
   "assess",
   "score",
 ] as const;
-// Local-only mode runs detectors only — no LLM, no scores.
+// Local-only mode runs detectors only no LLM, no scores.
 export const LOCAL_STAGES = ["ingest", "parse", "detect"] as const;
 export type Stage = (typeof STAGES)[number];
+

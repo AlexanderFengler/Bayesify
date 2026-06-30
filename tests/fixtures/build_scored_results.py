@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from veribayes.core.rubric.applicability import step_applicability
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import (
+from bayesify.core.rubric.applicability import step_applicability
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import (
     CostLedger,
     CostLedgerEntry,
     Ease,
@@ -26,15 +26,15 @@ from veribayes.core.schema import (
     StepStatus,
     Suggestion,
 )
-from veribayes.core.score import ScoreMeta, score
+from bayesify.core.score import ScoreMeta, score
 
 _RUBRIC = load_rubric()
 _HERE = Path(__file__).parent
 
 _STATUSES = {
-    "S1": StepStatus.done_well, "S2": StepStatus.done_well, "S3": StepStatus.partial,
-    "S4": StepStatus.done_well, "S5": StepStatus.missing, "S7": StepStatus.missing,
-    "S8": StepStatus.done_well, "S9": StepStatus.partial, "S10": StepStatus.done_well,
+    "S1": StepStatus.adequate, "S2": StepStatus.adequate, "S3": StepStatus.partial,
+    "S4": StepStatus.adequate, "S5": StepStatus.missing, "S7": StepStatus.missing,
+    "S8": StepStatus.adequate, "S9": StepStatus.partial, "S10": StepStatus.adequate,
 }
 _DID_WELL = {
     "S1": ["States a hierarchical drift-diffusion generative model (§s02)."],
@@ -55,8 +55,8 @@ _SUGGESTIONS = {  # severity matches tier×status (as e-assess would derive)
 def _assessments(gate_facts: GateFacts):
     out = []
     for step in _RUBRIC.steps:
-        ap = step_applicability(step, PaperClassLabel.empirical, gate_facts)
-        status = _STATUSES.get(step.id, StepStatus.done_well) if ap.applicable else StepStatus.not_applicable
+        ap = step_applicability(step, PaperClassLabel.data_analysis, gate_facts)
+        status = _STATUSES.get(step.id, StepStatus.adequate) if ap.applicable else StepStatus.not_applicable
         sug = [_SUGGESTIONS[step.id]] if ap.applicable and step.id in _SUGGESTIONS else []
         out.append(
             StepAssessment(
@@ -80,7 +80,10 @@ def main() -> None:
         prior_informativeness=PriorInformativeness.weakly_informative,
     )
     paper_class = PaperClass(
-        primary=PaperClassLabel.empirical, confidence=0.9, rationale="real RT data", evidence_refs=[0]
+        labels=[PaperClassLabel.data_analysis],
+        confidence=0.9,
+        rationale="real RT data",
+        evidence_refs=[0],
     )
     relevance = Relevance(label=RelevanceLabel.yes, confidence=0.95, rationale="Bayesian", evidence_refs=[0])
     ledger = CostLedger(
@@ -98,7 +101,9 @@ def main() -> None:
 
     out = _HERE / "scored_result"
     out.mkdir(parents=True, exist_ok=True)
-    (out / "empirical_mixed.json").write_text(result.model_dump_json(indent=2) + "\n")
+    (out / "empirical_mixed.json").write_text(
+        result.model_dump_json(indent=2) + "\n", encoding="utf-8"
+    )
     print(f"wrote empirical_mixed.json: coverage {result.coverage.present}/{result.coverage.applicable}")
 
 

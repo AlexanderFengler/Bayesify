@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from veribayes.core.rubric import RubricProfileError, available_rubrics, load_rubric
+from bayesify.core.rubric import RubricProfileError, available_rubrics, load_rubric
 
 
 def test_loads_the_synthesis_rubric_with_ten_steps() -> None:
     spec = load_rubric()
-    assert spec.rubric_version == "0.1-draft"
+    assert spec.rubric_version == "0.3-draft"
     assert spec.profile == "synthesis"
     assert [s.id for s in spec.steps] == [f"S{i}" for i in range(1, 11)]
     assert spec.label and spec.summary  # carries a label + preamble for the picker / report
@@ -36,7 +36,7 @@ def test_registry_lists_synthesis_first_and_includes_gelman_and_schad() -> None:
     assert ids[0] == "synthesis"  # default first
     assert {"gelman", "schad"} <= set(ids)  # the contained rubrics are registered
     syn = next(r for r in infos if r.id == "synthesis")
-    assert syn.label and syn.summary and syn.rubric_version == "0.1-draft"
+    assert syn.label and syn.summary and syn.rubric_version == "0.3-draft"
 
 
 def test_gelman_is_a_self_contained_single_source_rubric() -> None:

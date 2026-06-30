@@ -13,7 +13,8 @@
   "coverage": null,
   "quality_score": null,
   "score_impacts": [],
-  "engine_version": "pkg=0.1.0;prompts=18c4bd7aae9a;detectors=1585d08ace1f;models=claude-opus-4-8",
+  "not_applicable_reason": "not_bayesian",
+  "engine_version": "pkg=0.1.0;prompts=6e2ff6227cab;detectors=1585d08ace1f;models=claude-opus-4-8",
   "rubric_version": "0.1-draft",
   "rubric_profile": "synthesis",
   "cost_ledger": {

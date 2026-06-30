@@ -23,7 +23,9 @@
       "relationship": "independent",
       "relevance_label": "yes",
       "relevance_rationale": "fits a Bayesian model",
-      "paper_class_label": "numerical_experiment",
+      "paper_class_labels": [
+        "numerical_analysis"
+      ],
       "paper_class_rationale": "",
       "gate_facts": {
         "inference_method": "unstated",
@@ -52,7 +54,7 @@
         {
           "step_id": "S2",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -86,7 +88,7 @@
         {
           "step_id": "S4",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -103,7 +105,7 @@
         {
           "step_id": "S5",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -131,7 +133,7 @@
         {
           "step_id": "S7",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -148,7 +150,7 @@
         {
           "step_id": "S8",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -165,7 +167,7 @@
         {
           "step_id": "S9",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -182,7 +184,7 @@
         {
           "step_id": "S10",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -203,7 +205,9 @@
       "relationship": "independent",
       "relevance_label": "yes",
       "relevance_rationale": "fits a Bayesian model",
-      "paper_class_label": "numerical_experiment",
+      "paper_class_labels": [
+        "numerical_analysis"
+      ],
       "paper_class_rationale": "",
       "gate_facts": {
         "inference_method": "unstated",
@@ -232,7 +236,7 @@
         {
           "step_id": "S2",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -266,7 +270,7 @@
         {
           "step_id": "S4",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -283,7 +287,7 @@
         {
           "step_id": "S5",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -311,7 +315,7 @@
         {
           "step_id": "S7",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -328,7 +332,7 @@
         {
           "step_id": "S8",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -345,7 +349,7 @@
         {
           "step_id": "S9",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -362,7 +366,7 @@
         {
           "step_id": "S10",
           "applicable": true,
-          "status": "done_well",
+          "status": "adequate",
           "confidence": 0.85,
           "evidence": [
             {
@@ -384,7 +388,9 @@
     "relationship": "consensus",
     "relevance_label": "yes",
     "relevance_rationale": "fits a Bayesian model",
-    "paper_class_label": "numerical_experiment",
+    "paper_class_labels": [
+      "numerical_analysis"
+    ],
     "paper_class_rationale": "",
     "gate_facts": {
       "inference_method": "unstated",
@@ -413,7 +419,7 @@
       {
         "step_id": "S2",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -447,7 +453,7 @@
       {
         "step_id": "S4",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -464,7 +470,7 @@
       {
         "step_id": "S5",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -492,7 +498,7 @@
       {
         "step_id": "S7",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -509,7 +515,7 @@
       {
         "step_id": "S8",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -526,7 +532,7 @@
       {
         "step_id": "S9",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {
@@ -543,7 +549,7 @@
       {
         "step_id": "S10",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "confidence": 0.85,
         "evidence": [
           {

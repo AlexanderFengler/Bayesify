@@ -10,8 +10,8 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from veribayes.api.app import app, store
-from veribayes.api.jobs import LOCAL_STAGES, STAGES, Job, event_stream, run_job
+from bayesify.api.app import RateSubmit, app, rate_submit, store
+from bayesify.api.jobs import LOCAL_STAGES, STAGES, Job, JobStore, event_stream, run_job
 
 client = TestClient(app)
 
@@ -69,6 +69,51 @@ def test_create_with_id_returns_paper_id() -> None:
     assert body["status"] in ("queued", "running", "done")
 
 
+def test_upload_rejects_oversize_pdf(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MAX_UPLOAD_MB", "1")
+    big = b"%PDF-" + b"0" * 1_200_000  # ~1.2 MB > the 1 MB cap → rejected before buffering
+    r = client.post(
+        "/api/papers", files={"file": ("big.pdf", big, "application/pdf")}, data={"mode": "local"}
+    )
+    assert r.status_code == 413
+
+
+def test_jobstore_evicts_least_recently_used_beyond_cap(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MAX_JOBS", "3")
+    s = JobStore()
+    ids = [s.create(mode="local", source_label=f"p{i}").id for i in range(5)]
+    assert s.get(ids[0]) is None and s.get(ids[1]) is None  # the two oldest were evicted
+    assert all(s.get(i) is not None for i in ids[2:])  # the three newest are retained
+
+
+def test_jobstore_get_keeps_a_job_warm(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MAX_JOBS", "2")
+    s = JobStore()
+    a = s.create(mode="local", source_label="a").id
+    s.create(mode="local", source_label="b")
+    assert s.get(a) is not None  # touch a → most-recently-used
+    c = s.create(mode="local", source_label="c").id  # evicts b (the LRU), not the warmed a
+    assert s.get(a) is not None and s.get(c) is not None
+
+
+def test_spawn_retains_then_discards_and_logs_failure(caplog) -> None:
+    import logging
+
+    from bayesify.api import jobs as jobsmod
+
+    async def main() -> None:
+        async def boom() -> None:
+            raise RuntimeError("kaboom")
+
+        await asyncio.gather(jobsmod.spawn(boom()), return_exceptions=True)
+        await asyncio.sleep(0)  # let the done-callback run
+
+    with caplog.at_level(logging.ERROR, logger="bayesify.jobs"):
+        asyncio.run(main())
+    assert jobsmod._background_tasks == set()  # the finished task was discarded from the set
+    assert any("background task failed" in r.getMessage() for r in caplog.records)
+
+
 def test_unknown_paper_is_404() -> None:
     assert client.get("/api/papers/nope").status_code == 404
 
@@ -95,7 +140,7 @@ def test_calibration_serves_the_demo_report_behind_the_firewall() -> None:
 
 
 def test_calibration_is_not_yet_validated_without_a_goldset(tmp_path, monkeypatch) -> None:
-    from veribayes.core.validation import harness as harnessmod
+    from bayesify.core.validation import harness as harnessmod
 
     monkeypatch.setattr(harnessmod, "FAKE_GOLDSET_DIR", str(tmp_path / "none"))
     monkeypatch.setattr(harnessmod, "REAL_REPORTS_DIR", str(tmp_path / "none-real"))
@@ -109,7 +154,7 @@ def test_rubric_endpoint_serves_compiled_steps() -> None:
     assert body["rubric_version"]
     assert [s["id"] for s in body["steps"]] == [f"S{i}" for i in range(1, 11)]
     assert all(s["name"] for s in body["steps"])  # every step carries a display name
-    assert "done_well" in body["steps"][0]  # the per-step prose a rater is guided by (V3)
+    assert "adequate" in body["steps"][0]  # the per-step prose a rater is guided by (V3)
 
 
 def test_rubric_unknown_profile_is_422() -> None:
@@ -130,9 +175,9 @@ def _all_keys(obj) -> set[str]:
 
 
 def test_rate_context_is_blind(tmp_path, monkeypatch) -> None:
-    from veribayes.core.stub import build_stub_result
+    from bayesify.core.stub import build_stub_result
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     job = store.create(mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     asyncio.run(run_job(job))  # local front-half → detector inventory (no LLM, no grade)
     assert job.inventory is not None
@@ -159,15 +204,23 @@ def test_rate_context_is_blind(tmp_path, monkeypatch) -> None:
 
 
 def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
-    job = store.create(mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
-    asyncio.run(run_job(job))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    saved_events: list[dict] = []
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: saved_events.append(payload))
+
+    async def inline_to_thread(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("bayesify.api.app.asyncio.to_thread", inline_to_thread)
+    job = store.create(mode="local", source_label="ddm.pdf")
+    job.content_sha256 = "ab" * 32
+    job.version_label = "uploaded PDF (ddm.pdf)"
     rating = {
         "rater_id": "r1",
         "relationship": "independent",
         "relevance_label": "yes",
         "relevance_rationale": "fits a hierarchical Bayesian model",
-        "paper_class_label": "empirical",
+        "paper_class_labels": ["data_analysis"],
         "paper_class_rationale": "fit to behavioural data",
         "gate_facts": {
             "inference_method": "mcmc",
@@ -179,34 +232,138 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
             {
                 "step_id": "S1",
                 "applicable": True,
-                "status": "done_well",
+                "status": "adequate",
                 "confidence": 0.9,
                 "evidence": [{"section_id": "s01", "quote": "hierarchical drift-diffusion model"}],
                 "rationale": "the model is specified and justified",
             }
         ],
     }
-    ok = client.post("/api/rate/submit", json={"paper_id": job.id, "rating": rating})
-    assert ok.status_code == 200 and ok.json()["recorded"] is True
+    ok = asyncio.run(rate_submit(RateSubmit(paper_id=job.id, rating=rating)))
+    assert ok["recorded"] is True
+    assert len(saved_events) == 1
+    event = saved_events[0]
+    assert event["event"] == "blind_rating_submitted"
+    assert event["rater_id"] == "r1"
+    assert event["relationship"] == "independent"
+    assert event["relevance_label"] == "yes"
+    assert event["relevance_rationale"] == "fits a hierarchical Bayesian model"
+    assert event["paper_class_labels"] == ["data_analysis"]
+    assert event["gate_facts"]["inference_method"] == "mcmc"
+    assert event["steps"][0]["step_id"] == "S1"
+    assert event["submission"]["rating"]["relevance_label"] == "yes"
     # the Rating contract is enforced at the boundary: 'partial' relevance needs a paper_class
-    bad = {**rating, "relevance_label": "partial", "paper_class_label": None}
-    r = client.post("/api/rate/submit", json={"paper_id": job.id, "rating": bad})
-    assert r.status_code == 422
+    bad = {**rating, "relevance_label": "partial", "paper_class_labels": []}
+    with pytest.raises(ValueError):
+        RateSubmit(paper_id=job.id, rating=bad)
+
+
+def test_rate_submit_records_no_relevance_fields(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    saved_events: list[dict] = []
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: saved_events.append(payload))
+
+    async def inline_to_thread(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("bayesify.api.app.asyncio.to_thread", inline_to_thread)
+    rating = {
+        "rater_id": "r-no",
+        "relationship": "independent",
+        "relevance_label": "no",
+        "relevance_rationale": "not a Bayesian statistical-methodology paper",
+        "paper_class_labels": [],
+        "paper_class_rationale": "",
+        "gate_facts": None,
+        "steps": [],
+    }
+
+    ok = asyncio.run(
+        rate_submit(
+            RateSubmit(
+                paper_id="paper-no",
+                rating=rating,
+                source_sha256="ef" * 32,
+                version_label="uploaded PDF",
+            )
+        )
+    )
+
+    assert ok["recorded"] is True
+    assert len(saved_events) == 1
+    event = saved_events[0]
+    assert event["rater_id"] == "r-no"
+    assert event["relevance_label"] == "no"
+    assert event["relevance_rationale"] == "not a Bayesian statistical-methodology paper"
+    assert event["paper_class_labels"] == []
+    assert event["gate_facts"] is None
+    assert event["steps"] == []
+    assert event["submission"]["rating"]["relevance_label"] == "no"
+
+
+def test_rate_submit_survives_an_expired_job(tmp_path, monkeypatch) -> None:
+    # A blind rating is ~an hour of work: if the in-memory job has expired (e.g. an API restart)
+    # between rating and submit, it must NOT be dropped. The SPA echoes the paper provenance it got
+    # from rate/context, and the server persists it instead of 404ing (mirrors record_override).
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    rating = {
+        "rater_id": "r1",
+        "relationship": "independent",
+        "relevance_label": "yes",
+        "relevance_rationale": "fits a hierarchical Bayesian model",
+        "paper_class_labels": ["data_analysis"],
+        "paper_class_rationale": "fit to behavioural data",
+        "gate_facts": {
+            "inference_method": "mcmc",
+            "n_models": 1,
+            "bf_claimed": False,
+            "prior_informativeness": "weakly_informative",
+        },
+        "steps": [
+            {
+                "step_id": "S1",
+                "applicable": True,
+                "status": "adequate",
+                "confidence": 0.9,
+                "evidence": [{"section_id": "s01", "quote": "hierarchical drift-diffusion model"}],
+                "rationale": "the model is specified and justified",
+            }
+        ],
+    }
+    # No job with this id exists in the store (it expired); submit with client-sent provenance.
+    ok = client.post(
+        "/api/rate/submit",
+        json={
+            "paper_id": "expired-job-id",
+            "rating": rating,
+            "source_sha256": "cd" * 32,
+            "version_label": "uploaded PDF",
+        },
+    )
+    assert ok.status_code == 200 and ok.json()["recorded"] is True
+    # Durable: persisted under the bucket keyed by the client-sent sha, with the version pinned.
+    from bayesify.api import jobs as jobsmod
+
+    bucket = f"{'cd' * 32}__synthesis"
+    assert jobsmod._ratings_store().count_for("cd" * 32, "synthesis") == 1
+    subs = jobsmod._ratings_store().by_paper()[bucket]
+    assert [s.version_label for s in subs] == ["uploaded PDF"]
 
 
 def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeypatch) -> None:
     # Degraded path: no live job for "abc" (e.g. it expired) — the correction is still recorded,
     # never dropped, with the client-sent/defaulted provenance.
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)  # don't touch Mongo
     r = client.post(
         "/api/assessments/abc/steps/S4/override",
         data={"corrected_status": "partial", "rationale": "supplement has it"},
     )
     body = r.json()
     assert body["recorded"] is True
-    assert "not yet used" in body["note"]
+    assert body["trusted"] is False and "advisory" in body["note"]  # no token → advisory only
     # durable: a fresh store (a "restart") still sees the correction
-    from veribayes.core.validation.override_store import OverrideStore
+    from bayesify.core.validation.override_store import OverrideStore
 
     saved = OverrideStore(tmp_path).all()
     assert [o.paper_id for o in saved] == ["abc"]
@@ -217,8 +374,9 @@ def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeyp
 def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch) -> None:
     # Enriched path: a live job is the authoritative source for what was overridden (the engine's
     # status for that step), the rubric, and the durable paper sha — all recorded with the fix.
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("VERIBAYES_LLM_BACKEND", "none")  # billing-safe: the labelled stub
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_LLM_BACKEND", "none")  # billing-safe: the labelled stub
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)  # don't touch Mongo
     job = Job(id="ovr1", mode="full", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     store._jobs[job.id] = job
     asyncio.run(run_job(job))  # labelled stub → a full ScoredResult with step_assessments
@@ -228,20 +386,159 @@ def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch
 
     r = client.post(
         f"/api/assessments/{job.id}/steps/{step.step_id}/override",
-        data={"corrected_status": "done_well", "rationale": "supplement has it"},
+        data={"corrected_status": "adequate", "rationale": "supplement has it"},
     )
     assert r.json()["recorded"] is True
 
-    from veribayes.core.validation.override_store import OverrideStore
+    from bayesify.core.validation.override_store import OverrideStore
 
     saved = OverrideStore(tmp_path).all()
     assert len(saved) == 1
     o = saved[0]
     assert o.paper_id == job.id and o.step_id == step.step_id
-    assert o.corrected_status == "done_well"
+    assert o.corrected_status == "adequate"
     assert o.original_status == step.status.value  # WHAT WAS OVERRIDDEN (engine verdict)
     assert o.rubric_profile == job.profile == "synthesis"  # which rubric the correction is against
     assert o.source_sha256 == job.content_sha256  # durable paper identity, not the ephemeral job id
+
+
+def test_trusted_token_promotes_override_and_sets_author(tmp_path, monkeypatch) -> None:
+    # A valid token marks the override trusted, stamps the author from the token (client author
+    # ignored), and mirrors it to the central override_recorded log.
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_TRUSTED_TOKENS", "alice:s3cret, bob:other")
+    captured: list[dict] = []
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: captured.append(payload))
+    r = client.post(
+        "/api/assessments/abc/steps/S4/override",
+        data={
+            "corrected_status": "adequate",
+            "rationale": "supplement has it",
+            "author": "impostor",  # ignored when a valid token is present
+            "token": "s3cret",
+        },
+    )
+    body = r.json()
+    assert body["recorded"] is True and body["trusted"] is True
+    from bayesify.core.validation.override_store import OverrideStore
+
+    o = OverrideStore(tmp_path).all()[0]
+    assert o.trusted is True and o.author == "alice"  # authoritative identity from the token
+    assert captured and captured[0]["event"] == "override_recorded"
+    assert captured[0]["trusted"] is True and captured[0]["author"] == "alice"
+    assert captured[0]["step_id"] == "S4" and captured[0]["corrected_status"] == "adequate"
+
+
+def test_invalid_token_stays_advisory(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_TRUSTED_TOKENS", "alice:s3cret")
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)
+    r = client.post(
+        "/api/assessments/abc/steps/S4/override",
+        data={"corrected_status": "adequate", "rationale": "x", "token": "wrong"},
+    )
+    assert r.json()["trusted"] is False
+    from bayesify.core.validation.override_store import OverrideStore
+
+    assert OverrideStore(tmp_path).all()[0].trusted is False  # only a valid token is trusted
+
+
+def test_override_captures_rich_bank_context(tmp_path, monkeypatch) -> None:
+    # Each bank entry is richly encoded — the engine's reasoning + cited quotes for the step, the
+    # paper title + class — so the override-review pass can judge relevance against a new paper.
+    import pathlib
+
+    from bayesify.core.schema import ScoredResult
+
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("bayesify.api.app.save_event", lambda payload: None)
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    job = Job(id="rich1", mode="full", source_label="d.pdf")
+    job.result = result
+    job.content_sha256 = "ab" * 32
+    job.paper_title = "A Study of Things"
+    store._jobs[job.id] = job
+    step = next(a for a in result.step_assessments if a.applicable)
+
+    r = client.post(
+        f"/api/assessments/{job.id}/steps/{step.step_id}/override",
+        data={"corrected_status": "adequate", "rationale": "supplement has it"},
+    )
+    assert r.json()["recorded"] is True
+    from bayesify.core.validation.override_store import OverrideStore
+
+    o = OverrideStore(tmp_path).all()[0]
+    assert o.paper_title == "A Study of Things"
+    assert o.original_status == step.status.value  # the engine verdict this corrects
+    assert o.paper_class_labels == [c.value for c in result.paper_class.labels]
+    assert isinstance(o.engine_rationale, str) and isinstance(o.evidence_quotes, list)
+
+
+def test_review_overlay_applies_trusted_correction_and_surfaces_provenance(monkeypatch) -> None:
+    import pathlib
+
+    from bayesify.api import jobs as jobsmod
+    from bayesify.api.app import _job_payload
+    from bayesify.core import config
+    from bayesify.core.override_review import BankOverride, ReviewVerdict
+    from bayesify.core.rubric.loader import load_rubric
+    from bayesify.core.schema import ScoredResult, StepStatus
+    from bayesify.llm import FakeLLMClient
+
+    monkeypatch.setattr(config, "llm_backend", lambda: "api")  # a live backend (not 'none')
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    target = next(
+        a for a in result.step_assessments if a.applicable and a.status is StepStatus.missing
+    )
+    bank = {
+        target.step_id: [
+            BankOverride(step_id=target.step_id, original_status="missing",
+                         corrected_status="adequate", rationale="supp", paper_title="Prior",
+                         author="alice")
+        ]
+    }
+    monkeypatch.setattr(jobsmod, "_override_bank", lambda profile: bank)  # no Mongo
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: FakeLLMClient(
+        ReviewVerdict(
+            relevant=True, corrected_status="adequate", used_override=0, justification="ok"
+        )
+    ))
+
+    job = Job(id="rev1", mode="full", source_label="d.pdf")
+    job.result = result
+    job.profile = result.rubric_profile
+    asyncio.run(jobsmod._review_overlay(job, load_rubric()))
+
+    new = next(a for a in job.result.step_assessments if a.step_id == target.step_id)
+    assert new.status is StepStatus.partial  # nudged one level
+    assert job.applied_corrections and job.applied_corrections[0].source_paper_title == "Prior"
+    payload = _job_payload(job)
+    assert payload["applied_corrections"][0]["to_status"] == "partial"
+    assert payload["base_quality"] is not None
+
+
+def test_review_overlay_skipped_without_a_live_backend(monkeypatch) -> None:
+    import pathlib
+
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core import config
+    from bayesify.core.rubric.loader import load_rubric
+    from bayesify.core.schema import ScoredResult
+
+    monkeypatch.setattr(config, "llm_backend", lambda: "none")  # stub/none → no review pass
+
+    def _boom(profile):
+        raise AssertionError("the bank must not be read without a live backend")
+
+    monkeypatch.setattr(jobsmod, "_override_bank", _boom)
+    fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
+    result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
+    job = Job(id="rev2", mode="full", source_label="d.pdf")
+    job.result = result
+    asyncio.run(jobsmod._review_overlay(job, load_rubric()))
+    assert job.result is result and job.applied_corrections == []  # untouched
 
 
 # --- async job machinery --------------------------------------------------------------------------
@@ -250,7 +547,12 @@ def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch
 def test_run_job_emits_every_stage_then_done_and_attaches_result(monkeypatch) -> None:
     # Full mode with bytes but NO credentials → the labelled stub: all stages, then a stub result.
     # (monkeypatch is scoped, so forcing the backend off here does not affect other tests.)
-    monkeypatch.setenv("VERIBAYES_LLM_BACKEND", "none")
+    monkeypatch.setenv("BAYESIFY_LLM_BACKEND", "none")
+    saved_reports: list[str] = []
+    monkeypatch.setattr(
+        "bayesify.api.jobs._save_analysis_report_payload",
+        lambda job: saved_reports.append(job.id),
+    )
     job = Job(id="t1", mode="full", source_label="paper.pdf", data=b"%PDF-stub-bytes")
     asyncio.run(run_job(job))
     stages_done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
@@ -259,6 +561,65 @@ def test_run_job_emits_every_stage_then_done_and_attaches_result(monkeypatch) ->
     assert job.status == "done"
     assert job.result is not None and job.result.coverage is not None
     assert job.backend == "stub"
+    assert saved_reports == []  # no analysis event for the placeholder path; no LLM ran
+
+
+def test_local_completion_does_not_save_analysis_event(monkeypatch) -> None:
+    from bayesify.api import jobs as jobsmod
+
+    saved_reports: list[str] = []
+    monkeypatch.setattr(
+        jobsmod,
+        "_save_analysis_report_payload",
+        lambda job: saved_reports.append(job.id),
+    )
+
+    async def fake_front_half(job, *, source=None):
+        job.content_sha256 = "ab" * 32
+        job.version_label = "uploaded PDF"
+        return None, []
+
+    monkeypatch.setattr(jobsmod, "_front_half", fake_front_half)
+    job = Job(id="loc-nosave", mode="local", source_label="paper.pdf")
+
+    asyncio.run(jobsmod._run_local(job))
+
+    assert job.status == "done"
+    assert saved_reports == []
+
+
+def test_fresh_full_llm_completion_saves_analysis_event(monkeypatch) -> None:
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core.stub import build_stub_result
+
+    saved_reports: list[str] = []
+    monkeypatch.setattr(
+        jobsmod,
+        "_save_analysis_report_payload",
+        lambda job: saved_reports.append(job.id),
+    )
+    monkeypatch.setattr(jobsmod, "_cache_enabled", lambda: False)
+    monkeypatch.setattr(jobsmod.config, "llm_backend", lambda: "api")
+    monkeypatch.setattr(jobsmod, "_llm_client", lambda: object())
+
+    async def fake_front_half(job, *, source=None):
+        job.content_sha256 = "ab" * 32
+        job.version_label = "uploaded PDF"
+        return object(), []
+
+    async def fake_to_thread(func, *args, **kwargs):
+        if func is jobsmod.grade_parsed:
+            return build_stub_result("full")
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(jobsmod, "_front_half", fake_front_half)
+    monkeypatch.setattr(jobsmod.asyncio, "to_thread", fake_to_thread)
+    job = Job(id="full-save", mode="full", source_label="paper.pdf", data=b"%PDF-fake")
+
+    asyncio.run(jobsmod._run_full(job))
+
+    assert job.status == "done"
+    assert saved_reports == ["full-save"]
 
 
 def test_no_input_shows_honest_needs_upload_notice() -> None:
@@ -277,7 +638,7 @@ def test_no_input_shows_honest_needs_upload_notice() -> None:
 
 
 def test_local_upload_runs_real_detection(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     job = Job(id="loc1", mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     asyncio.run(run_job(job))
 
@@ -294,7 +655,7 @@ def test_local_upload_runs_real_detection(tmp_path, monkeypatch) -> None:
 
 
 def test_local_upload_skips_references_section(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     job = Job(id="loc2", mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     asyncio.run(run_job(job))
     # the References line names Stan; it must not be scanned
@@ -330,8 +691,8 @@ def _arxiv_transport(pdf: bytes) -> httpx.MockTransport:
 
 
 def _patch_fetcher(monkeypatch, pdf: bytes) -> None:
-    from veribayes.api import jobs as jobsmod
-    from veribayes.core.fetcher import Fetcher
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core.fetcher import Fetcher
 
     httpx_client = httpx.Client(transport=_arxiv_transport(pdf))
 
@@ -342,7 +703,7 @@ def _patch_fetcher(monkeypatch, pdf: bytes) -> None:
 
 
 def test_identifier_is_fetched_then_graded(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     _patch_fetcher(monkeypatch, _HDDM_PDF)
     job = Job(id="fetch1", mode="local", source_label="2011.01808", identifier="2011.01808")
     asyncio.run(run_job(job))
@@ -355,7 +716,7 @@ def test_identifier_is_fetched_then_graded(tmp_path, monkeypatch) -> None:
 
 
 def test_identifier_fetch_failure_is_surfaced(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     _patch_fetcher(monkeypatch, _HDDM_PDF)
     job = Job(id="fetch2", mode="local", source_label="9999.99999", identifier="9999.99999")
     asyncio.run(run_job(job))
@@ -363,7 +724,7 @@ def test_identifier_fetch_failure_is_surfaced(tmp_path, monkeypatch) -> None:
 
 
 def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     job = Job(id="loc3", mode="local", source_label="x.txt", data=b"not a pdf", filename="x.txt")
     asyncio.run(run_job(job))
     assert job.status == "failed"
@@ -371,14 +732,14 @@ def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:
 
 
 def _full_fake(
-    relevance: str = "yes", judge_status: str = "done_well", paper_class: str = "empirical"
+    relevance: str = "yes", judge_status: str = "adequate", paper_class: str = "data_analysis"
 ):
     """A schema-aware fake for the whole full pipeline: Relevance for screen, PaperClass for
     classify, StepJudgment for each assess judge call, RefuterVerdict for refuters. Records the
     schema name of every call so tests can assert what ran."""
-    from veribayes.core.assess import RefuterVerdict, StepJudgment
-    from veribayes.core.llm import LLMResponse
-    from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+    from bayesify.core.assess import RefuterVerdict, StepJudgment
+    from bayesify.core.llm import LLMResponse
+    from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
 
     class _F:
         def __init__(self) -> None:
@@ -396,7 +757,7 @@ def _full_fake(
                 )
             elif schema.__name__ == "PaperClass":
                 p = PaperClass(
-                    primary=PaperClassLabel(paper_class),
+                    labels=[PaperClassLabel(paper_class)],
                     confidence=0.8,
                     rationale="r",
                     evidence_refs=[0],
@@ -411,11 +772,11 @@ def _full_fake(
 
 
 def test_full_upload_grades_end_to_end(tmp_path, monkeypatch) -> None:
-    from veribayes.api import jobs as jobsmod
-    from veribayes.core import config
-    from veribayes.core.schema import PaperClassLabel, RelevanceLabel
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core import config
+    from bayesify.core.schema import PaperClassLabel, RelevanceLabel
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")  # makes run_job route to the full pipeline
     monkeypatch.setattr(config, "claude_code_available", lambda: False)  # deterministic backend
     fake = _full_fake()
@@ -427,7 +788,7 @@ def test_full_upload_grades_end_to_end(tmp_path, monkeypatch) -> None:
     r = job.result
     assert job.status == "done" and r is not None
     assert r.relevance.label is RelevanceLabel.yes  # real screen
-    assert r.paper_class.primary is PaperClassLabel.empirical  # real classify
+    assert r.paper_class.labels == [PaperClassLabel.data_analysis]  # real classify
     assert len(r.step_assessments) == 10 and r.profile is not None  # real assess + score (no stub)
     assert r.coverage is not None and r.quality_score is not None
     assert job.backend == "api"
@@ -435,12 +796,22 @@ def test_full_upload_grades_end_to_end(tmp_path, monkeypatch) -> None:
     done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
     assert done == ["ingest", "parse", "detect", "screen", "classify", "assess", "score"]
 
+    # Per-class weights flow into the scored profile and surface in the Markdown export. The
+    # data_analysis vector down-weights only SBC/recovery (S7 = 0.5; everything else 1.0).
+    from bayesify.api.app import _render_markdown
+
+    wmap = {p.step_id: p.weight for p in r.profile.steps}
+    assert wmap["S7"] == 0.5 and wmap["S1"] == 1.0
+    md = _render_markdown(job)
+    assert "weight 0.5" in md and "weight 1.0" in md  # per-step weight annotations
+    assert "weighted mean" in md  # the quality note
+
 
 def test_full_upload_short_circuits_on_no(tmp_path, monkeypatch) -> None:
-    from veribayes.api import jobs as jobsmod
-    from veribayes.core.schema import RelevanceLabel
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core.schema import RelevanceLabel
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     fake = _full_fake(relevance="no")
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
@@ -460,10 +831,10 @@ def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch
     """The gate says 'no', but the user overrides it: the rerun forces relevance to 'partial' and
     grades end-to-end — classify runs even though screen had skipped it, and the override is
     disclosed in the rationale (A5)."""
-    from veribayes.api import jobs as jobsmod
-    from veribayes.core.schema import RelevanceLabel
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core.schema import RelevanceLabel
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     fake = _full_fake(relevance="no")  # the gate would short-circuit this paper...
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
@@ -492,9 +863,9 @@ def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch
 def test_grading_under_gelman_uses_the_gelman_rubric(tmp_path, monkeypatch) -> None:
     """Choosing the Gelman rubric grades against ITS ten steps (S1..S10, but the Gelman version +
     names, not synthesis), and stamps the result + cache key with that profile (separate entry)."""
-    from veribayes.api import jobs as jobsmod
+    from bayesify.api import jobs as jobsmod
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: _full_fake())
 
@@ -513,9 +884,9 @@ def test_grading_under_gelman_uses_the_gelman_rubric(tmp_path, monkeypatch) -> N
 def test_grading_under_schad_uses_the_schad_rubric(tmp_path, monkeypatch) -> None:
     """A third rubric needed no new code — choosing 'schad' grades against its seven steps (S1..S7,
     Schad version + names) and stamps the result with that profile (the registry carries it)."""
-    from veribayes.api import jobs as jobsmod
+    from bayesify.api import jobs as jobsmod
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: _full_fake())
 
@@ -534,10 +905,10 @@ def test_grading_under_schad_uses_the_schad_rubric(tmp_path, monkeypatch) -> Non
 def test_review_paper_short_circuits(tmp_path, monkeypatch) -> None:
     """A review/opinion piece is Bayesian-relevant but the per-step rubric doesn't apply: classify
     returns 'review' → short-circuit before assess (reason='not_an_application'), nothing graded."""
-    from veribayes.api import jobs as jobsmod
-    from veribayes.core.schema import PaperClassLabel, RelevanceLabel
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core.schema import PaperClassLabel, RelevanceLabel
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     fake = _full_fake(paper_class="review")
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
@@ -549,15 +920,15 @@ def test_review_paper_short_circuits(tmp_path, monkeypatch) -> None:
     assert job.status == "done" and r is not None
     assert r.not_applicable_reason == "not_an_application"
     assert r.relevance.label is RelevanceLabel.yes  # Bayesian-relevant...
-    assert r.paper_class.primary is PaperClassLabel.review and not r.step_assessments  # not graded
+    assert r.paper_class.labels == [PaperClassLabel.review] and not r.step_assessments  # not graded
     assert "StepJudgment" not in fake.calls  # assess never ran
 
 
 def test_force_grade_reruns_a_review_paper(tmp_path, monkeypatch) -> None:
     """The escape hatch sets force_grade → the review piece is graded anyway (advisory)."""
-    from veribayes.api import jobs as jobsmod
+    from bayesify.api import jobs as jobsmod
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     fake = _full_fake(paper_class="review")
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: fake)
@@ -576,9 +947,9 @@ def test_force_grade_reruns_a_review_paper(tmp_path, monkeypatch) -> None:
 def test_rerun_endpoint_force_grades_a_review_result(tmp_path, monkeypatch) -> None:
     """The rerun endpoint picks the mechanism from the prior short-circuit reason: a review result
     sets force_grade (relevance is already 'yes'), not relevance_override."""
-    from veribayes.core import schema as sm
+    from bayesify.core import schema as sm
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     job = store.create(mode="full", source_label="op.pdf")
     job.result = sm.ScoredResult.short_circuit(
         relevance=sm.Relevance(
@@ -586,7 +957,7 @@ def test_rerun_endpoint_force_grades_a_review_result(tmp_path, monkeypatch) -> N
         ),
         reason="not_an_application",
         paper_class=sm.PaperClass(
-            primary=sm.PaperClassLabel.review, confidence=0.8, rationale="x", evidence_refs=[0]
+            labels=[sm.PaperClassLabel.review], confidence=0.8, rationale="x", evidence_refs=[0]
         ),
         engine_version="ev",
         rubric_version="rv",
@@ -595,7 +966,7 @@ def test_rerun_endpoint_force_grades_a_review_result(tmp_path, monkeypatch) -> N
     after = store.get(job.id)
     assert after.force_grade is True and after.relevance_override is None
     # the rerun override records what it overrode (the short-circuit) + the rubric, not just value
-    from veribayes.core.validation.override_store import OverrideStore
+    from bayesify.core.validation.override_store import OverrideStore
 
     o = OverrideStore(tmp_path).all()[-1]
     assert o.kind == "relevance_rerun" and o.value == "force_grade"
@@ -604,11 +975,11 @@ def test_rerun_endpoint_force_grades_a_review_result(tmp_path, monkeypatch) -> N
 
 
 def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatch) -> None:
-    from veribayes.core import config
+    from bayesify.core import config
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("VERIBAYES_LLM_BACKEND", raising=False)
+    monkeypatch.delenv("BAYESIFY_LLM_BACKEND", raising=False)
     monkeypatch.setattr(config, "claude_code_available", lambda: False)  # no key, no CLI → none
     job = Job(id="full3", mode="full", source_label="x.pdf", data=_HDDM_PDF, filename="x.pdf")
     asyncio.run(run_job(job))
@@ -621,19 +992,19 @@ def test_full_upload_without_credentials_falls_back_to_stub(tmp_path, monkeypatc
 
 
 def _full_cache_env(tmp_path, monkeypatch):
-    from veribayes.core import config
+    from bayesify.core import config
 
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     monkeypatch.setattr(config, "claude_code_available", lambda: False)  # backend "api"
 
 
 def test_identical_rerun_is_served_from_cache_without_calling_the_model(tmp_path, monkeypatch):
-    from veribayes.api import jobs as jobsmod
-    from veribayes.core.llm import FakeLLMClient
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core.llm import FakeLLMClient
 
     _full_cache_env(tmp_path, monkeypatch)
-    monkeypatch.delenv("VERIBAYES_NO_CACHE", raising=False)
+    monkeypatch.delenv("BAYESIFY_NO_CACHE", raising=False)
 
     f1 = _full_fake()
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: f1)
@@ -653,11 +1024,11 @@ def test_identical_rerun_is_served_from_cache_without_calling_the_model(tmp_path
 
 
 def test_failed_run_is_not_cached_so_breakage_is_never_masked(tmp_path, monkeypatch):
-    from veribayes.api import jobs as jobsmod
-    from veribayes.core.llm import FakeLLMClient, LLMTransientError
+    from bayesify.api import jobs as jobsmod
+    from bayesify.core.llm import FakeLLMClient, LLMTransientError
 
     _full_cache_env(tmp_path, monkeypatch)
-    monkeypatch.delenv("VERIBAYES_NO_CACHE", raising=False)
+    monkeypatch.delenv("BAYESIFY_NO_CACHE", raising=False)
 
     # first run fails (transient ×3 → fail closed)
     f1 = FakeLLMClient(LLMTransientError("x"), LLMTransientError("y"), LLMTransientError("z"))
@@ -675,10 +1046,10 @@ def test_failed_run_is_not_cached_so_breakage_is_never_masked(tmp_path, monkeypa
 
 
 def test_no_cache_env_always_runs_fresh(tmp_path, monkeypatch):
-    from veribayes.api import jobs as jobsmod
+    from bayesify.api import jobs as jobsmod
 
     _full_cache_env(tmp_path, monkeypatch)
-    monkeypatch.setenv("VERIBAYES_NO_CACHE", "1")
+    monkeypatch.setenv("BAYESIFY_NO_CACHE", "1")
 
     f1 = _full_fake()
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: f1)
@@ -693,7 +1064,7 @@ def test_no_cache_env_always_runs_fresh(tmp_path, monkeypatch):
 
 
 def test_local_report_json_and_md(tmp_path, monkeypatch) -> None:
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     job = store.create(mode="local", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     asyncio.run(run_job(job))
 

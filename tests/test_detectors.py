@@ -11,14 +11,14 @@ from pathlib import Path
 
 import pytest
 
-from veribayes.core.detectors import (
+from bayesify.core.detectors import (
     catalog_fingerprint,
     evidence_inventory,
     evidence_json,
     run_detectors,
 )
-from veribayes.core.detectors.catalog import CATALOG, DETECTOR_FAMILY
-from veribayes.core.schema import EvidenceKind, ParsedDoc, Section, SectionKind, SourceDoc
+from bayesify.core.detectors.catalog import CATALOG, DETECTOR_FAMILY
+from bayesify.core.schema import EvidenceKind, ParsedDoc, Section, SectionKind, SourceDoc
 
 _FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -310,13 +310,15 @@ def test_inventory_hit_carries_section_title_and_page() -> None:
 
 
 def _load_parsed() -> ParsedDoc:
-    return ParsedDoc.model_validate_json((_FIXTURES / "parsed" / "empirical_hddm.json").read_text())
+    return ParsedDoc.model_validate_json(
+        (_FIXTURES / "parsed" / "empirical_hddm.json").read_text(encoding="utf-8")
+    )
 
 
 def test_golden_evidence_fixture_matches() -> None:
     """The committed ``Evidence[]`` must reproduce from the committed ``ParsedDoc``. A catalog
     change that shifts output is caught here; regenerate via ``build_fixtures.py`` on purpose."""
-    expected = (_FIXTURES / "evidence" / "empirical_hddm.json").read_text()
+    expected = (_FIXTURES / "evidence" / "empirical_hddm.json").read_text(encoding="utf-8")
     assert evidence_json(run_detectors(_load_parsed())) + "\n" == expected
 
 

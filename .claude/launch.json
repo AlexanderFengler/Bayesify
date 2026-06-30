@@ -13,7 +13,7 @@
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "VERIBAYES_LLM_BACKEND=none VERIBAYES_DATA_DIR=/tmp/veribayes-preview pixi run python -m uvicorn veribayes.api.app:app --port 8012"
+        "BAYESIFY_LLM_BACKEND=none BAYESIFY_DATA_DIR=/tmp/bayesify-preview pixi run python -m uvicorn bayesify.api.app:app --port 8012"
       ],
       "port": 8012,
       "autoPort": false

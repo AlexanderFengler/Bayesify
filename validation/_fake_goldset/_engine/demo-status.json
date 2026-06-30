@@ -9,8 +9,9 @@
     "overridden": false
   },
   "paper_class": {
-    "primary": "numerical_experiment",
-    "secondary": null,
+    "labels": [
+      "numerical_analysis"
+    ],
     "confidence": 0.9,
     "rationale": "demo",
     "evidence_refs": [
@@ -27,8 +28,8 @@
     {
       "step_id": "S1",
       "applicable": true,
-      "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for numerical_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -51,8 +52,8 @@
     {
       "step_id": "S2",
       "applicable": true,
-      "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for numerical_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -75,8 +76,8 @@
     {
       "step_id": "S3",
       "applicable": true,
-      "applicability_reason": "Recommended for numerical_experiment papers.",
-      "status": "done_well",
+      "applicability_reason": "Recommended for numerical_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -99,8 +100,8 @@
     {
       "step_id": "S4",
       "applicable": true,
-      "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for numerical_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -123,8 +124,8 @@
     {
       "step_id": "S5",
       "applicable": true,
-      "applicability_reason": "Recommended for numerical_experiment papers.",
-      "status": "done_well",
+      "applicability_reason": "Recommended for numerical_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -159,8 +160,8 @@
     {
       "step_id": "S7",
       "applicable": true,
-      "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for numerical_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -183,8 +184,8 @@
     {
       "step_id": "S8",
       "applicable": true,
-      "applicability_reason": "Recommended for numerical_experiment papers.",
-      "status": "done_well",
+      "applicability_reason": "Recommended for numerical_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -207,8 +208,8 @@
     {
       "step_id": "S9",
       "applicable": true,
-      "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for numerical_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -231,8 +232,8 @@
     {
       "step_id": "S10",
       "applicable": true,
-      "applicability_reason": "Expected for numerical_experiment papers.",
-      "status": "done_well",
+      "applicability_reason": "Expected for numerical_analysis papers.",
+      "status": "adequate",
       "confidence": 0.9,
       "evidence": [
         {
@@ -258,7 +259,7 @@
       {
         "step_id": "S1",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -266,7 +267,7 @@
       {
         "step_id": "S2",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -274,7 +275,7 @@
       {
         "step_id": "S3",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "recommended"
@@ -282,7 +283,7 @@
       {
         "step_id": "S4",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -290,7 +291,7 @@
       {
         "step_id": "S5",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "recommended"
@@ -306,7 +307,7 @@
       {
         "step_id": "S7",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -314,7 +315,7 @@
       {
         "step_id": "S8",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "recommended"
@@ -322,7 +323,7 @@
       {
         "step_id": "S9",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -330,7 +331,7 @@
       {
         "step_id": "S10",
         "applicable": true,
-        "status": "done_well",
+        "status": "adequate",
         "sub_score": 1.0,
         "weight": 1.0,
         "tier": "expected"
@@ -348,7 +349,8 @@
   },
   "quality_score": 1.0,
   "score_impacts": [],
-  "engine_version": "pkg=0.1.0;prompts=18c4bd7aae9a;detectors=1585d08ace1f;models=claude-opus-4-8",
+  "not_applicable_reason": null,
+  "engine_version": "pkg=0.1.0;prompts=6e2ff6227cab;detectors=1585d08ace1f;models=claude-opus-4-8",
   "rubric_version": "0.1-draft",
   "rubric_profile": "synthesis",
   "cost_ledger": {

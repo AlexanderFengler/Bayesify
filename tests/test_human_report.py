@@ -12,15 +12,15 @@ import pathlib
 import pytest
 from pydantic import ValidationError
 
-from veribayes.core.schema import (
+from bayesify.core.schema import (
     EvidenceSpan,
     GateFacts,
     PaperClassLabel,
     RelevanceLabel,
     StepStatus,
 )
-from veribayes.core.validation import human_report as hr
-from veribayes.core.validation.human_report import (
+from bayesify.core.validation import human_report as hr
+from bayesify.core.validation.human_report import (
     GoldOrigin,
     GoldProvenance,
     GoldTier,
@@ -34,13 +34,13 @@ from veribayes.core.validation.human_report import (
 _SPAN = EvidenceSpan(section_id="s01", quote="we fit a hierarchical model in Stan")
 
 
-def _step(step_id: str = "S1", status: StepStatus = StepStatus.done_well, **over) -> StepRating:
+def _step(step_id: str = "S1", status: StepStatus = StepStatus.adequate, **over) -> StepRating:
     base: dict = dict(
         step_id=step_id,
         applicable=status is not StepStatus.not_applicable,
         status=status,
         confidence=0.9,
-        evidence=[_SPAN] if status in (StepStatus.done_well, StepStatus.partial) else [],
+        evidence=[_SPAN] if status in (StepStatus.adequate, StepStatus.partial) else [],
         rationale="" if status is StepStatus.not_applicable else "the paper does this",
     )
     base.update(over)
@@ -53,7 +53,7 @@ def _rating(rater_id: str, relationship: RaterRelationship, **over) -> Rating:
         relationship=relationship,
         relevance_label=RelevanceLabel.yes,
         relevance_rationale="clearly Bayesian",
-        paper_class_label=PaperClassLabel.empirical,
+        paper_class_labels=[PaperClassLabel.data_analysis],
         gate_facts=GateFacts(),
         steps=[_step("S1"), _step("S2", status=StepStatus.missing)],
     )
@@ -107,7 +107,7 @@ def test_step_rating_has_no_engine_only_fields() -> None:
 
 def test_human_report_module_is_engine_free() -> None:
     # AST (not substring) so the docstring's own mentions of these names don't false-trip.
-    tree = ast.parse(pathlib.Path(hr.__file__).read_text())
+    tree = ast.parse(pathlib.Path(hr.__file__).read_text(encoding="utf-8"))
     referenced: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
@@ -125,7 +125,7 @@ def test_human_report_module_is_engine_free() -> None:
 
 def test_present_status_requires_evidence_span() -> None:
     with pytest.raises(ValidationError):
-        _step("S1", status=StepStatus.done_well, evidence=[])
+        _step("S1", status=StepStatus.adequate, evidence=[])
 
 
 def test_missing_status_needs_no_span_but_needs_rationale() -> None:
@@ -144,7 +144,7 @@ def test_applicable_status_invariant() -> None:
 def test_missing_subtag_only_when_missing() -> None:
     _step("S2", status=StepStatus.missing, missing_subtag=MissingSubtag.not_reported_suspected)
     with pytest.raises(ValidationError):
-        _step("S1", status=StepStatus.done_well, missing_subtag=MissingSubtag.not_done)
+        _step("S1", status=StepStatus.adequate, missing_subtag=MissingSubtag.not_done)
 
 
 # --- rating short-circuit + envelope --------------------------------------------------------------
@@ -169,7 +169,7 @@ def test_relevance_no_is_a_short_circuit() -> None:
 
 def test_relevant_rating_requires_class_and_gate_facts() -> None:
     with pytest.raises(ValidationError):
-        _rating("r1", RaterRelationship.independent, paper_class_label=None)
+        _rating("r1", RaterRelationship.independent, paper_class_labels=[])
     with pytest.raises(ValidationError):
         _rating("r1", RaterRelationship.independent, gate_facts=None)
 

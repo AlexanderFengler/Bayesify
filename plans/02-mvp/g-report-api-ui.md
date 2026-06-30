@@ -1,4 +1,4 @@
-# g. Report, API & UI — VeriBayes v0 component
+# g. Report, API & UI — Bayesify v0 component
 
 **Milestone:** M1 (skeleton & contracts) + M6 (full report UX) — two slices, separated below
 **v0 items covered:** D1 (v0 slice: single report view + meta-research JSON; multi-view layering → v1, PR-#1 decision) · D2 prioritized suggestions · D3 specific praise · A5 override scaffolding · F3 privacy/UI surfaces · C6 cost & budget surfaces

@@ -1,4 +1,4 @@
-# a. Ingest & fetch — VeriBayes v0 component
+# a. Ingest & fetch — Bayesify v0 component
 
 **Milestone:** M2
 **v0 items covered:** C5 (multi-format ingest) · C6 (caching + cost discipline — the cache *entry point*; ledger/budget guard live with the LLM stages)
@@ -39,7 +39,7 @@ provenance accordingly:
   likely not). This confirms the repo's existing "don't commit non-CC PDFs" stance (gate G3).
 Fetched bytes are sniffed (`%PDF` magic + content type); an HTML paywall page raises `NotAPdfError` instead of poisoning the cache.
 
-**sha256 + version_label (feeds validation).** Every ingest computes `sha256` over the **exact bytes** and captures a human-readable `version_label` — e.g. `"arXiv v2"`, `"publisher VoR (Unpaywall)"`, `"uploaded PDF"`. These two fields are exactly what `validation/protocol.md` §1 pins: each goldset entry stores the sha256 + version of the rated document, and `veribayes validate` hard-fails on mismatch. This component is the *only* place those values are minted — get them right here and version pinning is free everywhere else.
+**sha256 + version_label (feeds validation).** Every ingest computes `sha256` over the **exact bytes** and captures a human-readable `version_label` — e.g. `"arXiv v2"`, `"publisher VoR (Unpaywall)"`, `"uploaded PDF"`. These two fields are exactly what `validation/protocol.md` §1 pins: each goldset entry stores the sha256 + version of the rated document, and `bayesify validate` hard-fails on mismatch. This component is the *only* place those values are minted — get them right here and version pinning is free everywhere else.
 
 **Stage-0 cache behavior (C6).** Bytes land in a content-addressed blob store (`cache/blobs/<sha256>.pdf`); `SourceDoc.sha256` is the handle (the schema deliberately carries no bytes). `cache.py` owns the key formula `sha256(bytes) × engine_version × rubric_version × mode`:
 - **Upload path:** hash immediately → full-result cache lookup *before any other work*; hit → stored `ScoredResult` returned instantly, byte-identical (reproducible by construction).

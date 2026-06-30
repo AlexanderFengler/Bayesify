@@ -9,7 +9,7 @@
 
 Peer-reviewed methods paper in Psychological Methods (Epub December 21, 2015; in print June 2017) introducing the WAMBS checklist — "When to Worry and how to Avoid the Misuse of Bayesian Statistics." It is one of the most widely cited applied-Bayesian reporting guidelines in psychology and adjacent fields, and a standard reference for structured review of Bayesian analyses.
 
-## Key content for VeriBayes
+## Key content for Bayesify
 
 - A 10-point checklist of items "that should be thoroughly checked when applying Bayesian analysis," intended as a systematic quality-evaluation protocol.
 - Four-stage organization: (1) issues to check before model estimation; (2) issues to check after estimation but before interpreting results; (3) understanding the influence of priors; (4) actions after interpreting results.
@@ -18,7 +18,7 @@ Peer-reviewed methods paper in Psychological Methods (Epub December 21, 2015; in
 - Prescribes convergence and sampling checks (e.g., trace-plot inspection, re-running with more iterations, checking posterior distributions) before any interpretation.
 - Prescribes prior-sensitivity comparison (re-estimating under alternative priors and comparing posteriors) and full, transparent reporting of the entire estimation workflow.
 
-## How VeriBayes uses it
+## How Bayesify uses it
 
 - S2 (Prior specification): grounds the requirement that priors be stated and justified up front (WAMBS pre-estimation stage; verified 3-0).
 - S4 (Computational faithfulness): grounds the requirement for convergence/sampling diagnostics after estimation but before interpretation (verified 3-0).

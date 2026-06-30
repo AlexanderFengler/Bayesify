@@ -5,10 +5,12 @@ No network and no API key — this is the contract screen/classify build against
 
 from __future__ import annotations
 
+import sys
+
 import pytest
 from pydantic import BaseModel
 
-from veribayes.core.llm import (
+from bayesify.core.llm import (
     FakeLLMClient,
     LLMError,
     LLMResponse,
@@ -105,7 +107,7 @@ def test_ledger_entry_unpriced_model_fails_loud() -> None:
 def test_anthropic_client_maps_parsed_output_and_usage() -> None:
     from types import SimpleNamespace
 
-    from veribayes.core.llm import AnthropicClient
+    from bayesify.core.llm import AnthropicClient
 
     class _Msgs:
         def parse(self, **kw):
@@ -120,13 +122,51 @@ def test_anthropic_client_maps_parsed_output_and_usage() -> None:
     assert resp.parsed.label == "yes" and resp.input_tokens == 11 and resp.output_tokens == 4
 
 
+def test_openai_client_maps_parsed_output_and_usage(monkeypatch) -> None:
+    from types import SimpleNamespace
+
+    from bayesify.llm import OpenAIClient
+
+    calls: dict = {}
+
+    class APIError(Exception):
+        status_code = 500
+
+    class _Responses:
+        def parse(self, **kw):
+            calls.update(kw)
+            return SimpleNamespace(
+                output_parsed=_Answer(label="yes"),
+                usage=SimpleNamespace(input_tokens=13, output_tokens=7),
+            )
+
+    class _OpenAI:
+        def __init__(self, *, api_key=None):
+            self.api_key = api_key
+            self.responses = _Responses()
+
+    monkeypatch.setitem(sys.modules, "openai", SimpleNamespace(OpenAI=_OpenAI, APIError=APIError))
+    client = OpenAIClient(api_key="sk-fake")
+    resp = client.complete(model="gpt-5.4-mini", system="s", user="u", schema=_Answer)
+    assert resp.parsed.label == "yes"
+    assert resp.input_tokens == 13 and resp.output_tokens == 7
+    assert calls["text_format"] is _Answer
+    assert calls["store"] is False
+
+
+def test_factory_builds_openai_client() -> None:
+    from bayesify.llm import OpenAIClient, make_llm_client
+
+    assert isinstance(make_llm_client("openai"), OpenAIClient)
+
+
 # --- AgentSDKClient (claude-agent-sdk query monkeypatched; no CLI/session) ---
 
 
 def _agent_complete(monkeypatch, messages):
     import claude_agent_sdk as sdk
 
-    from veribayes.core.llm import AgentSDKClient
+    from bayesify.core.llm import AgentSDKClient
 
     async def fake_query(*, prompt, options):
         for m in messages:

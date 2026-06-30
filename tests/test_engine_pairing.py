@@ -4,20 +4,33 @@ on the exact rated bytes (sha256-pinned), and hard-fail if the rated document is
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import fitz
 import pytest
 
-from veribayes.core.cache import BlobStore
-from veribayes.core.engine import grade_document
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import Relevance, RelevanceLabel, ScoredResult
-from veribayes.core.validation import harness
-from veribayes.core.validation.harness import (
+from bayesify.core.cache import BlobStore
+from bayesify.core.engine import grade_document, grade_parsed
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import (
+    Evidence,
+    EvidenceKind,
+    EvidenceSpan,
+    ParsedDoc,
+    Relevance,
+    RelevanceLabel,
+    ScoredResult,
+    Section,
+    SectionKind,
+    SourceDoc,
+)
+from bayesify.core.validation import harness
+from bayesify.core.validation.harness import (
     FixtureEngineSource,
     GoldsetVersionMismatch,
     LiveEngineSource,
 )
-from veribayes.core.validation.human_report import (
+from bayesify.core.validation.human_report import (
     GoldOrigin,
     GoldProvenance,
     GoldTier,
@@ -134,9 +147,9 @@ class _FakeLLM:
     """Schema-aware fake driving the full grade path, no real LLM (mirrors test_api._full_fake)."""
 
     def complete(self, *, model, system, user, schema, max_tokens=1024):
-        from veribayes.core.assess import RefuterVerdict, StepJudgment
-        from veribayes.core.llm import LLMResponse
-        from veribayes.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+        from bayesify.core.assess import RefuterVerdict, StepJudgment
+        from bayesify.core.llm import LLMResponse
+        from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
 
         name = schema.__name__
         if name == "Relevance":
@@ -145,10 +158,13 @@ class _FakeLLM:
             )
         elif name == "PaperClass":
             p = PaperClass(
-                primary=PaperClassLabel.empirical, confidence=0.8, rationale="r", evidence_refs=[0]
+                labels=[PaperClassLabel.data_analysis],
+                confidence=0.8,
+                rationale="r",
+                evidence_refs=[0],
             )
         elif name == "StepJudgment":
-            p = StepJudgment(status="done_well", confidence=0.9)
+            p = StepJudgment(status="adequate", confidence=0.9)
         else:
             p = RefuterVerdict(refuted=False, notes="absent")
         return LLMResponse(parsed=p, model=model, input_tokens=10, output_tokens=5)
@@ -185,3 +201,80 @@ def test_grade_document_runs_the_full_engine(tmp_path) -> None:
     )
     assert sr.relevance.label is RelevanceLabel.yes
     assert sr.paper_class is not None and len(sr.step_assessments) == 10  # graded end-to-end
+
+
+# --- grade_parsed is the single composition: escape hatch + progress events live here now ---------
+
+
+class _NoGateLLM:
+    """Like _FakeLLM but the gate says 'no' (downstream still grades, for the override path)."""
+
+    def complete(self, *, model, system, user, schema, max_tokens=1024):
+        from bayesify.core.assess import RefuterVerdict, StepJudgment
+        from bayesify.core.llm import LLMResponse
+        from bayesify.core.schema import PaperClass, PaperClassLabel
+
+        name = schema.__name__
+        if name == "Relevance":
+            p = Relevance(label=RelevanceLabel.no, confidence=0.9, rationale="looks frequentist")
+        elif name == "PaperClass":
+            p = PaperClass(
+                labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="r",
+                evidence_refs=[0],
+            )
+        elif name == "StepJudgment":
+            p = StepJudgment(status="adequate", confidence=0.9)
+        else:
+            p = RefuterVerdict(refuted=False, notes="absent")
+        return LLMResponse(parsed=p, model=model, input_tokens=10, output_tokens=5)
+
+
+def _parsed_doc() -> ParsedDoc:
+    src = SourceDoc(
+        sha256="a" * 64, version_label="t", source="upload", fetched_at=datetime(2026, 1, 1)
+    )
+    secs = [Section(id="s01", kind=SectionKind.body, title="B", text="We fit a model in Stan.")]
+    return ParsedDoc(source=src, sections=secs, parser="t", parser_version="0")
+
+
+def _one_hit() -> list[Evidence]:
+    return [
+        Evidence(
+            detector_id="software.stan",
+            detector_version="0.1.0",
+            kind=EvidenceKind.software_mention,
+            span=EvidenceSpan(section_id="s01", page=1, quote="in Stan"),
+        )
+    ]
+
+
+def _grade(client, **over):
+    return grade_parsed(
+        _parsed_doc(), _one_hit(), client=client, rubric=_RUBRIC,
+        engine_version="ev", rubric_version="rv", **over,
+    )
+
+
+def test_grade_parsed_short_circuits_a_no_without_override() -> None:
+    sr = _grade(_NoGateLLM())
+    assert sr.relevance.label is RelevanceLabel.no
+    assert not sr.step_assessments  # short-circuited, not graded
+
+
+def test_grade_parsed_relevance_override_grades_a_short_circuited_paper() -> None:
+    # The escape hatch now lives in the shared engine, so the harness path can reproduce it too.
+    sr = _grade(_NoGateLLM(), relevance_override="partial")
+    assert sr.relevance.label is RelevanceLabel.partial and sr.relevance.overridden
+    assert "[User override:" in sr.relevance.rationale
+    assert sr.paper_class is not None and len(sr.step_assessments) == 10  # graded end-to-end
+
+
+def test_grade_parsed_emits_stage_events_in_order() -> None:
+    events: list[tuple[str, str]] = []
+    _grade(_FakeLLM(), on_stage=lambda stage, state: events.append((stage, state)))
+    assert events == [
+        ("screen", "running"), ("screen", "done"),
+        ("classify", "done"),
+        ("assess", "running"), ("assess", "done"),
+        ("score", "running"), ("score", "done"),
+    ]

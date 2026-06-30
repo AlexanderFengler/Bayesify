@@ -1,0 +1,286 @@
+import CheckIcon from "@mui/icons-material/Check";
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Container,
+  Divider,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import { useEffect, useState } from "react";
+import { fetchRubrics } from "./api";
+import { fetchRubric, type Rubric } from "./rubric";
+
+// Short column headers for the comparison table, keyed by rubric profile id.
+const SHORT_LABEL: Record<string, string> = {
+  synthesis: "Synthesis",
+  gelman: "Gelman",
+  schad: "Schad",
+};
+
+// Display order for the rubric columns (and the comparison-table columns, which follow the same list).
+const RUBRIC_ORDER = ["gelman", "schad", "synthesis"];
+const rubricRank = (profile: string): number => {
+  const i = RUBRIC_ORDER.indexOf(profile);
+  return i === -1 ? RUBRIC_ORDER.length : i; // unknown profiles sort to the end, stably
+};
+
+// Two-line column titles, keyed by rubric profile id: the workflow name on top, its source beneath
+// (in a lighter weight). Falls back to the rubric's own label when a profile isn't mapped here.
+const TITLE: Record<string, { line1: string; line2: string }> = {
+  synthesis: { line1: "Synthesis", line2: "Merged gold standard" },
+  gelman: { line1: "Bayesian Workflow", line2: "Gelman et al. (2020)" },
+  schad: { line1: "Principled Bayesian Workflow", line2: "Schad et al. (2021)" },
+};
+
+// The curated feature matrix: which workflow capabilities each rubric covers. Derived from the three
+// rubrics' step sets (synthesis = merged 10-step gold standard with per-step citations; Gelman = the
+// full branching workflow incl. multiverse & modeling-as-software; Schad = the pre-data design-analysis
+// arc). A checkmark means the rubric has a dedicated step for that capability.
+const FEATURES: { label: string; has: Record<string, boolean> }[] = [
+  { label: "Model specification & justification", has: { synthesis: true, gelman: true, schad: true } },
+  { label: "Prior specification", has: { synthesis: true, gelman: true, schad: true } },
+  { label: "Prior predictive checks", has: { synthesis: true, gelman: true, schad: true } },
+  { label: "Pre-data design analysis (before data)", has: { synthesis: false, gelman: false, schad: true } },
+  { label: "Simulation-based calibration (SBC)", has: { synthesis: true, gelman: true, schad: true } },
+  { label: "Model sensitivity / parameter recovery", has: { synthesis: true, gelman: false, schad: true } },
+  { label: "Convergence & sampling diagnostics", has: { synthesis: true, gelman: true, schad: true } },
+  { label: "Addressing computational problems", has: { synthesis: false, gelman: true, schad: false } },
+  { label: "Posterior predictive checks", has: { synthesis: true, gelman: true, schad: true } },
+  { label: "Cross-validation & influence (LOO)", has: { synthesis: true, gelman: true, schad: false } },
+  { label: "Model comparison / selection", has: { synthesis: true, gelman: true, schad: false } },
+  { label: "Iterative model expansion (multiverse)", has: { synthesis: false, gelman: true, schad: false } },
+  { label: "Reporting & reproducibility", has: { synthesis: true, gelman: true, schad: false } },
+  { label: "Posterior summary & inference communication", has: { synthesis: true, gelman: false, schad: true } },
+  { label: "Per-step source citations", has: { synthesis: true, gelman: false, schad: false } },
+];
+
+// The dedicated reference page for the rubrics: the three sets shown side by side, then a comparison
+// table of what each one covers. Linked from the footer and from every rubric mention in the app.
+export function Rubrics({ onExit }: { onExit: () => void }) {
+  const [rubrics, setRubrics] = useState<Rubric[] | null>(null);
+
+  useEffect(() => {
+    fetchRubrics()
+      .then((list) => Promise.all(list.map((r) => fetchRubric(r.id))))
+      .then((loaded) =>
+        setRubrics(
+          [...loaded].sort(
+            (a, b) => rubricRank(a.rubric_profile) - rubricRank(b.rubric_profile),
+          ),
+        ),
+      )
+      .catch(() => setRubrics([]));
+  }, []);
+
+  return (
+    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
+        <Box>
+          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
+            Reference
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
+            The rubrics
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 720 }}>
+            Bayesify grades against one of three rubrics. Each decomposes the Bayesian workflow into
+            named steps; pick the one whose lens fits your paper.
+          </Typography>
+        </Box>
+        <Button variant="outlined" onClick={onExit} sx={{ flexShrink: 0 }}>
+          Back
+        </Button>
+      </Box>
+
+      {!rubrics ? (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary", py: 6 }}>
+          <CircularProgress size={20} />
+          <Typography>Loading rubrics…</Typography>
+        </Box>
+      ) : (
+        <>
+          {/* the three rubrics, side by side. A grid with five shared row bands — header, rule,
+              summary, rule, steps — and each column a subgrid spanning them, so the dividers and the
+              start of every step list line up across Synthesis / Gelman / Schad regardless of how
+              much text each carries. The steps band is 1fr so the columns stay equal height. */}
+          <Box
+            sx={{
+              mt: 3,
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
+              gridTemplateRows: { md: "auto auto auto auto 1fr" },
+              columnGap: { md: 3 },
+              rowGap: { xs: 2.5, md: 0 },
+              alignItems: "stretch",
+            }}
+          >
+            {rubrics.map((r) => (
+              <RubricColumn key={r.rubric_profile} rubric={r} />
+            ))}
+          </Box>
+
+          <Divider sx={{ my: { xs: 4, md: 5 } }} />
+
+          {/* the comparison */}
+          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+            How they differ
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Which workflow capabilities each rubric has a dedicated step for.
+          </Typography>
+          <ComparisonTable columns={rubrics.map((r) => r.rubric_profile)} />
+        </>
+      )}
+    </Container>
+  );
+}
+
+function RubricColumn({ rubric }: { rubric: Rubric }) {
+  const title = TITLE[rubric.rubric_profile];
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        p: { xs: 2.5, md: 3 },
+        borderRadius: 3,
+        minWidth: 0,
+        // span the five shared row bands as a subgrid so every column's bands line up
+        gridRow: { md: "1 / -1" },
+        display: { xs: "flex", md: "grid" },
+        flexDirection: "column",
+        gridTemplateRows: { md: "subgrid" },
+        // a cool, responsive lift on hover — the card brightens, lifts, and casts a primary-tinted glow
+        transition: "transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease",
+        "&:hover": {
+          transform: { md: "translateY(-6px)" },
+          borderColor: "primary.main",
+          boxShadow: (t) => `0 14px 36px ${alpha(t.palette.primary.main, 0.22)}`,
+        },
+      }}
+    >
+      {/* header: workflow name + source on the left, step-count chip in the top-right corner aligned
+          to the title's top — so the chip sits at the band's height, not stacked below the title */}
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1.5 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+            {title?.line1 ?? rubric.label}
+          </Typography>
+          {title && (
+            <Typography sx={{ fontWeight: 400, fontSize: "0.95rem", color: "text.secondary", lineHeight: 1.25, mt: 0.25 }}>
+              {title.line2}
+            </Typography>
+          )}
+        </Box>
+        <Chip size="small" label={`${rubric.steps.length} steps`} sx={{ flexShrink: 0 }} />
+      </Box>
+
+      <Divider sx={{ my: 2 }} />
+
+      <Typography variant="body2" color="text.secondary">
+        {rubric.summary}
+      </Typography>
+
+      <Divider sx={{ my: 2 }} />
+
+      {/* steps outline grows to fill, so the three columns stay equal height */}
+      <Box
+        component="ol"
+        sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 1 }}
+      >
+        {rubric.steps.map((s) => (
+          <Box component="li" key={s.id} sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+            <Typography
+              component="span"
+              sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 600, color: "text.disabled", flexShrink: 0 }}
+            >
+              {s.id}
+            </Typography>
+            <Typography component="span" sx={{ fontSize: "0.95rem" }}>
+              {s.name}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Paper>
+  );
+}
+
+function ComparisonTable({ columns }: { columns: string[] }) {
+  return (
+    // No surrounding box — the table sits directly on the aurora. A strong header rule, hairline row
+    // separators and a soft row hover do the structural work the border used to.
+    <TableContainer sx={{ overflowX: "auto" }}>
+      <Table
+        sx={{
+          "& th, & td": { borderBottom: "1px solid", borderColor: "divider", py: 1.5 },
+          "& tbody tr:last-of-type td": { borderBottom: 0 },
+          "& tbody tr": { transition: "background-color 120ms" },
+          "& tbody tr:hover": { bgcolor: "action.hover" },
+        }}
+      >
+        <TableHead>
+          <TableRow
+            sx={{
+              "& th": {
+                fontWeight: 700,
+                color: "text.primary",
+                borderBottomWidth: 2,
+                borderColor: (t) => t.tokens.lineStrong,
+              },
+            }}
+          >
+            <TableCell sx={{ fontSize: "0.72rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              Capability
+            </TableCell>
+            {columns.map((c) => (
+              <TableCell key={c} align="center" sx={{ width: 132 }}>
+                {SHORT_LABEL[c] ?? c}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {FEATURES.map((f) => (
+            <TableRow key={f.label} hover>
+              <TableCell sx={{ color: "text.primary" }}>{f.label}</TableCell>
+              {columns.map((c) => (
+                <TableCell key={c} align="center">
+                  {f.has[c] ? (
+                    // a solid green dot with the tick knocked out in the page-background colour
+                    <Box
+                      sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        bgcolor: "success.main",
+                      }}
+                    >
+                      <CheckIcon sx={{ fontSize: 16, color: (t) => t.tokens.aurora.base }} aria-label="yes" />
+                    </Box>
+                  ) : (
+                    <Box component="span" sx={{ color: "text.disabled" }} aria-label="no">
+                      —
+                    </Box>
+                  )}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}

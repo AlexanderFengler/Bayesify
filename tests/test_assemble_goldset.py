@@ -8,22 +8,22 @@ from __future__ import annotations
 
 import fitz  # PyMuPDF — a tiny Bayesian PDF so local ingest yields detector evidence
 
-from veribayes.core.schema import (
+from bayesify.core.schema import (
     EvidenceSpan,
     GateFacts,
     PaperClassLabel,
     RelevanceLabel,
     StepStatus,
 )
-from veribayes.core.validation.assemble import assemble
-from veribayes.core.validation.human_report import (
+from bayesify.core.validation.assemble import assemble
+from bayesify.core.validation.human_report import (
     GoldOrigin,
     HumanReport,
     RaterRelationship,
     Rating,
     StepRating,
 )
-from veribayes.core.validation.rating_store import RatingStore, SubmittedRating
+from bayesify.core.validation.rating_store import RatingStore, SubmittedRating
 
 _SPAN = EvidenceSpan(section_id="s01", quote="a span")
 
@@ -35,7 +35,7 @@ def _rating(rater_id: str, rel: RelevanceLabel = RelevanceLabel.yes) -> Rating:
         relationship=RaterRelationship.independent,
         relevance_label=rel,
         relevance_rationale="r",
-        paper_class_label=None if no else PaperClassLabel.empirical,
+        paper_class_labels=[] if no else [PaperClassLabel.data_analysis],
         gate_facts=None if no else GateFacts(),
         steps=[]
         if no
@@ -43,7 +43,7 @@ def _rating(rater_id: str, rel: RelevanceLabel = RelevanceLabel.yes) -> Rating:
             StepRating(
                 step_id="S1",
                 applicable=True,
-                status=StepStatus.done_well,
+                status=StepStatus.adequate,
                 confidence=0.9,
                 evidence=[_SPAN],
                 rationale="note",
@@ -78,6 +78,18 @@ def test_rating_store_round_trips_and_groups(tmp_path) -> None:
     assert RatingStore(tmp_path / "ratings").count_for("sha-p1", "synthesis") == 2
 
 
+def test_by_paper_skips_a_corrupt_rating_file(tmp_path) -> None:
+    # A partially-written / corrupt file in a bucket must not abort the whole assembly — every other
+    # rater's (irreplaceable) work in that bucket and all other buckets must still load.
+    store = RatingStore(tmp_path / "ratings")
+    store.add(_sub("p1", "r1"))
+    store.add(_sub("p1", "r2"))
+    bucket = tmp_path / "ratings" / "sha-p1__synthesis"
+    (bucket / "r3.json").write_text("{not valid", encoding="utf-8")
+    grouped = store.by_paper()
+    assert {s.rating.rater_id for s in grouped["sha-p1__synthesis"]} == {"r1", "r2"}
+
+
 def test_same_paper_across_sessions_groups_into_one_bucket(tmp_path) -> None:
     store = RatingStore(tmp_path / "ratings")
     # two sessions (different ephemeral job ids) rate the SAME paper (same content sha): the durable
@@ -102,7 +114,9 @@ def test_assemble_writes_admissible_record(tmp_path) -> None:
         ratings_dir=tmp_path / "ratings", out_dir=out, origin=GoldOrigin.blind_human
     )
     assert written == ["sha-p1__synthesis"] and skipped == []
-    hr = HumanReport.model_validate_json((out / "sha-p1__synthesis.json").read_text())
+    hr = HumanReport.model_validate_json(
+        (out / "sha-p1__synthesis.json").read_text(encoding="utf-8")
+    )
     assert hr.consensus is not None and hr.source_sha256 == "sha-p1"
     assert hr.work_id == "sha-p1__synthesis"
     assert hr.provenance.origin is GoldOrigin.blind_human
@@ -120,8 +134,12 @@ def test_assemble_separates_one_paper_rated_under_two_rubrics(tmp_path) -> None:
     out = tmp_path / "goldset"
     written, skipped = assemble(ratings_dir=tmp_path / "ratings", out_dir=out)
     assert set(written) == {"sha-dual__synthesis", "sha-dual__gelman"} and skipped == []
-    syn = HumanReport.model_validate_json((out / "sha-dual__synthesis.json").read_text())
-    gel = HumanReport.model_validate_json((out / "sha-dual__gelman.json").read_text())
+    syn = HumanReport.model_validate_json(
+        (out / "sha-dual__synthesis.json").read_text(encoding="utf-8")
+    )
+    gel = HumanReport.model_validate_json(
+        (out / "sha-dual__gelman.json").read_text(encoding="utf-8")
+    )
     assert syn.rubric_profile == "synthesis" and gel.rubric_profile == "gelman"
     assert syn.source_sha256 == gel.source_sha256 == "sha-dual"  # same paper, cleanly separated
 
@@ -143,12 +161,12 @@ def test_submit_persists_durably_and_assembles(tmp_path, monkeypatch) -> None:
 
     from fastapi.testclient import TestClient
 
-    from veribayes.api import jobs as jobsmod
-    from veribayes.api.app import app, store
-    from veribayes.api.jobs import Job, run_job
+    from bayesify.api import jobs as jobsmod
+    from bayesify.api.app import app, store
+    from bayesify.api.jobs import Job, run_job
 
     client = TestClient(app)
-    monkeypatch.setenv("VERIBAYES_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     # ingest a paper locally so it has a content_sha256/version_label the submit captures
     job = Job(id="rate-persist", mode="local", source_label="x.pdf", data=_HDDM, filename="x.pdf")
     store._jobs[job.id] = job

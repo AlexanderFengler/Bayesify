@@ -8,7 +8,7 @@
 ## What it is
 A read/discussion paper in JRSS Series A (2019, 182(2):389-402) by the core Stan development team (Gabry, Simpson, Vehtari, Betancourt, Gelman). It argues that Bayesian data analysis is an iterative process of model building, inference, checking/evaluation, and expansion, and that visualization is indispensable at every stage — not just trace plots at the end. It is the standard citation for graphical prior/posterior predictive checking and underlies the bayesplot R package.
 
-## Key content for VeriBayes
+## Key content for Bayesify
 - Frames visualization as integral to each workflow phase: exploratory data analysis, prior predictive checks, MCMC diagnostics, posterior predictive checks, and model comparison.
 - Prior predictive checks: simulate datasets from the prior(+likelihood) BEFORE seeing data and plot them; implausible simulated data (e.g., physically impossible values) signals priors needing revision — the operational template for rubric S3.
 - Distinguishes weakly informative priors from flat/vague defaults by what their simulations imply on the outcome scale, rather than by the prior density alone.
@@ -16,7 +16,7 @@ A read/discussion paper in JRSS Series A (2019, 182(2):389-402) by the core Stan
 - Demonstrates visual HMC diagnostics (divergent-transition scatterplots revealing pathological posterior geometry) and graphical PSIS-LOO checks (pointwise Pareto-k plots) on a running PM2.5 air-pollution case study.
 - Emphasizes the iterative loop: check, find misfit, expand model, re-check — checks are workflow steps, not one-off post-hoc validation.
 
-## How VeriBayes uses it
+## How Bayesify uses it
 - Grounds S3 (Prior predictive / prior pushforward checks): "simulations from prior shown/described BEFORE data; implausible implications caught & priors revised" is distilled from this paper (cited in rubric/steps.yaml alongside betancourt_workflow and schad2021).
 - Grounds S5 (Posterior predictive checks): the done_well criterion "graphical overlays and/or test quantities, discrepancies discussed and acted on" follows this paper's PPC presentation (cited with gelman2020).
 - Supports the S5 caveat that PPC discrepancies are signals to investigate, NOT auto-diagnoses of a specific defect.

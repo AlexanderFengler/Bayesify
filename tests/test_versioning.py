@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from veribayes.core import config
-from veribayes.core.versioning import compute_engine_version
+from bayesify.core import config
+from bayesify.core.versioning import compute_engine_version
 
 
 def test_default_engine_version_folds_in_pinned_models() -> None:

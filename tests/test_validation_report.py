@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import pathlib
 
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import EvidenceSpan, RelevanceLabel, ScoredResult, StepStatus
-from veribayes.core.validation.human_report import (
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import EvidenceSpan, RelevanceLabel, ScoredResult, StepStatus
+from bayesify.core.validation.human_report import (
     GoldOrigin,
     GoldProvenance,
     GoldTier,
@@ -18,7 +18,7 @@ from veribayes.core.validation.human_report import (
     Rating,
     StepRating,
 )
-from veribayes.core.validation.report import build_report, to_calibration_payload, to_markdown
+from bayesify.core.validation.report import build_report, to_calibration_payload, to_markdown
 
 _FIX = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
 _RUBRIC = load_rubric()
@@ -44,7 +44,7 @@ def _rating(sr: ScoredResult, rater_id: str, rel: RaterRelationship, *, flip: bo
         status = a.status
         if flip and not flipped and status is not StepStatus.partial:
             status, flipped = StepStatus.partial, True
-        present = status in (StepStatus.done_well, StepStatus.partial)
+        present = status in (StepStatus.adequate, StepStatus.partial)
         steps.append(
             StepRating(
                 step_id=a.step_id,
@@ -61,7 +61,7 @@ def _rating(sr: ScoredResult, rater_id: str, rel: RaterRelationship, *, flip: bo
         relationship=rel,
         relevance_label=RelevanceLabel.yes,
         relevance_rationale="fits a Bayesian model",
-        paper_class_label=sr.paper_class.primary,
+        paper_class_labels=sr.paper_class.labels,
         gate_facts=sr.gate_facts,
         steps=steps,
     )
@@ -84,7 +84,7 @@ def _human(sr: ScoredResult, work_id: str, sha: str) -> HumanReport:
 
 
 def test_build_report_produces_one_watermarked_object() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     pairs = [(_human(sr, "w1", "aa"), sr), (_human(sr, "w2", "bb"), sr)]
     rep = build_report(
         pairs,
@@ -110,7 +110,7 @@ def test_human_coverage_is_derived_not_typed() -> None:
     # the consensus statuses via the engine's own arithmetic.
     assert "coverage" not in HumanReport.model_fields
     assert "quality_score" not in HumanReport.model_fields
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     rep = build_report(
         [(_human(sr, "w1", "aa"), sr)],
         _RUBRIC,
@@ -123,7 +123,7 @@ def test_human_coverage_is_derived_not_typed() -> None:
 
 
 def test_test_retest_kappa_from_two_engine_runs() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     pairs = [(_human(sr, "w1", "aa"), sr)]
     # identical second run → perfect test-retest (the engine agrees with itself)
     perfect = build_report(
@@ -132,10 +132,10 @@ def test_test_retest_kappa_from_two_engine_runs() -> None:
     )
     assert perfect.test_retest_kappa.value == 1.0
 
-    # a noisier second run (one applicable done_well flipped to partial) → below 1.0
+    # a noisier second run (one applicable adequate flipped to partial) → below 1.0
     flipped = list(sr.step_assessments)
     for i, a in enumerate(flipped):
-        if a.applicable and a.status is StepStatus.done_well:
+        if a.applicable and a.status is StepStatus.adequate:
             flipped[i] = a.model_copy(update={"status": StepStatus.partial})
             break
     sr2 = sr.model_copy(update={"step_assessments": flipped})
@@ -147,7 +147,7 @@ def test_test_retest_kappa_from_two_engine_runs() -> None:
 
 
 def test_no_retest_pairs_leaves_kappa_unmeasured() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     rep = build_report(
         [(_human(sr, "w1", "aa"), sr)],
         _RUBRIC,
@@ -160,7 +160,7 @@ def test_no_retest_pairs_leaves_kappa_unmeasured() -> None:
 
 
 def test_tier_c_papers_are_cased_not_pooled() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     a = _human(sr, "w1", "aa")  # Tier A → pooled
     c = _human(sr, "w2", "bb").model_copy(update={"tier": GoldTier.C})  # Tier C → cased
     rep = build_report(
@@ -191,7 +191,7 @@ def test_tier_c_papers_are_cased_not_pooled() -> None:
 
 
 def test_inadmissible_papers_are_excluded_not_dropped() -> None:
-    sr = ScoredResult.model_validate_json(_FIX.read_text())
+    sr = ScoredResult.model_validate_json(_FIX.read_text(encoding="utf-8"))
     good = _human(sr, "w1", "aa")
     # no consensus → inadmissible (must be excluded-and-counted, never silently dropped)
     bad = _human(sr, "w2", "bb").model_copy(update={"consensus": None})

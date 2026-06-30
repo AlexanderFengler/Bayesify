@@ -1,4 +1,4 @@
-# h. Validation harness — VeriBayes v0 component
+# h. Validation harness — Bayesify v0 component
 
 **Milestone:** M7
 **v0 items covered:** A1 (the *engineering* of validation — the procedure itself is
@@ -12,7 +12,7 @@ The M6 capstone built this component **fake-harness-first**: everything except t
 
 Two revisions to the design below:
 
-1. **Location.** The harness/metrics/report live in `veribayes/core/validation/` (not `tests/eval/`) for clean imports + reuse by `/api/calibration`; the CLI is `pixi run validate` (`python -m veribayes.core.validation.harness`).
+1. **Location.** The harness/metrics/report live in `bayesify/core/validation/` (not `tests/eval/`) for clean imports + reuse by `/api/calibration`; the CLI is `pixi run validate` (`python -m bayesify.core.validation.harness`).
 
 2. **Consensus is AUTOMATED — no human adjudication UI (v0).** Instead of a side-by-side adjudication screen, a pure `consensus_from_ratings()` derives the consensus mechanically: a per-step status is the consensus iff a **strict majority** of raters chose it; otherwise the cell is **"no consensus" — excluded from the engine-vs-consensus metrics, but counted**. A thin assembly step (`pixi run assemble-goldset`) groups the captured ratings by paper and writes the `HumanReport` (`ratings=[the originals]`, `consensus=auto`). This is *more* defensible than a human adjudicator, not less: a mechanical consensus **cannot be engine-anchored**, so the "consensus-before-engine-inspection" leak guard and the "prompt-author-can't-adjudicate-own-disagreement" rule become moot. Original ratings are retained, so inter-rater agreement is unaffected. (Human adjudication is a possible v1 upgrade.)
 
@@ -27,15 +27,15 @@ Two revisions to the design below:
 - **Moot in v0:** the few-shot exemplar-leakage guard — the v0 prompts are zero-shot (no paper exemplars to leak).
 
 ## Purpose
-Build `veribayes validate`: the CLI + library that runs the engine over the gold set, computes every
+Build `bayesify validate`: the CLI + library that runs the engine over the gold set, computes every
 metric in protocol §3, and emits the three surfacing artifacts (versioned report JSON, public
 `VALIDATION.md`, calibration payload). The protocol defines *what* is measured and *why*; this
 component makes it executable, repeatable, and impossible to fudge silently — it is the release
 gate's mechanical half.
 
 ## Design
-**CLI.** `veribayes validate [--tier A|B|C|all] [--engine-version-check] [--seed N]` — lives in
-`tests/eval/` per spine §3.3, imports `veribayes-core` only (web-free seam, same rule as a).
+**CLI.** `bayesify validate [--tier A|B|C|all] [--engine-version-check] [--seed N]` — lives in
+`tests/eval/` per spine §3.3, imports `bayesify-core` only (web-free seam, same rule as a).
 
 **Run pipeline per Tier-A paper:** resolve goldset entry → fetch via a's `fetcher`/blob store →
 **hash check against the pinned sha256 — hard-fail on mismatch** (protocol §1 version pinning;
@@ -96,7 +96,7 @@ noise tolerance cannot merge to a release branch. (The per-PR golden-paper mini-
   any expert labels — so M7's live run is the protocol's first execution, not the harness's.
 
 ## Definition of done
-- [ ] `veribayes validate` runs Tiers A/B/C end-to-end on the synthetic mini-goldset in CI (no LLM).
+- [ ] `bayesify validate` runs Tiers A/B/C end-to-end on the synthetic mini-goldset in CI (no LLM).
 - [ ] Every protocol-§3 metric implemented as a pure function with hand-verified unit tests; Wilson
       CIs on rates (κ as point + n in v0, cluster bootstrap deferred to G9); insufficient-data floors
       honored.

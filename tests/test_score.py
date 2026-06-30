@@ -9,9 +9,9 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from veribayes.core.rubric.applicability import step_applicability
-from veribayes.core.rubric.loader import load_rubric
-from veribayes.core.schema import (
+from bayesify.core.rubric.applicability import step_applicability_for_labels
+from bayesify.core.rubric.loader import load_rubric
+from bayesify.core.schema import (
     CostLedger,
     ExpectationTier,
     GateFacts,
@@ -24,7 +24,7 @@ from veribayes.core.schema import (
     StepAssessment,
     StepStatus,
 )
-from veribayes.core.score import (
+from bayesify.core.score import (
     ContractError,
     ScoreMeta,
     StepCalc,
@@ -50,20 +50,20 @@ def _facts(**over) -> GateFacts:
 
 
 def _assessments(
-    paper_class: PaperClassLabel,
+    paper_classes: list[PaperClassLabel],
     gate_facts: GateFacts,
     statuses: dict[str, StepStatus] | None = None,
     *,
     confidence: float = 0.9,
 ) -> list[StepAssessment]:
     """A full, applicability-consistent StepAssessment list (one per rubric step). Applicable steps
-    default to done_well unless overridden; N/A steps get not_applicable."""
+    default to adequate unless overridden; N/A steps get not_applicable."""
     statuses = statuses or {}
     out = []
     for step in _RUBRIC.steps:
-        ap = step_applicability(step, paper_class, gate_facts)
+        ap = step_applicability_for_labels(step, paper_classes, gate_facts)
         status = (
-            statuses.get(step.id, StepStatus.done_well)
+            statuses.get(step.id, StepStatus.adequate)
             if ap.applicable
             else StepStatus.not_applicable
         )
@@ -85,7 +85,7 @@ def _relevance(label=RelevanceLabel.yes) -> Relevance:
 
 
 _EMPIRICAL = PaperClass(
-    primary=PaperClassLabel.empirical, confidence=0.9, rationale="real data", evidence_refs=[0]
+    labels=[PaperClassLabel.data_analysis], confidence=0.9, rationale="real data", evidence_refs=[0]
 )
 
 
@@ -93,7 +93,7 @@ def _score(paper_class, gate_facts, statuses=None, *, confidence=0.9, relevance=
     return score(
         relevance or _relevance(),
         paper_class,
-        _assessments(paper_class.primary, gate_facts, statuses, confidence=confidence),
+        _assessments(paper_class.labels, gate_facts, statuses, confidence=confidence),
         gate_facts,
         _RUBRIC,
         _META,
@@ -103,7 +103,7 @@ def _score(paper_class, gate_facts, statuses=None, *, confidence=0.9, relevance=
 # --- golden tables -------------------------------------------------------------------------------
 
 
-def test_all_done_well_is_full_coverage_and_quality() -> None:
+def test_all_adequate_is_full_coverage_and_quality() -> None:
     r = _score(_EMPIRICAL, _facts())
     assert r.coverage.strict == 1.0 and r.coverage.lenient == 1.0
     assert r.coverage.present == r.coverage.applicable == r.profile.n_applicable
@@ -129,7 +129,7 @@ def test_na_step_is_excluded_from_the_denominator() -> None:
     analytic = _score(_EMPIRICAL, _facts(inference_method=InferenceMethod.exact_analytic))
     s4 = next(s for s in analytic.profile.steps if s.step_id == "S4")
     assert s4.applicable is False and s4.sub_score is None
-    assert analytic.quality_score == pytest.approx(1.0)  # all-done_well minus an N/A step
+    assert analytic.quality_score == pytest.approx(1.0)  # all-adequate minus an N/A step
     assert analytic.coverage.applicable == analytic.profile.n_applicable
 
 
@@ -153,7 +153,7 @@ def test_every_score_impact_is_reachable() -> None:
     base = _score(_EMPIRICAL, _facts(), statuses, confidence=0.95)
     for impact in base.score_impacts:
         upgraded = dict(statuses)
-        upgraded[impact.step_id] = StepStatus.done_well
+        upgraded[impact.step_id] = StepStatus.adequate
         after = _score(_EMPIRICAL, _facts(), upgraded, confidence=0.95)
         assert after.coverage.strict - base.coverage.strict == pytest.approx(impact.coverage_delta)
         assert after.quality_score - base.quality_score == pytest.approx(impact.quality_delta)
@@ -174,13 +174,13 @@ def test_empty_assessments_raises() -> None:
 
 
 def test_missing_step_assessment_raises() -> None:
-    full = _assessments(PaperClassLabel.empirical, _facts())
+    full = _assessments([PaperClassLabel.data_analysis], _facts())
     with pytest.raises(ContractError):
         score(_relevance(), _EMPIRICAL, full[:-1], _facts(), _RUBRIC, _META)  # drop S10
 
 
 def test_applicability_mismatch_raises() -> None:
-    full = _assessments(PaperClassLabel.empirical, _facts())
+    full = _assessments([PaperClassLabel.data_analysis], _facts())
     # flip S1 (always applicable) to applicable=False → disagrees with the resolver
     bad = [
         a.model_copy(update={"applicable": False, "status": StepStatus.not_applicable})
@@ -194,8 +194,8 @@ def test_applicability_mismatch_raises() -> None:
 
 # --- property tests over the scoring arithmetic --------------------------------------------------
 
-_STATUSES = [StepStatus.done_well, StepStatus.partial, StepStatus.missing]
-_ORDER = {StepStatus.missing: 0, StepStatus.partial: 1, StepStatus.done_well: 2}
+_STATUSES = [StepStatus.adequate, StepStatus.partial, StepStatus.missing]
+_ORDER = {StepStatus.missing: 0, StepStatus.partial: 1, StepStatus.adequate: 2}
 
 
 @st.composite
@@ -242,9 +242,9 @@ def test_upgrading_a_step_never_lowers_scores(calcs, idx) -> None:
         return
     i = idx % len(calcs)
     c = calcs[i]
-    if not c.applicable or c.status is StepStatus.done_well:
+    if not c.applicable or c.status is StepStatus.adequate:
         return
-    better = StepStatus.partial if c.status is StepStatus.missing else StepStatus.done_well
+    better = StepStatus.partial if c.status is StepStatus.missing else StepStatus.adequate
     base_cov, base_q = coverage_quality_from_weighted_steps(calcs, _SUB, _LOW)
     up = list(calcs)
     up[i] = StepCalc(True, better, c.weight, c.confidence)

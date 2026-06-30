@@ -23,7 +23,7 @@
       "relationship": "independent",
       "relevance_label": "no",
       "relevance_rationale": "frequentist paper; no Bayesian methods",
-      "paper_class_label": null,
+      "paper_class_labels": [],
       "paper_class_rationale": "",
       "gate_facts": null,
       "steps": []
@@ -33,7 +33,7 @@
       "relationship": "independent",
       "relevance_label": "no",
       "relevance_rationale": "frequentist paper; no Bayesian methods",
-      "paper_class_label": null,
+      "paper_class_labels": [],
       "paper_class_rationale": "",
       "gate_facts": null,
       "steps": []
@@ -44,7 +44,7 @@
     "relationship": "consensus",
     "relevance_label": "no",
     "relevance_rationale": "frequentist paper; no Bayesian methods",
-    "paper_class_label": null,
+    "paper_class_labels": [],
     "paper_class_rationale": "",
     "gate_facts": null,
     "steps": []

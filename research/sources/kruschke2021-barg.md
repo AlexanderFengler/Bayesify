@@ -8,7 +8,7 @@
 ## What it is
 A consensus-style reporting checklist for Bayesian analyses, written by John K. Kruschke and published as open-access guidance in Nature Human Behaviour (2021). It distills what a published Bayesian analysis must report so reviewers and readers can assess and reproduce it, and is the closest thing the field has to a CONSORT-style checklist for Bayesian workflows. The author maintains a companion site with the checklist and a worked supplementary example (OSF).
 
-## Key content for VeriBayes
+## Key content for Bayesify
 - Structure: a preamble (A. Why Bayesian; B. Goals of analysis) followed by six ordered steps, each with lettered sub-items: 1 Explain the model; 2 Report details of computation; 3 Describe the posterior; 4 Report decisions and criteria; 5 Report sensitivity analysis; 6 Make it reproducible.
 - Step 1 covers data variables, likelihood, parameters, priors, formal model specification, and prior predictive checks.
 - Step 2 requires two DISTINCT MCMC diagnostics for every parameter or derived value: convergence (PSRF/R-hat, Step 2.B) AND resolution (effective sample size, Step 2.C).
@@ -16,7 +16,7 @@ A consensus-style reporting checklist for Bayesian analyses, written by John K. 
 - Step 4 requires explicit decision criteria (loss functions, ROPE limits, Bayes-factor thresholds); the paper suggests a posterior model probability of 0.95 as an example decision criterion.
 - Step 6 requires full reproducibility: software versions, scripts and data, human-readable code, saved MCMC chains, and reproducible random seeds.
 
-## How VeriBayes uses it
+## How Bayesify uses it
 - Grounds rubric steps S2, S4, S9, and S10 in rubric/steps.yaml.
 - S4 thresholds are VERIFIED against this source (3-0): two distinct MCMC diagnostics required for every parameter/derived value — convergence via PSRF/R-hat (BARG Step 2.B) and resolution via ESS (BARG Step 2.C).
 - The ESS >= 10,000 recommendation applies specifically to stable HDI limits; the rubric should not treat it as a hard floor when papers report equal-tailed intervals, where lower ESS is tolerable per BARG.

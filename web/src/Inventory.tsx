@@ -1,3 +1,6 @@
+import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
+import { Box, Button, Chip, Container, Link, Typography } from "@mui/material";
+import { formatByline } from "./paper";
 import type { EvidenceInventory, InventoryFamily, InventoryHit, PaperState } from "./types";
 
 const FAMILY_NAMES: Record<string, string> = {
@@ -25,6 +28,8 @@ function valueText(value: Record<string, unknown> | null): string | null {
     .join(", ");
 }
 
+// The local-only detection inventory, given the same full-bleed MUI treatment as the report: the
+// shared top bar, a sticky left summary column, and de-carded family sections on the right.
 export function Inventory({
   paper,
   onReset,
@@ -37,144 +42,220 @@ export function Inventory({
   const inv = paper.inventory!;
   const families = inv.families.filter((f) => f.found.length > 0 || f.not_detected.length > 0);
   return (
-    <div className="report inventory">
-      <div className="report-head">
-        <div>
-          <div className="local-badge">Local-only · detection mode</div>
-          <h1 className="report-title">{paper.source_label}</h1>
-        </div>
-        <div className="report-head-actions">
-          {/* Blind entry: rate from the no-grade detection view, never from the engine's report. */}
-          <button className="btn" onClick={() => onRate(paper.paper_id)}>
-            Rate this paper (blind)
-          </button>
-          <button className="btn" onClick={onReset}>
-            Analyze another
-          </button>
-        </div>
-      </div>
+    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          gap: { xs: 4, md: 6 },
+          alignItems: "flex-start",
+        }}
+      >
+        {/* LEFT: detection summary + where the engine looked */}
+        <Box sx={{ flex: { md: "0 0 38%" }, width: "100%", position: { md: "sticky" }, top: { md: 24 } }}>
+          <SummaryColumn paper={paper} inv={inv} onReset={onReset} onRate={onRate} />
+        </Box>
 
-      <InventorySummary inv={inv} parser={paper.parser} paperId={paper.paper_id} />
-
-      <p className="inventory-disclaimer">
-        This is a <strong>detection inventory</strong>, not a graded assessment. Detectors find
-        signals and show exactly where; they don&rsquo;t judge whether a practice was done{" "}
-        <em>well</em> — that&rsquo;s the full (LLM) report&rsquo;s job. Absences mean{" "}
-        <em>not detected</em>, never &ldquo;not done.&rdquo;
-      </p>
-
-      <div className="families">
-        {families.map((f) => (
-          <FamilyCard key={f.family} f={f} />
-        ))}
-      </div>
-
-      <WhereLooked inv={inv} />
-    </div>
+        {/* RIGHT: the detections, by family */}
+        <Box sx={{ flex: "1 1 0", width: "100%", minWidth: 0 }}>
+          <Typography variant="overline" color="text.secondary">
+            Detections by family
+          </Typography>
+          <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 3 }}>
+            {families.map((f) => (
+              <FamilySection key={f.family} f={f} />
+            ))}
+          </Box>
+        </Box>
+      </Box>
+    </Container>
   );
 }
 
-function InventorySummary({
+function SummaryColumn({
+  paper,
   inv,
-  parser,
-  paperId,
+  onReset,
+  onRate,
 }: {
+  paper: PaperState;
   inv: EvidenceInventory;
-  parser: string | null;
-  paperId: string;
+  onReset: () => void;
+  onRate: (paperId: string) => void;
 }) {
   return (
-    <div className="summary inventory-summary">
-      <div className="metric metric-primary">
-        <div className="metric-value">{inv.n_hits}</div>
-        <div className="metric-label">signals detected</div>
-      </div>
-      <div className="inventory-meta">
-        <div>
-          parsed with <strong>{parser ?? "—"}</strong> · {inv.where_looked.length} sections scanned
-        </div>
-        <div className="inventory-privacy">No LLM · nothing left this machine.</div>
-        <div className="inventory-downloads">
-          <a href={`/api/papers/${paperId}/report.json`} target="_blank" rel="noreferrer">
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+      <Box>
+        <Chip size="small" variant="outlined" color="success" label="Local · detection mode" sx={{ mb: 1 }} />
+        <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+          {paper.paper_title ?? paper.source_label}
+        </Typography>
+        {formatByline(paper.paper_authors, paper.paper_year) && (
+          <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {formatByline(paper.paper_authors, paper.paper_year)}
+          </Typography>
+        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 1.5, flexWrap: "wrap" }}>
+          {/* Blind entry: rate from the no-grade detection view, never from the engine's report. */}
+          <Button size="small" variant="contained" disableElevation onClick={() => onRate(paper.paper_id)}>
+            Rate this paper (blind)
+          </Button>
+          <Button size="small" variant="outlined" onClick={onReset}>
+            Analyze another
+          </Button>
+        </Box>
+      </Box>
+
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+        <Typography sx={{ fontSize: "2.5rem", fontWeight: 700, lineHeight: 1, color: "primary.main" }}>
+          {inv.n_hits}
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          signals detected
+        </Typography>
+      </Box>
+
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+        <Typography variant="body2" color="text.secondary">
+          parsed with <strong>{paper.parser ?? "—"}</strong> · {inv.where_looked.length} sections scanned
+        </Typography>
+        <Typography variant="caption" sx={{ color: "success.main", fontWeight: 600 }}>
+          No LLM · nothing left this machine.
+        </Typography>
+        <Box sx={{ display: "flex", gap: 1.5, mt: 0.5 }}>
+          <Link href={`/api/papers/${paper.paper_id}/report.json`} target="_blank" rel="noreferrer" variant="body2">
             report.json
-          </a>
-          <a href={`/api/papers/${paperId}/report.md`} target="_blank" rel="noreferrer">
+          </Link>
+          <Link href={`/api/papers/${paper.paper_id}/report.md`} target="_blank" rel="noreferrer" variant="body2">
             report.md
-          </a>
-        </div>
-      </div>
-    </div>
+          </Link>
+        </Box>
+      </Box>
+
+      <Typography variant="body2" color="text.secondary">
+        This is a <strong>detection inventory</strong>, not a graded assessment. Detectors find signals
+        and show exactly where; they don&rsquo;t judge whether a practice was done <em>well</em> — that&rsquo;s
+        the full (LLM) report&rsquo;s job. Absences mean <em>not detected</em>, never &ldquo;not done.&rdquo;
+      </Typography>
+
+      <WhereLooked inv={inv} />
+    </Box>
   );
 }
 
-function FamilyCard({ f }: { f: InventoryFamily }) {
+function FamilySection({ f }: { f: InventoryFamily }) {
   return (
-    <section className="family-card">
-      <header className="family-head">
-        <h2 className="family-name">{FAMILY_NAMES[f.family] ?? f.family}</h2>
-        <span className="family-count">{f.found.length} found</span>
-      </header>
+    <Box component="section">
+      <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, mb: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          {FAMILY_NAMES[f.family] ?? f.family}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {f.found.length} found
+        </Typography>
+      </Box>
 
       {f.found.length > 0 ? (
-        <ul className="hit-list">
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
           {f.found.map((h, i) => (
             <Hit key={i} h={h} />
           ))}
-        </ul>
+        </Box>
       ) : (
-        <p className="family-empty">Nothing in this family detected.</p>
+        <Typography variant="body2" color="text.secondary">
+          Nothing in this family detected.
+        </Typography>
       )}
 
       {f.not_detected.length > 0 && (
-        <div className="not-detected">
-          <span className="nd-label">not detected</span>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", mt: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            not detected
+          </Typography>
           {f.not_detected.map((id) => (
-            <span key={id} className="nd-chip">
-              {shortId(id)}
-            </span>
+            <Chip key={id} size="small" variant="outlined" label={shortId(id)} sx={{ color: "text.secondary" }} />
           ))}
-        </div>
+        </Box>
       )}
-    </section>
+    </Box>
   );
 }
 
 function Hit({ h }: { h: InventoryHit }) {
   const v = valueText(h.value);
   return (
-    <li className="hit">
-      <div className="hit-head">
-        <span className="hit-id">{shortId(h.detector_id)}</span>
-        {v && <span className="hit-value">{v}</span>}
-      </div>
-      <blockquote className="evidence">
-        &ldquo;{h.quote}&rdquo;
-        <cite>
-          {h.section_title || h.section_id}
-          {h.page != null && `, p.${h.page}`}
-        </cite>
-      </blockquote>
-    </li>
+    <Box sx={{ pl: 2, borderLeft: "3px solid", borderColor: "divider" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+        <Typography component="span" sx={{ fontWeight: 700, fontFamily: (t) => t.tokens.mono, fontSize: "0.85rem" }}>
+          {shortId(h.detector_id)}
+        </Typography>
+        {v && (
+          <Typography component="span" variant="caption" sx={{ color: "primary.main", fontFamily: (t) => t.tokens.mono }}>
+            {v}
+          </Typography>
+        )}
+      </Box>
+      <Typography variant="body2" sx={{ display: "flex", gap: 0.5, mt: 0.25 }}>
+        <FormatQuoteIcon sx={{ fontSize: 16, color: "text.disabled", flex: "0 0 auto", mt: "2px" }} />
+        <span>
+          {h.quote}
+          <Box component="span" sx={{ display: "block", color: "text.secondary", fontSize: "0.75rem", mt: 0.25 }}>
+            {h.section_title || h.section_id}
+            {h.page != null && `, p.${h.page}`}
+          </Box>
+        </span>
+      </Typography>
+    </Box>
+  );
+}
+
+// The local-mode "nothing detected / not run" notice, given the same full-bleed treatment.
+export function LocalNotice({
+  notice,
+  source,
+  onReset,
+}: {
+  notice: string;
+  source: string;
+  onReset: () => void;
+}) {
+  return (
+    <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
+      <Chip size="small" variant="outlined" label="No analysis run yet" sx={{ mb: 1.5 }} />
+      <Typography variant="h5" sx={{ fontWeight: 700 }}>
+        {source}
+      </Typography>
+      <Typography sx={{ mt: 1.5, color: "text.secondary" }}>{notice}</Typography>
+      <Button variant="contained" disableElevation onClick={onReset} sx={{ mt: 3 }}>
+        Analyze another
+      </Button>
+    </Container>
   );
 }
 
 function WhereLooked({ inv }: { inv: EvidenceInventory }) {
   return (
-    <div className="where-looked">
-      <div className="grounding-label">Where the engine looked</div>
-      <div className="scanned">
+    <Box>
+      <Typography variant="overline" color="text.secondary">
+        Where the engine looked
+      </Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
         {inv.where_looked.map((s) => (
-          <span key={s.section_id} className="scanned-chip" title={`${s.kind} · ${s.section_id}`}>
-            {s.title || s.kind}
-          </span>
+          <Chip
+            key={s.section_id}
+            size="small"
+            variant="outlined"
+            label={s.title || s.kind}
+            title={`${s.kind} · ${s.section_id}`}
+          />
         ))}
-      </div>
+      </Box>
       {inv.skipped.length > 0 && (
-        <p className="skipped-note">
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
           Not scanned (a precision trap — reference lists name tools the paper doesn&rsquo;t use):{" "}
           {inv.skipped.map((s) => s.title || s.kind).join(", ")}.
-        </p>
+        </Typography>
       )}
-    </div>
+    </Box>
   );
 }

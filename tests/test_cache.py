@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from veribayes.core.cache import (
+from bayesify.core.cache import (
     BlobStore,
     FullResultKey,
     ResultCache,

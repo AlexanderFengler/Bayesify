@@ -1,4 +1,4 @@
-# VeriBayes Validation Protocol (A1)
+# Bayesify Validation Protocol (A1)
 
 **Status:** Protocol v0 (extracted from `plans/02-mvp-tool-plan.md` §7; content unchanged)
 **Executed at:** Phase-2 milestone M7 — *v0 is not "done" until this protocol has run*
@@ -23,7 +23,7 @@
   frame** per class; the list is frozen with date + criteria recorded *prior to the first engine run
   on it*, and any exclusion is logged. No hand-picking after seeing engine output.
 - **Version pinning:** each `validation/goldset/<work_id>.json` stores paper identifiers, labels,
-  **and the `sha256` of the exact rated document bytes** (+ version, e.g. arXiv v2). `veribayes
+  **and the `sha256` of the exact rated document bytes** (+ version, e.g. arXiv v2). `bayesify
   validate` verifies the hash of what it fetches and **hard-fails on mismatch** — metrics are never
   silently computed against a different version than the raters saw. PDFs themselves are never
   committed.
@@ -33,7 +33,7 @@
    output**; **at least one rater per paper has no role in engine/prompt development**, and
    rater–project relationships are recorded in the validation report.
 2. **Instrument:** `validation/rating-guide.md`, compiled from `rubric/steps.yaml` — same statuses
-   (`done_well | partial | missing | not_applicable`), same applicability-gating rules the engine
+   (`adequate | partial | missing | not_applicable`), same applicability-gating rules the engine
    uses. Raters record, per step: applicability, status, an evidence pointer, and their own
    confidence; plus relevance and paper-class labels. For `missing`, raters optionally sub-tag
    **not-done vs not-reported(-suspected)** — v0 metrics collapse these, but the sub-label is stored
@@ -52,22 +52,22 @@
    instrument). Override-nominated papers (plan `02-mvp/g-report-api-ui.md`) enter only after full
    blind re-rating under §2 — override labels themselves are engine-anchored and never imported.
 
-## 3. Metrics (computed by `veribayes validate`, written to `validation/reports/<engine_version>.json`)
+## 3. Metrics (computed by `bayesify validate`, written to `validation/reports/<engine_version>.json`)
 **Two-stage agreement** — `not_applicable` is a different *kind* of judgment, not a fourth ordinal
 level, so agreement is decomposed to mirror the engine's own architecture:
 - **Stage 1 — applicability agreement:** binary applicable-vs-N/A over *all* step×paper cells:
   unweighted κ plus sensitivity/specificity. (Engine-"missing" vs human-"N/A" is an applicability
   error and lands here, not in the FPR.)
 - **Stage 2 — status agreement:** weighted κ on the genuinely ordinal 3-level scale
-  (`done_well > partial > missing`), restricted to cells **both** judges deem applicable.
+  (`adequate > partial > missing`), restricted to cells **both** judges deem applicable.
   Computed human-vs-human (pairwise, blind) and engine-vs-consensus.
 - **Prevalence robustness:** κ is prevalence-sensitive and most steps have skewed marginals (κ can
   look terrible at 95% raw agreement). Report **% agreement and Gwet's AC1/AC2** alongside every κ;
   the caveat rule below keys on the *pair*, not κ alone.
 - **Both directions of the absence error** (one-sided FPR would be gamed by the adversarial pass
   simply never saying "missing"):
-  - **Absence-FPR** — of engine `missing` claims: *strict* (consensus `done_well`) and *broad*
-    (consensus ∈ {`done_well`, `partial`}), reported with raw counts (x/n).
+  - **Absence-FPR** — of engine `missing` claims: *strict* (consensus `adequate`) and *broad*
+    (consensus ∈ {`adequate`, `partial`}), reported with raw counts (x/n).
   - **Absence-miss-rate** — of consensus-`missing` steps, the share the engine failed to flag.
   - The full confusion matrix for the `missing` row *and* column goes on the calibration page so
     the trade-off is visible.
