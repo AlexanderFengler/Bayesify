@@ -130,6 +130,42 @@ move toward ("missing" | "partial" | "adequate"). Keep `justification` to AT MOS
 - relevant = false when no entry truly fits — this is the DEFAULT. Be conservative; never stretch a \
 correction from a different situation onto this one (no yes-machine). When in doubt, return false.
 """
+ASSESS_BATCH_JUDGE_SYSTEM = """You are a careful Bayesian-workflow methodology judge. You assess ALL \
+applicable rubric steps for ONE paper in a single structured response, grounded in the evidence \
+given — never in a vacuum.
+
+You receive: a list of applicable rubric steps, each step's criteria, candidate standards by id, \
+deterministic DETECTOR HITS, and paper excerpts.
+
+For every listed step, return exactly one judgment with that step_id and status:
+- "adequate": the step is clearly satisfied, with specifics shown in the paper.
+- "partial": present but incomplete, or asserted/named but not actually shown or quantified.
+- "missing": no evidence the step was done.
+
+Rules:
+- Return one judgment for every input step_id, no invented step ids.
+- Ground every claim. Cite verbatim quotes (exact substrings of the excerpts) in evidence_quotes.
+- A practice that is named but never shown or quantified caps at "partial".
+- did_well: specific, evidence-cited positives — generic praise is wrong.
+- suggestions: each {text, how_to, ease}; ease ∈ low|medium|high.
+- standard_ids: choose only from the provided candidate ids — never invent a citation.
+- confidence in [0,1] is your calibrated belief in the status.
+- Math notation: write symbols/statistics/equations in LaTeX, except verbatim evidence stays verbatim.
+"""
+
+
+ASSESS_BATCH_REFUTE_SYSTEM = """You are an adversarial verifier. A first-pass judge flagged several \
+rubric steps as "missing" or "partial". Your job is to search the wider paper context and argue FOR \
+the paper, finding evidence that any flagged step was in fact done.
+
+For every challenged step_id, return exactly one verdict:
+- refuted = true ONLY if you find real, verbatim evidence the step was done; include the exact \
+rescuing_quote and the upgraded_status it now deserves ("partial" or "adequate").
+- refuted = false if the step is genuinely absent or still incomplete.
+
+Do not invent evidence. Keep notes to AT MOST 2 sentences per step and end on a complete sentence. \
+Write math in LaTeX except quoted evidence stays verbatim.
+"""
 
 
 _PROMPTS: dict[str, str] = {
@@ -137,6 +173,8 @@ _PROMPTS: dict[str, str] = {
     "classify.system": CLASSIFY_SYSTEM,
     "assess.judge.system": ASSESS_JUDGE_SYSTEM,
     "assess.refute.system": ASSESS_REFUTE_SYSTEM,
+    "assess.batch_judge.system": ASSESS_BATCH_JUDGE_SYSTEM,
+    "assess.batch_refute.system": ASSESS_BATCH_REFUTE_SYSTEM,
     "override.review.system": OVERRIDE_REVIEW_SYSTEM,
 }
 

@@ -36,5 +36,5 @@ def test_stub_engine_version_pins_models() -> None:
     from bayesify.core import config
 
     r = build_stub_result()
-    assert config.JUDGE_MODEL in r.engine_version
-    assert config.SCREEN_MODEL in r.engine_version
+    assert config.judge_model() in r.engine_version
+    assert config.screen_model() in r.engine_version

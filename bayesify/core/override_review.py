@@ -76,13 +76,14 @@ def review_overrides(
     rubric: RubricSpec,
     *,
     client: LLMClient,
-    model: str = config.JUDGE_MODEL,
+    model: str | None = None,
 ) -> tuple[ScoredResult, list[AppliedCorrection], list[CostLedgerEntry]]:
     """Run the relevance+correction pass over the steps that have candidate overrides. Returns the
     (possibly corrected) result + provenance + the LLM cost ledger. A no-op when nothing applies;
     one LLM call per step-with-candidates, none when ``bank`` is empty."""
     if result.paper_class is None or not result.step_assessments:
         return result, [], []
+    model = model or config.judge_model()
     by_id = {a.step_id: a for a in result.step_assessments}
     steps = {st.id: st for st in rubric.steps}
     changes: dict[str, StepStatus] = {}

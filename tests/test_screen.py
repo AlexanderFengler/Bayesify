@@ -59,7 +59,7 @@ def test_screen_returns_relevance_and_meters_cost() -> None:
     rel, entry = S.screen(parsed, evidence, client=client)
 
     assert rel.label is RelevanceLabel.yes
-    assert entry.stage == "screen" and entry.model == config.SCREEN_MODEL
+    assert entry.stage == "screen" and entry.model == config.screen_model()
     assert client.calls[0]["schema"] == "Relevance"
     assert "DETECTOR HITS" in client.calls[0]["user"]  # evidence digest reached the prompt
 

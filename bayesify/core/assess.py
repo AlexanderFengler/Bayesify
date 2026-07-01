@@ -176,7 +176,7 @@ def assess(
     rubric: RubricSpec,
     *,
     client: LLMClient,
-    model: str = config.JUDGE_MODEL,
+    model: str | None = None,
     concurrency: int | None = None,
 ) -> tuple[list[StepAssessment], GateFacts, list[CostLedgerEntry]]:
     """Produce one ``StepAssessment`` per rubric step, plus the minted ``GateFacts`` and cost ledger
@@ -189,6 +189,7 @@ def assess(
     sequential path. This is a pure latency optimization: assessments and ledger entries are always
     reassembled in rubric-step order, so the result is byte-identical to the serial run.
     """
+    model = model or config.judge_model()
     gate_facts = derive_gate_facts(evidence, paper_class)
     searched = _scanned_section_ids(parsed)  # paper-level; identical for every step
 

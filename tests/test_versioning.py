@@ -10,8 +10,8 @@ def test_default_engine_version_folds_in_pinned_models() -> None:
     ev = compute_engine_version()
     # G1: the judge + screen model IDs are part of engine_version, so a model change can't silently
     # replay a cached result.
-    assert config.JUDGE_MODEL in ev.compact
-    assert config.SCREEN_MODEL in ev.compact
+    assert config.judge_model() in ev.compact
+    assert config.screen_model() in ev.compact
     assert ev.prompt_set_hash == "none"  # no prompts at M1
     assert ev.detector_catalog_hash == "none"  # no detectors at M1
 

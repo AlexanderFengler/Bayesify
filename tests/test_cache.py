@@ -39,6 +39,7 @@ def test_full_result_key_changes_with_every_dimension() -> None:
     assert _key(relevance_override="partial").digest() != base  # G2: rerun dimension
     assert _key(force_grade=True).digest() != base  # forced-grade dimension
     assert _key(rubric_profile="gelman").digest() != base  # different rubrics grade differently
+    assert _key(grading_strategy="batch").digest() != base  # batch/classic do not share cache
 
 
 def test_rerun_override_does_not_collide_with_short_circuit() -> None:

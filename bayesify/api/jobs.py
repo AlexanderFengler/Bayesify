@@ -403,7 +403,7 @@ async def _review_overlay(job: Job, rubric) -> None:
     if not bank:
         return
     corrected, applied, _cost = await asyncio.to_thread(
-        review_overrides, job.result, bank, rubric, client=_llm_client(), model=config.JUDGE_MODEL
+        review_overrides, job.result, bank, rubric, client=_llm_client(), model=config.judge_model()
     )
     if applied:
         job.base_coverage = job.result.coverage
@@ -432,6 +432,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
         relevance_override=job.relevance_override,
         force_grade=job.force_grade,
         rubric_profile=job.profile,
+        grading_strategy=config.grading_strategy(),
     )
     if _cache_enabled() and not job.force_fresh:
         cached = _results().get(key)
