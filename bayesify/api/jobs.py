@@ -23,6 +23,13 @@ from pathlib import Path
 import httpx
 
 from bayesify.api.mongo import find_trusted_step_overrides, save_event
+from bayesify.api.papers_store import (
+    ArchivedPaper,
+    PapersStore,
+    discipline_tags,
+    methods_from_inventory,
+    paper_type_tags,
+)
 from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
@@ -108,6 +115,11 @@ def _ratings_store() -> RatingStore:
 def _overrides_store() -> OverrideStore:
     """Durable A5 override/rerun log (survives restart; the in-memory job dict does not)."""
     return OverrideStore(_data_root())
+
+
+def _papers_store() -> PapersStore:
+    """Durable archive of processed papers (the Archive page's backing store; survives restart)."""
+    return PapersStore(_data_root() / "papers")
 
 
 def _cache_enabled() -> bool:
@@ -270,9 +282,38 @@ def job_state_payload(job: Job) -> dict:
     }
 
 
+def _archived_from_analysis(job: Job) -> ArchivedPaper:
+    """Build the Archive entry for a completed AI analysis: metadata + auto tags (paper type +
+    discipline from the PaperClass, methods/software from the detector inventory)."""
+    r = job.result
+    paper_class = r.paper_class if r else None
+    cov = r.coverage if r else None
+    return ArchivedPaper(
+        paper_id=job.id,
+        source_sha256=job.content_sha256 or "",
+        rubric_profile=job.profile,
+        version_label=job.version_label or "",
+        source_label=job.source_label,
+        paper_title=job.paper_title,
+        paper_authors=job.paper_authors,
+        paper_year=job.paper_year,
+        mode=job.mode,
+        backend=job.backend,
+        relevance_label=r.relevance.label.value if r else "",
+        quality_score=r.quality_score if r else None,
+        coverage_present=(cov.present if cov else None),
+        coverage_applicable=(cov.applicable if cov else None),
+        paper_type=paper_type_tags(paper_class),
+        discipline=discipline_tags(paper_class),
+        methods=methods_from_inventory(job.inventory),
+    )
+
+
 def _save_analysis_report_payload(job: Job) -> None:
-    """Persist one analysis report event when a user-triggered analysis completes."""
+    """Persist one analysis report event when a user-triggered analysis completes, and upsert the
+    Archive entry (auto-tagged) so the paper is browsable/searchable."""
     spawn(asyncio.to_thread(save_event, _analysis_report_payload(job)))
+    spawn(asyncio.to_thread(_papers_store().upsert, _archived_from_analysis(job)))
 
 
 def _save_job_state(job: Job) -> None:

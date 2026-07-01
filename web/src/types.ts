@@ -90,8 +90,54 @@ export interface Relevance {
 }
 export interface PaperClass {
   labels: string[];
+  disciplines: string[]; // soft-vocabulary scientific fields (multi-label); drives the Archive facet
   confidence: number;
   rationale: string;
+}
+
+// --- Archive: one processed paper + its tags (mirror of bayesify.api.papers_store.ArchivedPaper) ---
+export interface ArchivePaper {
+  key: string; // durable archive id (also the tag-edit path segment)
+  paper_id: string;
+  source_sha256: string;
+  rubric_profile: string;
+  version_label: string;
+  source_label: string;
+  paper_title: string | null;
+  paper_authors: string[];
+  paper_year: number | null;
+  mode: string; // "full" (AI) | "local" (Human)
+  backend: string | null;
+  relevance_label: string;
+  quality_score: number | null;
+  coverage_present: number | null;
+  coverage_applicable: number | null;
+  paper_type: string[]; // auto
+  discipline: string[]; // auto
+  methods: string[]; // auto
+  manual_tags: string[]; // freeform, human-editable
+  created_at: string;
+  updated_at: string;
+}
+export interface ArchiveFacets {
+  paper_type: string[];
+  discipline: string[];
+  methods: string[];
+  tags: string[];
+}
+export interface ArchiveResponse {
+  papers: ArchivePaper[];
+  facets: ArchiveFacets;
+  total: number;
+}
+export interface ArchiveFilters {
+  q?: string;
+  paper_type?: string[];
+  discipline?: string[];
+  method?: string[];
+  tag?: string[];
+  mode?: string;
+  rubric?: string;
 }
 export interface CostLedger {
   entries: { stage: string; model: string; input_tokens: number; output_tokens: number; cost_usd: number }[];

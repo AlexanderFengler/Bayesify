@@ -25,12 +25,13 @@ from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 from sse_starlette.sse import EventSourceResponse
+from starlette.exceptions import HTTPException as _StarletteHTTPException
 
 from bayesify.api import jobs as jobsmod
 from bayesify.api.jobs import JobStore, event_stream, run_job
@@ -41,6 +42,7 @@ from bayesify.api.mongo import (
     start_mongodb,
     stop_mongodb,
 )
+from bayesify.api.papers_store import ArchivedPaper, methods_from_inventory
 from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.detectors import EvidenceInventory
@@ -675,11 +677,103 @@ async def rate_submit(body: RateSubmit) -> dict:
             "paper_class_rationale": rating_payload["paper_class_rationale"],
             "gate_facts": rating_payload["gate_facts"],
             "steps": rating_payload["steps"],
+            "tags": rating_payload["tags"],
             "submission": sub.model_dump(mode="json"),
             "n_ratings": n,
         },
     )
+    # Archive the paper (Human mode): paper-type from the rater's own class, methods from the local
+    # detection inventory when the live job is still around, and the rater's freeform tags.
+    jobsmod._papers_store().upsert(
+        ArchivedPaper(
+            paper_id=sub.paper_id,
+            source_sha256=sub.source_sha256,
+            rubric_profile=sub.rubric_profile,
+            version_label=sub.version_label,
+            source_label=(job.source_label if job is not None else sub.paper_id),
+            paper_title=(job.paper_title if job is not None else None),
+            paper_authors=(job.paper_authors if job is not None else []),
+            paper_year=(job.paper_year if job is not None else None),
+            mode=(job.mode if job is not None else "local"),
+            relevance_label=body.rating.relevance_label.value,
+            paper_type=[c.value for c in body.rating.paper_class_labels],
+            methods=methods_from_inventory(job.inventory if job is not None else None),
+            manual_tags=body.rating.tags,
+        )
+    )
     return {"recorded": True, "n_ratings": n}
+
+
+def _facets(papers: list[ArchivedPaper]) -> dict[str, list[str]]:
+    """Distinct tag values across the whole archive, per facet — the vocabulary the UI's filter
+    chips render (so a chip stays available even when the filter narrows the list to zero)."""
+    facets: dict[str, list[str]] = {"paper_type": [], "discipline": [], "methods": [], "tags": []}
+    for p in papers:
+        for value, bucket in (
+            (p.paper_type, "paper_type"),
+            (p.discipline, "discipline"),
+            (p.methods, "methods"),
+            (p.manual_tags, "tags"),
+        ):
+            for v in value:
+                if v not in facets[bucket]:
+                    facets[bucket].append(v)
+    for bucket in facets:
+        facets[bucket].sort(key=str.lower)
+    return facets
+
+
+@app.get("/api/papers")
+async def list_papers(
+    q: str = "",
+    paper_type: list[str] = Query(default=[]),
+    discipline: list[str] = Query(default=[]),
+    method: list[str] = Query(default=[]),
+    tag: list[str] = Query(default=[]),
+    mode: str = "",
+    rubric: str = "",
+) -> dict:
+    """The Archive: processed papers with their tags, newest first. Free text matches title/authors;
+    the tag facets AND-filter (every selected value must be present). Facet vocabularies span the
+    whole archive so the filter chips are stable. Empty when nothing has been processed."""
+    papers = jobsmod._papers_store().list()
+    needle = q.strip().lower()
+
+    def matches(p: ArchivedPaper) -> bool:
+        if needle:
+            hay = f"{p.paper_title or p.source_label} {' '.join(p.paper_authors)}".lower()
+            if needle not in hay:
+                return False
+        if any(t not in p.paper_type for t in paper_type):
+            return False
+        if any(d not in p.discipline for d in discipline):
+            return False
+        if any(m not in p.methods for m in method):
+            return False
+        if any(t not in p.manual_tags for t in tag):
+            return False
+        if mode and p.mode != mode:
+            return False
+        if rubric and p.rubric_profile != rubric:
+            return False
+        return True
+
+    items = [p.model_dump(mode="json") for p in papers if matches(p)]
+    return {"papers": items, "facets": _facets(papers), "total": len(papers)}
+
+
+class TagsUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tags: list[str]
+
+
+@app.patch("/api/papers/{key}/tags")
+async def update_paper_tags(key: str, body: TagsUpdate) -> dict:
+    """Replace one archived paper's freeform manual tags (the Archive tag editor)."""
+    updated = jobsmod._papers_store().set_tags(key, body.tags)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Unknown archived paper.")
+    return updated.model_dump(mode="json")
 
 
 @app.get("/api/calibration")
@@ -788,13 +882,6 @@ def _render_inventory_markdown(job: jobsmod.Job) -> str:
         f"Skipped (not scanned): {skipped}.",
     ]
     return "\n".join(lines)
-
-
-# --- Static frontend (single-process mode) --------------------------------------------------------
-# Mounted LAST so it never shadows the /api routes above. Present only when web/dist exists (built
-# by `pixi run app`); absent in the Vite dev flow. Override the location via BAYESIFY_WEB_DIST.
-from starlette.exceptions import HTTPException as _StarletteHTTPException  # noqa: E402
-
 
 class _SPAStaticFiles(StaticFiles):
     """Serve the built SPA, falling back to index.html for client-side routes (react-router).

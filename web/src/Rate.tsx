@@ -1,6 +1,7 @@
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -112,6 +113,7 @@ export function Rate({
   const [relevanceRationale, setRelevanceRationale] = useState("");
   const [paperClasses, setPaperClasses] = useState<PaperClass[]>([]);
   const [classRationale, setClassRationale] = useState("");
+  const [tags, setTags] = useState<string[]>([]); // freeform tags → the paper's Archive entry
   const [gate, setGate] = useState({
     inference_method: "mcmc",
     n_models: 1,
@@ -164,6 +166,7 @@ export function Rate({
         paper_class_rationale: "",
         gate_facts: null,
         steps: [],
+        tags,
       };
     }
     if (paperClasses.length === 0) return { error: "Choose at least one paper type." };
@@ -198,6 +201,7 @@ export function Rate({
       paper_class_rationale: classRationale,
       gate_facts: gate,
       steps,
+      tags,
     };
   }
 
@@ -404,6 +408,23 @@ export function Rate({
               label="Paper type rationale (optional)"
               value={classRationale}
               onChange={(e) => setClassRationale(e.target.value)}
+            />
+            {/* Freeform tags for your Archive — independent of the blind judgment (curation only). */}
+            <Autocomplete
+              multiple
+              freeSolo
+              size="small"
+              options={[]}
+              value={tags}
+              onChange={(_, v) => setTags(v as string[])}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Tags (optional)"
+                  placeholder={tags.length ? "" : "Add tags — press Enter"}
+                  helperText="Freeform labels to find this paper later in the Archive"
+                />
+              )}
             />
             <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
               <TextField
