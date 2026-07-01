@@ -45,7 +45,7 @@ class _Fake:
         self.calls: list[dict] = []
 
     def complete(self, *, model, system, user, schema, max_tokens=1024):
-        self.calls.append({"schema": schema.__name__, "user": user})
+        self.calls.append({"schema": schema.__name__, "user": user, "model": model})
         if schema.__name__ == "StepJudgment":
             parsed = self._judge(user) if callable(self._judge) else self._judge
         else:

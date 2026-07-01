@@ -177,6 +177,7 @@ def assess(
     *,
     client: LLMClient,
     model: str | None = None,
+    refuter_model: str | None = None,
     concurrency: int | None = None,
 ) -> tuple[list[StepAssessment], GateFacts, list[CostLedgerEntry]]:
     """Produce one ``StepAssessment`` per rubric step, plus the minted ``GateFacts`` and cost ledger
@@ -190,6 +191,7 @@ def assess(
     reassembled in rubric-step order, so the result is byte-identical to the serial run.
     """
     model = model or config.judge_model()
+    refuter_model = refuter_model or config.refuter_model()
     gate_facts = derive_gate_facts(evidence, paper_class)
     searched = _scanned_section_ids(parsed)  # paper-level; identical for every step
 
@@ -204,7 +206,15 @@ def assess(
     def run(item):
         step, ap = item
         return _assess_one_step(
-            step, ap, parsed, evidence, searched, rubric, client=client, model=model
+            step,
+            ap,
+            parsed,
+            evidence,
+            searched,
+            rubric,
+            client=client,
+            model=model,
+            refuter_model=refuter_model,
         )
 
     k = concurrency if concurrency is not None else config.assess_concurrency()
@@ -255,6 +265,7 @@ def _assess_one_step(
     *,
     client: LLMClient,
     model: str,
+    refuter_model: str,
 ) -> tuple[StepAssessment, list[CostLedgerEntry]]:
     """Judge one applicable step, then (A4) adversarially refute it if the finding is negative.
 
@@ -278,7 +289,7 @@ def _assess_one_step(
     if assessment.status in _NEGATIVE:  # A4: adversarially challenge every negative finding
         refute = call_with_policy(
             client,
-            model=model,
+            model=refuter_model,
             system=ASSESS_REFUTE_SYSTEM,
             user=_build_refuter_user(step, parsed, assessment),
             schema=RefuterVerdict,

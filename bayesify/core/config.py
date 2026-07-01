@@ -201,6 +201,14 @@ def screen_model() -> str:
     return _required_env("BAYESIFY_SCREEN_MODEL")
 
 
+def classify_model() -> str:
+    return _required_env("BAYESIFY_CLASSIFY_MODEL")
+
+
+def refuter_model() -> str:
+    return _required_env("BAYESIFY_REFUTER_MODEL")
+
+
 @dataclass(frozen=True)
 class ModelPrice:
     """USD per 1M tokens."""
@@ -226,7 +234,7 @@ MODEL_PRICING: dict[str, ModelPrice] = {
 
 def model_ids() -> tuple[str, ...]:
     """The pinned model IDs, sorted — folded into ``engine_version`` (G1)."""
-    return tuple(sorted({judge_model(), screen_model()}))
+    return tuple(sorted({judge_model(), screen_model(), classify_model(), refuter_model()}))
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:

@@ -61,6 +61,10 @@ def _ev(detector_id: str, kind: EvidenceKind, quote: str) -> Evidence:
 
 def test_batch_strategy_grades_with_four_llm_calls(monkeypatch) -> None:
     monkeypatch.setenv("BAYESIFY_GRADING_STRATEGY", "batch")
+    monkeypatch.setenv("BAYESIFY_SCREEN_MODEL", "gpt-5.4-nano")
+    monkeypatch.setenv("BAYESIFY_CLASSIFY_MODEL", "gpt-5.4-mini")
+    monkeypatch.setenv("BAYESIFY_JUDGE_MODEL", "gpt-5.4")
+    monkeypatch.setenv("BAYESIFY_REFUTER_MODEL", "gpt-5.5")
     parsed = _parsed()
     evidence = [
         _ev("method.prior", EvidenceKind.method_mention, "weakly informative priors"),
@@ -129,4 +133,7 @@ def test_batch_strategy_grades_with_four_llm_calls(monkeypatch) -> None:
         "batch_judge",
         "batch_refute",
     ]
-
+    assert client.calls[0]["model"] == "gpt-5.4-nano"
+    assert client.calls[1]["model"] == "gpt-5.4-mini"
+    assert client.calls[2]["model"] == "gpt-5.4"
+    assert client.calls[3]["model"] == "gpt-5.5"

@@ -27,6 +27,7 @@ def screen_and_classify(
     *,
     client: LLMClient,
     model: str | None = None,
+    classify_model: str | None = None,
 ) -> tuple[Relevance, PaperClass | None, list[CostLedgerEntry]]:
     """Run the relevance gate, then the classifier only if the paper is not ``no``.
 
@@ -34,9 +35,10 @@ def screen_and_classify(
     when the gate short-circuited (``relevance.label == no``), in which case classify was not called
     and ``cost_entries`` holds the single screen entry.
     """
-    model = model or config.screen_model()
-    relevance, screen_cost = screen(parsed, evidence, client=client, model=model)
+    screen_model = model or config.screen_model()
+    classify_model = classify_model or config.classify_model()
+    relevance, screen_cost = screen(parsed, evidence, client=client, model=screen_model)
     if relevance.label is RelevanceLabel.no:
         return relevance, None, [screen_cost]
-    paper_class, classify_cost = classify(parsed, evidence, client=client, model=model)
+    paper_class, classify_cost = classify(parsed, evidence, client=client, model=classify_model)
     return relevance, paper_class, [screen_cost, classify_cost]

@@ -38,3 +38,5 @@ def test_stub_engine_version_pins_models() -> None:
     r = build_stub_result()
     assert config.judge_model() in r.engine_version
     assert config.screen_model() in r.engine_version
+    assert config.classify_model() in r.engine_version
+    assert config.refuter_model() in r.engine_version

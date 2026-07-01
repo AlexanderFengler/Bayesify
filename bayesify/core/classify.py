@@ -28,7 +28,7 @@ def classify(
 ) -> tuple[PaperClass, CostLedgerEntry]:
     """Classify the paper type. Returns the ``PaperClass`` and its cost entry; raises ``LLMError``
     (fail closed) if the cheap-model call cannot complete."""
-    model = model or config.screen_model()
+    model = model or config.classify_model()
     user = build_user(parsed, evidence)
     response = call_with_policy(
         client, model=model, system=CLASSIFY_SYSTEM, user=user, schema=PaperClass, max_tokens=600

@@ -79,9 +79,11 @@ def assess_batch(
     *,
     client: LLMClient,
     model: str | None = None,
+    refuter_model: str | None = None,
 ) -> tuple[list[StepAssessment], GateFacts, list[CostLedgerEntry]]:
     """Assess all applicable rubric steps with two LLM calls: judge batch, then refute batch."""
     model = model or config.judge_model()
+    refuter_model = refuter_model or config.refuter_model()
     gate_facts = derive_gate_facts(evidence, paper_class)
     searched = _scanned_section_ids(parsed)
     plans = [
@@ -117,7 +119,7 @@ def assess_batch(
     if negative:
         refute = call_with_policy(
             client,
-            model=model,
+            model=refuter_model,
             system=ASSESS_BATCH_REFUTE_SYSTEM,
             user=_build_batch_refuter_user(negative, parsed),
             schema=BatchRefuterVerdicts,
