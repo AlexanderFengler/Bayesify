@@ -22,6 +22,7 @@ import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from xml.etree.ElementTree import ParseError
 
 import httpx
 
@@ -88,8 +89,35 @@ class Fetcher:
     # --- providers --------------------------------------------------------------------------------
 
     def _fetch_arxiv(self, parsed: ParsedIdentifier) -> FetchedSource:
-        feed = self._get(self.ARXIV_API, params={"id_list": parsed.value, "max_results": 1}).text
-        entry = ET.fromstring(feed).find("atom:entry", _ARXIV_NS)
+        response = self._get(self.ARXIV_API, params={"id_list": parsed.value, "max_results": 1})
+        if response.status_code >= 400:
+            raise FetchFailedError(
+                f"{response.status_code} from arXiv API",
+                user_message="arXiv returned an error while looking up the paper.",
+            )
+        try:
+            root = ET.fromstring(response.text)
+        except ParseError as exc:
+            content_type = response.headers.get("content-type", "unknown")
+            preview = response.text[:200].replace("\n", " ").replace("\r", " ")
+            raise FetchFailedError(
+                "non-XML response from arXiv API; "
+                f"content-type={content_type}; preview={preview!r}",
+                user_message=(
+                    "arXiv did not return metadata for this request. Try uploading the PDF, or "
+                    "try the arXiv URL again later."
+                ),
+            ) from exc
+        if root.tag != "{http://www.w3.org/2005/Atom}feed":
+            preview = response.text[:200].replace("\n", " ").replace("\r", " ")
+            raise FetchFailedError(
+                f"unexpected response from arXiv API; root={root.tag!r}; preview={preview!r}",
+                user_message=(
+                    "arXiv did not return metadata for this request. Try uploading the PDF, or "
+                    "try the arXiv URL again later."
+                ),
+            )
+        entry = root.find("atom:entry", _ARXIV_NS)
         if entry is None or (entry.findtext("atom:title", "", _ARXIV_NS) or "").strip() == "Error":
             raise IdNotFoundError(
                 f"arXiv id not found: {parsed.value}",

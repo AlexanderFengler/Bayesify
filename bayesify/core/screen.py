@@ -48,13 +48,14 @@ def screen(
     evidence: list[Evidence],
     *,
     client: LLMClient,
-    model: str = config.SCREEN_MODEL,
+    model: str | None = None,
 ) -> tuple[Relevance, CostLedgerEntry]:
     """Run the relevance gate. Returns the (floor-corrected) ``Relevance`` and its cost entry.
 
     Raises ``LLMError`` (fail closed) if the cheap-model call cannot complete — never a defaulted
     label.
     """
+    model = model or config.screen_model()
     user = build_user(parsed, evidence)
     response = call_with_policy(
         client, model=model, system=SCREEN_SYSTEM, user=user, schema=Relevance, max_tokens=600

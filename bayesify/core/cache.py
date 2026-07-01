@@ -5,7 +5,8 @@ dimension** (so a forced-relevance rerun does not collide with the persisted sho
 stage sub-caches must include **parser / detector identity** (so a degraded PyMuPDF result while
 GROBID is down does not replay forever under the same key). This module pins those keys.
 
-- **Full-result key** = ``sha256 x engine_version x rubric_version x mode x relevance_override``.
+- **Full-result key** = ``sha256 x engine_version x rubric_version x mode x relevance_override
+  x grading_strategy``.
 - **Parse sub-cache key** = ``sha256(bytes) x parser x parser_version``.
 - **Detect sub-cache key** = ``sha256(bytes) x detector_catalog_version``.
 
@@ -42,6 +43,7 @@ class FullResultKey:
     relevance_override: str | None = None  # G2: a rerun under a forced relevance is a distinct key
     force_grade: bool = False  # a forced grade of a review/opinion piece is a distinct key
     rubric_profile: str = "synthesis"  # different rubrics grade the same paper differently
+    grading_strategy: str = "per-step"  # per-step and batched grading are distinct result shapes
 
     def digest(self) -> str:
         return _key_digest(
@@ -53,6 +55,7 @@ class FullResultKey:
                 self.relevance_override or "",
                 "force" if self.force_grade else "",
                 self.rubric_profile,
+                self.grading_strategy,
             )
         )
 

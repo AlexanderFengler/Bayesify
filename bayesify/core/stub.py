@@ -15,16 +15,28 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.detectors import catalog_fingerprint
 from bayesify.core.prompts import prompt_set_fingerprint
 from bayesify.core.rubric import load_rubric
 from bayesify.core.versioning import compute_engine_version
 
+
+def _configured_model_ids() -> tuple[str, ...]:
+    """Use pinned model IDs when configured, but keep local/stub imports env-free."""
+    try:
+        return config.model_ids()
+    except config.ConfigError:
+        return ()
+
+
 # Fold the real detector catalog and prompt set into the engine version (G1): a detector or prompt
 # change now invalidates the result cache.
 _ENGINE_VERSION = compute_engine_version(
-    detector_catalog=catalog_fingerprint(), prompt_set=prompt_set_fingerprint()
+    detector_catalog=catalog_fingerprint(),
+    prompt_set=prompt_set_fingerprint(),
+    model_ids=_configured_model_ids(),
 ).compact
 _RUBRIC_VERSION = load_rubric().rubric_version  # the default (synthesis) rubric's version
 

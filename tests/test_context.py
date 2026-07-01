@@ -7,6 +7,7 @@ from datetime import datetime
 import pytest
 
 from bayesify.core.context import (
+    assessment_context,
     build_user,
     evidence_digest,
     excerpt_context,
@@ -59,6 +60,20 @@ def test_excerpt_excludes_references_and_supplements() -> None:
 def test_excerpt_truncates_to_budget() -> None:
     parsed = _parsed((SectionKind.body, "Body", "x" * 50_000))
     assert len(excerpt_context(parsed, max_chars=1000)) <= 1000
+
+
+def test_assessment_context_includes_supplements_but_excludes_references() -> None:
+    parsed = _parsed(
+        (SectionKind.abstract, "Abstract", "We fit a Bayesian model."),
+        (SectionKind.body, "Methods", "MCMC with Stan."),
+        (SectionKind.references, "References", "Stan reference only."),
+        (SectionKind.supplement, "Supp", "Extra sampler detail."),
+    )
+    ctx = assessment_context(parsed)
+    assert "Bayesian model" in ctx
+    assert "MCMC with Stan" in ctx
+    assert "Extra sampler detail" in ctx
+    assert "Stan reference only" not in ctx
 
 
 def test_evidence_digest_indexes_hits() -> None:

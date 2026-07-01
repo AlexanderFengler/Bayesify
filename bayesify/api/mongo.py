@@ -48,6 +48,7 @@ class MongoDBService:
         self._events = None
         self._mongod = None
         self._ready = False
+        self._last_ping_error: str | None = None
         self._next_retry_monotonic = 0.0
         self._last_status: MongoDBStatus | None = None
 
@@ -88,15 +89,16 @@ class MongoDBService:
                 time.sleep(0.5)
         if not ping_ok:
             location = self._safe_uri(uri)
+            reason = f" Last ping error: {self._last_ping_error}." if self._last_ping_error else ""
             self._log.warning(
                 f"MongoDB client created, but no server answered at {location}/{database}. "
-                f"Report events will not be saved to MongoDB until it is available."
+                f"Report events will not be saved to MongoDB until it is available.{reason}"
             )
             self._ready = False
             self._last_status = self._make_status(
                 uri,
                 database,
-                message="server did not answer ping; will retry on writes",
+                message=self._unavailable_message(),
             )
             return self._last_status
 
@@ -179,6 +181,34 @@ class MongoDBService:
             self._log.warning(f"MongoDB override read failed: {exc}")
             return None
 
+    def find_latest_analysis_report(self, paper_id: str) -> dict[str, Any] | None:
+        """Newest completed analysis report for one paper id, or None when absent/unavailable."""
+        return self._find_latest_event("analysis_report_ready", paper_id)
+
+    def find_latest_job_state(self, paper_id: str) -> dict[str, Any] | None:
+        """Newest coarse job state for one paper id, or None when absent/unavailable."""
+        return self._find_latest_event("job_state", paper_id)
+
+    def _find_latest_event(self, event: str, paper_id: str) -> dict[str, Any] | None:
+        if not self._ready:
+            now = time.monotonic()
+            if now >= self._next_retry_monotonic:
+                self.start()
+                if not self._ready:
+                    self._next_retry_monotonic = now + 5.0
+        events = self._events if self._ready else None
+        if events is None:
+            return None
+        try:
+            return events.find_one(
+                {"event": event, "paper_id": paper_id},
+                sort=[("created_at", -1)],
+            )
+        except PyMongoError as exc:
+            self._ready = False
+            self._log.warning(f"MongoDB {event} read failed for {paper_id}: {exc}")
+            return None
+
     @staticmethod
     def _is_local_uri(uri: str) -> bool:
         parsed = urlparse(uri)
@@ -250,12 +280,19 @@ class MongoDBService:
 
     def _ping(self, database: str) -> bool:
         if self._client is None:
+            self._last_ping_error = "client is not initialized"
             return False
         try:
             self._client[database].command("ping")
-        except PyMongoError:
+        except PyMongoError as exc:
+            self._last_ping_error = f"{type(exc).__name__}: {exc}"
             return False
+        self._last_ping_error = None
         return True
+
+    def _unavailable_message(self) -> str:
+        base = "server did not answer ping; will retry on writes"
+        return f"{base}; {self._last_ping_error}" if self._last_ping_error else base
 
     def _try_start_local_mongod(self, uri: str) -> bool:
         if not config.mongodb_autostart() or not self._is_local_uri(uri):
@@ -323,6 +360,14 @@ def save_event(payload: dict[str, Any]) -> str | None:
 
 def find_trusted_step_overrides(rubric_profile: str) -> list[dict[str, Any]] | None:
     return mongodb().find_trusted_step_overrides(rubric_profile)
+
+
+def find_latest_analysis_report(paper_id: str) -> dict[str, Any] | None:
+    return mongodb().find_latest_analysis_report(paper_id)
+
+
+def find_latest_job_state(paper_id: str) -> dict[str, Any] | None:
+    return mongodb().find_latest_job_state(paper_id)
 
 
 def stop_mongodb() -> None:

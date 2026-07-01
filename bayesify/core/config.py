@@ -18,11 +18,35 @@ import importlib.util
 import os
 import shutil
 from dataclasses import dataclass
+from pathlib import Path
 
-ANTHROPIC_JUDGE_MODEL = "claude-opus-4-8"
-ANTHROPIC_SCREEN_MODEL = "claude-opus-4-8"
-OPENAI_JUDGE_MODEL = "gpt-5.5"
-OPENAI_SCREEN_MODEL = "gpt-5.4-mini"
+
+class ConfigError(RuntimeError):
+    """Required runtime configuration is missing or invalid."""
+
+
+def load_env_file() -> None:
+    """Load ``bayesify.env`` without overriding variables already set by the process/host."""
+    path = Path(os.environ.get("BAYESIFY_ENV_FILE", "bayesify.env"))
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return
+    for raw in text.splitlines():
+        line = raw.strip().removeprefix("export ").lstrip()
+        if not line or line.startswith("#"):
+            continue
+        key, sep, value = line.partition("=")
+        key = key.strip()
+        if not sep or not key or key in os.environ:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        os.environ[key] = value
+
+
+load_env_file()
 
 
 def openalex_api_key() -> str | None:
@@ -142,16 +166,63 @@ def assess_concurrency() -> int:
         return default
 
 
-def _default_judge_model() -> str:
-    return OPENAI_JUDGE_MODEL if llm_backend() == "openai" else ANTHROPIC_JUDGE_MODEL
+def grading_strategy() -> str:
+    """How full-mode grading should call the LLM.
+
+    ``"per-step"`` is the original path: one judge call per applicable rubric step plus one refuter
+    call per negative finding. ``"batch"`` keeps the same screen/classify calls, then judges all
+    applicable steps in one call and refutes all negative findings in one call.
+    """
+    value = os.environ.get("BAYESIFY_GRADING_STRATEGY", "per-step").strip().lower()
+    aliases = {
+        "batched": "batch",
+        "batch-assess": "batch",
+        "batch_assess": "batch",
+        "classic": "per-step",
+        "per_step": "per-step",
+        "perstep": "per-step",
+    }
+    value = aliases.get(value, value)
+    return value if value in ("per-step", "batch") else "per-step"
 
 
-def _default_screen_model() -> str:
-    return OPENAI_SCREEN_MODEL if llm_backend() == "openai" else ANTHROPIC_SCREEN_MODEL
+def assess_context_chars() -> int:
+    """Character budget for assessment-stage paper context."""
+    try:
+        return max(1_000, int(os.environ.get("BAYESIFY_ASSESS_CONTEXT_CHARS", "60000")))
+    except ValueError:
+        return 60_000
 
 
-JUDGE_MODEL: str = os.environ.get("BAYESIFY_JUDGE_MODEL") or _default_judge_model()
-SCREEN_MODEL: str = os.environ.get("BAYESIFY_SCREEN_MODEL") or _default_screen_model()
+def override_review_timeout_s() -> float:
+    """Maximum time to spend on optional display-time override review after scoring."""
+    try:
+        return max(0.0, float(os.environ.get("BAYESIFY_OVERRIDE_REVIEW_TIMEOUT_S", "8")))
+    except ValueError:
+        return 8.0
+
+
+def _required_env(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if not value:
+        raise ConfigError(f"{name} must be set; model selection is env-only")
+    return value
+
+
+def judge_model() -> str:
+    return _required_env("BAYESIFY_JUDGE_MODEL")
+
+
+def screen_model() -> str:
+    return _required_env("BAYESIFY_SCREEN_MODEL")
+
+
+def classify_model() -> str:
+    return _required_env("BAYESIFY_CLASSIFY_MODEL")
+
+
+def refuter_model() -> str:
+    return _required_env("BAYESIFY_REFUTER_MODEL")
 
 
 @dataclass(frozen=True)
@@ -179,7 +250,7 @@ MODEL_PRICING: dict[str, ModelPrice] = {
 
 def model_ids() -> tuple[str, ...]:
     """The pinned model IDs, sorted — folded into ``engine_version`` (G1)."""
-    return tuple(sorted({JUDGE_MODEL, SCREEN_MODEL}))
+    return tuple(sorted({judge_model(), screen_model(), classify_model(), refuter_model()}))
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:

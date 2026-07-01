@@ -26,8 +26,7 @@ def test_trusted_tokens_empty_when_unset(monkeypatch) -> None:
 
 def test_cheap_tier_exists_in_pricing() -> None:
     # The C6 cheap-before-expensive gate relies on a cheaper screen tier existing in the table.
-    # (SCREEN_MODEL is temporarily Opus during M4 bring-up; this asserts the pricing fact, not which
-    # model the gate currently uses.)
+    # This asserts the pricing fact, not which model the gate currently uses.
     tokens = (500_000, 500_000)
     haiku = config.estimate_cost("claude-haiku-4-5", *tokens)
     opus = config.estimate_cost("claude-opus-4-8", *tokens)
@@ -41,7 +40,7 @@ def test_unpriced_model_fails_loud() -> None:
 
 
 def test_zero_tokens_zero_cost() -> None:
-    assert config.estimate_cost(config.JUDGE_MODEL, 0, 0) == 0.0
+    assert config.estimate_cost(config.judge_model(), 0, 0) == 0.0
 
 
 # --- MongoDB / Atlas configuration ----------------------------------------------------------------

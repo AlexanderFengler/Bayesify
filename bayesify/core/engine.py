@@ -12,7 +12,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from bayesify.core import config
 from bayesify.core.assess import assess
+from bayesify.core.assess_batch import assess_batch
 from bayesify.core.cache import BlobStore
 from bayesify.core.classify import classify
 from bayesify.core.detectors import run_detectors
@@ -96,7 +98,8 @@ def grade_parsed(
     emit("classify", "done")
 
     emit("assess", "running")
-    assessments, gate_facts, assess_costs = assess(
+    assess_fn = assess_batch if config.grading_strategy() == "batch" else assess
+    assessments, gate_facts, assess_costs = assess_fn(
         parsed, evidence, relevance, paper_class, rubric, client=client
     )
     emit("assess", "done")
