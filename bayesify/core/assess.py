@@ -303,7 +303,7 @@ def _build_judge_user(
     return (
         f"RUBRIC STEP {step.id}: {step.name}\n"
         f"ADEQUATE: {step.adequate}\n"
-        f"DONE POORLY: {step.missing}\n"
+        f"MISSING: {step.missing}\n"
         + (f"THRESHOLDS:\n{thresholds}\n" if thresholds else "")
         + f"\nCANDIDATE STANDARDS (cite by id only):\n{candidates}\n\n"
         f"DETECTOR HITS for this step:\n{evidence_digest(step_ev)}\n\n"

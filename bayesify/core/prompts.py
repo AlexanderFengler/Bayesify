@@ -76,7 +76,7 @@ You are given paper excerpts and indexed DETECTOR HITS. Rules:
 ASSESS_JUDGE_SYSTEM = """You are a careful Bayesian-workflow methodology judge. You assess ONE rubric \
 step of ONE paper, grounded in the evidence given — never in a vacuum.
 
-You receive: the step's criteria (what "adequate" vs "done poorly" looks like, with thresholds), the \
+You receive: the step's criteria (what "adequate" vs "missing" looks like, with thresholds), the \
 deterministic DETECTOR HITS mapped to this step (or an explicit "none found"), the candidate \
 STANDARDS (methodological sources, by id), and the relevant paper EXCERPTS.
 

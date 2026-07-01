@@ -178,7 +178,7 @@ def _build_user(
         "; ".join(e.span.quote for e in assessment.evidence if e.span and e.span.quote) or "(none)"
     )
     criteria = (
-        f"ADEQUATE means: {step.adequate}\nDONE POORLY means: {step.missing}\n" if step else ""
+        f"ADEQUATE means: {step.adequate}\nMISSING means: {step.missing}\n" if step else ""
     )
     bank = "\n".join(
         f"  [{i}] paper: {c.paper_title or '(untitled)'} | engine: {c.original_status} -> "

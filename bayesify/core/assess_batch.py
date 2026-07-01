@@ -201,7 +201,7 @@ def _build_batch_judge_user(
                     f"STEP {step.id}: {step.name}",
                     f"  Applicability: {ap.reason}",
                     f"  ADEQUATE: {step.adequate}",
-                    f"  DONE POORLY: {step.missing}",
+                    f"  MISSING: {step.missing}",
                     f"  THRESHOLDS:\n{thresholds}" if thresholds else "  THRESHOLDS: (none)",
                     f"  CANDIDATE STANDARDS:\n{candidates}",
                     f"  DETECTOR HITS:\n{evidence_digest(_step_evidence(step.id, evidence))}",
