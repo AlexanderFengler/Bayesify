@@ -1,8 +1,5 @@
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import {
-  Autocomplete,
   Box,
   Button,
   Chip,
@@ -17,33 +14,31 @@ import {
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchPapers, updatePaperTags } from "./api";
+import { fetchPapers } from "./api";
 import { MathText } from "./MathText";
-import { formatByline } from "./paper";
+import { articleUrl, formatByline } from "./paper";
 import type { ArchiveFacets, ArchivePaper } from "./types";
 
-const EMPTY_FACETS: ArchiveFacets = { paper_type: [], discipline: [], methods: [], tags: [] };
-// the four facet groups, in render order — key into the facets payload + the paper's own tag arrays
+const EMPTY_FACETS: ArchiveFacets = { paper_type: [], discipline: [], methods: [] };
+// the facet groups, in render order — key into the facets payload + the paper's own auto-tag arrays
 const GROUPS = [
   { key: "paper_type", label: "Paper type", field: "paper_type" },
   { key: "discipline", label: "Discipline", field: "discipline" },
   { key: "methods", label: "Methods & software", field: "methods" },
-  { key: "tags", label: "Tags", field: "manual_tags" },
 ] as const;
 
 const pretty = (s: string) => s.replace(/[-_]/g, " ");
 
-// The Archive: every processed paper with its tags, searchable by free text + tag facets. Papers are
-// tagged automatically (paper type + discipline + methods) and, in Human mode, by the rater; manual
-// tags can be edited inline here. Backed by the on-disk papers store (no MongoDB required).
-export function Archive({ onExit }: { onExit: () => void }) {
+// The Archive: every processed paper with its auto tags, searchable by free text + tag facets. Papers
+// are tagged automatically (paper type + discipline + methods). Backed by the shared MongoDB reports
+// store, so a paper analyzed by anyone shows up here.
+export function Archive() {
   const [q, setQ] = useState("");
   // selected facet values per group (AND-filtered server-side)
   const [selected, setSelected] = useState<Record<string, string[]>>({
     paper_type: [],
     discipline: [],
     methods: [],
-    tags: [],
   });
   const [papers, setPapers] = useState<ArchivePaper[]>([]);
   const [facets, setFacets] = useState<ArchiveFacets>(EMPTY_FACETS);
@@ -66,7 +61,6 @@ export function Archive({ onExit }: { onExit: () => void }) {
       paper_type: selected.paper_type,
       discipline: selected.discipline,
       method: selected.methods,
-      tag: selected.tags,
     })
       .then((r) => {
         if (!alive) return;
@@ -89,42 +83,29 @@ export function Archive({ onExit }: { onExit: () => void }) {
     });
 
   const activeCount = Object.values(selected).reduce((n, a) => n + a.length, 0);
-  const clearAll = () => setSelected({ paper_type: [], discipline: [], methods: [], tags: [] });
-
-  const patchTags = (key: string, tags: string[]) => {
-    setPapers((cur) => cur.map((p) => (p.key === key ? { ...p, manual_tags: tags } : p)));
-    updatePaperTags(key, tags).catch(() => {
-      /* best-effort; a reload reflects the server truth */
-    });
-  };
+  const clearAll = () => setSelected({ paper_type: [], discipline: [], methods: [] });
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
         <Box>
-          <Typography variant="overline" color="text.secondary">
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Archive
           </Typography>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Processed papers
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 720 }}>
-            Every paper you have run through Bayesify, tagged by paper type, discipline, and the
-            methods & software detected — plus any tags you add. Search the text or filter by tags.
+          <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 1440 }}>
+            Every paper run through Bayesify, tagged automatically by paper type, discipline, and the
+            methods & software detected. Search the text or filter by tags.
           </Typography>
         </Box>
-        <Button startIcon={<ArrowBackIcon />} onClick={onExit}>
-          Back
-        </Button>
       </Box>
 
       <TextField
         fullWidth
         size="small"
-        placeholder="Search title or authors…"
+        placeholder="Search title, authors, or tags…"
         value={q}
         onChange={(e) => setQ(e.target.value)}
-        sx={{ mt: 3, maxWidth: 520 }}
+        sx={{ mt: 3, maxWidth: 1520 }}
         slotProps={{
           input: {
             startAdornment: (
@@ -193,9 +174,17 @@ export function Archive({ onExit }: { onExit: () => void }) {
       ) : papers.length === 0 ? (
         <EmptyState hasArchive={total > 0} />
       ) : (
-        <Box sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box
+          sx={{
+            mt: 3,
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+            gap: 2,
+            alignItems: "start",
+          }}
+        >
           {papers.map((p) => (
-            <ArchiveCard key={p.key} p={p} suggestions={facets.tags} onTags={(tags) => patchTags(p.key, tags)} />
+            <ArchiveCard key={p.key} p={p} />
           ))}
         </Box>
       )}
@@ -218,17 +207,10 @@ function EmptyState({ hasArchive }: { hasArchive: boolean }) {
   );
 }
 
-function ArchiveCard({
-  p,
-  suggestions,
-  onTags,
-}: {
-  p: ArchivePaper;
-  suggestions: string[];
-  onTags: (tags: string[]) => void;
-}) {
+function ArchiveCard({ p }: { p: ArchivePaper }) {
   const navigate = useNavigate();
   const byline = formatByline(p.paper_authors, p.paper_year);
+  const url = articleUrl(p.source_label); // link the title when the paper was submitted by URL
   const scoreLine = useMemo(() => {
     const bits: string[] = [];
     if (p.quality_score != null) bits.push(`Score ${Math.round(p.quality_score * 100)}`);
@@ -245,10 +227,17 @@ function ArchiveCard({
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 2 }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, flexWrap: "wrap" }}>
-        <Box sx={{ minWidth: 0 }}>
+      {/* title block and the Open-report button on one line, 5:1 on wide screens (stacked on phones) */}
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { sm: "flex-start" }, gap: 2 }}>
+        <Box sx={{ flex: { sm: 5 }, minWidth: 0 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-            <MathText>{p.paper_title ?? p.source_label}</MathText>
+            {url ? (
+              <Link href={url} target="_blank" rel="noreferrer" color="inherit" underline="none">
+                <MathText>{p.paper_title ?? p.source_label}</MathText>
+              </Link>
+            ) : (
+              <MathText>{p.paper_title ?? p.source_label}</MathText>
+            )}
           </Typography>
           {byline && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
@@ -266,9 +255,11 @@ function ArchiveCard({
             {scoreLine}
           </Typography>
         </Box>
-        <Button size="small" onClick={() => navigate(`/paper/${p.paper_id}`)} sx={{ flexShrink: 0 }}>
-          Open report
-        </Button>
+        <Box sx={{ flex: { sm: 1 }, display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" } }}>
+          <Button size="small" onClick={() => navigate(`/paper/${p.paper_id}`)} sx={{ flexShrink: 0 }}>
+            Open report
+          </Button>
+        </Box>
       </Box>
 
       {(p.paper_type.length > 0 || p.discipline.length > 0 || p.methods.length > 0) && (
@@ -278,23 +269,6 @@ function ArchiveCard({
           {groupChips(p.methods, "success")}
         </Box>
       )}
-
-      <Box sx={{ mt: 1.75, display: "flex", alignItems: "flex-start", gap: 1 }}>
-        <LocalOfferOutlinedIcon sx={{ fontSize: 18, color: "text.disabled", mt: 1 }} />
-        <Autocomplete
-          multiple
-          freeSolo
-          size="small"
-          fullWidth
-          options={suggestions}
-          value={p.manual_tags}
-          onChange={(_, v) => onTags(v as string[])}
-          renderInput={(params) => (
-            <TextField {...params} variant="standard" placeholder={p.manual_tags.length ? "" : "Add tags…"} />
-          )}
-          sx={{ maxWidth: 560 }}
-        />
-      </Box>
     </Paper>
   );
 }

@@ -38,11 +38,14 @@ from bayesify.api.jobs import JobStore, event_stream, run_job
 from bayesify.api.mongo import (
     find_latest_analysis_report,
     find_latest_job_state,
+    find_report_by_identifier,
+    list_reports,
     save_event,
     start_mongodb,
     stop_mongodb,
+    upsert_report,
 )
-from bayesify.api.papers_store import ArchivedPaper, methods_from_inventory
+from bayesify.api.papers_store import ArchivedPaper, methods_from_inventory, report_fields
 from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.detectors import EvidenceInventory
@@ -51,7 +54,7 @@ from bayesify.core.rubric import RubricProfileError, available_rubrics, load_rub
 from bayesify.core.schema import EvidenceKind
 from bayesify.core.validation import Rating, harness, to_calibration_payload
 from bayesify.core.validation.override_store import Override
-from bayesify.core.validation.rating_store import SubmittedRating
+from bayesify.core.validation.rating_store import SubmittedRating, bucket_key
 
 
 def _app_logger() -> logging.Logger:
@@ -180,13 +183,23 @@ async def create_paper(
             status_code=413, detail=f"PDF too large (max {_max_upload_bytes() // 1_000_000} MB)."
         )
     try:
-        load_rubric(profile=profile)  # validate the chosen rubric exists (registry)
+        rubric = load_rubric(profile=profile)  # validate the chosen rubric exists (registry)
     except RubricProfileError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     # A dropped PDF carries its bytes; a pasted identifier (no file) is fetched in the worker (the
     # OA PDF is resolved off the request path). Both modes then grade the same way.
     data = await file.read() if file is not None else None
     identifier = None if file is not None else (arxiv_id or doi or openalex_id or url)
+
+    # Identifier-first dedup: a resubmitted arXiv/DOI/URL whose clean report already exists (same
+    # rubric, current engine) replays the stored report — no refetch, no re-analysis. AI mode only;
+    # a raw upload (or a stale/absent entry) still falls through and dedups by content hash inside
+    # the worker.
+    if identifier and mode == "full" and jobsmod._cache_enabled():
+        existing = await asyncio.to_thread(find_report_by_identifier, identifier.strip(), profile)
+        if jobsmod._replayable(existing, rubric):
+            return {"paper_id": existing["paper_id"], "status": "done"}
+
     job = store.create(
         mode=mode,
         source_label=_source_label(file, arxiv_id, doi, openalex_id, url),
@@ -682,40 +695,35 @@ async def rate_submit(body: RateSubmit) -> dict:
             "n_ratings": n,
         },
     )
-    # Archive the paper (Human mode): paper-type from the rater's own class, methods from the local
-    # detection inventory when the live job is still around, and the rater's freeform tags.
-    jobsmod._papers_store().upsert(
-        ArchivedPaper(
-            paper_id=sub.paper_id,
-            source_sha256=sub.source_sha256,
-            rubric_profile=sub.rubric_profile,
-            version_label=sub.version_label,
-            source_label=(job.source_label if job is not None else sub.paper_id),
-            paper_title=(job.paper_title if job is not None else None),
-            paper_authors=(job.paper_authors if job is not None else []),
-            paper_year=(job.paper_year if job is not None else None),
-            mode=(job.mode if job is not None else "local"),
-            relevance_label=body.rating.relevance_label.value,
-            paper_type=[c.value for c in body.rating.paper_class_labels],
-            methods=methods_from_inventory(job.inventory if job is not None else None),
-            manual_tags=body.rating.tags,
-        )
+    # Archive the paper (Human mode) in Mongo: paper-type from the rater's own class, methods from
+    # the local detection inventory when the live job is still around. This refreshes metadata on
+    # the shared entry without a `result`, so it never wipes an AI report already stored for it.
+    archived = ArchivedPaper(
+        key=bucket_key(sub.source_sha256, sub.rubric_profile),
+        paper_id=sub.paper_id,
+        source_sha256=sub.source_sha256,
+        rubric_profile=sub.rubric_profile,
+        version_label=sub.version_label,
+        source_label=(job.source_label if job is not None else sub.paper_id),
+        paper_title=(job.paper_title if job is not None else None),
+        paper_authors=(job.paper_authors if job is not None else []),
+        paper_year=(job.paper_year if job is not None else None),
+        mode=(job.mode if job is not None else "local"),
+        relevance_label=body.rating.relevance_label.value,
+        paper_type=[c.value for c in body.rating.paper_class_labels],
+        methods=methods_from_inventory(job.inventory if job is not None else None),
     )
+    await asyncio.to_thread(upsert_report, archived.key, report_fields(archived))
     return {"recorded": True, "n_ratings": n}
 
 
-def _facets(papers: list[ArchivedPaper]) -> dict[str, list[str]]:
+def _facets(papers: list[dict]) -> dict[str, list[str]]:
     """Distinct tag values across the whole archive, per facet — the vocabulary the UI's filter
     chips render (so a chip stays available even when the filter narrows the list to zero)."""
-    facets: dict[str, list[str]] = {"paper_type": [], "discipline": [], "methods": [], "tags": []}
+    facets: dict[str, list[str]] = {"paper_type": [], "discipline": [], "methods": []}
     for p in papers:
-        for value, bucket in (
-            (p.paper_type, "paper_type"),
-            (p.discipline, "discipline"),
-            (p.methods, "methods"),
-            (p.manual_tags, "tags"),
-        ):
-            for v in value:
+        for bucket in facets:
+            for v in p.get(bucket) or []:
                 if v not in facets[bucket]:
                     facets[bucket].append(v)
     for bucket in facets:
@@ -729,51 +737,50 @@ async def list_papers(
     paper_type: list[str] = Query(default=[]),
     discipline: list[str] = Query(default=[]),
     method: list[str] = Query(default=[]),
-    tag: list[str] = Query(default=[]),
     mode: str = "",
     rubric: str = "",
 ) -> dict:
-    """The Archive: processed papers with their tags, newest first. Free text matches title/authors;
-    the tag facets AND-filter (every selected value must be present). Facet vocabularies span the
-    whole archive so the filter chips are stable. Empty when nothing has been processed."""
-    papers = jobsmod._papers_store().list()
+    """The Archive, read from the shared Mongo ``reports`` collection: processed papers with their
+    auto tags, newest first. Free text matches title/authors/tags; the tag facets AND-filter (every
+    selected value must be present). Facet vocabularies span the whole archive so the filter chips
+    are stable. Empty when nothing has been processed (or when Mongo is unreachable)."""
+    docs = await asyncio.to_thread(list_reports) or []
+    for d in docs:
+        d.pop("_id", None)  # the client keys on `key`, not the Mongo _id
+        # the store drops empty arrays on upsert (so a merge preserves), but the ArchivePaper
+        # contract promises these list fields — restore [] so the client renders without guarding.
+        for arr in ("paper_authors", "paper_type", "discipline", "methods"):
+            d.setdefault(arr, [])
     needle = q.strip().lower()
 
-    def matches(p: ArchivedPaper) -> bool:
+    def matches(p: dict) -> bool:
         if needle:
-            hay = f"{p.paper_title or p.source_label} {' '.join(p.paper_authors)}".lower()
-            if needle not in hay:
+            # title + authors + the auto tags (paper type / discipline / methods), with separators
+            # normalised so "data analysis" matches the stored "data_analysis".
+            parts = [
+                p.get("paper_title") or p.get("source_label") or "",
+                *(p.get("paper_authors") or []),
+                *(p.get("paper_type") or []),
+                *(p.get("discipline") or []),
+                *(p.get("methods") or []),
+            ]
+            hay = " ".join(parts).lower().replace("_", " ").replace("-", " ")
+            if needle.replace("_", " ").replace("-", " ") not in hay:
                 return False
-        if any(t not in p.paper_type for t in paper_type):
+        if any(t not in (p.get("paper_type") or []) for t in paper_type):
             return False
-        if any(d not in p.discipline for d in discipline):
+        if any(d not in (p.get("discipline") or []) for d in discipline):
             return False
-        if any(m not in p.methods for m in method):
+        if any(m not in (p.get("methods") or []) for m in method):
             return False
-        if any(t not in p.manual_tags for t in tag):
+        if mode and p.get("mode") != mode:
             return False
-        if mode and p.mode != mode:
-            return False
-        if rubric and p.rubric_profile != rubric:
+        if rubric and p.get("rubric_profile") != rubric:
             return False
         return True
 
-    items = [p.model_dump(mode="json") for p in papers if matches(p)]
-    return {"papers": items, "facets": _facets(papers), "total": len(papers)}
-
-
-class TagsUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    tags: list[str]
-
-
-@app.patch("/api/papers/{key}/tags")
-async def update_paper_tags(key: str, body: TagsUpdate) -> dict:
-    """Replace one archived paper's freeform manual tags (the Archive tag editor)."""
-    updated = jobsmod._papers_store().set_tags(key, body.tags)
-    if updated is None:
-        raise HTTPException(status_code=404, detail="Unknown archived paper.")
-    return updated.model_dump(mode="json")
+    items = [p for p in docs if matches(p)]
+    return {"papers": items, "facets": _facets(docs), "total": len(docs)}
 
 
 @app.get("/api/calibration")

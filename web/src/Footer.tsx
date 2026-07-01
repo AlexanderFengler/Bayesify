@@ -1,13 +1,14 @@
-import { Box, Container, Link } from "@mui/material";
+import { Box, Container, Link, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
-import { useApp } from "./AppContext";
+
+// Current app version, surfaced as the footer's alpha-stage marker. Keep in step with package.json.
+const APP_VERSION = "0.1.0";
 
 // The permanent app footer: a single transparent bar rendered once by Layout (like the header), so
 // the dynamic aurora shows through and blends with it. A thin horizontal divider sits on top. It
-// carries the global nav: how-it-works, rubrics, privacy, and the supporters reference.
+// carries the global nav: how-it-works, rubrics, archive, and the about-us reference.
 export function Footer() {
   const navigate = useNavigate();
-  const { openPrivacy } = useApp();
   return (
     <Box
       component="footer"
@@ -19,17 +20,20 @@ export function Footer() {
             display: "flex",
             flexDirection: { xs: "column", sm: "row" },
             gap: 2,
-            justifyContent: { xs: "flex-start", sm: "flex-end" },
+            justifyContent: { xs: "flex-start", sm: "space-between" },
             alignItems: { xs: "flex-start", sm: "center" },
             py: 3,
           }}
         >
+          <Typography variant="body2" sx={{ color: "inherit", fontSize: "0.875rem" }}>
+            Alpha version - {APP_VERSION}
+          </Typography>
           <Box sx={{ display: "flex", gap: 3 }}>
+            <FooterLink onClick={() => navigate("/start")}>Home</FooterLink>
             <FooterLink onClick={() => navigate("/guide")}>How it works</FooterLink>
             <FooterLink onClick={() => navigate("/rubrics")}>Rubrics</FooterLink>
             <FooterLink onClick={() => navigate("/archive")}>Archive</FooterLink>
-            <FooterLink onClick={openPrivacy}>Privacy</FooterLink>
-            <FooterLink onClick={() => navigate("/supported")}>Supported by</FooterLink>
+            <FooterLink onClick={() => navigate("/supported")}>About us</FooterLink>
           </Box>
         </Box>
       </Container>

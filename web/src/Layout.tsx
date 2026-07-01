@@ -7,14 +7,11 @@ import { AppContext, type AppState } from "./AppContext";
 import { Aurora } from "./Aurora";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
-import { PrivacyModal } from "./Modal";
 import type { PaperState } from "./types";
 
-const PRIVACY_ACK_KEY = "bayesify.privacy.ack"; // set once the first-run disclosure is acknowledged
-
-// The root layout: it owns the app-wide state (mode, the upload draft, the streaming lifecycle, the
-// privacy modal) and exposes it through AppContext. It sits inside the Router, so its actions can
-// navigate. Every route renders into <Outlet />.
+// The root layout: it owns the app-wide state (mode, the upload draft, the streaming lifecycle) and
+// exposes it through AppContext. It sits inside the Router, so its actions can navigate. Every route
+// renders into <Outlet />.
 export function Layout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -42,8 +39,6 @@ export function Layout() {
   // rating page (no /processing flash) and waits there until this clears — the rating context needs
   // the detector inventory, which isn't ready until the run finishes.
   const [ratingPending, setRatingPending] = useState<string | null>(null);
-  const [modal, setModal] = useState<"privacy" | null>(null);
-  const [firstRun, setFirstRun] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // The available rubrics for the analysis picker (synthesis default; Gelman, etc.).
@@ -51,12 +46,6 @@ export function Layout() {
     fetchRubrics()
       .then(setRubrics)
       .catch(() => {});
-  }, []);
-
-  const ackPrivacy = useCallback(() => {
-    localStorage.setItem(PRIVACY_ACK_KEY, "1");
-    setFirstRun(false);
-    setModal(null);
   }, []);
 
   const reset = useCallback(() => {
@@ -161,8 +150,6 @@ export function Layout() {
     [track, navigate],
   );
 
-  const openPrivacy = useCallback(() => setModal("privacy"), []);
-
   const value = useMemo<AppState>(
     () => ({
       mode,
@@ -186,7 +173,6 @@ export function Layout() {
       start,
       rerunPaper,
       reset,
-      openPrivacy,
       exitToMain,
     }),
     [
@@ -204,7 +190,6 @@ export function Layout() {
       start,
       rerunPaper,
       reset,
-      openPrivacy,
       exitToMain,
     ],
   );
@@ -232,9 +217,6 @@ export function Layout() {
         </Box>
         <Footer />
       </Box>
-      {modal === "privacy" && (
-        <PrivacyModal firstRun={firstRun} onClose={firstRun ? ackPrivacy : () => setModal(null)} />
-      )}
     </AppContext.Provider>
   );
 }

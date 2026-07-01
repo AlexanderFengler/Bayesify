@@ -22,14 +22,11 @@
 rubric_version: "0.1-gelman"
 label: "Gelman et al. (2020) - Bayesian Workflow"
 summary: >
-  Graded solely against Gelman, Vehtari, Simpson, Margossian, Carpenter, Yao, Kennedy, Gabry, Bürkner
-  & Modrák (2020), "Bayesian Workflow" (arXiv:2011.01808). The paper presents a branching, non-linear
-  workflow rather than a numbered recipe, so these ten steps are Bayesify' step-level decomposition
-  of its workflow sections (§2–§9): model building, prior predictive checks, computation diagnostics,
-  fake-data simulation & SBC, addressing computational problems, posterior predictive checks,
-  cross-validation & influence, iterative model expansion, comparing multiple models (and the
-  multiverse), and modeling-as-software. Because it rests on a single paper, steps carry no separate
-  per-step citation.
+  Graded solely against Gelman et al. (2020), "Bayesian Workflow" (arXiv:2011.01808). The paper
+  presents a branching, non-linear workflow rather than a numbered recipe, so these 10 steps are
+  Bayesify's linearized decomposition of it — model building through modeling-as-software, including
+  computation diagnostics, the multiverse, and iterative model expansion. Resting on a single paper,
+  steps carry no separate per-step citation.
 status_values: [adequate, partial, missing, not_applicable]
 scoring_rule: >
   Same machine scoring as the synthesis rubric: coverage = present/applicable (present =

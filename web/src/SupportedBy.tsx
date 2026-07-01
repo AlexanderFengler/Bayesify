@@ -1,4 +1,4 @@
-import { Box, Button, Container, Link, Typography } from "@mui/material";
+import { Box, Container, Link, Typography } from "@mui/material";
 import { useColorMode } from "./ThemeMode";
 
 // The organisations behind Bayesify. Add an entry per org — each ships a dark-ink and a white-ink
@@ -11,27 +11,31 @@ type Org = {
 };
 
 const ORGS: Org[] = [
-  { name: "VeriBayes", logoDark: "/org-logo-dark.svg", logoLight: "/org-logo-light.svg" },
+  { name: "VeriBayes", logoDark: "/org-logo-dark.svg", logoLight: "/org-logo-light.svg", url: "https://www.bayesops.com" },
+];
+
+// The people who build Bayesify. Add one entry per developer — plain strings, shown as a simple list
+// under the org logos. Leave the array empty to hide the section entirely.
+//   >>> ADD DEVELOPER NAMES HERE <<<
+const DEVELOPERS: string[] = [
+  "Alexander Fengler",
+  "Stefan T. Radev",
+  "Jerry M. Huang"
 ];
 
 // A dedicated "Supported by" page reached from the footer: the org wordmarks that back the project,
 // laid out as a responsive row of logos (no boxes), matching the other reference pages' chrome.
-export function SupportedBy({ onExit }: { onExit: () => void }) {
+export function SupportedBy() {
   const { variant } = useColorMode();
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
-            Supported by
-          </Typography>
-          <Typography sx={{ mt: 1.5, color: "text.secondary", maxWidth: 760 }}>
-            Bayesify is built and supported by the organisations below.
-          </Typography>
-        </Box>
-        <Button variant="outlined" onClick={onExit} sx={{ flexShrink: 0 }}>
-          Back
-        </Button>
+      <Box>
+        <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
+          About us
+        </Typography>
+        <Typography sx={{ mt: 1.5, color: "text.secondary", maxWidth: 760 }}>
+          Bayesify is built and supported by the organisations below.
+        </Typography>
       </Box>
 
       <Box
@@ -63,6 +67,40 @@ export function SupportedBy({ onExit }: { onExit: () => void }) {
           );
         })}
       </Box>
+
+      {DEVELOPERS.length > 0 && (
+        <Box sx={{ mt: { xs: 5, md: 7 } }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            The team
+          </Typography>
+          <Box
+            component="ul"
+            sx={{ listStyle: "none", p: 0, m: 0, mt: 1.5, display: "flex", flexWrap: "wrap", gap: { xs: 1, md: 2 } }}
+          >
+            {DEVELOPERS.map((name, i) => (
+              <Typography
+                key={name}
+                component="li"
+                sx={{
+                  color: "text.secondary",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: { xs: 1, md: 2 },
+                }}
+              >
+                {/* a white bullet dot separates members — omitted before the first */}
+                {i > 0 && (
+                  <Box
+                    component="span"
+                    sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "common.white", flexShrink: 0 }}
+                  />
+                )}
+                {name}
+              </Typography>
+            ))}
+          </Box>
+        </Box>
+      )}
     </Container>
   );
 }

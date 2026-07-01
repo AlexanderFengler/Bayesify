@@ -650,10 +650,11 @@ def test_run_job_emits_every_stage_then_done_and_attaches_result(monkeypatch) ->
     # (monkeypatch is scoped, so forcing the backend off here does not affect other tests.)
     monkeypatch.setenv("BAYESIFY_LLM_BACKEND", "none")
     saved_reports: list[str] = []
-    monkeypatch.setattr(
-        "bayesify.api.jobs._save_analysis_report_payload",
-        lambda job: saved_reports.append(job.id),
-    )
+
+    async def fake_save(job):  # awaited by _run_full now (stub path never reaches it)
+        saved_reports.append(job.id)
+
+    monkeypatch.setattr("bayesify.api.jobs._save_analysis_report_payload", fake_save)
     job = Job(id="t1", mode="full", source_label="paper.pdf", data=b"%PDF-stub-bytes")
     asyncio.run(run_job(job))
     stages_done = [e["stage"] for e in job.events if e["type"] == "stage" and e["state"] == "done"]
@@ -669,11 +670,10 @@ def test_local_completion_does_not_save_analysis_event(monkeypatch) -> None:
     from bayesify.api import jobs as jobsmod
 
     saved_reports: list[str] = []
-    monkeypatch.setattr(
-        jobsmod,
-        "_save_analysis_report_payload",
-        lambda job: saved_reports.append(job.id),
-    )
+    async def fake_save(job):  # awaited by _run_full now
+        saved_reports.append(job.id)
+
+    monkeypatch.setattr(jobsmod, "_save_analysis_report_payload", fake_save)
 
     async def fake_front_half(job, *, source=None):
         job.content_sha256 = "ab" * 32
@@ -694,11 +694,10 @@ def test_fresh_full_llm_completion_saves_analysis_event(monkeypatch) -> None:
     from bayesify.core.stub import build_stub_result
 
     saved_reports: list[str] = []
-    monkeypatch.setattr(
-        jobsmod,
-        "_save_analysis_report_payload",
-        lambda job: saved_reports.append(job.id),
-    )
+    async def fake_save(job):  # awaited by _run_full now
+        saved_reports.append(job.id)
+
+    monkeypatch.setattr(jobsmod, "_save_analysis_report_payload", fake_save)
     monkeypatch.setattr(jobsmod, "_cache_enabled", lambda: False)
     monkeypatch.setattr(jobsmod.config, "llm_backend", lambda: "api")
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: object())
@@ -1100,12 +1099,40 @@ def _full_cache_env(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "claude_code_available", lambda: False)  # backend "api"
 
 
+class _FakeReports:
+    """In-memory stand-in for the Mongo `reports` collection so dedup works with no live server."""
+
+    def __init__(self) -> None:
+        self.docs: dict[str, dict] = {}
+
+    def update_one(self, flt, update, upsert=False):
+        key = flt["_id"]
+        doc = self.docs.setdefault(key, {"_id": key, **update.get("$setOnInsert", {})})
+        doc.update(update.get("$set", {}))
+
+    def find_one(self, query, sort=None):
+        for d in self.docs.values():
+            if all(d.get(k) == v for k, v in query.items()):
+                return d
+        return None
+
+
+def _inject_reports(monkeypatch):
+    """Point the process-wide Mongo singleton at an in-memory reports collection (marked ready)."""
+    from bayesify.api import mongo as mongomod
+
+    svc = mongomod.mongodb()
+    monkeypatch.setattr(svc, "_ready", True)
+    monkeypatch.setattr(svc, "_reports", _FakeReports())
+
+
 def test_identical_rerun_is_served_from_cache_without_calling_the_model(tmp_path, monkeypatch):
     from bayesify.api import jobs as jobsmod
     from bayesify.core.llm import FakeLLMClient
 
     _full_cache_env(tmp_path, monkeypatch)
     monkeypatch.delenv("BAYESIFY_NO_CACHE", raising=False)
+    _inject_reports(monkeypatch)  # the shared dedup store lives in Mongo now
 
     f1 = _full_fake()
     monkeypatch.setattr(jobsmod, "_llm_client", lambda: f1)

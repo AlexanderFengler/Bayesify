@@ -73,13 +73,11 @@ function LandingRoute() {
 }
 
 function RubricsRoute() {
-  const { exitToMain } = useApp();
-  return <Rubrics onExit={exitToMain} />;
+  return <Rubrics />;
 }
 
 function ArchiveRoute() {
-  const { exitToMain } = useApp();
-  return <Archive onExit={exitToMain} />;
+  return <Archive />;
 }
 
 function ProcessingRoute() {
@@ -172,13 +170,11 @@ function CalibrationRoute() {
 }
 
 function GuideRoute() {
-  const { exitToMain } = useApp();
-  return <Guide onExit={exitToMain} />;
+  return <Guide />;
 }
 
 function SupportedByRoute() {
-  const { exitToMain } = useApp();
-  return <SupportedBy onExit={exitToMain} />;
+  return <SupportedBy />;
 }
 
 // --- shared status pages (loading / error). The permanent header is supplied by Layout; these just

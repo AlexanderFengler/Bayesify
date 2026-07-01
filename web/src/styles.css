@@ -1581,27 +1581,6 @@ main.container {
   display: flex;
   justify-content: flex-end;
 }
-.privacy-mode {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 12px;
-}
-.privacy-mode p {
-  margin: 6px 0 0;
-  font-size: 13.5px;
-  color: var(--ink-soft);
-}
-.privacy-mode-head {
-  font-size: 13px;
-  font-weight: 650;
-}
-.pm-full {
-  color: var(--amber);
-}
-.pm-local {
-  color: var(--green);
-}
 /* --- calibration view (V6) --- */
 .calib-banner {
   border-radius: 8px;

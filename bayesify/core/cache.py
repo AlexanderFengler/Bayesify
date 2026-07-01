@@ -1,75 +1,21 @@
-"""Content-addressed blob store + result cache (C6), with the gate-G2 cache key.
+"""Content-addressed blob store for document bytes.
 
-Gate **G2** (three-lens review): the full-result cache key must include a **rerun-override
-dimension** (so a forced-relevance rerun does not collide with the persisted short-circuit) and
-stage sub-caches must include **parser / detector identity** (so a degraded PyMuPDF result while
-GROBID is down does not replay forever under the same key). This module pins those keys.
-
-- **Full-result key** = ``sha256 x engine_version x rubric_version x mode x relevance_override
-  x grading_strategy``.
-- **Parse sub-cache key** = ``sha256(bytes) x parser x parser_version``.
-- **Detect sub-cache key** = ``sha256(bytes) x detector_catalog_version``.
-
-Everything is local, file-based, and content-addressed — cache hits are byte-identical replays,
-which is what makes assessments reproducible. The store is M2-scale (a directory of JSON + blobs);
-the SQLite index is a later concern.
+The manuscript bytes are held here only transiently while a job runs (ingest writes them; parse and
+the engine read them by sha256). The store is content-addressed — the handle *is* the sha256 — so
+identical bytes are written once. Report persistence and the cross-user dedup cache live in MongoDB
+(see ``bayesify.api.mongo``): nothing about a paper is kept on local disk beyond the run.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
-from dataclasses import dataclass
 from pathlib import Path
 
-from bayesify.core.atomic import atomic_write_bytes, atomic_write_text
+from bayesify.core.atomic import atomic_write_bytes
 
 
 def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-
-def _key_digest(parts: tuple[str, ...]) -> str:
-    # Join with a separator that cannot appear in the parts (NUL) so distinct tuples never collide.
-    return hashlib.sha256("\0".join(parts).encode("utf-8")).hexdigest()
-
-
-@dataclass(frozen=True)
-class FullResultKey:
-    content_sha256: str
-    engine_version: str
-    rubric_version: str
-    mode: str  # "full" | "local"
-    relevance_override: str | None = None  # G2: a rerun under a forced relevance is a distinct key
-    force_grade: bool = False  # a forced grade of a review/opinion piece is a distinct key
-    rubric_profile: str = "synthesis"  # different rubrics grade the same paper differently
-    grading_strategy: str = "per-step"  # per-step and batched grading are distinct result shapes
-
-    def digest(self) -> str:
-        return _key_digest(
-            (
-                self.content_sha256,
-                self.engine_version,
-                self.rubric_version,
-                self.mode,
-                self.relevance_override or "",
-                "force" if self.force_grade else "",
-                self.rubric_profile,
-                self.grading_strategy,
-            )
-        )
-
-
-def parse_cache_key(content_sha256: str, parser: str, parser_version: str) -> str:
-    """Stage-2 (parse) sub-cache key — G2: includes parser identity so a degraded-parser run is not
-    cached under the same key as a GROBID run."""
-    return _key_digest((content_sha256, "parse", parser, parser_version))
-
-
-def detect_cache_key(content_sha256: str, detector_catalog_version: str) -> str:
-    """Stage-3 (detect) sub-cache key — bumping the detector catalog invalidates it without
-    re-parsing."""
-    return _key_digest((content_sha256, "detect", detector_catalog_version))
 
 
 class BlobStore:
@@ -100,34 +46,6 @@ class BlobStore:
 
     def delete(self, sha256: str) -> bool:
         path = self._path(sha256)
-        if path.exists():
-            path.unlink()
-            return True
-        return False
-
-
-class ResultCache:
-    """Stage-0 full-result cache: ``FullResultKey`` -> stored ``ScoredResult`` JSON. A hit is
-    returned verbatim (reproducible). Stored as JSON so it is engine-agnostic and inspectable."""
-
-    def __init__(self, root: Path) -> None:
-        self.root = Path(root)
-        self.root.mkdir(parents=True, exist_ok=True)
-
-    def _path(self, key: FullResultKey) -> Path:
-        return self.root / f"{key.digest()}.json"
-
-    def get(self, key: FullResultKey) -> dict | None:
-        path = self._path(key)
-        if not path.exists():
-            return None
-        return json.loads(path.read_text(encoding="utf-8"))
-
-    def put(self, key: FullResultKey, result_json: dict) -> None:
-        atomic_write_text(self._path(key), json.dumps(result_json))
-
-    def delete(self, key: FullResultKey) -> bool:
-        path = self._path(key)
         if path.exists():
             path.unlink()
             return True

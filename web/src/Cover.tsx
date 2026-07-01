@@ -1,5 +1,6 @@
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { Box, ButtonBase, Typography } from "@mui/material";
+import { GoldText } from "./GoldText";
 import { HeroShell } from "./HeroShell";
 
 // The first screen: a full-bleed hero that fronts the slogan and a single call to action. "Get
@@ -36,32 +37,6 @@ export function Cover({ onGetStarted }: { onGetStarted: () => void }) {
         <GetStarted onClick={onGetStarted} />
       </Box>
     </HeroShell>
-  );
-}
-
-// "gold standard" in living gold: a metallic gradient clipped to the text, shimmering a touch faster
-// than the aurora behind it (~8s vs 28s) so it reads as the page's focal accent.
-function GoldText({ children }: { children: React.ReactNode }) {
-  return (
-    <Box
-      component="span"
-      sx={{
-        backgroundImage: "linear-gradient(90deg, #9a6a14, #d9a832, #ffce5a, #d9a832, #9a6a14)",
-        backgroundSize: "200% 100%",
-        WebkitBackgroundClip: "text",
-        backgroundClip: "text",
-        color: "transparent",
-        WebkitTextFillColor: "transparent",
-        animation: "goldShift 8s linear infinite",
-        "@keyframes goldShift": {
-          "0%": { backgroundPosition: "0% 50%" },
-          "100%": { backgroundPosition: "200% 50%" },
-        },
-        "@media (prefers-reduced-motion: reduce)": { animation: "none" },
-      }}
-    >
-      {children}
-    </Box>
   );
 }
 
