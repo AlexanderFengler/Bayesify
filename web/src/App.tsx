@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { getPaper } from "./api";
 import { Analyzing } from "./Analyzing";
+import { Archive } from "./Archive";
 import { useApp } from "./AppContext";
 import { Calibration } from "./Calibration";
 import { Cover } from "./Cover";
@@ -35,6 +36,7 @@ export function App() {
           <Route path="/rate/:id" element={<RateRoute />} />
           <Route path="/calibration" element={<CalibrationRoute />} />
           <Route path="/rubrics" element={<RubricsRoute />} />
+          <Route path="/archive" element={<ArchiveRoute />} />
           <Route path="/guide" element={<GuideRoute />} />
           <Route path="/supported" element={<SupportedByRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -73,6 +75,11 @@ function LandingRoute() {
 function RubricsRoute() {
   const { exitToMain } = useApp();
   return <Rubrics onExit={exitToMain} />;
+}
+
+function ArchiveRoute() {
+  const { exitToMain } = useApp();
+  return <Archive onExit={exitToMain} />;
 }
 
 function ProcessingRoute() {

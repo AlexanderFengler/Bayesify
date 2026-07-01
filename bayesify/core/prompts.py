@@ -66,10 +66,19 @@ Multi-label examples:
 
 Do not add labels to hedge. Add a label only when the paper makes that contribution with evidence.
 
+Also assign `disciplines`: the scientific field(s) the paper belongs to, as a multi-label list \
+(a methodological paper spanning fields carries several). Prefer these terms, but add a more precise \
+one if none fit: psychology, neuroscience, cognitive-science, ecology, biology, medicine, \
+epidemiology, economics, political-science, sociology, education, machine-learning, statistics, \
+physics, astronomy, chemistry, genetics, engineering. Use lower-case, hyphenated terms. A purely \
+methodological/statistical paper with no applied domain may be just ["statistics"] or \
+["machine-learning"].
+
 You are given paper excerpts and indexed DETECTOR HITS. Rules:
 - evidence_refs MUST cite at least one detector-hit index supporting the selected labels.
 - confidence in [0,1] applies to the selected label set.
 - rationale must state, briefly, why each selected label applies.
+- disciplines: 1-3 fields, most specific first; never leave it empty.
 """
 
 

@@ -379,6 +379,7 @@ def build_stub_result(mode: str = "full") -> s.ScoredResult:
         ),
         paper_class=s.PaperClass(
             labels=[s.PaperClassLabel.data_analysis],
+            disciplines=["neuroscience", "psychology"],
             confidence=0.88,
             rationale="Fits a Bayesian model to real observed data to draw substantive conclusions.",
             evidence_refs=[0],

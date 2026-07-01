@@ -46,14 +46,6 @@ export function Layout() {
   const [firstRun, setFirstRun] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // First visit: show the privacy/mode disclosure before anything is uploaded (PRIVACY.md, F3).
-  useEffect(() => {
-    if (!localStorage.getItem(PRIVACY_ACK_KEY)) {
-      setFirstRun(true);
-      setModal("privacy");
-    }
-  }, []);
-
   // The available rubrics for the analysis picker (synthesis default; Gelman, etc.).
   useEffect(() => {
     fetchRubrics()

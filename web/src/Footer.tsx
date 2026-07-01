@@ -27,6 +27,7 @@ export function Footer() {
           <Box sx={{ display: "flex", gap: 3 }}>
             <FooterLink onClick={() => navigate("/guide")}>How it works</FooterLink>
             <FooterLink onClick={() => navigate("/rubrics")}>Rubrics</FooterLink>
+            <FooterLink onClick={() => navigate("/archive")}>Archive</FooterLink>
             <FooterLink onClick={openPrivacy}>Privacy</FooterLink>
             <FooterLink onClick={() => navigate("/supported")}>Supported by</FooterLink>
           </Box>

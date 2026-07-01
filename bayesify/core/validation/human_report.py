@@ -146,6 +146,9 @@ class Rating(_Base):
     paper_class_rationale: str = ""
     gate_facts: GateFacts | None = None  # the rater's answers (shared schema type, by value)
     steps: list[StepRating] = Field(default_factory=list)
+    # Freeform tags the rater attaches to the paper — the Archive's manual tags. Independent of the
+    # blind judgment (allowed even on a relevance-``no`` short-circuit); purely a curation aid.
+    tags: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _discipline(self) -> Rating:

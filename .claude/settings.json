@@ -27,7 +27,8 @@
       "Bash(.pixi/envs/default/bin/python3 -)",
       "Bash(.pixi/envs/default/bin/python3 -c ' *)",
       "Bash(sed -i '/const page2 = {/d' footer.mjs)",
-      "Bash(node footer.mjs)"
+      "Bash(node footer.mjs)",
+      "Bash(python3 -c \"import mongomock; print\\('mongomock available'\\)\")"
     ]
   }
 }

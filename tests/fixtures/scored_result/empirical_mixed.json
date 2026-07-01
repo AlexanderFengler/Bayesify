@@ -12,6 +12,7 @@
     "labels": [
       "data_analysis"
     ],
+    "disciplines": [],
     "confidence": 0.9,
     "rationale": "real RT data",
     "evidence_refs": [
@@ -233,7 +234,7 @@
         "applicable": true,
         "status": "missing",
         "sub_score": 0.0,
-        "weight": 1.0,
+        "weight": 0.5,
         "tier": "recommended"
       },
       {
@@ -271,40 +272,40 @@
     "strict": 0.7777777777777778,
     "lenient": 0.7777777777777778
   },
-  "quality_score": 0.6666666666666666,
+  "quality_score": 0.7058823529411765,
   "score_impacts": [
     {
       "step_id": "S3",
       "from_status": "partial",
       "to_status": "adequate",
       "coverage_delta": 0.0,
-      "quality_delta": 0.05555555555555558
+      "quality_delta": 0.05882352941176461
     },
     {
       "step_id": "S5",
       "from_status": "missing",
       "to_status": "adequate",
       "coverage_delta": 0.11111111111111105,
-      "quality_delta": 0.11111111111111116
+      "quality_delta": 0.11764705882352933
     },
     {
       "step_id": "S7",
       "from_status": "missing",
       "to_status": "adequate",
       "coverage_delta": 0.11111111111111105,
-      "quality_delta": 0.11111111111111116
+      "quality_delta": 0.05882352941176461
     },
     {
       "step_id": "S9",
       "from_status": "partial",
       "to_status": "adequate",
       "coverage_delta": 0.0,
-      "quality_delta": 0.05555555555555558
+      "quality_delta": 0.05882352941176461
     }
   ],
   "not_applicable_reason": null,
   "engine_version": "pkg=0.1.0;fixture",
-  "rubric_version": "0.1-draft",
+  "rubric_version": "0.3-draft",
   "rubric_profile": "synthesis",
   "cost_ledger": {
     "entries": [
