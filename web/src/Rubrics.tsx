@@ -1,11 +1,12 @@
 import CheckIcon from "@mui/icons-material/Check";
+import StarIcon from "@mui/icons-material/Star";
 import {
   Box,
-  Button,
   Chip,
   CircularProgress,
   Container,
   Divider,
+  Link,
   Paper,
   Table,
   TableBody,
@@ -18,6 +19,7 @@ import {
 import { alpha } from "@mui/material/styles";
 import { useEffect, useState } from "react";
 import { fetchRubrics } from "./api";
+import { GoldText } from "./GoldText";
 import { fetchRubric, type Rubric } from "./rubric";
 
 // Short column headers for the comparison table, keyed by rubric profile id.
@@ -35,18 +37,27 @@ const rubricRank = (profile: string): number => {
 };
 
 // Two-line column titles, keyed by rubric profile id: the workflow name on top, its source beneath
-// (in a lighter weight). Falls back to the rubric's own label when a profile isn't mapped here.
-const TITLE: Record<string, { line1: string; line2: string }> = {
-  synthesis: { line1: "Synthesis", line2: "Merged gold standard" },
-  gelman: { line1: "Bayesian Workflow", line2: "Gelman et al. (2020)" },
-  schad: { line1: "Principled Bayesian Workflow", line2: "Schad et al. (2021)" },
+// (in a lighter weight). `url`, when present, links the source line to the originating paper. Falls
+// back to the rubric's own label when a profile isn't mapped here.
+const TITLE: Record<string, { line1: string; line2: React.ReactNode; url?: string }> = {
+  synthesis: {
+    line1: "Synthesis",
+    line2: (
+      <>
+        Our merged <GoldText>gold standard</GoldText>
+      </>
+    ),
+  },
+  gelman: { line1: "Bayesian Workflow", line2: "Gelman et al. (2020)", url: "https://arxiv.org/abs/2011.01808" },
+  schad: { line1: "Principled Bayesian Workflow", line2: "Schad et al. (2021)", url: "https://arxiv.org/abs/1904.12765" },
 };
 
 // The curated feature matrix: which workflow capabilities each rubric covers. Derived from the three
 // rubrics' step sets (synthesis = merged 10-step gold standard with per-step citations; Gelman = the
 // full branching workflow incl. multiverse & modeling-as-software; Schad = the pre-data design-analysis
-// arc). A checkmark means the rubric has a dedicated step for that capability.
-const FEATURES: { label: string; has: Record<string, boolean> }[] = [
+// arc). A checkmark means the rubric has a dedicated step for that capability; a `future` row is a
+// planned addition to the Synthesis rubric, marked with a star instead of a check.
+const FEATURES: { label: string; has: Record<string, boolean>; future?: boolean }[] = [
   { label: "Model specification & justification", has: { synthesis: true, gelman: true, schad: true } },
   { label: "Prior specification", has: { synthesis: true, gelman: true, schad: true } },
   { label: "Prior predictive checks", has: { synthesis: true, gelman: true, schad: true } },
@@ -62,11 +73,19 @@ const FEATURES: { label: string; has: Record<string, boolean> }[] = [
   { label: "Reporting & reproducibility", has: { synthesis: true, gelman: true, schad: false } },
   { label: "Posterior summary & inference communication", has: { synthesis: true, gelman: false, schad: true } },
   { label: "Per-step source citations", has: { synthesis: true, gelman: false, schad: false } },
+  // future prospects — planned additions to the Synthesis rubric (starred, not yet a step in any rubric)
+  { label: "Amortized workflow", future: true, has: { synthesis: true, gelman: false, schad: false } },
+  { label: "Bayes factor workflow", future: true, has: { synthesis: true, gelman: false, schad: false } },
+  { label: "Hierarchical modeling", future: true, has: { synthesis: true, gelman: false, schad: false } },
 ];
+
+// Split the matrix: the shipped capabilities and the starred future prospects render as two tables.
+const CURRENT_FEATURES = FEATURES.filter((f) => !f.future);
+const FUTURE_FEATURES = FEATURES.filter((f) => f.future);
 
 // The dedicated reference page for the rubrics: the three sets shown side by side, then a comparison
 // table of what each one covers. Linked from the footer and from every rubric mention in the app.
-export function Rubrics({ onExit }: { onExit: () => void }) {
+export function Rubrics() {
   const [rubrics, setRubrics] = useState<Rubric[] | null>(null);
 
   useEffect(() => {
@@ -86,20 +105,14 @@ export function Rubrics({ onExit }: { onExit: () => void }) {
     <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
         <Box>
-          <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.08em" }}>
-            Reference
-          </Typography>
           <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
             The rubrics
           </Typography>
-          <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 720 }}>
+          <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 1440 }}>
             Bayesify grades against one of three rubrics. Each decomposes the Bayesian workflow into
-            named steps; pick the one whose lens fits your paper.
+            named steps. While the workflow is iterative, Bayesify's step-by-step decomposition represents the linearized sequence for one cycle. Pick the one whose lens fits your paper.
           </Typography>
         </Box>
-        <Button variant="outlined" onClick={onExit} sx={{ flexShrink: 0 }}>
-          Back
-        </Button>
       </Box>
 
       {!rubrics ? (
@@ -131,14 +144,22 @@ export function Rubrics({ onExit }: { onExit: () => void }) {
 
           <Divider sx={{ my: { xs: 4, md: 5 } }} />
 
-          {/* the comparison */}
+          {/* the comparison — the shipped capabilities, then the roadmap, as two separate tables */}
           <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
             How they differ
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Which workflow capabilities each rubric has a dedicated step for.
           </Typography>
-          <ComparisonTable columns={rubrics.map((r) => r.rubric_profile)} />
+          <ComparisonTable columns={rubrics.map((r) => r.rubric_profile)} rows={CURRENT_FEATURES} />
+
+          <Typography variant="h5" sx={{ fontWeight: 700, mt: { xs: 4, md: 5 }, mb: 0.5 }}>
+            On the roadmap
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Capabilities planned for the Synthesis rubric (★) &mdash; stay tuned!
+          </Typography>
+          <ComparisonTable columns={rubrics.map((r) => r.rubric_profile)} rows={FUTURE_FEATURES} />
         </>
       )}
     </Container>
@@ -177,7 +198,13 @@ function RubricColumn({ rubric }: { rubric: Rubric }) {
           </Typography>
           {title && (
             <Typography sx={{ fontWeight: 400, fontSize: "0.95rem", color: "text.secondary", lineHeight: 1.25, mt: 0.25 }}>
-              {title.line2}
+              {title.url ? (
+                <Link href={title.url} target="_blank" rel="noreferrer" underline="hover" color="inherit">
+                  {title.line2}
+                </Link>
+              ) : (
+                title.line2
+              )}
             </Typography>
           )}
         </Box>
@@ -215,7 +242,7 @@ function RubricColumn({ rubric }: { rubric: Rubric }) {
   );
 }
 
-function ComparisonTable({ columns }: { columns: string[] }) {
+function ComparisonTable({ columns, rows }: { columns: string[]; rows: typeof FEATURES }) {
   return (
     // No surrounding box — the table sits directly on the aurora. A strong header rule, hairline row
     // separators and a soft row hover do the structural work the border used to.
@@ -250,13 +277,14 @@ function ComparisonTable({ columns }: { columns: string[] }) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {FEATURES.map((f) => (
+          {rows.map((f) => (
             <TableRow key={f.label} hover>
               <TableCell sx={{ color: "text.primary" }}>{f.label}</TableCell>
               {columns.map((c) => (
                 <TableCell key={c} align="center">
                   {f.has[c] ? (
-                    // a solid green dot with the tick knocked out in the page-background colour
+                    // a solid dot with the mark knocked out in the page-background colour: a green tick
+                    // for a shipped capability, a blue star for a planned (future-prospect) one
                     <Box
                       sx={{
                         display: "inline-flex",
@@ -265,10 +293,14 @@ function ComparisonTable({ columns }: { columns: string[] }) {
                         width: 24,
                         height: 24,
                         borderRadius: "50%",
-                        bgcolor: "success.main",
+                        bgcolor: f.future ? "#6969ff" : "success.main",
                       }}
                     >
-                      <CheckIcon sx={{ fontSize: 16, color: (t) => t.tokens.aurora.base }} aria-label="yes" />
+                      {f.future ? (
+                        <StarIcon sx={{ fontSize: 16, color: (t) => t.tokens.aurora.base }} aria-label="planned" />
+                      ) : (
+                        <CheckIcon sx={{ fontSize: 16, color: (t) => t.tokens.aurora.base }} aria-label="yes" />
+                      )}
                     </Box>
                   ) : (
                     <Box component="span" sx={{ color: "text.disabled" }} aria-label="no">

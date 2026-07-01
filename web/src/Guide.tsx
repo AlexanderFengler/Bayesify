@@ -5,7 +5,7 @@ import { getReviewerToken, setReviewerToken } from "./api";
 
 // A short in-app explainer reached from the footer. Two audiences, two flows shown side by side:
 // get a paper rated (authors/readers) and rate a paper blind (domain experts, the gold standard).
-export function Guide({ onExit }: { onExit: () => void }) {
+export function Guide() {
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
@@ -13,7 +13,7 @@ export function Guide({ onExit }: { onExit: () => void }) {
           <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
             How it works
           </Typography>
-          <Typography sx={{ mt: 1.5, color: "text.secondary", maxWidth: 760 }}>
+          <Typography sx={{ mt: 1.5, color: "text.secondary", maxWidth: 1520 }}>
             Bayesify checks how well a paper follows the <strong>Bayesian workflow</strong> &mdash;
             model specification, priors, predictive checks, convergence diagnostics, and so on &mdash;
             against a rubric of community best practices, with every finding grounded in the paper and
@@ -21,9 +21,6 @@ export function Guide({ onExit }: { onExit: () => void }) {
             There are two ways to use it.
           </Typography>
         </Box>
-        <Button variant="outlined" onClick={onExit} sx={{ flexShrink: 0 }}>
-          Back
-        </Button>
       </Box>
 
       {/* the two flows, side by side (stacked on phones), free of boxes */}
@@ -88,14 +85,40 @@ export function Guide({ onExit }: { onExit: () => void }) {
         </GuideColumn>
       </Box>
 
-      <ReviewerTokenField />
+      <PrivacySection />
 
-      <Typography variant="body2" color="text.secondary" sx={{ mt: { xs: 4, md: 5 } }}>
-        Bayesify runs locally and is honest about its limits: the engine is not yet validated against
-        expert ratings &mdash; which is exactly what blind rating contributes to. See the{" "}
-        <strong>Calibration</strong> link for the current agreement metrics.
-      </Typography>
+      <ReviewerTokenField />
     </Container>
+  );
+}
+
+// What is and isn't kept. The source manuscript is never stored — only the graded report is saved
+// (to the database), which is what makes the Archive browsable. Absorbs the plain-spoken data-path
+// wording from the old privacy dialog: what leaves the machine, and the two caveats worth knowing.
+function PrivacySection() {
+  return (
+    <Box sx={{ mt: { xs: 4, md: 6 }, maxWidth: 1520 }}>
+      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+        Privacy &amp; data handling
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+        <strong>Your paper is not saved.</strong> To make its per-step judgments, Bayesify sends the{" "}
+        <strong>extracted text</strong> of your document to the configured LLM provider — nothing else
+        leaves the machine: not the PDF file, not your identity. The uploaded file is used only to run
+        the analysis and is then discarded.
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+        <strong>Only the report is stored.</strong> The graded assessment is saved to the database so
+        you can reopen it and browse it in the <strong>Archive</strong>. The source manuscript itself
+        is never kept.
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+        If a manuscript is confidential or embargoed, treat this as &ldquo;this text will be sent to a
+        third-party API for processing&rdquo; and decide accordingly. Submitting an identifier
+        (arXiv/DOI/OpenAlex/URL) instead of a file fetches its open-access PDF — which reveals to that
+        provider which paper you&rsquo;re looking up.
+      </Typography>
+    </Box>
   );
 }
 
@@ -105,13 +128,12 @@ function ReviewerTokenField() {
   const [token, setToken] = useState(getReviewerToken());
   const [saved, setSaved] = useState(false);
   return (
-    <Box sx={{ mt: { xs: 4, md: 5 }, p: 2, borderRadius: 2, bgcolor: "action.hover", maxWidth: 620 }}>
+    <Box sx={{ mt: { xs: 4, md: 5 }, p: 2, borderRadius: 2, bgcolor: "action.hover" }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
         Trusted reviewer token
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-        If you&rsquo;re a trusted reviewer, paste your shared-secret token. Your <em>Disagree?</em>{" "}
-        corrections then become trusted &mdash; they enter the global override bank and can adjust how
+        If you&rsquo;re a trusted reviewer, paste your shared-secret token. Your comments on the reports then become trusted &mdash; they enter the global override bank and can adjust how
         similar steps are graded on other papers. Stored in this browser only.
       </Typography>
       <Box sx={{ display: "flex", gap: 1, mt: 1.5, alignItems: "center", flexWrap: "wrap" }}>

@@ -95,9 +95,9 @@ export interface PaperClass {
   rationale: string;
 }
 
-// --- Archive: one processed paper + its tags (mirror of bayesify.api.papers_store.ArchivedPaper) ---
+// --- Archive: one processed paper + its auto tags (mirror of bayesify.api.papers_store.ArchivedPaper) ---
 export interface ArchivePaper {
-  key: string; // durable archive id (also the tag-edit path segment)
+  key: string; // durable archive id (<sha>__<profile>)
   paper_id: string;
   source_sha256: string;
   rubric_profile: string;
@@ -115,7 +115,6 @@ export interface ArchivePaper {
   paper_type: string[]; // auto
   discipline: string[]; // auto
   methods: string[]; // auto
-  manual_tags: string[]; // freeform, human-editable
   created_at: string;
   updated_at: string;
 }
@@ -123,7 +122,6 @@ export interface ArchiveFacets {
   paper_type: string[];
   discipline: string[];
   methods: string[];
-  tags: string[];
 }
 export interface ArchiveResponse {
   papers: ArchivePaper[];
@@ -135,7 +133,6 @@ export interface ArchiveFilters {
   paper_type?: string[];
   discipline?: string[];
   method?: string[];
-  tag?: string[];
   mode?: string;
   rubric?: string;
 }

@@ -8,16 +8,16 @@ const CIRCLE = 52; // px — node diameter; connectors align to its centre (CIRC
 
 // The rotating "working…" words for the title, typed out one at a time (à la a CLI status line).
 const WORKING_WORDS = [
-  "Analyzing",
-  "Parsing",
-  "Detecting",
-  "Screening",
-  "Assessing",
-  "Scoring",
-  "Synthesizing",
-  "Calibrating",
+  "Bayesifying",
+  "Distilling",
+  "Perusing",
+  "Contemplating",
+  "Meditating",
   "Reasoning",
-  "Inspecting",
+  "Triple-checking",
+  "Recognizing",
+  "Evaluating",
+  "Rubricking"
 ];
 
 // A typewriter that types a word, holds, deletes, then moves to the next — looping forever.

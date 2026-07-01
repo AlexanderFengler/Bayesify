@@ -46,6 +46,7 @@ class MongoDBService:
         self._log = logging.getLogger("bayesify.mongo")
         self._client = None
         self._events = None
+        self._reports = None
         self._mongod = None
         self._ready = False
         self._last_ping_error: str | None = None
@@ -59,6 +60,7 @@ class MongoDBService:
         if self._client is not None:
             if not self._ready and self._ping(database):
                 self._events = self._client[database]["events"]
+                self._reports = self._client[database]["reports"]
                 self._ensure_indexes()
                 self._ready = True
             message = "connected" if self._ready else "unavailable; will retry on writes"
@@ -103,6 +105,7 @@ class MongoDBService:
             return self._last_status
 
         self._events = self._client[database]["events"]
+        self._reports = self._client[database]["reports"]
         self._ensure_indexes()
         self._ready = True
         self._log.info(f"MongoDB client started for {self._safe_uri(uri)}/{database}")
@@ -116,6 +119,7 @@ class MongoDBService:
             self._client.close()
             self._client = None
             self._events = None
+            self._reports = None
         if self._mongod is not None:
             self._mongod.terminate()
             try:
@@ -207,6 +211,89 @@ class MongoDBService:
         except PyMongoError as exc:
             self._ready = False
             self._log.warning(f"MongoDB {event} read failed for {paper_id}: {exc}")
+            return None
+
+    # --- the `reports` collection: the shared, de-duplicated report store -------------------------
+    # One document per (paper-content, rubric), keyed by ``<sha>__<profile>`` (``bucket_key``). It
+    # is both the cross-user dedup cache (a matching content+rubric replays the stored report rather
+    # than re-analyzing) and the Archive's backing store. The full ``result`` lives here for replay;
+    # the Archive list projects it out. Manuscript bytes are never stored — only the report + hash.
+
+    def _reports_collection(self):
+        """The `reports` collection when Mongo is reachable, else None (with a lazy reconnect)."""
+        if not self._ready:
+            now = time.monotonic()
+            if now >= self._next_retry_monotonic:
+                self.start()
+                if not self._ready:
+                    self._next_retry_monotonic = now + 5.0
+        return self._reports if self._ready else None
+
+    def upsert_report(self, key: str, fields: dict[str, Any]) -> None:
+        """Insert or update one report entry, keyed by ``bucket_key`` (``<sha>__<profile>``). Only
+        the fields the caller supplies are written, so a later Human rating (no ``result``) can
+        refresh metadata without wiping the AI report's ``result`` / auto-tags. ``created_at`` is
+        set once, on insert."""
+        reports = self._reports_collection()
+        if reports is None:
+            self._log.warning(f"MongoDB unavailable; report {key} was not saved.")
+            return
+        now = datetime.now(UTC)
+        try:
+            reports.update_one(
+                {"_id": key},
+                {"$set": {**fields, "updated_at": now}, "$setOnInsert": {"created_at": now}},
+                upsert=True,
+            )
+        except PyMongoError as exc:
+            self._ready = False
+            self._log.warning(f"MongoDB report upsert failed for {key}: {exc}")
+
+    def find_report(self, key: str) -> dict[str, Any] | None:
+        """The report entry for one ``bucket_key`` (content+rubric); None if absent/unavailable."""
+        reports = self._reports_collection()
+        if reports is None:
+            return None
+        try:
+            return reports.find_one({"_id": key})
+        except PyMongoError as exc:
+            self._ready = False
+            self._log.warning(f"MongoDB report read failed for {key}: {exc}")
+            return None
+
+    def find_report_by_identifier(
+        self, identifier: str, rubric_profile: str
+    ) -> dict[str, Any] | None:
+        """The newest report for a submitted identifier under one rubric — the identifier-first
+        short-circuit that lets a resubmitted arXiv/DOI/URL replay without refetching the PDF."""
+        reports = self._reports_collection()
+        if reports is None:
+            return None
+        try:
+            return reports.find_one(
+                {"identifier": identifier, "rubric_profile": rubric_profile},
+                sort=[("updated_at", -1)],
+            )
+        except PyMongoError as exc:
+            self._ready = False
+            self._log.warning(f"MongoDB report read failed for identifier {identifier}: {exc}")
+            return None
+
+    def list_reports(self) -> list[dict[str, Any]] | None:
+        """Every archived report, newest-updated first, with the heavy ``result`` / ``inventory``
+        projected out (the Archive list only needs metadata + tags). ``None`` when Mongo is down so
+        the caller can tell "no archive" from "empty archive"."""
+        reports = self._reports_collection()
+        if reports is None:
+            return None
+        try:
+            cursor = (
+                reports.find({}, {"result": 0, "inventory": 0}).sort("updated_at", -1).limit(1000)
+            )
+            return list(cursor)
+        except PyMongoError as exc:
+            self._ready = False
+            self._log.warning(f"MongoDB report list failed: {exc}")
             return None
 
     @staticmethod
@@ -342,6 +429,12 @@ class MongoDBService:
         )
         # the global override bank read (override-review): trusted step overrides for one rubric
         self._events.create_index([("rubric_profile", 1), ("event", 1), ("created_at", -1)])
+        if self._reports is not None:
+            # Archive list (newest first) and the identifier-first dedup short-circuit.
+            self._reports.create_index([("updated_at", -1)])
+            self._reports.create_index(
+                [("identifier", 1), ("rubric_profile", 1), ("updated_at", -1)]
+            )
 
 
 @lru_cache(maxsize=1)
@@ -368,6 +461,22 @@ def find_latest_analysis_report(paper_id: str) -> dict[str, Any] | None:
 
 def find_latest_job_state(paper_id: str) -> dict[str, Any] | None:
     return mongodb().find_latest_job_state(paper_id)
+
+
+def upsert_report(key: str, fields: dict[str, Any]) -> None:
+    mongodb().upsert_report(key, fields)
+
+
+def find_report(key: str) -> dict[str, Any] | None:
+    return mongodb().find_report(key)
+
+
+def find_report_by_identifier(identifier: str, rubric_profile: str) -> dict[str, Any] | None:
+    return mongodb().find_report_by_identifier(identifier, rubric_profile)
+
+
+def list_reports() -> list[dict[str, Any]] | None:
+    return mongodb().list_reports()
 
 
 def stop_mongodb() -> None:

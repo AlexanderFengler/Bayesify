@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import tempfile
 import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -22,17 +23,17 @@ from pathlib import Path
 
 import httpx
 
-from bayesify.api.mongo import find_trusted_step_overrides, save_event
+from bayesify.api.mongo import find_report, find_trusted_step_overrides, save_event, upsert_report
 from bayesify.api.papers_store import (
     ArchivedPaper,
-    PapersStore,
     discipline_tags,
     methods_from_inventory,
     paper_type_tags,
+    report_fields,
 )
 from bayesify.core import config
 from bayesify.core import schema as s
-from bayesify.core.cache import BlobStore, FullResultKey, ResultCache, sha256_bytes
+from bayesify.core.cache import BlobStore, sha256_bytes
 from bayesify.core.detectors import EvidenceInventory, evidence_inventory, run_detectors
 from bayesify.core.engine import grade_parsed
 from bayesify.core.errors import IngestError
@@ -43,7 +44,7 @@ from bayesify.core.parse import parse
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.stub import ENGINE_VERSION, build_stub_result
 from bayesify.core.validation.override_store import OverrideStore
-from bayesify.core.validation.rating_store import RatingStore
+from bayesify.core.validation.rating_store import RatingStore, bucket_key
 from bayesify.llm import LLMClient, make_llm_client
 
 _RUBRIC = load_rubric()  # static rubric spec, loaded once
@@ -94,17 +95,23 @@ def _on_task_done(task: asyncio.Task) -> None:
 
 
 def _data_root() -> Path:
-    """Where uploaded blobs live. Defaults to ``~/.bayesify`` (never the repo); overridable via
-    ``BAYESIFY_DATA_DIR`` so tests point at a temp dir."""
+    """Where the durable ratings/overrides stores live. Defaults to ``~/.bayesify`` (never the
+    repo); overridable via ``BAYESIFY_DATA_DIR`` so tests point at a temp dir."""
     return Path(os.environ.get("BAYESIFY_DATA_DIR", str(Path.home() / ".bayesify")))
 
 
+_blob_dir: Path | None = None
+
+
 def _blobs() -> BlobStore:
-    return BlobStore(_data_root() / "blobs")
-
-
-def _results() -> ResultCache:
-    return ResultCache(_data_root() / "results")
+    """Transient store for the manuscript bytes while a job runs (parse needs them on-device). Kept
+    in an ephemeral per-process temp dir — never under the data root — so the uploaded paper is not
+    durably saved: only the report and its content hash are persisted (to Mongo). The dir is purged
+    on process exit / restart, so nothing about the paper survives beyond the analysis."""
+    global _blob_dir
+    if _blob_dir is None:
+        _blob_dir = Path(tempfile.mkdtemp(prefix="bayesify-blobs-"))
+    return BlobStore(_blob_dir)
 
 
 def _ratings_store() -> RatingStore:
@@ -117,15 +124,10 @@ def _overrides_store() -> OverrideStore:
     return OverrideStore(_data_root())
 
 
-def _papers_store() -> PapersStore:
-    """Durable archive of processed papers (the Archive page's backing store; survives restart)."""
-    return PapersStore(_data_root() / "papers")
-
-
 def _cache_enabled() -> bool:
-    """Result caching is on unless BAYESIFY_NO_CACHE is set. Caching is **success-only** and the
-    cache hit is surfaced (``from_cache``), so it can never silently mask a broken live run — a
-    failure is never cached, and a hit is always labelled."""
+    """Report dedup is on unless BAYESIFY_NO_CACHE is set. It is **success-only** and the hit is
+    surfaced (``from_cache``), so it can never silently mask a broken live run — a failure is never
+    stored, and a hit is always labelled."""
     return os.environ.get("BAYESIFY_NO_CACHE", "").strip().lower() not in ("1", "true", "yes")
 
 
@@ -283,13 +285,16 @@ def job_state_payload(job: Job) -> dict:
 
 
 def _archived_from_analysis(job: Job) -> ArchivedPaper:
-    """Build the Archive entry for a completed AI analysis: metadata + auto tags (paper type +
-    discipline from the PaperClass, methods/software from the detector inventory)."""
+    """Build the Archive/dedup entry for a completed AI analysis: metadata + auto tags (paper type +
+    discipline from the PaperClass, methods/software from the detector inventory) + the full graded
+    result and the engine identity, so a matching content+rubric resubmission can replay it."""
     r = job.result
     paper_class = r.paper_class if r else None
     cov = r.coverage if r else None
     return ArchivedPaper(
+        key=bucket_key(job.content_sha256 or "", job.profile),
         paper_id=job.id,
+        identifier=(job.identifier.strip() if job.identifier else None),
         source_sha256=job.content_sha256 or "",
         rubric_profile=job.profile,
         version_label=job.version_label or "",
@@ -306,14 +311,37 @@ def _archived_from_analysis(job: Job) -> ArchivedPaper:
         paper_type=paper_type_tags(paper_class),
         discipline=discipline_tags(paper_class),
         methods=methods_from_inventory(job.inventory),
+        result=r.model_dump(mode="json") if r else None,
+        inventory=job.inventory.model_dump(mode="json") if job.inventory else None,
+        engine_version=ENGINE_VERSION,
+        rubric_version=r.rubric_version if r else "",
+        grading_strategy=config.grading_strategy(),
     )
 
 
-def _save_analysis_report_payload(job: Job) -> None:
-    """Persist one analysis report event when a user-triggered analysis completes, and upsert the
-    Archive entry (auto-tagged) so the paper is browsable/searchable."""
+async def _save_analysis_report_payload(job: Job) -> None:
+    """Persist one analysis report event (the by-paper_id rehydration path, fire-and-forget) and
+    upsert the Mongo ``reports`` entry (auto-tagged, with the full result) so the paper is
+    browsable/searchable and a later matching resubmission dedups to it. The report upsert is
+    **awaited** — like the old synchronous cache write — so the dedup entry exists before the job
+    reports done (a no-op when Mongo is down)."""
     spawn(asyncio.to_thread(save_event, _analysis_report_payload(job)))
-    spawn(asyncio.to_thread(_papers_store().upsert, _archived_from_analysis(job)))
+    archived = _archived_from_analysis(job)
+    await asyncio.to_thread(upsert_report, archived.key, report_fields(archived))
+
+
+def _replayable(doc: dict | None, rubric) -> bool:
+    """Whether a stored report may be replayed for a fresh clean submit: it must carry a full
+    result, be an AI (full-mode) run, and match the current engine/rubric/strategy identity —
+    otherwise a code / model / rubric / strategy change would serve a stale report, so we re-run."""
+    return bool(
+        doc
+        and doc.get("result")
+        and doc.get("mode") == "full"
+        and doc.get("engine_version") == ENGINE_VERSION
+        and doc.get("rubric_version") == rubric.rubric_version
+        and doc.get("grading_strategy") == config.grading_strategy()
+    )
 
 
 def _save_job_state(job: Job) -> None:
@@ -502,28 +530,24 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     screen -> classify -> assess -> score.
 
     A ``no`` short-circuits with null scores; a relevant paper is graded end-to-end (per-step
-    assessments + profile/coverage/quality — no stub). Results are cached so identical re-uploads
-    return instantly — but **safely**, so a hit can never mask a broken run: only successful runs
-    are cached (a failure is never stored), the key includes ``engine_version`` (a code/model/prompt
-    change busts it), the hit is labelled ``from_cache`` in the UI, and ``force_fresh`` /
-    ``BAYESIFY_NO_CACHE`` bypass it entirely to force a real run.
+    assessments + profile/coverage/quality — no stub). Successful reports are stored in the shared
+    Mongo ``reports`` collection keyed by content+rubric, so an identical re-upload — from anyone —
+    replays instantly, but **safely**: only successful clean runs are stored (a failure or a forced
+    rerun never is), the stored engine/rubric/strategy identity must match the current engine (a
+    code/model/prompt change re-analyzes), the hit is labelled ``from_cache`` in the UI, and
+    ``force_fresh`` / ``BAYESIFY_NO_CACHE`` bypass it entirely to force a real run.
     """
     rubric = load_rubric(profile=job.profile)  # the chosen rubric (default synthesis)
-    key = FullResultKey(
-        content_sha256=sha256_bytes(job.data),  # computed before _front_half clears job.data
-        engine_version=ENGINE_VERSION,
-        rubric_version=rubric.rubric_version,
-        mode="full",
-        relevance_override=job.relevance_override,
-        force_grade=job.force_grade,
-        rubric_profile=job.profile,
-        grading_strategy=config.grading_strategy(),
-    )
-    if _cache_enabled() and not job.force_fresh:
-        cached = _results().get(key)
-        if cached is not None:
-            job.result = s.ScoredResult.model_validate(cached["result"])
-            job.backend = cached.get("backend")
+    content_sha = sha256_bytes(job.data)  # computed before _front_half clears job.data
+    key = bucket_key(content_sha, job.profile)  # the shared dedup id: <sha>__<profile>
+    # A clean submit (no forced relevance / advisory grade) may replay a stored clean report.
+    clean = not job.force_fresh and not job.relevance_override and not job.force_grade
+    if _cache_enabled() and clean:
+        doc = await asyncio.to_thread(find_report, key)
+        if _replayable(doc, rubric):
+            job.result = s.ScoredResult.model_validate(doc["result"])
+            job.backend = doc.get("backend")
+            job.content_sha256 = content_sha
             job.from_cache = True
             for stage in STAGES:  # complete the UI stepper instantly
                 job.emit({"type": "stage", "stage": stage, "state": "done"})
@@ -563,11 +587,10 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
         on_stage=on_stage,
     )
 
-    # Cache only on success (we reached here without raising) — never mask a broken run.
-    if _cache_enabled():
-        _results().put(key, {"backend": job.backend, "result": job.result.model_dump(mode="json")})
+    # We reached here without raising, so the run succeeded. The store happens in
+    # _save_analysis_report_payload below (success-only — a failure never gets persisted).
     job.status = "done"
-    _save_analysis_report_payload(job)  # the RAW engine result is what's persisted to Atlas
+    await _save_analysis_report_payload(job)  # the RAW engine result is what's persisted to Mongo
     await _try_review_overlay(job, rubric)  # trusted corrections overlay only for display
     job.emit({"type": "done"})
 

@@ -28,7 +28,22 @@
       "Bash(.pixi/envs/default/bin/python3 -c ' *)",
       "Bash(sed -i '/const page2 = {/d' footer.mjs)",
       "Bash(node footer.mjs)",
-      "Bash(python3 -c \"import mongomock; print\\('mongomock available'\\)\")"
+      "Bash(python3 -c \"import mongomock; print\\('mongomock available'\\)\")",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('bayesify/api/jobs.py'\\).read\\(\\)\\); ast.parse\\(open\\('bayesify/api/mongo.py'\\).read\\(\\)\\); ast.parse\\(open\\('bayesify/api/papers_store.py'\\).read\\(\\)\\); print\\('AST OK'\\)\")",
+      "Bash(python -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\)\\) for f in \\('bayesify/api/app.py','bayesify/api/jobs.py','bayesify/api/mongo.py','bayesify/api/papers_store.py'\\)]; print\\('AST OK'\\)\")",
+      "Bash(python -m pytest tests/test_archive.py tests/test_mongo.py -q)",
+      "Bash(python -m pytest -q)",
+      "Bash(python -m pytest tests/test_api.py -q -k \"cache or rerun or archive or paper\")",
+      "Bash(python -m ruff check bayesify/api/ tests/test_archive.py tests/test_api.py)",
+      "Bash(python -m ruff check --fix bayesify/api/ tests/test_archive.py tests/test_api.py)",
+      "Bash(python -m ruff check bayesify/ tests/)",
+      "Bash(git check-ignore *)",
+      "Bash(sed -n '/def mongodb_uri/,/def mongodb_server_api/p' bayesify/core/config.py)",
+      "Bash(python -m ruff check bayesify/api/app.py tests/test_archive.py)",
+      "Bash(python -m pytest tests/test_archive.py -q)",
+      "Bash(node -e ' *)"
     ]
   }
 }

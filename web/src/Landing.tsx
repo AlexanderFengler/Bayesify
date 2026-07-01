@@ -244,10 +244,10 @@ function UploadPanel(
           aria-label="who assesses the paper"
         >
           <ToggleButton value="ai" sx={{ px: 2 }}>
-            AI
+            AI Agent
           </ToggleButton>
           <ToggleButton value="human" sx={{ px: 2 }}>
-            Human
+            Human Expert
           </ToggleButton>
         </ToggleButtonGroup>
 

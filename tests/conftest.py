@@ -3,6 +3,14 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+
+# Never load the developer's private bayesify.env during tests. The app loads it at startup (the
+# TestClient lifespan calls `_load_env_file`), which would leak the local LLM backend, grading
+# strategy, Atlas URI, etc. into os.environ and make env-sensitive tests non-hermetic. Point the
+# loader at a path that does not exist so it is a no-op; the suite shapes the env explicitly below
+# and per-test via monkeypatch. `setdefault` lets a developer/CI override deliberately.
+os.environ.setdefault("BAYESIFY_ENV_FILE", str(Path(__file__).with_name("_no_such.env")))
 
 # Pin the assess-stage fan-out to a single worker for the whole suite. `config.assess_concurrency()`
 # is backend-aware and defaults to >1 on a dev machine where the `claude` CLI is present (backend

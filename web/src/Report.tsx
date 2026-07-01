@@ -42,7 +42,7 @@ import { useNavigate } from "react-router-dom";
 import { SwitchTransition } from "react-transition-group";
 import { recordOverride } from "./api";
 import { MathText } from "./MathText";
-import { formatByline } from "./paper";
+import { articleUrl, formatByline } from "./paper";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
 import type {
   AdversarialVerdict,
@@ -57,7 +57,7 @@ import type {
   Suggestion,
 } from "./types";
 
-// A filled status dot per severity, matching the green CheckCircle used for the "did well" items:
+// A filled status dot per severity, matching the green CheckCircle used for the "Pass" items:
 // a red ✕ dot for error, an amber ! dot for warning, a blue i dot for info.
 function SeverityIcon({ severity }: { severity: string }) {
   const sx = { fontSize: 18, mt: "1px", flex: "0 0 auto" } as const;
@@ -141,6 +141,7 @@ export function Report({
   }
 
   const title = paper.paper_title ?? paper.source_label;
+  const titleUrl = articleUrl(paper.source_label); // link the title when submitted by URL
   const byline = formatByline(paper.paper_authors, paper.paper_year);
   const selectedStep = r.step_assessments.find((a) => a.step_id === selected) ?? null;
   const base = `/paper/${paper.paper_id}`;
@@ -157,38 +158,51 @@ export function Report({
     <>
       <Box sx={{ flex: 1 }}>
         <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
-          {/* top row: the title block (left) and the score data (right). The row stretches so the
-              score block spans the left column's full height — title plus the relevance/rubric/paper-
-              type row — and centres its numbers within that span rather than topping out at "REPORT". */}
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "stretch", gap: 3, flexWrap: "wrap" }}>
-            <Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-                <Typography variant="overline" color="text.secondary">
-                  Report
-                </Typography>
-                <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
-              </Box>
+          {/* the "Report" label + backend badge sit ABOVE the title/score row, so the score block's
+              top aligns with the title text (not with this label row). */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
+            <Typography variant="overline" color="text.secondary">
+              Report
+            </Typography>
+            <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
+          </Box>
+          {/* title block and the score data on one line, 5:1 on wide screens (stacked on phones),
+              tops aligned. The meta chips live BELOW this row (full width). If the paper was submitted
+              by URL, the title links to it — same appearance, just clickable. */}
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, alignItems: "flex-start", gap: 3 }}>
+            <Box sx={{ flex: { md: 3 }, minWidth: 0 }}>
               <Typography variant="h4" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-                {title}
+                {titleUrl ? (
+                  <Link href={titleUrl} target="_blank" rel="noreferrer" color="inherit" underline="none">
+                    <MathText>{title}</MathText>
+                  </Link>
+                ) : (
+                  <MathText>{title}</MathText>
+                )}
               </Typography>
               {byline && (
                 <Typography variant="subtitle1" color="text.secondary" sx={{ mt: 0.5 }}>
                   {byline}
                 </Typography>
               )}
-              {/* chips under the title — persist across both views; hidden on the narrowest screens */}
-              <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 5, mt: 2 }}>
-                <Stat label="relevance" value={r.relevance.label} info={STAT_INFO.relevance} />
-                <Stat label="rubric" value={r.rubric_profile} info={STAT_INFO.rubric} />
-                {r.paper_class && (
-                  <Stat label="paper type" value={formatLabels(r.paper_class.labels)} info={STAT_INFO.paperType} />
-                )}
-                {r.profile && (
-                  <Stat label="weighting" value={anyReduced ? "weighted" : "uniform"} info={STAT_INFO.weighting} />
-                )}
-              </Box>
             </Box>
-            <ScoreMetrics r={r} baseQuality={paper.base_quality} nCorrections={corrections.length} />
+            <Box sx={{ flex: { md: 1 }, minWidth: 0 }}>
+              <ScoreMetrics r={r} baseQuality={paper.base_quality} nCorrections={corrections.length} />
+            </Box>
+          </Box>
+
+          {/* meta chips — full width, below the title/score row (always under the numbers); persist
+              across both views; hidden on the narrowest screens */}
+          <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 3, mt: 2, flexWrap: "wrap" }}>
+            <MetaChips label="relevance" values={[r.relevance.label]} info={STAT_INFO.relevance} />
+            <MetaChips label="rubric" values={[r.rubric_profile]} info={STAT_INFO.rubric} />
+            {r.paper_class && (
+              <MetaChips label="paper type" values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))} info={STAT_INFO.paperType} />
+            )}
+            <MetaChips label="methods" values={METHODS} info={STAT_INFO.methods} />
+            {r.profile && (
+              <MetaChips label="weighting" values={[anyReduced ? "weighted" : "uniform"]} info={STAT_INFO.weighting} />
+            )}
           </Box>
 
           <Divider sx={{ mt: 2.5 }} />
@@ -351,9 +365,14 @@ function RelevanceGate({ r }: { r: ScoredResult }) {
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const formatLabels = (labels: string[]) => labels.map((label) => label.replace(/_/g, " ")).join(", ");
 
-// Hover explanations for the three header stats — a one-line description plus the possible categories.
+// The methods surfaced as chips in the meta row. Static for now (no per-run method detection on the
+// scored result yet) — the categories the workflow recognises: MCMC, Variational, and simulation-
+// based inference (SBI).
+const METHODS = ["MCMC", "Variational", "SBI"];
+
+// Hover explanations for the header stats — a one-line description plus the possible categories.
 type StatInfo = { what: string; categories: string[] };
-const STAT_INFO: Record<"relevance" | "rubric" | "paperType" | "weighting", StatInfo> = {
+const STAT_INFO: Record<"relevance" | "rubric" | "paperType" | "methods" | "weighting", StatInfo> = {
   relevance: {
     what: "Does the paper actually apply Bayesian statistical methodology? This gate decides whether the rubric applies.",
     categories: ["yes", "partial", "no"],
@@ -373,6 +392,10 @@ const STAT_INFO: Record<"relevance" | "rubric" | "paperType" | "weighting", Stat
       "theoretical analysis",
       "review",
     ],
+  },
+  methods: {
+    what: "The Bayesian computation the paper relies on.",
+    categories: ["MCMC", "Variational", "SBI"],
   },
   weighting: {
     what:
@@ -436,12 +459,14 @@ function InfoTooltip({ info, children }: { info: StatInfo; children: React.React
   );
 }
 
-// A small all-caps label over a larger, slightly bolder, sentence-cased value — the relevance / rubric
-// / paper-type row under the title. `info` adds a hover-explained info icon beside the label.
-function Stat({ label, value, info }: { label: string; value: string; info?: StatInfo }) {
+// A small all-caps label over a row of chips — the relevance / rubric / paper-type / methods row under
+// the title. The chips run a size up from the report's other (small) chips so this meta row reads as
+// the paper's headline facts. `info` adds a hover-explained info icon beside the label; multi-value
+// fields (paper type, methods) wrap onto more chips.
+function MetaChips({ label, values, info }: { label: string; values: string[]; info?: StatInfo }) {
   return (
     <Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
         <Typography
           sx={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary" }}
         >
@@ -455,7 +480,11 @@ function Stat({ label, value, info }: { label: string; value: string; info?: Sta
           </InfoTooltip>
         )}
       </Box>
-      <Typography sx={{ fontSize: "1.35rem", fontWeight: 600, lineHeight: 1.2 }}>{cap(value)}</Typography>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+        {values.map((v) => (
+          <Chip key={v} label={cap(v)} sx={{ height: 34, fontSize: "0.9rem", fontWeight: 600, "& .MuiChip-label": { px: 1.5 } }} />
+        ))}
+      </Box>
     </Box>
   );
 }
@@ -477,10 +506,10 @@ function Legend() {
 }
 
 // The finding-dot legend — explains the icons used inside each step of the full report (the green
-// "did well" check and the severity dots), in place of the status-colour legend.
+// "Pass" check and the severity dots), in place of the status-colour legend.
 function SeverityLegend() {
   const items = [
-    { icon: <CheckCircleIcon sx={{ fontSize: 16, color: "success.main" }} />, label: "Did well" },
+    { icon: <CheckCircleIcon sx={{ fontSize: 16, color: "success.main" }} />, label: "Pass" },
     { icon: <InfoIcon sx={{ fontSize: 16, color: "info.main" }} />, label: "Info" },
     { icon: <ErrorIcon sx={{ fontSize: 16, color: "warning.main" }} />, label: "Warning" },
     { icon: <CancelIcon sx={{ fontSize: 16, color: "error.main" }} />, label: "Omission" },
@@ -1072,6 +1101,33 @@ function StepBody({
 
 const SEV_RANK: Record<string, number> = { error: 0, warning: 1, info: 2 };
 
+// Well-known reference URLs for the standards whose citation text carries no inline arXiv/DOI to
+// derive a link from. Keyed by the rubric's citation id (StandardRef.source_id).
+const STANDARD_URL: Record<string, string> = {
+  vehtari2021: "https://arxiv.org/abs/1903.08008", // Rank-normalization… improved R-hat (Bayesian Analysis)
+  vehtari2017: "https://doi.org/10.1007/s11222-016-9696-4", // Practical Bayesian model evaluation (LOO/WAIC)
+  modrak2023: "https://arxiv.org/abs/2211.02383", // Simulation-based calibration checking
+  betancourt_workflow: "https://betanalpha.github.io/assets/case_studies/principled_bayesian_workflow.html",
+};
+
+// A clickable URL for a standard: prefer an arXiv id or DOI embedded in the citation text (the rubric
+// authors' own identifiers, so it can't be wrong), else fall back to the known-URL registry above.
+function standardUrl(s: StandardRef): string | null {
+  const arxiv = s.citation.match(/arXiv:\s*(\d{4}\.\d{4,5})/i);
+  if (arxiv) return `https://arxiv.org/abs/${arxiv[1]}`;
+  const doi = s.citation.match(/doi:\s*(10\.\S+)/i);
+  if (doi) return `https://doi.org/${doi[1].replace(/[).,;]+$/, "")}`;
+  return STANDARD_URL[s.source_id] ?? null;
+}
+
+// Strip a trailing internal editorial note (e.g. "[thresholds to confirm]") so the reference reads
+// as a clean citation.
+const cleanCitation = (c: string): string => c.replace(/\s*\[[^\]]*\]\s*$/, "");
+
+// The per-step comment control (formerly "Disagree?", now "Add comments") is hidden for now — we'll
+// revisit expert corrections later. Flip to true to bring the control (and its form) back.
+const SHOW_ADD_COMMENTS = false;
+
 // A disclosure toggle styled like the "See how our rubrics compare" link — one shared style so the
 // "Suggested fixes" and "In the paper" toggles read identically.
 function DisclosureToggle({ open, onClick, label }: { open: boolean; onClick: () => void; label: string }) {
@@ -1130,7 +1186,12 @@ function StepDisclosures({
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
         {suggestions.length > 0 && (
-          <DisclosureToggle open={showFixes} onClick={() => setShowFixes((o) => !o)} label={`Suggested fixes (${suggestions.length})`} />
+          <DisclosureToggle
+            open={showFixes}
+            onClick={() => setShowFixes((o) => !o)}
+            // an adequate step has nothing to "fix" — its suggestions are polish, not corrections
+            label={`${currentStatus === "adequate" ? "Further improvements" : "Suggested fixes"} (${suggestions.length})`}
+          />
         )}
         {spans.length > 0 && (
           <DisclosureToggle open={showEvidence} onClick={() => setShowEvidence((o) => !o)} label={`In the paper (${spans.length})`} />
@@ -1139,20 +1200,22 @@ function StepDisclosures({
           <DisclosureToggle open={showStandards} onClick={() => setShowStandards((o) => !o)} label={`Standards applied (${standards.length})`} />
         )}
         {hasAdversarial && (
-          <DisclosureToggle open={showAdversarial} onClick={() => setShowAdversarial((o) => !o)} label="Adversarial checks" />
+          <DisclosureToggle open={showAdversarial} onClick={() => setShowAdversarial((o) => !o)} label="Refutation" />
         )}
-        {/* the Disagree control (or its recorded-override note) sits at the right of the same row */}
-        {overridden ? (
-          <Typography variant="body2" color="text.secondary" sx={{ ml: "auto" }}>
-            Override recorded: <strong>{STATUS_LABEL[overridden]}</strong>
-          </Typography>
-        ) : (
-          <Box sx={{ ml: "auto" }}>
-            <Link component="button" type="button" underline="hover" onClick={() => setShowDisagree((o) => !o)} sx={{ fontSize: "0.875rem", fontWeight: 600 }}>
-              Disagree?
-            </Link>
-          </Box>
-        )}
+        {/* the "Add comments" control (or its recorded-override note) sits at the right of the same
+            row — hidden for now behind SHOW_ADD_COMMENTS while we rework expert corrections */}
+        {SHOW_ADD_COMMENTS &&
+          (overridden ? (
+            <Typography variant="body2" color="text.secondary" sx={{ ml: "auto" }}>
+              Override recorded: <strong>{STATUS_LABEL[overridden]}</strong>
+            </Typography>
+          ) : (
+            <Box sx={{ ml: "auto" }}>
+              <Link component="button" type="button" underline="hover" onClick={() => setShowDisagree((o) => !o)} sx={{ fontSize: "0.875rem", fontWeight: 600 }}>
+                Add comments
+              </Link>
+            </Box>
+          ))}
       </Box>
 
       <Collapse in={showFixes}>
@@ -1191,21 +1254,31 @@ function StepDisclosures({
 
       <Collapse in={showStandards}>
         <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 0.75 }}>
-          {standards.map((s, i) => (
-            <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-              <Typography variant="body2">
-                <MathText>{s.citation}</MathText>
-                {s.locator && (
-                  <Box component="span" sx={{ color: "text.secondary" }}> · {s.locator}</Box>
+          {standards.map((s, i) => {
+            const url = standardUrl(s);
+            const text = cleanCitation(s.citation);
+            return (
+              <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                <Typography variant="body2" color="text.secondary">
+                  {url ? (
+                    <Link href={url} target="_blank" rel="noreferrer" underline="hover" sx={{ fontWeight: 600, color: "inherit" }}>
+                      <MathText>{text}</MathText>
+                    </Link>
+                  ) : (
+                    <MathText>{text}</MathText>
+                  )}
+                  {s.locator && (
+                    <Box component="span" sx={{ color: "text.disabled" }}> · {s.locator}</Box>
+                  )}
+                </Typography>
+                {s.verified ? (
+                  <Chip size="small" color="success" variant="outlined" label="verified" sx={{ ml: "auto" }} />
+                ) : (
+                  <Chip size="small" variant="outlined" label="unverified" sx={{ ml: "auto" }} />
                 )}
-              </Typography>
-              {s.verified ? (
-                <Chip size="small" color="success" variant="outlined" label="verified" sx={{ ml: "auto" }} />
-              ) : (
-                <Chip size="small" variant="outlined" label="unverified" sx={{ ml: "auto" }} />
-              )}
-            </Box>
-          ))}
+              </Box>
+            );
+          })}
         </Box>
       </Collapse>
 
@@ -1219,7 +1292,7 @@ function StepDisclosures({
         </Collapse>
       )}
 
-      <Collapse in={showDisagree && !overridden}>
+      <Collapse in={SHOW_ADD_COMMENTS && showDisagree && !overridden}>
         <Box sx={{ mt: 1.5 }}>
           <DisagreeForm currentStatus={currentStatus} onOverride={onOverride} onCancel={() => setShowDisagree(false)} />
         </Box>
@@ -1334,6 +1407,7 @@ function NotApplicable({
   const r = paper.result!;
   const [busy, setBusy] = useState(false);
   const isReview = r.not_applicable_reason === "not_an_application";
+  const titleUrl = articleUrl(paper.source_label); // link the title when submitted by URL
   const byline = formatByline(paper.paper_authors, paper.paper_year);
   return (
     <>
@@ -1348,7 +1422,13 @@ function NotApplicable({
                 <BackendBadge backend={paper.backend} fromCache={paper.from_cache} />
               </Box>
               <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                {paper.paper_title ?? paper.source_label}
+                {titleUrl ? (
+                  <Link href={titleUrl} target="_blank" rel="noreferrer" color="inherit" underline="none">
+                    <MathText>{paper.paper_title ?? paper.source_label}</MathText>
+                  </Link>
+                ) : (
+                  <MathText>{paper.paper_title ?? paper.source_label}</MathText>
+                )}
               </Typography>
               {byline && (
                 <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -1392,7 +1472,7 @@ function NotApplicable({
                 Why
               </Typography>
               <Typography variant="body2">
-                {(isReview && r.paper_class?.rationale) || r.relevance.rationale}
+                <MathText>{(isReview && r.paper_class?.rationale) || r.relevance.rationale}</MathText>
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {isReview && r.paper_class

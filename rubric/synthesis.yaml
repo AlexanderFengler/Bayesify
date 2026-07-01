@@ -19,7 +19,7 @@ summary: >
   The default Bayesify rubric: a merged, provenance-tracked standard drawing on the major
   Bayesian-workflow sources (Gelman 2020, Schad 2021, BARG, WAMBS, Vehtari R-hat/LOO, Betancourt,
   and more). Each step is grounded in one or more of those sources, so the report cites the specific
-  standard applied per step. Ten steps spanning model specification through reporting.
+  standard applied per step. 10 steps spanning model specification through reporting.
 status_values: [adequate, partial, missing, not_applicable]
 scoring_rule: >
   (2026-06-12 decision — no categorical badge.) Primary output = per-step profile.
