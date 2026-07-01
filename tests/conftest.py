@@ -11,3 +11,10 @@ import os
 # parallel path pass `concurrency=` to `assess()` explicitly, so this default does not bind them.
 # `setdefault` lets CI or a developer override it deliberately.
 os.environ.setdefault("BAYESIFY_ASSESS_CONCURRENCY", "1")
+
+# Test runs should not depend on a developer's private bayesify.env. The production config remains
+# env-only; the suite supplies explicit pins so engine_version/cache-key assertions are hermetic.
+os.environ.setdefault("BAYESIFY_JUDGE_MODEL", "claude-opus-4-8")
+os.environ.setdefault("BAYESIFY_SCREEN_MODEL", "claude-haiku-4-5")
+os.environ.setdefault("BAYESIFY_CLASSIFY_MODEL", "claude-haiku-4-5")
+os.environ.setdefault("BAYESIFY_REFUTER_MODEL", "claude-opus-4-8")
