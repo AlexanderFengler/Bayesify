@@ -1,0 +1,300 @@
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import LocalOfferOutlinedIcon from "@mui/icons-material/LocalOfferOutlined";
+import SearchIcon from "@mui/icons-material/Search";
+import {
+  Autocomplete,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Container,
+  Divider,
+  InputAdornment,
+  Link,
+  Paper,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { fetchPapers, updatePaperTags } from "./api";
+import { MathText } from "./MathText";
+import { formatByline } from "./paper";
+import type { ArchiveFacets, ArchivePaper } from "./types";
+
+const EMPTY_FACETS: ArchiveFacets = { paper_type: [], discipline: [], methods: [], tags: [] };
+// the four facet groups, in render order — key into the facets payload + the paper's own tag arrays
+const GROUPS = [
+  { key: "paper_type", label: "Paper type", field: "paper_type" },
+  { key: "discipline", label: "Discipline", field: "discipline" },
+  { key: "methods", label: "Methods & software", field: "methods" },
+  { key: "tags", label: "Tags", field: "manual_tags" },
+] as const;
+
+const pretty = (s: string) => s.replace(/[-_]/g, " ");
+
+// The Archive: every processed paper with its tags, searchable by free text + tag facets. Papers are
+// tagged automatically (paper type + discipline + methods) and, in Human mode, by the rater; manual
+// tags can be edited inline here. Backed by the on-disk papers store (no MongoDB required).
+export function Archive({ onExit }: { onExit: () => void }) {
+  const [q, setQ] = useState("");
+  // selected facet values per group (AND-filtered server-side)
+  const [selected, setSelected] = useState<Record<string, string[]>>({
+    paper_type: [],
+    discipline: [],
+    methods: [],
+    tags: [],
+  });
+  const [papers, setPapers] = useState<ArchivePaper[]>([]);
+  const [facets, setFacets] = useState<ArchiveFacets>(EMPTY_FACETS);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // debounce the free-text box so we don't refetch on every keystroke
+  const [debouncedQ, setDebouncedQ] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    fetchPapers({
+      q: debouncedQ,
+      paper_type: selected.paper_type,
+      discipline: selected.discipline,
+      method: selected.methods,
+      tag: selected.tags,
+    })
+      .then((r) => {
+        if (!alive) return;
+        setPapers(r.papers);
+        setFacets(r.facets);
+        setTotal(r.total);
+        setError(null);
+      })
+      .catch((e) => alive && setError(e.message ?? "could not load the archive"))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [debouncedQ, selected]);
+
+  const toggle = (group: string, value: string) =>
+    setSelected((cur) => {
+      const has = cur[group].includes(value);
+      return { ...cur, [group]: has ? cur[group].filter((v) => v !== value) : [...cur[group], value] };
+    });
+
+  const activeCount = Object.values(selected).reduce((n, a) => n + a.length, 0);
+  const clearAll = () => setSelected({ paper_type: [], discipline: [], methods: [], tags: [] });
+
+  const patchTags = (key: string, tags: string[]) => {
+    setPapers((cur) => cur.map((p) => (p.key === key ? { ...p, manual_tags: tags } : p)));
+    updatePaperTags(key, tags).catch(() => {
+      /* best-effort; a reload reflects the server truth */
+    });
+  };
+
+  return (
+    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+        <Box>
+          <Typography variant="overline" color="text.secondary">
+            Archive
+          </Typography>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Processed papers
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 720 }}>
+            Every paper you have run through Bayesify, tagged by paper type, discipline, and the
+            methods & software detected — plus any tags you add. Search the text or filter by tags.
+          </Typography>
+        </Box>
+        <Button startIcon={<ArrowBackIcon />} onClick={onExit}>
+          Back
+        </Button>
+      </Box>
+
+      <TextField
+        fullWidth
+        size="small"
+        placeholder="Search title or authors…"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        sx={{ mt: 3, maxWidth: 520 }}
+        slotProps={{
+          input: {
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" sx={{ color: "text.disabled" }} />
+              </InputAdornment>
+            ),
+          },
+        }}
+      />
+
+      {/* facet filter chips — one row per group; clicking a chip AND-filters the list */}
+      <Box sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: 1.25 }}>
+        {GROUPS.map((g) => {
+          const values = facets[g.key as keyof ArchiveFacets];
+          if (values.length === 0) return null;
+          return (
+            <Box key={g.key} sx={{ display: "flex", alignItems: "baseline", gap: 1.5, flexWrap: "wrap" }}>
+              <Typography
+                sx={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "text.secondary", minWidth: 128 }}
+              >
+                {g.label}
+              </Typography>
+              <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+                {values.map((v) => {
+                  const on = selected[g.key].includes(v);
+                  return (
+                    <Chip
+                      key={v}
+                      label={pretty(v)}
+                      size="small"
+                      color={on ? "primary" : "default"}
+                      variant={on ? "filled" : "outlined"}
+                      onClick={() => toggle(g.key, v)}
+                    />
+                  );
+                })}
+              </Box>
+            </Box>
+          );
+        })}
+      </Box>
+
+      <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          {loading ? "Loading…" : `${papers.length} of ${total} paper${total === 1 ? "" : "s"}`}
+        </Typography>
+        {activeCount > 0 && (
+          <Link component="button" type="button" underline="hover" onClick={clearAll} sx={{ fontSize: "0.8rem" }}>
+            Clear filters ({activeCount})
+          </Link>
+        )}
+      </Box>
+
+      <Divider sx={{ mt: 1.5 }} />
+
+      {error ? (
+        <Typography color="error" sx={{ py: 6 }}>
+          {error}
+        </Typography>
+      ) : loading && papers.length === 0 ? (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary", py: 6 }}>
+          <CircularProgress size={20} />
+          Loading the archive…
+        </Box>
+      ) : papers.length === 0 ? (
+        <EmptyState hasArchive={total > 0} />
+      ) : (
+        <Box sx={{ mt: 3, display: "flex", flexDirection: "column", gap: 2 }}>
+          {papers.map((p) => (
+            <ArchiveCard key={p.key} p={p} suggestions={facets.tags} onTags={(tags) => patchTags(p.key, tags)} />
+          ))}
+        </Box>
+      )}
+    </Container>
+  );
+}
+
+function EmptyState({ hasArchive }: { hasArchive: boolean }) {
+  return (
+    <Box sx={{ py: 6, color: "text.secondary" }}>
+      <Typography sx={{ fontWeight: 600, color: "text.primary" }}>
+        {hasArchive ? "No papers match these filters." : "Your archive is empty."}
+      </Typography>
+      <Typography variant="body2" sx={{ mt: 0.5 }}>
+        {hasArchive
+          ? "Clear a filter to see more."
+          : "Analyze a paper (AI) or rate one (Human) and it will show up here, tagged and searchable."}
+      </Typography>
+    </Box>
+  );
+}
+
+function ArchiveCard({
+  p,
+  suggestions,
+  onTags,
+}: {
+  p: ArchivePaper;
+  suggestions: string[];
+  onTags: (tags: string[]) => void;
+}) {
+  const navigate = useNavigate();
+  const byline = formatByline(p.paper_authors, p.paper_year);
+  const scoreLine = useMemo(() => {
+    const bits: string[] = [];
+    if (p.quality_score != null) bits.push(`Score ${Math.round(p.quality_score * 100)}`);
+    if (p.coverage_present != null && p.coverage_applicable != null)
+      bits.push(`Coverage ${p.coverage_present}/${p.coverage_applicable}`);
+    if (p.relevance_label) bits.push(p.relevance_label);
+    return bits.join(" · ");
+  }, [p]);
+
+  const groupChips = (values: string[], color: "default" | "info" | "success") =>
+    values.map((v) => (
+      <Chip key={v} label={pretty(v)} size="small" variant="outlined" color={color} sx={{ height: 24 }} />
+    ));
+
+  return (
+    <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 2 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 2, flexWrap: "wrap" }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
+            <MathText>{p.paper_title ?? p.source_label}</MathText>
+          </Typography>
+          {byline && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
+              {byline}
+            </Typography>
+          )}
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+            <Chip
+              label={p.mode === "full" ? "AI" : "Human"}
+              size="small"
+              color={p.mode === "full" ? "primary" : "secondary"}
+              variant="outlined"
+              sx={{ height: 20, mr: 1 }}
+            />
+            {scoreLine}
+          </Typography>
+        </Box>
+        <Button size="small" onClick={() => navigate(`/paper/${p.paper_id}`)} sx={{ flexShrink: 0 }}>
+          Open report
+        </Button>
+      </Box>
+
+      {(p.paper_type.length > 0 || p.discipline.length > 0 || p.methods.length > 0) && (
+        <Box sx={{ mt: 1.5, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
+          {groupChips(p.paper_type, "default")}
+          {groupChips(p.discipline, "info")}
+          {groupChips(p.methods, "success")}
+        </Box>
+      )}
+
+      <Box sx={{ mt: 1.75, display: "flex", alignItems: "flex-start", gap: 1 }}>
+        <LocalOfferOutlinedIcon sx={{ fontSize: 18, color: "text.disabled", mt: 1 }} />
+        <Autocomplete
+          multiple
+          freeSolo
+          size="small"
+          fullWidth
+          options={suggestions}
+          value={p.manual_tags}
+          onChange={(_, v) => onTags(v as string[])}
+          renderInput={(params) => (
+            <TextField {...params} variant="standard" placeholder={p.manual_tags.length ? "" : "Add tags…"} />
+          )}
+          sx={{ maxWidth: 560 }}
+        />
+      </Box>
+    </Paper>
+  );
+}

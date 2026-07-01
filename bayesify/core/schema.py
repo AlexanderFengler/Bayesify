@@ -189,6 +189,11 @@ class Relevance(_Base):
 
 class PaperClass(_Base):
     labels: list[PaperClassLabel] = Field(default_factory=list)
+    # The scientific field(s) the paper belongs to (multi-label). A *soft* vocabulary: the classify
+    # prompt seeds preferred terms but the model may add one that fits better, so these are free
+    # strings (normalised to lower-case, hyphenated) rather than an enum. Drives the Archive's
+    # discipline facet; never gates scoring. Empty is allowed (a rater-supplied class carries none).
+    disciplines: list[str] = Field(default_factory=list)
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
     evidence_refs: list[int] = Field(default_factory=list)
@@ -203,6 +208,15 @@ class PaperClass(_Base):
             raise ValueError("PaperClass.rationale must be non-empty")
         if not self.evidence_refs:
             raise ValueError("PaperClass requires >=1 evidence_ref")
+        # Normalise disciplines to a clean, de-duplicated soft vocabulary (order-preserving).
+        seen: set[str] = set()
+        normalised: list[str] = []
+        for d in self.disciplines:
+            tag = d.strip().lower().replace(" ", "-")
+            if tag and tag not in seen:
+                seen.add(tag)
+                normalised.append(tag)
+        self.disciplines = normalised
         return self
 
 

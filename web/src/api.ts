@@ -1,5 +1,5 @@
 import type { Rubric } from "./rubric";
-import type { PaperState } from "./types";
+import type { ArchiveFilters, ArchivePaper, ArchiveResponse, PaperState } from "./types";
 
 // One fetch+parse helper for every JSON endpoint. `detail: true` surfaces the API's `{detail}`
 // message (FastAPI 422s); otherwise a fixed `error` is thrown. (streamProgress uses EventSource,
@@ -189,6 +189,7 @@ export interface RatingInput {
     prior_informativeness: string;
   } | null;
   steps: RatingStepInput[];
+  tags: string[]; // freeform tags the rater attaches (the Archive's manual tags)
 }
 
 // Record one blind Rating. The server validates it against the contract; a 422 detail is surfaced.
@@ -281,6 +282,38 @@ export async function getCalibration(): Promise<CalibrationReport> {
   return fetchJson<CalibrationReport>("/api/calibration", undefined, {
     error: "could not fetch calibration",
   });
+}
+
+// --- Archive (processed papers + tag search) ------------------------------------------------------
+
+// Fetch the archive, optionally filtered. Free text (`q`) matches title/authors; the tag arrays
+// AND-filter server-side. `facets` are the full-archive tag vocabularies for the filter chips.
+export async function fetchPapers(filters: ArchiveFilters = {}): Promise<ArchiveResponse> {
+  const p = new URLSearchParams();
+  if (filters.q) p.set("q", filters.q);
+  for (const v of filters.paper_type ?? []) p.append("paper_type", v);
+  for (const v of filters.discipline ?? []) p.append("discipline", v);
+  for (const v of filters.method ?? []) p.append("method", v);
+  for (const v of filters.tag ?? []) p.append("tag", v);
+  if (filters.mode) p.set("mode", filters.mode);
+  if (filters.rubric) p.set("rubric", filters.rubric);
+  const qs = p.toString();
+  return fetchJson<ArchiveResponse>(`/api/papers${qs ? `?${qs}` : ""}`, undefined, {
+    error: "could not load the archive",
+  });
+}
+
+// Replace one archived paper's freeform manual tags. Returns the updated entry.
+export async function updatePaperTags(key: string, tags: string[]): Promise<ArchivePaper> {
+  return fetchJson<ArchivePaper>(
+    `/api/papers/${encodeURIComponent(key)}/tags`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    },
+    { detail: true, error: "could not update tags" },
+  );
 }
 
 export interface ProgressEvent {
