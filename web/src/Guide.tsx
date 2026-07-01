@@ -179,7 +179,7 @@ function ReviewerTokenField() {
   );
 }
 
-function GuideColumn({
+export function GuideColumn({
   title,
   lead,
   children,
@@ -203,7 +203,7 @@ function GuideColumn({
   );
 }
 
-function GuideStep({ n, head, children }: { n: number; head: string; children: React.ReactNode }) {
+export function GuideStep({ n, head, children }: { n: number; head: string; children: React.ReactNode }) {
   return (
     <Box component="li" sx={{ display: "flex", gap: 1.5 }}>
       <Box

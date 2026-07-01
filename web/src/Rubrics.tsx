@@ -81,7 +81,7 @@ const FEATURES: { label: string; has: Record<string, boolean>; future?: boolean 
 
 // Split the matrix: the shipped capabilities and the starred future prospects render as two tables.
 const CURRENT_FEATURES = FEATURES.filter((f) => !f.future);
-const FUTURE_FEATURES = FEATURES.filter((f) => f.future);
+// const FUTURE_FEATURES = FEATURES.filter((f) => f.future);
 
 // The dedicated reference page for the rubrics: the three sets shown side by side, then a comparison
 // table of what each one covers. Linked from the footer and from every rubric mention in the app.
@@ -156,10 +156,9 @@ export function Rubrics() {
           <Typography variant="h5" sx={{ fontWeight: 700, mt: { xs: 4, md: 5 }, mb: 0.5 }}>
             On the roadmap
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Capabilities planned for the Synthesis rubric (★) &mdash; stay tuned!
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+            Capabilities planned for the Synthesis rubric: amortized workflow, Bayes factor workflow, and hierarchical modeling. Stay tuned!
           </Typography>
-          <ComparisonTable columns={rubrics.map((r) => r.rubric_profile)} rows={FUTURE_FEATURES} />
         </>
       )}
     </Container>
