@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from bayesify.core.cache import BlobStore
-from bayesify.core.errors import IdNotFoundError, NoOpenAccessError, NotAPdfError
+from bayesify.core.errors import FetchFailedError, IdNotFoundError, NoOpenAccessError, NotAPdfError
 from bayesify.core.fetcher import Fetcher
 from bayesify.core.ingest import parse_input
 
@@ -105,6 +105,35 @@ def test_arxiv_fetch_captures_version_and_license(fetcher: Fetcher) -> None:
 def test_arxiv_unknown_id_raises(fetcher: Fetcher) -> None:
     with pytest.raises(IdNotFoundError):
         fetcher.fetch(parse_input("9999.99999"))
+
+
+def test_arxiv_non_xml_response_is_fetch_error(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "/api/query" in str(request.url):
+            return httpx.Response(
+                200,
+                text="<html>blocked</html>",
+                headers={"content-type": "text/html"},
+            )
+        return httpx.Response(404)
+
+    fetcher = Fetcher(httpx.Client(transport=httpx.MockTransport(handler)), BlobStore(tmp_path))
+    with pytest.raises(FetchFailedError) as exc:
+        fetcher.fetch(parse_input("2011.01808"))
+    assert "unexpected response from arXiv API" in str(exc.value)
+    assert "arXiv did not return metadata" in exc.value.user_message
+
+
+def test_arxiv_http_error_is_fetch_error(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "/api/query" in str(request.url):
+            return httpx.Response(503, text="temporarily unavailable")
+        return httpx.Response(404)
+
+    fetcher = Fetcher(httpx.Client(transport=httpx.MockTransport(handler)), BlobStore(tmp_path))
+    with pytest.raises(FetchFailedError) as exc:
+        fetcher.fetch(parse_input("2011.01808"))
+    assert "503 from arXiv API" in str(exc.value)
 
 
 def test_doi_resolved_via_openalex(fetcher: Fetcher) -> None:

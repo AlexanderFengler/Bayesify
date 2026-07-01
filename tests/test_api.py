@@ -130,6 +130,95 @@ def test_unknown_paper_is_404() -> None:
     assert client.get("/api/papers/nope").status_code == 404
 
 
+def test_paper_status_falls_back_to_mongo_report(monkeypatch) -> None:
+    from bayesify.core.stub import build_stub_result
+
+    result = build_stub_result("full")
+
+    def fake_report(paper_id: str) -> dict | None:
+        assert paper_id == "mongo-fallback"
+        return {
+            "event": "analysis_report_ready",
+            "paper_id": paper_id,
+            "mode": "full",
+            "source_label": "hosted.pdf",
+            "source_sha256": "ab" * 32,
+            "version_label": "uploaded PDF (hosted.pdf)",
+            "rubric_profile": result.rubric_profile,
+            "paper_title": "Hosted Paper",
+            "paper_authors": ["Ada"],
+            "paper_year": 2026,
+            "parser": "pymupdf",
+            "parser_version": "1",
+            "backend": "api",
+            "from_cache": False,
+            "result": result.model_dump(mode="json"),
+            "inventory": None,
+            "local_notice": None,
+        }
+
+    monkeypatch.setattr("bayesify.api.app.find_latest_analysis_report", fake_report)
+
+    body = client.get("/api/papers/mongo-fallback").json()
+
+    assert body["paper_id"] == "mongo-fallback"
+    assert body["status"] == "done"
+    assert body["stage"] == "score"
+    assert body["source_label"] == "hosted.pdf"
+    assert body["paper_title"] == "Hosted Paper"
+    assert body["result"]["rubric_profile"] == result.rubric_profile
+    assert body["fix_list"] is not None
+
+
+def test_paper_status_falls_back_to_mongo_job_state(monkeypatch) -> None:
+    monkeypatch.setattr("bayesify.api.app.find_latest_analysis_report", lambda paper_id: None)
+    monkeypatch.setattr(
+        "bayesify.api.app.find_latest_job_state",
+        lambda paper_id: {
+            "event": "job_state",
+            "paper_id": paper_id,
+            "status": "running",
+            "stage": "assess",
+            "mode": "full",
+            "source_label": "hosted.pdf",
+            "rubric_profile": "synthesis",
+        },
+    )
+
+    body = client.get("/api/papers/mongo-running").json()
+
+    assert body["paper_id"] == "mongo-running"
+    assert body["status"] == "running"
+    assert body["stage"] == "assess"
+    assert body["source_label"] == "hosted.pdf"
+    assert body["result"] is None
+
+
+def test_report_exports_fall_back_to_mongo_report(monkeypatch) -> None:
+    from bayesify.core.stub import build_stub_result
+
+    result = build_stub_result("full")
+    monkeypatch.setattr(
+        "bayesify.api.app.find_latest_analysis_report",
+        lambda paper_id: {
+            "event": "analysis_report_ready",
+            "paper_id": paper_id,
+            "mode": "full",
+            "source_label": "hosted.pdf",
+            "rubric_profile": result.rubric_profile,
+            "result": result.model_dump(mode="json"),
+        },
+    )
+
+    rj = client.get("/api/papers/mongo-export/report.json")
+    rm = client.get("/api/papers/mongo-export/report.md")
+
+    assert rj.status_code == 200
+    assert rj.json()["rubric_profile"] == result.rubric_profile
+    assert rm.status_code == 200
+    assert "Bayesify report" in rm.text
+
+
 def test_single_process_serves_ui_without_shadowing_api() -> None:
     """When web/dist is built, the static mount serves the SPA at / but must not shadow /api.
     Skips when the bundle is absent (the Vite dev flow), since the mount is conditional."""

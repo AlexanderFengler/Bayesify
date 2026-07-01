@@ -248,9 +248,36 @@ def _analysis_report_payload(job: Job) -> dict:
     }
 
 
+def job_state_payload(job: Job) -> dict:
+    """Mongo-ready coarse state so any API instance can answer polls for an in-flight job."""
+    return {
+        "event": "job_state",
+        "paper_id": job.id,
+        "status": job.status,
+        "stage": job.stage,
+        "mode": job.mode,
+        "source_label": job.source_label,
+        "rubric_profile": job.profile,
+        "paper_title": job.paper_title,
+        "paper_authors": job.paper_authors,
+        "paper_year": job.paper_year,
+        "parser": job.parser,
+        "parser_version": job.parser_version,
+        "backend": job.backend,
+        "from_cache": job.from_cache,
+        "local_notice": job.local_notice,
+        "error": job.error,
+    }
+
+
 def _save_analysis_report_payload(job: Job) -> None:
     """Persist one analysis report event when a user-triggered analysis completes."""
     spawn(asyncio.to_thread(save_event, _analysis_report_payload(job)))
+
+
+def _save_job_state(job: Job) -> None:
+    """Persist coarse job state without blocking the worker."""
+    spawn(asyncio.to_thread(save_event, job_state_payload(job)))
 
 
 async def run_job(job: Job) -> None:
@@ -261,6 +288,7 @@ async def run_job(job: Job) -> None:
     try:
         job.status = "running"
         job.emit({"type": "status", "status": "running"})
+        _save_job_state(job)
         source: s.SourceDoc | None = None
         if job.data is None and job.identifier:
             source = await _fetch_into(job)  # OA fetch → bytes in the blob store; sets job.data
@@ -277,6 +305,7 @@ async def run_job(job: Job) -> None:
         job.status = "failed"
         job.error = exc.user_message
         job.emit({"type": "failed", "reason": exc.user_message})
+        _save_job_state(job)
     except Exception as exc:
         # Log the full traceback to the app console so failures are debuggable (not swallowed), and
         # surface the message to the UI. str(exc) carries the chained cause (e.g. the SDK's error).
@@ -284,6 +313,7 @@ async def run_job(job: Job) -> None:
         job.status = "failed"
         job.error = str(exc)
         job.emit({"type": "failed", "reason": str(exc)})
+        _save_job_state(job)
 
 
 async def _fetch_into(job: Job) -> s.SourceDoc:
@@ -412,6 +442,20 @@ async def _review_overlay(job: Job, rubric) -> None:
         job.applied_corrections = applied
 
 
+async def _try_review_overlay(job: Job, rubric) -> None:
+    """Best-effort display correction layer; never withhold a completed raw grade."""
+    timeout = config.override_review_timeout_s()
+    try:
+        if timeout == 0:
+            return
+        await asyncio.wait_for(_review_overlay(job, rubric), timeout=timeout)
+    except TimeoutError:
+        _log.warning("job %s override review timed out after %.1fs; serving raw result", job.id,
+                     timeout)
+    except Exception:
+        _log.exception("job %s override review failed; serving raw result", job.id)
+
+
 async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     """Full mode (upload + credentials): the whole real engine — ingest -> parse -> detect ->
     screen -> classify -> assess -> score.
@@ -443,7 +487,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             for stage in STAGES:  # complete the UI stepper instantly
                 job.emit({"type": "stage", "stage": stage, "state": "done"})
             job.status = "done"
-            await _review_overlay(job, rubric)
+            await _try_review_overlay(job, rubric)
             job.emit({"type": "done"})
             return
 
@@ -483,7 +527,7 @@ async def _run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
         _results().put(key, {"backend": job.backend, "result": job.result.model_dump(mode="json")})
     job.status = "done"
     _save_analysis_report_payload(job)  # the RAW engine result is what's persisted to Atlas
-    await _review_overlay(job, rubric)  # trusted corrections overlay only for display
+    await _try_review_overlay(job, rubric)  # trusted corrections overlay only for display
     job.emit({"type": "done"})
 
 

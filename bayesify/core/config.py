@@ -194,6 +194,14 @@ def assess_context_chars() -> int:
         return 60_000
 
 
+def override_review_timeout_s() -> float:
+    """Maximum time to spend on optional display-time override review after scoring."""
+    try:
+        return max(0.0, float(os.environ.get("BAYESIFY_OVERRIDE_REVIEW_TIMEOUT_S", "8")))
+    except ValueError:
+        return 8.0
+
+
 def _required_env(name: str) -> str:
     value = os.environ.get(name, "").strip()
     if not value:

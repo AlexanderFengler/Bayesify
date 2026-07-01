@@ -35,6 +35,16 @@ class _FakeCollection:
     def create_index(self, keys: list[tuple[str, int]]) -> None:
         self.indexes.append(keys)
 
+    def find_one(self, query: dict, sort=None):
+        matches = [doc for doc in self.docs if all(doc.get(k) == v for k, v in query.items())]
+        if not matches:
+            return None
+        if sort == [("created_at", -1)]:
+            matches.sort(
+                key=lambda doc: (doc.get("created_at"), self.docs.index(doc)), reverse=True
+            )
+        return matches[0]
+
 
 def _ready_service(collection: _FakeCollection) -> MongoDBService:
     svc = MongoDBService()
@@ -90,6 +100,39 @@ def test_save_event_backoff_does_not_reconnect_storm(monkeypatch) -> None:
     assert svc._next_retry_monotonic > time.monotonic()  # armed the ~5s backoff
     assert svc.save_event({"event": "y"}) is None
     assert calls == [1]  # the immediate next call must NOT retry again
+
+
+def test_find_latest_analysis_report_reads_newest_matching_event() -> None:
+    fake = _FakeCollection()
+    svc = _ready_service(fake)
+    svc.save_event({"event": "analysis_report_ready", "paper_id": "p1", "result": {"older": True}})
+    svc.save_event({"event": "other", "paper_id": "p1"})
+    svc.save_event({"event": "analysis_report_ready", "paper_id": "p1", "result": {"newer": True}})
+
+    doc = svc.find_latest_analysis_report("p1")
+
+    assert doc is not None
+    assert doc["event"] == "analysis_report_ready"
+    assert doc["result"] == {"newer": True}
+
+
+def test_find_latest_analysis_report_returns_none_when_missing() -> None:
+    svc = _ready_service(_FakeCollection())
+    assert svc.find_latest_analysis_report("missing") is None
+
+
+def test_find_latest_job_state_reads_newest_matching_event() -> None:
+    fake = _FakeCollection()
+    svc = _ready_service(fake)
+    svc.save_event({"event": "job_state", "paper_id": "p1", "status": "queued"})
+    svc.save_event({"event": "analysis_report_ready", "paper_id": "p1"})
+    svc.save_event({"event": "job_state", "paper_id": "p1", "status": "running"})
+
+    doc = svc.find_latest_job_state("p1")
+
+    assert doc is not None
+    assert doc["event"] == "job_state"
+    assert doc["status"] == "running"
 
 
 # --- pure helpers ---------------------------------------------------------------------------------

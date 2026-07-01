@@ -34,8 +34,16 @@ from sse_starlette.sse import EventSourceResponse
 
 from bayesify.api import jobs as jobsmod
 from bayesify.api.jobs import JobStore, event_stream, run_job
-from bayesify.api.mongo import save_event, start_mongodb, stop_mongodb
+from bayesify.api.mongo import (
+    find_latest_analysis_report,
+    find_latest_job_state,
+    save_event,
+    start_mongodb,
+    stop_mongodb,
+)
 from bayesify.core import config
+from bayesify.core import schema as s
+from bayesify.core.detectors import EvidenceInventory
 from bayesify.core.report import fix_list
 from bayesify.core.rubric import RubricProfileError, available_rubrics, load_rubric
 from bayesify.core.schema import EvidenceKind
@@ -185,6 +193,7 @@ async def create_paper(
         identifier=identifier,
         profile=profile,
     )
+    jobsmod.spawn(asyncio.to_thread(save_event, jobsmod.job_state_payload(job)))
     jobsmod.spawn(run_job(job))
     return {"paper_id": job.id, "status": job.status}
 
@@ -220,9 +229,69 @@ def _job_payload(job: jobsmod.Job) -> dict:
     }
 
 
+def _job_from_report_event(doc: dict) -> jobsmod.Job:
+    """Rehydrate the completed-report view saved to Mongo when this process lacks the live job."""
+    result = s.ScoredResult.model_validate(doc["result"]) if doc.get("result") else None
+    inventory = (
+        EvidenceInventory.model_validate(doc["inventory"]) if doc.get("inventory") else None
+    )
+    return jobsmod.Job(
+        id=doc.get("paper_id", ""),
+        mode=doc.get("mode") or "full",
+        source_label=doc.get("source_label") or "unknown source",
+        profile=doc.get("rubric_profile") or "synthesis",
+        content_sha256=doc.get("source_sha256"),
+        version_label=doc.get("version_label"),
+        status="done",
+        stage="score" if result is not None else "detect",
+        result=result,
+        inventory=inventory,
+        parser=doc.get("parser"),
+        parser_version=doc.get("parser_version"),
+        paper_title=doc.get("paper_title"),
+        paper_authors=doc.get("paper_authors") or [],
+        paper_year=doc.get("paper_year"),
+        backend=doc.get("backend"),
+        from_cache=bool(doc.get("from_cache", False)),
+        local_notice=doc.get("local_notice"),
+    )
+
+
+def _job_from_state_event(doc: dict) -> jobsmod.Job:
+    """Rehydrate a coarse in-flight/failed state saved to Mongo by another API instance."""
+    return jobsmod.Job(
+        id=doc.get("paper_id", ""),
+        mode=doc.get("mode") or "full",
+        source_label=doc.get("source_label") or "unknown source",
+        profile=doc.get("rubric_profile") or "synthesis",
+        status=doc.get("status") or "running",
+        stage=doc.get("stage"),
+        parser=doc.get("parser"),
+        parser_version=doc.get("parser_version"),
+        paper_title=doc.get("paper_title"),
+        paper_authors=doc.get("paper_authors") or [],
+        paper_year=doc.get("paper_year"),
+        backend=doc.get("backend"),
+        from_cache=bool(doc.get("from_cache", False)),
+        local_notice=doc.get("local_notice"),
+        error=doc.get("error"),
+    )
+
+
+async def _job_or_mongo_report(paper_id: str) -> jobsmod.Job | None:
+    job = store.get(paper_id)
+    if job is not None:
+        return job
+    doc = await asyncio.to_thread(find_latest_analysis_report, paper_id)
+    if doc is not None:
+        return _job_from_report_event(doc)
+    state = await asyncio.to_thread(find_latest_job_state, paper_id)
+    return _job_from_state_event(state) if state is not None else None
+
+
 @app.get("/api/papers/{paper_id}")
 async def get_paper(paper_id: str) -> dict:
-    job = store.get(paper_id)
+    job = await _job_or_mongo_report(paper_id)
     if job is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
     return _job_payload(job)
@@ -231,14 +300,27 @@ async def get_paper(paper_id: str) -> dict:
 @app.get("/api/papers/{paper_id}/events")
 async def get_events(paper_id: str):
     job = store.get(paper_id)
-    if job is None:
+    if job is not None:
+        return EventSourceResponse(event_stream(job))
+    doc = await asyncio.to_thread(find_latest_analysis_report, paper_id)
+    state = None if doc is not None else await asyncio.to_thread(find_latest_job_state, paper_id)
+    if doc is None and state is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
-    return EventSourceResponse(event_stream(job))
+
+    async def completed_stream():
+        if doc is not None:
+            yield {"data": json.dumps({"seq": 1, "type": "done"})}
+        elif state.get("status") == "failed":
+            yield {"data": json.dumps({"seq": 1, "type": "failed", "reason": state.get("error")})}
+        else:
+            yield {"data": json.dumps({"seq": 1, "type": "status", "status": state["status"]})}
+
+    return EventSourceResponse(completed_stream())
 
 
 @app.get("/api/papers/{paper_id}/report.json")
 async def report_json(paper_id: str):
-    job = store.get(paper_id)
+    job = await _job_or_mongo_report(paper_id)
     if job is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
     if job.result is not None:
@@ -257,7 +339,7 @@ async def report_json(paper_id: str):
 
 @app.get("/api/papers/{paper_id}/report.md")
 async def report_md(paper_id: str):
-    job = store.get(paper_id)
+    job = await _job_or_mongo_report(paper_id)
     if job is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
     if job.result is not None:
