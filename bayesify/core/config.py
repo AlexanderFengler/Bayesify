@@ -186,6 +186,14 @@ def grading_strategy() -> str:
     return value if value in ("per-step", "batch") else "per-step"
 
 
+def assess_context_chars() -> int:
+    """Character budget for assessment-stage paper context."""
+    try:
+        return max(1_000, int(os.environ.get("BAYESIFY_ASSESS_CONTEXT_CHARS", "60000")))
+    except ValueError:
+        return 60_000
+
+
 def _required_env(name: str) -> str:
     value = os.environ.get(name, "").strip()
     if not value:

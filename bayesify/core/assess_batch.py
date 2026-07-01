@@ -24,7 +24,7 @@ from bayesify.core.assess import (
     _wider_context,
     derive_gate_facts,
 )
-from bayesify.core.context import evidence_digest, excerpt_context
+from bayesify.core.context import assessment_context, evidence_digest
 from bayesify.core.prompts import ASSESS_BATCH_JUDGE_SYSTEM, ASSESS_BATCH_REFUTE_SYSTEM
 from bayesify.core.rubric.applicability import step_applicability_for_labels
 from bayesify.core.rubric.models import RubricSpec, RubricStep
@@ -215,8 +215,8 @@ def _build_batch_judge_user(
         + "\n\n".join(blocks)
         + "\n\nALL DETECTOR HITS:\n"
         + evidence_digest(evidence)
-        + "\n\nPAPER EXCERPTS:\n"
-        + excerpt_context(parsed)
+        + "\n\nFULL PAPER CONTEXT (all extracted non-reference sections):\n"
+        + assessment_context(parsed, max_chars=config.assess_context_chars())
     )
 
 

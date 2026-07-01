@@ -11,7 +11,14 @@ from __future__ import annotations
 from bayesify.core.schema import Evidence, ParsedDoc, SectionKind
 
 _CONTEXT_KINDS = (SectionKind.abstract, SectionKind.body, SectionKind.caption)
+_ASSESSMENT_KINDS = (
+    SectionKind.abstract,
+    SectionKind.body,
+    SectionKind.caption,
+    SectionKind.supplement,
+)
 DEFAULT_MAX_CHARS = 12_000
+DEFAULT_ASSESSMENT_MAX_CHARS = 60_000
 
 
 def excerpt_context(parsed: ParsedDoc, *, max_chars: int = DEFAULT_MAX_CHARS) -> str:
@@ -26,6 +33,31 @@ def excerpt_context(parsed: ParsedDoc, *, max_chars: int = DEFAULT_MAX_CHARS) ->
     used = 0
     for section in ordered:
         if not section.text:
+            continue
+        block = f"## {section.title or section.kind.value}\n{section.text}"
+        if used + len(block) > max_chars:
+            remaining = max_chars - used
+            if remaining > 0:
+                blocks.append(block[:remaining])
+            break
+        blocks.append(block)
+        used += len(block)
+    return "\n\n".join(blocks) or "(no extractable text)"
+
+
+def assessment_context(
+    parsed: ParsedDoc, *, max_chars: int = DEFAULT_ASSESSMENT_MAX_CHARS
+) -> str:
+    """Fuller assessment-stage context in parse order: all non-reference extracted sections.
+
+    References stay excluded to avoid bibliography-only Bayesian mentions becoming evidence.
+    Supplements are included because they often carry diagnostics, priors, robustness checks, and
+    computational details that the judge should see before calling something missing.
+    """
+    blocks: list[str] = []
+    used = 0
+    for section in parsed.sections:
+        if section.kind not in _ASSESSMENT_KINDS or not section.text:
             continue
         block = f"## {section.title or section.kind.value}\n{section.text}"
         if used + len(block) > max_chars:
