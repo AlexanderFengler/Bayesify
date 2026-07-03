@@ -15,9 +15,9 @@ from pathlib import Path
 import pytest
 
 from bayesify.core.detectors import run_detectors
-from bayesify.core.llm import AnthropicClient
 from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.schema import ParsedDoc, RelevanceLabel
+from bayesify.llm import AnthropicClient
 
 pytestmark = pytest.mark.skipif(
     not (os.environ.get("ANTHROPIC_API_KEY") and os.environ.get("BAYESIFY_RUN_EVAL") == "1"),

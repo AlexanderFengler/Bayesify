@@ -161,9 +161,9 @@ def test_submit_persists_durably_and_assembles(tmp_path, monkeypatch) -> None:
 
     from fastapi.testclient import TestClient
 
-    from bayesify.api import jobs as jobsmod
     from bayesify.api.app import app, store
     from bayesify.api.jobs import Job, run_job
+    from bayesify.api.jobs.resources import ratings_store
 
     client = TestClient(app)
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
@@ -181,7 +181,7 @@ def test_submit_persists_durably_and_assembles(tmp_path, monkeypatch) -> None:
     assert client.post("/api/rate/submit", json=payload("r2")).json()["n_ratings"] == 2
     # it's on disk under the durable (sha, rubric) bucket, and assembles into one gold record
     bucket = f"{job.content_sha256}__synthesis"
-    assert jobsmod._ratings_store().count_for(job.content_sha256 or "", "synthesis") == 2
+    assert ratings_store().count_for(job.content_sha256 or "", "synthesis") == 2
     written, _ = assemble(ratings_dir=tmp_path / "ratings", out_dir=tmp_path / "goldset")
     assert written == [bucket]
 

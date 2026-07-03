@@ -38,6 +38,7 @@ from bayesify.core.schema import (
     StepStatus,
 )
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
+from bayesify.llm import config as llm_config
 
 
 class BatchStepJudgment(StepJudgment):
@@ -82,8 +83,8 @@ def assess_batch(
     refuter_model: str | None = None,
 ) -> tuple[list[StepAssessment], GateFacts, list[CostLedgerEntry]]:
     """Assess all applicable rubric steps with two LLM calls: judge batch, then refute batch."""
-    model = model or config.judge_model()
-    refuter_model = refuter_model or config.refuter_model()
+    model = model or llm_config.judge_model()
+    refuter_model = refuter_model or llm_config.refuter_model()
     gate_facts = derive_gate_facts(evidence, paper_class)
     searched = _scanned_section_ids(parsed)
     plans = [

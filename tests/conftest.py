@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-# Never load the developer's private bayesify.env during tests. The app loads it at startup (the
-# TestClient lifespan calls `_load_env_file`), which would leak the local LLM backend, grading
+# Never load the developer's private bayesify.env during tests. The app loads it at startup, which
+# would leak the local LLM backend, grading
 # strategy, Atlas URI, etc. into os.environ and make env-sensitive tests non-hermetic. Point the
 # loader at a path that does not exist so it is a no-op; the suite shapes the env explicitly below
 # and per-test via monkeypatch. `setdefault` lets a developer/CI override deliberately.

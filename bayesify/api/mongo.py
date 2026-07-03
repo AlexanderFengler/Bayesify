@@ -1,8 +1,8 @@
-"""MongoDB startup plumbing for report persistence.
+"""MongoDB startup plumbing for event and report persistence.
 
-The API maintains a singleton Mongo client and writes report/rating events to the `events`
-collection.
-When MongoDB is unavailable, writes fail gracefully (logged) and the API continues serving requests.
+The API maintains a singleton Mongo client. Report bodies live in the `reports` collection; the
+`events` collection is a sparse audit log. When MongoDB is unavailable, writes fail gracefully
+(logged) and the API continues serving requests.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from pymongo.server_api import ServerApi
 
-from bayesify.core import config
+from bayesify.api import config
 
 
 @dataclass(frozen=True)
@@ -40,7 +40,7 @@ class MongoDBStatus:
 
 
 class MongoDBService:
-    """Process-wide MongoDB connection manager and event writer."""
+    """Process-wide MongoDB connection manager for sparse events and report documents."""
 
     def __init__(self):
         self._log = logging.getLogger("bayesify.mongo")
@@ -130,7 +130,7 @@ class MongoDBService:
             self._mongod = None
 
     def save_event(self, payload: dict[str, Any]) -> str | None:
-        """Persist one report event envelope. Returns the Mongo ``_id`` string when saved."""
+        """Persist one sparse event envelope. Returns the Mongo ``_id`` string when saved."""
         if not self._ready:
             now = time.monotonic()
             if now >= self._next_retry_monotonic:
@@ -184,10 +184,6 @@ class MongoDBService:
             self._ready = False
             self._log.warning(f"MongoDB override read failed: {exc}")
             return None
-
-    def find_latest_analysis_report(self, paper_id: str) -> dict[str, Any] | None:
-        """Newest completed analysis report for one paper id, or None when absent/unavailable."""
-        return self._find_latest_event("analysis_report_ready", paper_id)
 
     def find_latest_job_state(self, paper_id: str) -> dict[str, Any] | None:
         """Newest coarse job state for one paper id, or None when absent/unavailable."""
@@ -261,6 +257,18 @@ class MongoDBService:
             self._log.warning(f"MongoDB report read failed for {key}: {exc}")
             return None
 
+    def find_report_by_paper_id(self, paper_id: str) -> dict[str, Any] | None:
+        """The newest report entry for a job id; None if absent/unavailable."""
+        reports = self._reports_collection()
+        if reports is None:
+            return None
+        try:
+            return reports.find_one({"paper_id": paper_id}, sort=[("updated_at", -1)])
+        except PyMongoError as exc:
+            self._ready = False
+            self._log.warning(f"MongoDB report read failed for paper_id {paper_id}: {exc}")
+            return None
+
     def find_report_by_identifier(
         self, identifier: str, rubric_profile: str
     ) -> dict[str, Any] | None:
@@ -288,7 +296,9 @@ class MongoDBService:
             return None
         try:
             cursor = (
-                reports.find({}, {"result": 0, "inventory": 0}).sort("updated_at", -1).limit(1000)
+                reports.find({}, {"result": 0, "inventory": 0, "human_rating": 0})
+                .sort("updated_at", -1)
+                .limit(1000)
             )
             return list(cursor)
         except PyMongoError as exc:
@@ -421,17 +431,12 @@ class MongoDBService:
             return
         self._events.create_index([("event", 1), ("created_at", -1)])
         self._events.create_index([("paper_id", 1), ("created_at", -1)])
-        self._events.create_index(
-            [("source_sha256", 1), ("rubric_profile", 1), ("created_at", -1)]
-        )
-        self._events.create_index(
-            [("submission.source_sha256", 1), ("submission.rubric_profile", 1)]
-        )
         # the global override bank read (override-review): trusted step overrides for one rubric
         self._events.create_index([("rubric_profile", 1), ("event", 1), ("created_at", -1)])
         if self._reports is not None:
             # Archive list (newest first) and the identifier-first dedup short-circuit.
             self._reports.create_index([("updated_at", -1)])
+            self._reports.create_index([("paper_id", 1), ("updated_at", -1)])
             self._reports.create_index(
                 [("identifier", 1), ("rubric_profile", 1), ("updated_at", -1)]
             )
@@ -455,10 +460,6 @@ def find_trusted_step_overrides(rubric_profile: str) -> list[dict[str, Any]] | N
     return mongodb().find_trusted_step_overrides(rubric_profile)
 
 
-def find_latest_analysis_report(paper_id: str) -> dict[str, Any] | None:
-    return mongodb().find_latest_analysis_report(paper_id)
-
-
 def find_latest_job_state(paper_id: str) -> dict[str, Any] | None:
     return mongodb().find_latest_job_state(paper_id)
 
@@ -469,6 +470,10 @@ def upsert_report(key: str, fields: dict[str, Any]) -> None:
 
 def find_report(key: str) -> dict[str, Any] | None:
     return mongodb().find_report(key)
+
+
+def find_report_by_paper_id(paper_id: str) -> dict[str, Any] | None:
+    return mongodb().find_report_by_paper_id(paper_id)
 
 
 def find_report_by_identifier(identifier: str, rubric_profile: str) -> dict[str, Any] | None:

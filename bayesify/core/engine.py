@@ -1,11 +1,11 @@
-"""The gradable engine composition — screen → classify → assess → score over a parsed document.
+"""The gradable engine composition: screen -> classify -> assess -> score over a parsed document.
 
-The **single grading path** shared by the validation harness and the API job loop, so both grade a
-paper identically (no second copy to keep aligned). ``api/jobs._run_full`` calls ``grade_parsed``
-and keeps only its own concerns — async/SSE plumbing and the result cache — around it: UI progress
-is delivered through the injected ``on_stage`` callback, and the rerun escape-hatch overrides are
-parameters here. Pure over the LLM-client seam (testable with a fake client); no caching, no web
-imports (the ``core is web-free`` contract holds — ``on_stage`` is a plain stdlib ``Callable``).
+The single grading path is shared by the validation harness and the API job loop, so both grade a
+paper identically. ``api/jobs/pipeline.run_full`` calls ``grade_parsed`` and keeps only its own
+concerns - async/SSE plumbing and the result cache - around it. UI progress is delivered through the
+injected ``on_stage`` callback, and the rerun escape-hatch overrides are parameters here. Pure over
+the LLM-client seam (testable with a fake client); no caching, no web imports (the ``core is
+web-free`` contract holds; ``on_stage`` is a plain stdlib ``Callable``).
 """
 
 from __future__ import annotations

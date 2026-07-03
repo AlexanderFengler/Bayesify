@@ -15,19 +15,19 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.detectors import catalog_fingerprint
 from bayesify.core.prompts import prompt_set_fingerprint
 from bayesify.core.rubric import load_rubric
 from bayesify.core.versioning import compute_engine_version
+from bayesify.llm import config as llm_config
 
 
 def _configured_model_ids() -> tuple[str, ...]:
     """Use pinned model IDs when configured, but keep local/stub imports env-free."""
     try:
-        return config.model_ids()
-    except config.ConfigError:
+        return llm_config.model_ids()
+    except llm_config.LLMConfigError:
         return ()
 
 

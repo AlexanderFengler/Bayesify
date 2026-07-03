@@ -33,10 +33,10 @@ def test_stub_carries_dual_grounding_and_severities() -> None:
 
 
 def test_stub_engine_version_pins_models() -> None:
-    from bayesify.core import config
+    from bayesify.llm import config as llm_config
 
     r = build_stub_result()
-    assert config.judge_model() in r.engine_version
-    assert config.screen_model() in r.engine_version
-    assert config.classify_model() in r.engine_version
-    assert config.refuter_model() in r.engine_version
+    assert llm_config.judge_model() in r.engine_version
+    assert llm_config.screen_model() in r.engine_version
+    assert llm_config.classify_model() in r.engine_version
+    assert llm_config.refuter_model() in r.engine_version

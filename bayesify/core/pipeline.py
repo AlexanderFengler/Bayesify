@@ -7,7 +7,6 @@ API job loop (and Phase 3's batch pipeline) unchanged.
 
 from __future__ import annotations
 
-from bayesify.core import config
 from bayesify.core.classify import classify
 from bayesify.core.schema import (
     CostLedgerEntry,
@@ -19,6 +18,7 @@ from bayesify.core.schema import (
 )
 from bayesify.core.screen import screen
 from bayesify.llm import LLMClient
+from bayesify.llm import config as llm_config
 
 
 def screen_and_classify(
@@ -35,8 +35,8 @@ def screen_and_classify(
     when the gate short-circuited (``relevance.label == no``), in which case classify was not called
     and ``cost_entries`` holds the single screen entry.
     """
-    screen_model = model or config.screen_model()
-    classify_model = classify_model or config.classify_model()
+    screen_model = model or llm_config.screen_model()
+    classify_model = classify_model or llm_config.classify_model()
     relevance, screen_cost = screen(parsed, evidence, client=client, model=screen_model)
     if relevance.label is RelevanceLabel.no:
         return relevance, None, [screen_cost]

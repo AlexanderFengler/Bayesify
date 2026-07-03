@@ -36,25 +36,15 @@ _METHOD_LABELS: dict[str, str] = {
     "software.jags": "JAGS",
     "software.bugs": "BUGS",
     "software.hddm": "HDDM",
+    "software.hssm": "HSSM",
     "software.turing": "Turing.jl",
-    "method.prior": "Priors",
-    "method.posterior": "Posterior",
-    "method.credible_interval": "Credible intervals",
-    "method.bayes_factor": "Bayes factor",
+    "software.bayesflow": "BayesFlow",
     "method.mcmc": "MCMC",
     "method.variational": "Variational inference",
+    "method.sbi": "SBI",
     "method.analytic": "Analytic posterior",
-    "diag.rhat": "R-hat",
-    "diag.ess": "ESS",
-    "diag.divergences": "Divergences",
-    "diag.loo_waic": "LOO/WAIC",
-    "workflow.prior_predictive": "Prior predictive check",
-    "workflow.posterior_predictive": "Posterior predictive check",
-    "workflow.sensitivity": "Sensitivity analysis",
-    "workflow.sbc": "SBC",
-    "workflow.recovery": "Parameter recovery",
 }
-_METHOD_FAMILIES = {"software", "method", "workflow", "diagnostic"}
+_METHOD_FAMILIES = {"software", "method"}
 
 
 def _prettify(detector_id: str) -> str:
@@ -107,6 +97,9 @@ class ArchivedPaper(BaseModel):
     # content+rubric resubmission replays this instead of re-analyzing (cross-user dedup cache).
     result: dict[str, Any] | None = None
     inventory: dict[str, Any] | None = None
+    # Latest complete, relevance-passing human rubric pass. The append-only local rating store
+    # remains the adjudication source; Mongo keeps this with reports so events stay pointer-only.
+    human_rating: dict[str, Any] | None = None
     # cache-bust dimensions: a code/model/rubric/strategy change makes a stored report stale, so a
     # replay is served only when these still match the current engine.
     engine_version: str = ""

@@ -21,7 +21,7 @@ import hashlib
 from dataclasses import dataclass
 
 from bayesify import __version__
-from bayesify.core import config
+from bayesify.llm import config as llm_config
 
 _SENTINEL = "none"
 
@@ -74,5 +74,5 @@ def compute_engine_version(
         detector_catalog_hash=(
             _short_hash(detector_catalog) if detector_catalog is not None else _SENTINEL
         ),
-        model_ids=model_ids if model_ids is not None else config.model_ids(),
+        model_ids=model_ids if model_ids is not None else llm_config.model_ids(),
     )

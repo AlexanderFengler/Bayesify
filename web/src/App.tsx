@@ -16,7 +16,7 @@ import { Rate } from "./Rate";
 import { Report } from "./Report";
 import { Rubrics } from "./Rubrics";
 import { SupportedBy } from "./SupportedBy";
-import { LOCAL_STAGES, type PaperState, STAGES } from "./types";
+import { type PaperState, STAGES } from "./types";
 
 // The whole app is client-side routed: a single Layout holds the app-wide state (mode, the upload
 // draft, the streaming lifecycle, the privacy modal) and every URL renders a page into its <Outlet />.
@@ -100,12 +100,8 @@ function ProcessingRoute() {
     );
   }
   // an identifier job fetches instead of ingesting an upload → swap the first step
-  const stages =
-    !file && identifier.trim()
-      ? ["fetch", ...(mode === "local" ? LOCAL_STAGES : STAGES).slice(1)]
-      : mode === "local"
-        ? LOCAL_STAGES
-        : STAGES;
+  const modeStages = mode === "local" ? STAGES.slice(0, 3) : STAGES;
+  const stages = !file && identifier.trim() ? ["fetch", ...modeStages.slice(1)] : modeStages;
   // Once parse completes mid-run, prefer the extracted title (+ an authors · year byline) over the
   // filename; until then fall back to the filename / pasted identifier.
   const source = paper?.paper_title ?? file?.name ?? identifier;

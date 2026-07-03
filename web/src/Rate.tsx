@@ -192,7 +192,9 @@ export function Rate({
         missing_subtag: d.status === "missing" && d.missingSubtag ? d.missingSubtag : null,
       });
     }
-    if (steps.length === 0) return { error: "Rate at least one step." };
+    const missingSteps = ctx!.rubric.steps.filter((s) => !draft(s.id).status).map((s) => s.id);
+    if (missingSteps.length)
+      return { error: `Rate every step before saving. Missing: ${missingSteps.join(", ")}.` };
     return {
       ...base,
       relevance_label: relevance,
@@ -480,7 +482,8 @@ export function Rate({
 
       {relevance === "no" && (
         <Alert severity="info" sx={{ mt: 2.5 }}>
-          Marked not a Bayesian-workflow paper — there are no steps to rate. Submit to record it.
+          Marked not a Bayesian-workflow paper — there are no steps to rate. Submit to record the
+          gate decision.
         </Alert>
       )}
 

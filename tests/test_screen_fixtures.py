@@ -16,7 +16,6 @@ import pytest
 from bayesify.core import classify as C
 from bayesify.core import screen as S
 from bayesify.core.detectors import run_detectors
-from bayesify.core.llm import FakeLLMClient
 from bayesify.core.schema import (
     PaperClass,
     PaperClassLabel,
@@ -24,6 +23,7 @@ from bayesify.core.schema import (
     Relevance,
     RelevanceLabel,
 )
+from bayesify.llm import FakeLLMClient
 
 _CASES = json.loads(
     (Path(__file__).parent / "fixtures" / "screen" / "cases.json").read_text(encoding="utf-8")

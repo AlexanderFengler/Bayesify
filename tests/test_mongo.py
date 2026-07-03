@@ -102,25 +102,6 @@ def test_save_event_backoff_does_not_reconnect_storm(monkeypatch) -> None:
     assert calls == [1]  # the immediate next call must NOT retry again
 
 
-def test_find_latest_analysis_report_reads_newest_matching_event() -> None:
-    fake = _FakeCollection()
-    svc = _ready_service(fake)
-    svc.save_event({"event": "analysis_report_ready", "paper_id": "p1", "result": {"older": True}})
-    svc.save_event({"event": "other", "paper_id": "p1"})
-    svc.save_event({"event": "analysis_report_ready", "paper_id": "p1", "result": {"newer": True}})
-
-    doc = svc.find_latest_analysis_report("p1")
-
-    assert doc is not None
-    assert doc["event"] == "analysis_report_ready"
-    assert doc["result"] == {"newer": True}
-
-
-def test_find_latest_analysis_report_returns_none_when_missing() -> None:
-    svc = _ready_service(_FakeCollection())
-    assert svc.find_latest_analysis_report("missing") is None
-
-
 def test_find_latest_job_state_reads_newest_matching_event() -> None:
     fake = _FakeCollection()
     svc = _ready_service(fake)
@@ -239,7 +220,7 @@ def test_ensure_indexes_builds_the_query_indexes() -> None:
     svc = MongoDBService()
     svc._events = fake
     svc._ensure_indexes()
-    assert len(fake.indexes) == 5
+    assert len(fake.indexes) == 3
     assert [("event", 1), ("created_at", -1)] in fake.indexes  # query-by-event (README)
     assert [("paper_id", 1), ("created_at", -1)] in fake.indexes  # query-by-paper
     # the global override-bank read (override-review pass)
