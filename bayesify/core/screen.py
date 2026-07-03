@@ -16,6 +16,8 @@ Two deterministic guards wrap the LLM (d-screen-classify.md):
 
 from __future__ import annotations
 
+from pydantic import BaseModel, ConfigDict, Field
+
 from bayesify.core import config
 from bayesify.core.context import build_user, validate_evidence_refs
 from bayesify.core.prompts import SCREEN_SYSTEM
@@ -43,6 +45,22 @@ _FAMILY_OF_KIND: dict[EvidenceKind, str] = {
 _FLOOR_MIN_FAMILIES = 2
 
 
+class ScreenRelevance(BaseModel):
+    """LLM wire format for screen output before deterministic grounding repair."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    label: RelevanceLabel
+    confidence: float = Field(ge=0.0, le=1.0)
+    rationale: str
+    evidence_refs: list[int] = Field(default_factory=list)
+    overridden: bool = False
+
+
+ScreenRelevance.__name__ = "Relevance"
+ScreenRelevance.__qualname__ = "Relevance"
+
+
 def screen(
     parsed: ParsedDoc,
     evidence: list[Evidence],
@@ -58,11 +76,11 @@ def screen(
     model = model or config.screen_model()
     user = build_user(parsed, evidence)
     response = call_with_policy(
-        client, model=model, system=SCREEN_SYSTEM, user=user, schema=Relevance, max_tokens=600
+        client, model=model, system=SCREEN_SYSTEM, user=user, schema=ScreenRelevance, max_tokens=600
     )
     # `overridden` is a human-only provenance flag; the model never owns it. Force it off here so a
     # stray model value can't bypass the grounding discipline — only the API rerun path sets it.
-    relevance = _apply_floor(response.parsed.model_copy(update={"overridden": False}), evidence)
+    relevance = _apply_floor(_strict_relevance(response.parsed, evidence), evidence)
     # A3: a cited index must resolve to a real detector hit (no dangling refs in the report).
     validate_evidence_refs(relevance.evidence_refs, evidence, where="relevance")
     return relevance, ledger_entry("screen", response)
@@ -72,15 +90,40 @@ def _bayes_families(evidence: list[Evidence]) -> set[str]:
     return {_FAMILY_OF_KIND[e.kind] for e in evidence if e.kind in _FAMILY_OF_KIND}
 
 
+def _fallback_bayes_refs(evidence: list[Evidence]) -> list[int]:
+    return [i for i, e in enumerate(evidence) if e.kind in _FAMILY_OF_KIND][:3]
+
+
+def _strict_relevance(raw: BaseModel | dict, evidence: list[Evidence]) -> Relevance:
+    payload = raw.model_dump(mode="json") if isinstance(raw, BaseModel) else dict(raw)
+    payload["overridden"] = False
+    payload["evidence_refs"] = list(payload.get("evidence_refs") or [])
+    label = RelevanceLabel(payload["label"])
+    if label in (RelevanceLabel.yes, RelevanceLabel.partial) and not payload["evidence_refs"]:
+        refs = _fallback_bayes_refs(evidence)
+        note = (
+            " [Grounding repair: the screen model returned a relevant label without evidence_refs; "
+        )
+        if refs:
+            payload["evidence_refs"] = refs
+            payload["rationale"] = payload["rationale"] + note + "attached Bayesian detector refs.]"
+        else:
+            payload["label"] = RelevanceLabel.no.value
+            payload["rationale"] = (
+                payload["rationale"]
+                + note
+                + "no Bayesian detector refs were available, so downgraded to 'no'.]"
+            )
+    return Relevance.model_validate(payload)
+
+
 def _apply_floor(relevance: Relevance, evidence: list[Evidence]) -> Relevance:
     """If the LLM said ``no`` despite ≥2 independent Bayesian evidence families, correct to
     ``partial`` (and ensure it cites those families). Other labels pass through unchanged."""
     families = _bayes_families(evidence)
     if relevance.label is not RelevanceLabel.no or len(families) < _FLOOR_MIN_FAMILIES:
         return relevance
-    refs = relevance.evidence_refs or [
-        i for i, e in enumerate(evidence) if e.kind in _FAMILY_OF_KIND
-    ][:3]
+    refs = relevance.evidence_refs or _fallback_bayes_refs(evidence)
     note = (
         f" [Detector floor: raised to 'partial' — {len(families)} independent Bayesian evidence "
         f"families detected ({', '.join(sorted(families))}), so 'no' is not supported.]"

@@ -60,7 +60,7 @@ steps:
     essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Priors are part of the model; simulating from them before fitting reveals what they imply and catches implausible assumptions before the data are touched."
     adequate: "Priors stated; their implications examined by simulating from the prior (prior predictive / pushforward) BEFORE seeing the data, and revised when implausible (§2.4)."
-    missing: "'Default priors' with no statement; no prior predictive reasoning; priors tuned to the data."
+    missing: "Default priors with no statement; no prior predictive reasoning; priors tuned to the data without justification."
 
   - id: S3
     name: Fitting & computational diagnostics
@@ -70,7 +70,7 @@ steps:
     na_when: "Exact/analytic posterior — no sampler to diagnose. Mark not_applicable, do not penalize."
     gate:
       na_when_inference: [exact_analytic]
-    inference_scope: [mcmc, hmc_nuts, variational]
+    inference_scope: [mcmc, hmc_nuts]
     adequate: "Convergence checked and reported — R-hat, effective sample size, zero divergences, E-BFMI, with chains/iterations/warmup stated and adequate run length (§3)."
     missing: "No convergence diagnostics; single chain; divergences ignored; run length not justified."
     thresholds:
@@ -80,9 +80,10 @@ steps:
 
   - id: S4
     name: Constructed-data simulation & SBC
-    essential_for: [model_development, method_development, software_development, theoretical_analysis, numerical_analysis]
-    recommended_for: [data_analysis]
-    why: "Fitting to data simulated from known parameters (and SBC) shows the model+algorithm can recover truth — the only way to trust inference before drawing real-data conclusions."
+    essential_for: [model_development, method_development, numerical_analysis]
+    recommended_for: [data_analysis, software_development, theoretical_analysis]
+    why: "Fitting to data simulated with known parameters (and SBC) shows the model+algorithm can recover truth — the only way to trust inference before drawing real-data conclusions."
+    inference_scope: [mcmc, hmc_nuts, variational, sbi]
     adequate: "Fake-data simulation: the model is fit to data simulated from known parameters and recovers them; for inferential claims about the algorithm, simulation-based calibration (rank uniformity) is shown (§4)."
     missing: "A new model/method with no recovery study or calibration evidence."
 
@@ -99,7 +100,7 @@ steps:
   - id: S6
     name: Posterior predictive checking
     essential_for: [data_analysis]
-    recommended_for: [numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
+    recommended_for: [numerical_analysis, model_development, method_development, software_development]
     why: "Posterior predictive checks are the central test of model adequacy — whether the fitted model can reproduce the features of the data it is meant to explain."
     adequate: "Posterior predictive checks shown (graphical overlays and/or test quantities); discrepancies between model and data discussed and acted on (§6.1)."
     missing: "No posterior predictive check; fit asserted without checking; obvious misfit ignored."
@@ -116,20 +117,20 @@ steps:
 
   - id: S8
     name: Model modification & expansion
-    recommended_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
+    recommended_for: [data_analysis, numerical_analysis, model_development, method_development, software_development]
     why: "Bayesian workflow is iterative: shortcomings found in checking should drive a documented expansion of the model, not be quietly accepted."
     adequate: "The model is treated as iterative: shortcomings found in checking drive a documented expansion/modification (or a justified decision to stop) (§7)."
     missing: "A single model is fit once with no iteration, despite checks suggesting problems."
 
   - id: S9
     name: Comparing multiple models & the multiverse
-    why: "When several models are reasonable, comparing them with uncertainty — and acknowledging the multiverse of forking paths — guards against over-reading one arbitrary choice."
-    na_when: "Only one model entertained and no formal comparison reported."
+    why: "When several models are reasonable, comparing them with uncertainty and acknowledging the multiverse of forking paths guard against over-reading one arbitrary choice."
+    na_when: "Only one model entertained and no formal comparison (cross-validation/LOO, stacking, BF, or posterior model probability) reported."
     essential_for: []   # conditionally essential only when >= 2 models are compared
     gate:
       na_when_single_model_no_bf: true
       essential_when_models_gte: 2
-    adequate: "Multiple models compared honestly (cross-validation / stacking / averaging) with uncertainty; awareness of the multiverse of reasonable specifications and the forking-paths risk (§8)."
+    adequate: "Multiple models compared honestly (cross-validation/LOO, stacking, averaging, or Bayes factors/posterior model probabilities) with uncertainty; awareness of the multiverse of reasonable specifications and the forking-paths risk (§8)."
     missing: "A model chosen with no comparison or an inappropriate criterion; comparison reported without uncertainty; forking paths unacknowledged."
 
   - id: S10

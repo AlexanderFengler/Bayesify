@@ -64,6 +64,44 @@ def test_screen_returns_relevance_and_meters_cost() -> None:
     assert "DETECTOR HITS" in client.calls[0]["user"]  # evidence digest reached the prompt
 
 
+def test_screen_repairs_relevant_label_without_evidence_refs() -> None:
+    parsed = _parsed((SectionKind.abstract, "Abstract", "A Bayesian model fit with Stan."))
+    evidence = [_ev("software.stan", EvidenceKind.software_mention)]
+    client = FakeLLMClient(
+        S.ScreenRelevance(
+            label=RelevanceLabel.yes,
+            confidence=0.9,
+            rationale="clearly Bayesian",
+            evidence_refs=[],
+        )
+    )
+
+    rel, _ = S.screen(parsed, evidence, client=client)
+
+    assert rel.label is RelevanceLabel.yes
+    assert rel.evidence_refs == [0]
+    assert "Grounding repair" in rel.rationale
+
+
+def test_screen_downgrades_uncited_relevant_label_without_bayesian_evidence() -> None:
+    parsed = _parsed((SectionKind.abstract, "Abstract", "Data and code are available."))
+    evidence = [_ev("open.github", EvidenceKind.open_science)]
+    client = FakeLLMClient(
+        S.ScreenRelevance(
+            label=RelevanceLabel.yes,
+            confidence=0.7,
+            rationale="Bayesian-looking paper",
+            evidence_refs=[],
+        )
+    )
+
+    rel, _ = S.screen(parsed, evidence, client=client)
+
+    assert rel.label is RelevanceLabel.no
+    assert rel.evidence_refs == []
+    assert "downgraded to 'no'" in rel.rationale
+
+
 # --- detector floor -------------------------------------------------------------------------------
 
 
