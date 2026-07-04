@@ -14,7 +14,7 @@ export function Guide() {
             How it works
           </Typography>
           <Typography sx={{ mt: 1.5, color: "text.secondary", maxWidth: 1520 }}>
-            Bayesify checks how well a paper follows the <strong>Bayesian workflow</strong> &mdash;
+            Bayesify checks how well a paper follows a <strong>Bayesian workflow</strong> &mdash;
             model specification, priors, predictive checks, convergence diagnostics, and so on &mdash;
             against a rubric of community best practices, with every finding grounded in the paper and
             in the methodological literature. Scores are <strong>formative, not a verdict</strong>.
@@ -38,12 +38,10 @@ export function Guide() {
             Drop a PDF, or paste an identifier (arXiv ID, DOI, OpenAlex ID, or URL) and Bayesify
             fetches the open-access copy.
           </GuideStep>
-          <GuideStep n={2} head="Pick a mode.">
-            <em>Connected</em> sends the extracted text to the configured LLM provider and returns the graded report;{" "}
-            <em>Local</em> runs the on-device detectors with nothing leaving your machine (an
-            evidence inventory, no scores).
+          <GuideStep n={2} head="Select a rubric.">
+            There is no standard Bayesian workflow. Select among existing <em>rubrics</em> emobdying different workflow philosophies.{" "}
           </GuideStep>
-          <GuideStep n={3} head="Click Analyze.">
+          <GuideStep n={3} head="Click 'Analyze'.">
             You get a dashboard &mdash; the steps at a glance plus a coverage and a quality score
             (hover the &#9432; for exactly how each is computed) &mdash; then the{" "}
             <strong>Full report</strong>: per step, what was adequate, concrete suggestions, and the
@@ -53,16 +51,15 @@ export function Guide() {
             The end of the report recaps the result and lists the priority fixes, ranked by impact.
           </GuideStep>
           <GuideStep n={5} head="Edge cases.">
-            If the paper isn&rsquo;t a Bayesian application &mdash; e.g. a review or opinion piece
-            &mdash; the rubric doesn&rsquo;t directly apply and nothing is graded; you can still
-            &ldquo;Run full assessment anyway&rdquo;. Disagree with a step? Use <em>Disagree?</em> to
-            record a correction. Download the report as JSON or Markdown anytime.
+            If the paper isn&rsquo;t a Bayesian application (e.g. a review or opinion piece), 
+            the rubric doesn&rsquo;t directly apply and nothing is graded; you can still
+            &ldquo;run full assessment anyway&rdquo;. Download the report as JSON or Markdown anytime.
           </GuideStep>
         </GuideColumn>
 
         <GuideColumn
           title="Rate a paper (blind)"
-          lead="For domain experts: your ratings are the gold standard the engine is measured against. You rate blind (you never see the engine's verdict), so your judgment isn't anchored to it."
+          lead="For domain experts: your ratings are the gold standard the engine will be measured against. You rate blind (you never see the engine's verdict), so your judgment isn't anchored to it."
         >
           <GuideStep n={1} head="Open the blind form.">
             On the landing page click <em>Rate it yourself (blind)</em>, or open a{" "}
