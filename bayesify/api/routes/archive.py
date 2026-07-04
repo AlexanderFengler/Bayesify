@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import APIRouter, Query
 
-from bayesify.api.mongo import list_reports
+from bayesify.api.db.mongo import mongo
 
 router = APIRouter()
 
@@ -32,7 +32,7 @@ async def list_papers(
     mode: str = "",
     rubric: str = "",
 ) -> dict:
-    docs = await asyncio.to_thread(list_reports) or []
+    docs = await asyncio.to_thread(mongo.list_reports) or []
     for doc in docs:
         doc.pop("_id", None)
         for array_field in ("paper_authors", "paper_type", "discipline", "methods"):

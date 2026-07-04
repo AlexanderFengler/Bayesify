@@ -15,10 +15,10 @@ from logging import Logger
 
 from fastapi import FastAPI
 
+from bayesify.api.db.mongo import mongo
 from bayesify.api.env import load_env_file
 from bayesify.api.jobs.model import JobStore
 from bayesify.api.logging import app_logger
-from bayesify.api.mongo import start_mongodb, stop_mongodb
 
 
 @dataclass
@@ -29,21 +29,23 @@ class BayesifyAPI:
 
     @asynccontextmanager
     async def lifespan(self, app: FastAPI) -> AsyncIterator[None]:
+
         self.app = app
         env = load_env_file()
+
         if env.keys:
             self.logger.info(
                 f"Loaded {len(env.keys)} setting(s) from {env.path}: {', '.join(env.keys)}"
             )
-        mongo_status = await asyncio.to_thread(start_mongodb)
+
+        mongo_status = await asyncio.to_thread(mongo.connect)
         detail = (
             f"MongoDB status: {mongo_status.message}; "
             f"uri={mongo_status.uri}; db={mongo_status.database}; mode={mongo_status.mode}"
         )
+
         if mongo_status.server_api:
             detail += f"; server_api=v{mongo_status.server_api}"
-        if mongo_status.autostart:
-            detail += "; local_autostart=enabled"
         if mongo_status.ready:
             self.logger.info(detail)
         else:
@@ -51,7 +53,7 @@ class BayesifyAPI:
         try:
             yield
         finally:
-            await asyncio.to_thread(stop_mongodb)
+            await asyncio.to_thread(mongo.close)
 
 
 api = BayesifyAPI()

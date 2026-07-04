@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
-from bayesify.api.mongo import find_report, save_event
+from bayesify.api import resources
+from bayesify.api.db.mongo import mongo
 from bayesify.api.runtime import api
 from bayesify.core import schema as s
 from bayesify.core.cache import sha256_bytes
@@ -19,7 +20,7 @@ from bayesify.core.stub import ENGINE_VERSION, build_stub_result
 from bayesify.core.validation.rating_store import bucket_key
 from bayesify.llm import config as llm_config
 
-from . import overrides, reports, resources
+from . import overrides, reports
 from .model import STAGES, Job
 
 LOCAL_NOTICE = (
@@ -37,7 +38,7 @@ STAGE_DELAY_S = 0.45
 def save_job_state(job: Job) -> None:
     from . import tasks
 
-    tasks.spawn(asyncio.to_thread(save_event, reports.job_state_payload(job)))
+    tasks.spawn(asyncio.to_thread(mongo.save_event, reports.job_state_payload(job)))
 
 
 async def run_job(job: Job) -> None:
@@ -131,7 +132,7 @@ async def run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     key = bucket_key(content_sha, job.profile)
     clean = not job.force_fresh and not job.relevance_override and not job.force_grade
     if resources.cache_enabled() and clean:
-        doc = await asyncio.to_thread(find_report, key)
+        doc = await asyncio.to_thread(mongo.find_report, key)
         if reports.replayable_report(doc, rubric):
             job.result = s.ScoredResult.model_validate(doc["result"])
             job.backend = doc.get("backend")

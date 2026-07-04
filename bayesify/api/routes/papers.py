@@ -10,14 +10,10 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 from sse_starlette.sse import EventSourceResponse
 
-from bayesify.api.jobs import pipeline, reports, resources, stream, tasks
+from bayesify.api import resources
+from bayesify.api.db.mongo import mongo
+from bayesify.api.jobs import pipeline, reports, stream, tasks
 from bayesify.api.jobs.views import job_or_mongo_report, job_payload
-from bayesify.api.mongo import (
-    find_latest_job_state,
-    find_report_by_identifier,
-    find_report_by_paper_id,
-    save_event,
-)
 from bayesify.api.render import render_inventory_markdown, render_markdown
 from bayesify.api.runtime import api
 from bayesify.core.rubric import RubricProfileError, load_rubric
@@ -69,7 +65,9 @@ async def create_paper(
     identifier = None if file is not None else (arxiv_id or doi or openalex_id or url)
 
     if identifier and mode == "full" and resources.cache_enabled():
-        existing = await asyncio.to_thread(find_report_by_identifier, identifier.strip(), profile)
+        existing = await asyncio.to_thread(
+            mongo.find_report_by_identifier, identifier.strip(), profile
+        )
         if reports.replayable_report(existing, rubric):
             return {"paper_id": existing["paper_id"], "status": "done"}
 
@@ -81,7 +79,7 @@ async def create_paper(
         identifier=identifier,
         profile=profile,
     )
-    tasks.spawn(asyncio.to_thread(save_event, reports.job_state_payload(job)))
+    tasks.spawn(asyncio.to_thread(mongo.save_event, reports.job_state_payload(job)))
     tasks.spawn(pipeline.run_job(job))
     return {"paper_id": job.id, "status": job.status}
 
@@ -99,8 +97,10 @@ async def get_events(paper_id: str):
     job = api.store.get(paper_id)
     if job is not None:
         return EventSourceResponse(stream.event_stream(job))
-    report = await asyncio.to_thread(find_report_by_paper_id, paper_id)
-    state = None if report is not None else await asyncio.to_thread(find_latest_job_state, paper_id)
+    report = await asyncio.to_thread(mongo.find_report_by_paper_id, paper_id)
+    state = None
+    if report is None:
+        state = await asyncio.to_thread(mongo.find_latest_job_state, paper_id)
     if report is None and state is None:
         raise HTTPException(status_code=404, detail="unknown paper_id")
 

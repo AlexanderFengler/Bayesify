@@ -1,6 +1,6 @@
 """The report record for the Archive page and the cross-user dedup cache.
 
-The archive is backed by the MongoDB ``reports`` collection (see ``bayesify.api.mongo``): one doc
+The archive is backed by the MongoDB ``reports`` collection (see ``bayesify.api.db``): one doc
 per paper-content + rubric, keyed by the **durable** identity ``<sha>__<profile>`` (the same
 ``bucket_key`` the rating store uses), so a paper processed twice (rerun, or AI then a human rating)
 updates one entry rather than duplicating. Nothing is written to local disk — only the report and

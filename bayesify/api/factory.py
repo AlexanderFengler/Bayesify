@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from bayesify.api.config import API_CONFIG
+from bayesify.api.db.mongo import mongo
 from bayesify.api.routes import archive, calibration, health, overrides, papers, rating, rubrics
 from bayesify.api.runtime import BayesifyAPI, api
 from bayesify.api.static import mount_web_ui
@@ -20,6 +21,7 @@ def create_app(runtime: BayesifyAPI | None = None) -> FastAPI:
         lifespan=runtime.lifespan,
     )
     app.state.runtime = runtime
+    app.state.db = mongo
 
     app.add_middleware(
         CORSMiddleware,

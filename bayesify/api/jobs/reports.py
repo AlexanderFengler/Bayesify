@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from bayesify.api.mongo import save_event, upsert_report
+from bayesify.api.db.mongo import mongo
 from bayesify.api.papers_store import (
     ArchivedPaper,
     discipline_tags,
@@ -12,8 +12,7 @@ from bayesify.api.papers_store import (
     paper_type_tags,
     report_fields,
 )
-from bayesify.core import config
-from bayesify.core import schema as s
+from bayesify.core import config, schema
 from bayesify.core.stub import ENGINE_VERSION
 from bayesify.core.validation.rating_store import bucket_key
 
@@ -54,7 +53,7 @@ def is_persistable_report(job: Job) -> bool:
         result
         and not job.relevance_override
         and not job.force_grade
-        and result.relevance.label in (s.RelevanceLabel.yes, s.RelevanceLabel.partial)
+        and result.relevance.label in (schema.RelevanceLabel.yes, schema.RelevanceLabel.partial)
         and result.step_assessments
         and result.coverage is not None
         and result.quality_score is not None
@@ -97,8 +96,8 @@ async def save_analysis_report(job: Job) -> None:
     if not is_persistable_report(job):
         return
     archived = archived_from_analysis(job)
-    await asyncio.to_thread(upsert_report, archived.key, report_fields(archived))
-    tasks.spawn(asyncio.to_thread(save_event, analysis_report_event(job, archived.key)))
+    await asyncio.to_thread(mongo.upsert_report, archived.key, report_fields(archived))
+    tasks.spawn(asyncio.to_thread(mongo.save_event, analysis_report_event(job, archived.key)))
 
 
 def replayable_report(doc: dict | None, rubric) -> bool:

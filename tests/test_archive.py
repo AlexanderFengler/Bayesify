@@ -9,8 +9,8 @@ import time
 from fastapi.testclient import TestClient
 
 from bayesify.api.app import app
+from bayesify.api.db import MongoDBService
 from bayesify.api.jobs.reports import replayable_report
-from bayesify.api.mongo import MongoDBService
 from bayesify.api.papers_store import (
     ArchivedPaper,
     methods_from_inventory,
@@ -263,7 +263,7 @@ def _archive_docs() -> list[dict]:
 
 
 def test_list_papers_endpoint_filters(monkeypatch) -> None:
-    monkeypatch.setattr("bayesify.api.routes.archive.list_reports", lambda: _archive_docs())
+    monkeypatch.setattr("bayesify.api.routes.archive.mongo.list_reports", lambda: _archive_docs())
 
     # unfiltered: both, plus facet vocabularies over the whole archive; the Mongo _id is stripped
     body = client.get("/api/papers").json()
@@ -290,14 +290,14 @@ def test_list_papers_fills_missing_array_fields(monkeypatch) -> None:
     # the store drops empty arrays on upsert; the endpoint must still return them so the client
     # (which does p.paper_type.length etc.) never crashes on a sparse paper.
     sparse = {"_id": "k1", "key": "k1", "paper_id": "p1", "paper_title": "Bare", "mode": "full"}
-    monkeypatch.setattr("bayesify.api.routes.archive.list_reports", lambda: [sparse])
+    monkeypatch.setattr("bayesify.api.routes.archive.mongo.list_reports", lambda: [sparse])
     p = client.get("/api/papers").json()["papers"][0]
     for arr in ("paper_authors", "paper_type", "discipline", "methods"):
         assert p[arr] == []
 
 
 def test_list_papers_empty_when_mongo_down(monkeypatch) -> None:
-    monkeypatch.setattr("bayesify.api.routes.archive.list_reports", lambda: None)
+    monkeypatch.setattr("bayesify.api.routes.archive.mongo.list_reports", lambda: None)
     body = client.get("/api/papers").json()
     assert body == {
         "papers": [],

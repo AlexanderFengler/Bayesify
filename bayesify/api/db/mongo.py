@@ -1,4 +1,4 @@
-"""MongoDB startup plumbing for event and report persistence.
+"""MongoDB connection plumbing for event and report persistence.
 
 The API maintains a singleton Mongo client. Report bodies live in the `reports` collection; the
 `events` collection is a sparse audit log. When MongoDB is unavailable, writes fail gracefully
@@ -9,13 +9,9 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
-import subprocess
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from functools import lru_cache
-from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -23,19 +19,16 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from pymongo.server_api import ServerApi
 
-from bayesify.api import config
-
 
 @dataclass(frozen=True)
 class MongoDBStatus:
-    """Startup-visible MongoDB connection state."""
+    """Lifespan-visible MongoDB connection state."""
 
     ready: bool
     uri: str
     database: str
     mode: str
     server_api: str | None
-    autostart: bool
     message: str
 
 
@@ -47,22 +40,23 @@ class MongoDBService:
         self._client = None
         self._events = None
         self._reports = None
-        self._mongod = None
         self._ready = False
         self._last_ping_error: str | None = None
         self._next_retry_monotonic = 0.0
         self._last_status: MongoDBStatus | None = None
 
-    def start(self) -> MongoDBStatus:
+    def connect(self) -> MongoDBStatus:
         """Create the process-wide Mongo client and best-effort ping the configured database."""
-        uri = config.mongodb_uri()
-        database = config.mongodb_database()
+        uri = self.mongodb_uri()
+        database = self.mongodb_database()
+
         if self._client is not None:
             if not self._ready and self._ping(database):
                 self._events = self._client[database]["events"]
                 self._reports = self._client[database]["reports"]
                 self._ensure_indexes()
                 self._ready = True
+
             message = "connected" if self._ready else "unavailable; will retry on writes"
             self._last_status = self._make_status(uri, database, message=message)
             return self._last_status
@@ -82,13 +76,8 @@ class MongoDBService:
                 f"Report events will not be saved to MongoDB until it is available."
             )
             return self._last_status
+
         ping_ok = self._ping(database)
-        if not ping_ok and self._try_start_local_mongod(uri):
-            for _ in range(10):
-                if self._ping(database):
-                    ping_ok = True
-                    break
-                time.sleep(0.5)
         if not ping_ok:
             location = self._safe_uri(uri)
             reason = f" Last ping error: {self._last_ping_error}." if self._last_ping_error else ""
@@ -108,33 +97,25 @@ class MongoDBService:
         self._reports = self._client[database]["reports"]
         self._ensure_indexes()
         self._ready = True
-        self._log.info(f"MongoDB client started for {self._safe_uri(uri)}/{database}")
+        self._log.info(f"MongoDB client connected for {self._safe_uri(uri)}/{database}")
         self._last_status = self._make_status(uri, database, message="connected")
         return self._last_status
 
-    def stop(self):
-        """Close the process-wide Mongo client and any local ``mongod`` this service spawned."""
+    def close(self):
+        """Close the process-wide Mongo client."""
         self._ready = False
         if self._client is not None:
             self._client.close()
             self._client = None
             self._events = None
             self._reports = None
-        if self._mongod is not None:
-            self._mongod.terminate()
-            try:
-                self._mongod.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self._mongod.kill()
-                self._mongod.wait(timeout=5)
-            self._mongod = None
 
     def save_event(self, payload: dict[str, Any]) -> str | None:
         """Persist one sparse event envelope. Returns the Mongo ``_id`` string when saved."""
         if not self._ready:
             now = time.monotonic()
             if now >= self._next_retry_monotonic:
-                self.start()
+                self.connect()
                 if not self._ready:
                     self._next_retry_monotonic = now + 5.0
         events = self._events if self._ready else None
@@ -160,7 +141,7 @@ class MongoDBService:
         if not self._ready:
             now = time.monotonic()
             if now >= self._next_retry_monotonic:
-                self.start()
+                self.connect()
                 if not self._ready:
                     self._next_retry_monotonic = now + 5.0
         events = self._events if self._ready else None
@@ -180,6 +161,7 @@ class MongoDBService:
                 .limit(200)
             )
             return list(cursor)
+
         except PyMongoError as exc:
             self._ready = False
             self._log.warning(f"MongoDB override read failed: {exc}")
@@ -193,7 +175,7 @@ class MongoDBService:
         if not self._ready:
             now = time.monotonic()
             if now >= self._next_retry_monotonic:
-                self.start()
+                self.connect()
                 if not self._ready:
                     self._next_retry_monotonic = now + 5.0
         events = self._events if self._ready else None
@@ -209,18 +191,12 @@ class MongoDBService:
             self._log.warning(f"MongoDB {event} read failed for {paper_id}: {exc}")
             return None
 
-    # --- the `reports` collection: the shared, de-duplicated report store -------------------------
-    # One document per (paper-content, rubric), keyed by ``<sha>__<profile>`` (``bucket_key``). It
-    # is both the cross-user dedup cache (a matching content+rubric replays the stored report rather
-    # than re-analyzing) and the Archive's backing store. The full ``result`` lives here for replay;
-    # the Archive list projects it out. Manuscript bytes are never stored — only the report + hash.
-
     def _reports_collection(self):
         """The `reports` collection when Mongo is reachable, else None (with a lazy reconnect)."""
         if not self._ready:
             now = time.monotonic()
             if now >= self._next_retry_monotonic:
-                self.start()
+                self.connect()
                 if not self._ready:
                     self._next_retry_monotonic = now + 5.0
         return self._reports if self._ready else None
@@ -316,15 +292,33 @@ class MongoDBService:
         )
 
     @staticmethod
-    def _local_port(uri: str) -> int:
-        return urlparse(uri).port or 27017
+    def mongodb_uri() -> str:
+        return (
+            os.environ.get("BAYESIFY_MONGODB_URI")
+            or os.environ.get("MONGODB_URI")
+            or "mongodb://localhost:27017"
+        )
+
+    @staticmethod
+    def mongodb_database() -> str:
+        return (
+            os.environ.get("BAYESIFY_MONGODB_DB")
+            or os.environ.get("MONGODB_DATABASE")
+            or os.environ.get("MONGO_DATABASE")
+            or "bayesify"
+        )
+
+    @staticmethod
+    def mongodb_server_api() -> str | None:
+        value = os.environ.get("BAYESIFY_MONGODB_SERVER_API", "1").strip()
+        return None if value.lower() in ("", "0", "false", "no") else value
 
     @classmethod
     def _create_client(cls, uri: str) -> MongoClient:
         kwargs: dict[str, Any] = {
             "serverSelectionTimeoutMS": cls._server_selection_timeout_ms(uri),
         }
-        api_version = config.mongodb_server_api()
+        api_version = cls.mongodb_server_api()
         if api_version is not None and not cls._is_local_uri(uri):
             kwargs["server_api"] = ServerApi(api_version)
         return MongoClient(uri, **kwargs)
@@ -360,20 +354,9 @@ class MongoDBService:
             uri=self._safe_uri(uri),
             database=database,
             mode=self._mode(uri),
-            server_api=config.mongodb_server_api() if not self._is_local_uri(uri) else None,
-            autostart=config.mongodb_autostart() and self._is_local_uri(uri),
+            server_api=self.mongodb_server_api() if not self._is_local_uri(uri) else None,
             message=message,
         )
-
-    @staticmethod
-    def _mongodb_data_dir() -> Path:
-        root = os.environ.get("BAYESIFY_MONGODB_DATA_DIR")
-        if root:
-            return Path(root)
-        data_root = os.environ.get("BAYESIFY_DATA_DIR")
-        if data_root:
-            return Path(data_root).expanduser() / "mongodb"
-        return Path.home() / ".bayesify" / "mongodb"
 
     def _ping(self, database: str) -> bool:
         if self._client is None:
@@ -391,50 +374,15 @@ class MongoDBService:
         base = "server did not answer ping; will retry on writes"
         return f"{base}; {self._last_ping_error}" if self._last_ping_error else base
 
-    def _try_start_local_mongod(self, uri: str) -> bool:
-        if not config.mongodb_autostart() or not self._is_local_uri(uri):
-            return False
-        mongod = shutil.which("mongod")
-        if mongod is None:
-            self._log.warning(
-                f"MongoDB is not running at {self._safe_uri(uri)} and 'mongod' is not installed. "
-                f"Start MongoDB locally, or set BAYESIFY_MONGODB_URI to a running server."
-            )
-            return False
-        dbpath = self._mongodb_data_dir()
-        try:
-            dbpath.mkdir(parents=True, exist_ok=True)
-        except OSError as exc:
-            self._log.warning(f"Could not create MongoDB data directory {dbpath}: {exc}")
-            return False
-        self._mongod = subprocess.Popen(
-            [
-                mongod,
-                "--dbpath",
-                str(dbpath),
-                "--bind_ip",
-                "127.0.0.1",
-                "--port",
-                str(self._local_port(uri)),
-                "--quiet",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-        self._log.info(
-            f"Started local MongoDB server at {self._safe_uri(uri)} with dbpath {dbpath}"
-        )
-        return True
-
     def _ensure_indexes(self):
         if self._events is None:
             return
+
         self._events.create_index([("event", 1), ("created_at", -1)])
         self._events.create_index([("paper_id", 1), ("created_at", -1)])
-        # the global override bank read (override-review): trusted step overrides for one rubric
         self._events.create_index([("rubric_profile", 1), ("event", 1), ("created_at", -1)])
+
         if self._reports is not None:
-            # Archive list (newest first) and the identifier-first dedup short-circuit.
             self._reports.create_index([("updated_at", -1)])
             self._reports.create_index([("paper_id", 1), ("updated_at", -1)])
             self._reports.create_index(
@@ -442,47 +390,4 @@ class MongoDBService:
             )
 
 
-@lru_cache(maxsize=1)
-def mongodb() -> MongoDBService:
-    """Singleton MongoDB service for the API process."""
-    return MongoDBService()
-
-
-def start_mongodb() -> MongoDBStatus:
-    return mongodb().start()
-
-
-def save_event(payload: dict[str, Any]) -> str | None:
-    return mongodb().save_event(payload)
-
-
-def find_trusted_step_overrides(rubric_profile: str) -> list[dict[str, Any]] | None:
-    return mongodb().find_trusted_step_overrides(rubric_profile)
-
-
-def find_latest_job_state(paper_id: str) -> dict[str, Any] | None:
-    return mongodb().find_latest_job_state(paper_id)
-
-
-def upsert_report(key: str, fields: dict[str, Any]) -> None:
-    mongodb().upsert_report(key, fields)
-
-
-def find_report(key: str) -> dict[str, Any] | None:
-    return mongodb().find_report(key)
-
-
-def find_report_by_paper_id(paper_id: str) -> dict[str, Any] | None:
-    return mongodb().find_report_by_paper_id(paper_id)
-
-
-def find_report_by_identifier(identifier: str, rubric_profile: str) -> dict[str, Any] | None:
-    return mongodb().find_report_by_identifier(identifier, rubric_profile)
-
-
-def list_reports() -> list[dict[str, Any]] | None:
-    return mongodb().list_reports()
-
-
-def stop_mongodb() -> None:
-    mongodb().stop()
+mongo = MongoDBService()

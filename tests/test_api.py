@@ -10,12 +10,12 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from bayesify.api import resources as api_resources
 from bayesify.api.app import app, store
 from bayesify.api.jobs import STAGES, Job, JobStore, event_stream, run_job
 from bayesify.api.jobs import overrides as job_overrides
 from bayesify.api.jobs import pipeline as job_pipeline
 from bayesify.api.jobs import reports as job_reports
-from bayesify.api.jobs import resources as job_resources
 from bayesify.api.jobs import tasks as job_tasks
 from bayesify.api.routes.rating import RateSubmit, rate_submit
 from bayesify.core.rubric import load_rubric
@@ -216,7 +216,7 @@ def test_paper_status_falls_back_to_mongo_report(monkeypatch) -> None:
             "local_notice": None,
         }
 
-    monkeypatch.setattr("bayesify.api.jobs.views.find_report_by_paper_id", fake_report)
+    monkeypatch.setattr("bayesify.api.jobs.views.mongo.find_report_by_paper_id", fake_report)
 
     body = client.get("/api/papers/mongo-fallback").json()
 
@@ -230,9 +230,11 @@ def test_paper_status_falls_back_to_mongo_report(monkeypatch) -> None:
 
 
 def test_paper_status_falls_back_to_mongo_job_state(monkeypatch) -> None:
-    monkeypatch.setattr("bayesify.api.jobs.views.find_report_by_paper_id", lambda paper_id: None)
     monkeypatch.setattr(
-        "bayesify.api.jobs.views.find_latest_job_state",
+        "bayesify.api.jobs.views.mongo.find_report_by_paper_id", lambda paper_id: None
+    )
+    monkeypatch.setattr(
+        "bayesify.api.jobs.views.mongo.find_latest_job_state",
         lambda paper_id: {
             "event": "job_state",
             "paper_id": paper_id,
@@ -258,7 +260,7 @@ def test_report_exports_fall_back_to_mongo_report(monkeypatch) -> None:
 
     result = build_stub_result("full")
     monkeypatch.setattr(
-        "bayesify.api.jobs.views.find_report_by_paper_id",
+        "bayesify.api.jobs.views.mongo.find_report_by_paper_id",
         lambda paper_id: {
             "paper_id": paper_id,
             "mode": "full",
@@ -367,11 +369,14 @@ def test_rate_submit_records_a_blind_rating(tmp_path, monkeypatch) -> None:
     saved_events: list[dict] = []
     saved_reports: list[tuple[str, dict]] = []
     monkeypatch.setattr(
-        "bayesify.api.routes.rating.save_event", lambda payload: saved_events.append(payload)
+        "bayesify.api.routes.rating.mongo.save_event",
+        lambda payload: saved_events.append(payload),
     )
-    monkeypatch.setattr("bayesify.api.routes.rating.find_report_by_paper_id", lambda paper_id: None)
     monkeypatch.setattr(
-        "bayesify.api.routes.rating.upsert_report",
+        "bayesify.api.routes.rating.mongo.find_report_by_paper_id", lambda paper_id: None
+    )
+    monkeypatch.setattr(
+        "bayesify.api.routes.rating.mongo.upsert_report",
         lambda key, fields: saved_reports.append((key, fields)),
     )
 
@@ -411,10 +416,11 @@ def test_rate_submit_records_no_relevance_fields(tmp_path, monkeypatch) -> None:
     saved_events: list[dict] = []
     saved_reports: list[tuple[str, dict]] = []
     monkeypatch.setattr(
-        "bayesify.api.routes.rating.save_event", lambda payload: saved_events.append(payload)
+        "bayesify.api.routes.rating.mongo.save_event",
+        lambda payload: saved_events.append(payload),
     )
     monkeypatch.setattr(
-        "bayesify.api.routes.rating.upsert_report",
+        "bayesify.api.routes.rating.mongo.upsert_report",
         lambda key, fields: saved_reports.append((key, fields)),
     )
 
@@ -480,7 +486,9 @@ def test_rate_submit_survives_an_expired_job(tmp_path, monkeypatch) -> None:
     # between rating and submit, it must NOT be dropped. The SPA echoes the paper provenance it got
     # from rate/context, and the server persists it instead of 404ing (mirrors record_override).
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr("bayesify.api.routes.rating.find_report_by_paper_id", lambda paper_id: None)
+    monkeypatch.setattr(
+        "bayesify.api.routes.rating.mongo.find_report_by_paper_id", lambda paper_id: None
+    )
     rating = _complete_rating("r1")
     # No job with this id exists in the store (it expired); submit with client-sent provenance.
     ok = client.post(
@@ -495,8 +503,8 @@ def test_rate_submit_survives_an_expired_job(tmp_path, monkeypatch) -> None:
     assert ok.status_code == 200 and ok.json()["recorded"] is True
     # Durable: persisted under the bucket keyed by the client-sent sha, with the version pinned.
     bucket = f"{'cd' * 32}__synthesis"
-    assert job_resources.ratings_store().count_for("cd" * 32, "synthesis") == 1
-    subs = job_resources.ratings_store().by_paper()[bucket]
+    assert api_resources.ratings_store().count_for("cd" * 32, "synthesis") == 1
+    subs = api_resources.ratings_store().by_paper()[bucket]
     assert [s.version_label for s in subs] == ["uploaded PDF"]
 
 
@@ -505,7 +513,7 @@ def test_rate_submit_uses_mongo_report_when_job_expired(tmp_path, monkeypatch) -
     saved_events: list[dict] = []
     saved_reports: list[tuple[str, dict]] = []
     monkeypatch.setattr(
-        "bayesify.api.routes.rating.find_report_by_paper_id",
+        "bayesify.api.routes.rating.mongo.find_report_by_paper_id",
         lambda paper_id: {
             "paper_id": paper_id,
             "source_sha256": "de" * 32,
@@ -518,10 +526,11 @@ def test_rate_submit_uses_mongo_report_when_job_expired(tmp_path, monkeypatch) -
         },
     )
     monkeypatch.setattr(
-        "bayesify.api.routes.rating.save_event", lambda payload: saved_events.append(payload)
+        "bayesify.api.routes.rating.mongo.save_event",
+        lambda payload: saved_events.append(payload),
     )
     monkeypatch.setattr(
-        "bayesify.api.routes.rating.upsert_report",
+        "bayesify.api.routes.rating.mongo.upsert_report",
         lambda key, fields: saved_reports.append((key, fields)),
     )
 
@@ -546,7 +555,7 @@ def test_override_is_recorded_durably_but_not_yet_learned_from(tmp_path, monkeyp
     # Degraded path: no live job for "abc" (e.g. it expired) — the correction is still recorded,
     # never dropped, with the client-sent/defaulted provenance.
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr("bayesify.api.routes.overrides.save_event", lambda payload: None)
+    monkeypatch.setattr("bayesify.api.routes.overrides.mongo.save_event", lambda payload: None)
     r = client.post(
         "/api/assessments/abc/steps/S4/override",
         data={"corrected_status": "partial", "rationale": "supplement has it"},
@@ -568,7 +577,7 @@ def test_override_captures_what_it_overrode_and_provenance(tmp_path, monkeypatch
     # status for that step), the rubric, and the durable paper sha — all recorded with the fix.
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("BAYESIFY_LLM_BACKEND", "none")  # billing-safe: the labelled stub
-    monkeypatch.setattr("bayesify.api.routes.overrides.save_event", lambda payload: None)
+    monkeypatch.setattr("bayesify.api.routes.overrides.mongo.save_event", lambda payload: None)
     job = Job(id="ovr1", mode="full", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     store._jobs[job.id] = job
     asyncio.run(run_job(job))  # labelled stub → a full ScoredResult with step_assessments
@@ -601,7 +610,8 @@ def test_trusted_token_promotes_override_and_sets_author(tmp_path, monkeypatch) 
     monkeypatch.setenv("BAYESIFY_TRUSTED_TOKENS", "alice:s3cret, bob:other")
     captured: list[dict] = []
     monkeypatch.setattr(
-        "bayesify.api.routes.overrides.save_event", lambda payload: captured.append(payload)
+        "bayesify.api.routes.overrides.mongo.save_event",
+        lambda payload: captured.append(payload),
     )
     r = client.post(
         "/api/assessments/abc/steps/S4/override",
@@ -626,7 +636,7 @@ def test_trusted_token_promotes_override_and_sets_author(tmp_path, monkeypatch) 
 def test_invalid_token_stays_advisory(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("BAYESIFY_TRUSTED_TOKENS", "alice:s3cret")
-    monkeypatch.setattr("bayesify.api.routes.overrides.save_event", lambda payload: None)
+    monkeypatch.setattr("bayesify.api.routes.overrides.mongo.save_event", lambda payload: None)
     r = client.post(
         "/api/assessments/abc/steps/S4/override",
         data={"corrected_status": "adequate", "rationale": "x", "token": "wrong"},
@@ -645,7 +655,7 @@ def test_override_captures_rich_bank_context(tmp_path, monkeypatch) -> None:
     from bayesify.core.schema import ScoredResult
 
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
-    monkeypatch.setattr("bayesify.api.routes.overrides.save_event", lambda payload: None)
+    monkeypatch.setattr("bayesify.api.routes.overrides.mongo.save_event", lambda payload: None)
     fix = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
     result = ScoredResult.model_validate_json(fix.read_text(encoding="utf-8"))
     job = Job(id="rich1", mode="full", source_label="d.pdf")
@@ -694,7 +704,7 @@ def test_review_overlay_applies_trusted_correction_and_surfaces_provenance(monke
     }
     monkeypatch.setattr(job_overrides, "override_bank", lambda profile: bank)  # no Mongo
     monkeypatch.setattr(
-        job_resources,
+        api_resources,
         "llm_client",
         lambda: FakeLLMClient(
             ReviewVerdict(
@@ -790,9 +800,9 @@ def test_fresh_full_llm_completion_saves_analysis_event(monkeypatch) -> None:
         saved_reports.append(job.id)
 
     monkeypatch.setattr(job_reports, "save_analysis_report", fake_save)
-    monkeypatch.setattr(job_resources, "cache_enabled", lambda: False)
+    monkeypatch.setattr(api_resources, "cache_enabled", lambda: False)
     monkeypatch.setattr(job_pipeline.llm_config, "llm_backend", lambda: "api")
-    monkeypatch.setattr(job_resources, "llm_client", lambda: object())
+    monkeypatch.setattr(api_resources, "llm_client", lambda: object())
 
     async def fake_front_half(job, *, source=None):
         job.content_sha256 = "ab" * 32
@@ -824,9 +834,13 @@ def test_analysis_persistence_writes_report_and_pointer_event(monkeypatch) -> No
         return func(*args, **kwargs)
 
     monkeypatch.setattr(job_reports.asyncio, "to_thread", inline_to_thread)
-    monkeypatch.setattr(job_reports, "save_event", lambda payload: saved_events.append(payload))
     monkeypatch.setattr(
-        job_reports, "upsert_report", lambda key, fields: saved_reports.append((key, fields))
+        job_reports.mongo, "save_event", lambda payload: saved_events.append(payload)
+    )
+    monkeypatch.setattr(
+        job_reports.mongo,
+        "upsert_report",
+        lambda key, fields: saved_reports.append((key, fields)),
     )
     job = Job(id="persist-ai", mode="full", source_label="paper.pdf")
     job.content_sha256 = "ab" * 32
@@ -855,9 +869,13 @@ def test_analysis_persistence_skips_relevance_no(monkeypatch) -> None:
 
     saved_events: list[dict] = []
     saved_reports: list[tuple[str, dict]] = []
-    monkeypatch.setattr(job_reports, "save_event", lambda payload: saved_events.append(payload))
     monkeypatch.setattr(
-        job_reports, "upsert_report", lambda key, fields: saved_reports.append((key, fields))
+        job_reports.mongo, "save_event", lambda payload: saved_events.append(payload)
+    )
+    monkeypatch.setattr(
+        job_reports.mongo,
+        "upsert_report",
+        lambda key, fields: saved_reports.append((key, fields)),
     )
     job = Job(id="skip-ai", mode="full", source_label="paper.pdf")
     job.content_sha256 = "cd" * 32
@@ -953,12 +971,12 @@ def _patch_fetcher(monkeypatch, pdf: bytes) -> None:
     def make_fetcher() -> Fetcher:
         return Fetcher(
             httpx_client,
-            job_resources.blob_store(),
+            api_resources.blob_store(),
             openalex_api_key=None,
             unpaywall_email=None,
         )
 
-    monkeypatch.setattr(job_resources, "fetcher", make_fetcher)
+    monkeypatch.setattr(api_resources, "fetcher", make_fetcher)
 
 
 def test_identifier_is_fetched_then_graded(tmp_path, monkeypatch) -> None:
@@ -1038,7 +1056,7 @@ def test_full_upload_grades_end_to_end(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")  # makes run_job route to the full pipeline
     monkeypatch.setattr(llm_config, "claude_code_available", lambda: False)  # deterministic backend
     fake = _full_fake()
-    monkeypatch.setattr(job_resources, "llm_client", lambda: fake)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: fake)
 
     job = Job(id="full1", mode="full", source_label="ddm.pdf", data=_HDDM_PDF, filename="ddm.pdf")
     asyncio.run(run_job(job))
@@ -1071,7 +1089,7 @@ def test_full_upload_short_circuits_on_no(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     fake = _full_fake(relevance="no")
-    monkeypatch.setattr(job_resources, "llm_client", lambda: fake)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: fake)
 
     # a non-Bayesian PDF, so the detector floor doesn't (correctly) override the 'no'
     job = Job(id="full2", mode="full", source_label="x.pdf", data=_DECOY_PDF, filename="x.pdf")
@@ -1093,7 +1111,7 @@ def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     fake = _full_fake(relevance="no")  # the gate would short-circuit this paper...
-    monkeypatch.setattr(job_resources, "llm_client", lambda: fake)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: fake)
 
     # ...but the user forced a full grade via the escape hatch (relevance_override set on the job).
     job = Job(
@@ -1121,7 +1139,7 @@ def test_grading_under_gelman_uses_the_gelman_rubric(tmp_path, monkeypatch) -> N
     names, not synthesis), and stamps the result + cache key with that profile (separate entry)."""
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
-    monkeypatch.setattr(job_resources, "llm_client", lambda: _full_fake())
+    monkeypatch.setattr(api_resources, "llm_client", lambda: _full_fake())
 
     job = Job(
         id="gel1", mode="full", source_label="x.pdf", data=_HDDM_PDF, filename="x.pdf",
@@ -1140,7 +1158,7 @@ def test_grading_under_schad_uses_the_schad_rubric(tmp_path, monkeypatch) -> Non
     Schad version + names) and stamps the result with that profile (the registry carries it)."""
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
-    monkeypatch.setattr(job_resources, "llm_client", lambda: _full_fake())
+    monkeypatch.setattr(api_resources, "llm_client", lambda: _full_fake())
 
     job = Job(
         id="sc1", mode="full", source_label="x.pdf", data=_HDDM_PDF, filename="x.pdf",
@@ -1162,7 +1180,7 @@ def test_review_paper_short_circuits(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     fake = _full_fake(paper_class="review")
-    monkeypatch.setattr(job_resources, "llm_client", lambda: fake)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: fake)
 
     job = Job(id="rev1", mode="full", source_label="op.pdf", data=_HDDM_PDF, filename="op.pdf")
     asyncio.run(run_job(job))
@@ -1180,7 +1198,7 @@ def test_force_grade_reruns_a_review_paper(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-fake")
     fake = _full_fake(paper_class="review")
-    monkeypatch.setattr(job_resources, "llm_client", lambda: fake)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: fake)
 
     job = Job(
         id="rev2", mode="full", source_label="op.pdf", data=_HDDM_PDF, filename="op.pdf",
@@ -1268,11 +1286,10 @@ class _FakeReports:
 
 def _inject_reports(monkeypatch):
     """Point the process-wide Mongo singleton at an in-memory reports collection (marked ready)."""
-    from bayesify.api import mongo as mongomod
+    from bayesify.api.db.mongo import mongo
 
-    svc = mongomod.mongodb()
-    monkeypatch.setattr(svc, "_ready", True)
-    monkeypatch.setattr(svc, "_reports", _FakeReports())
+    monkeypatch.setattr(mongo, "_ready", True)
+    monkeypatch.setattr(mongo, "_reports", _FakeReports())
 
 
 def test_identical_rerun_is_served_from_cache_without_calling_the_model(tmp_path, monkeypatch):
@@ -1283,7 +1300,7 @@ def test_identical_rerun_is_served_from_cache_without_calling_the_model(tmp_path
     _inject_reports(monkeypatch)  # the shared dedup store lives in Mongo now
 
     f1 = _full_fake()
-    monkeypatch.setattr(job_resources, "llm_client", lambda: f1)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: f1)
     j1 = Job(id="ca1", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j1))
     assert j1.from_cache is False and j1.result is not None
@@ -1291,7 +1308,7 @@ def test_identical_rerun_is_served_from_cache_without_calling_the_model(tmp_path
 
     # same bytes → cache hit; the LLM client must NOT be called again
     f2 = FakeLLMClient()  # empty: would raise if invoked
-    monkeypatch.setattr(job_resources, "llm_client", lambda: f2)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: f2)
     j2 = Job(id="ca2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j2))
     assert j2.from_cache is True and j2.result is not None
@@ -1307,14 +1324,14 @@ def test_failed_run_is_not_cached_so_breakage_is_never_masked(tmp_path, monkeypa
 
     # first run fails (transient ×3 → fail closed)
     f1 = FakeLLMClient(LLMTransientError("x"), LLMTransientError("y"), LLMTransientError("z"))
-    monkeypatch.setattr(job_resources, "llm_client", lambda: f1)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: f1)
     j1 = Job(id="cf1", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j1))
     assert j1.status == "failed" and j1.result is None
 
     # a working rerun must actually RUN (nothing cached), not replay a phantom success
     f2 = _full_fake()
-    monkeypatch.setattr(job_resources, "llm_client", lambda: f2)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: f2)
     j2 = Job(id="cf2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j2))
     assert j2.status == "done" and j2.from_cache is False and "StepJudgment" in f2.calls
@@ -1325,12 +1342,12 @@ def test_no_cache_env_always_runs_fresh(tmp_path, monkeypatch):
     monkeypatch.setenv("BAYESIFY_NO_CACHE", "1")
 
     f1 = _full_fake()
-    monkeypatch.setattr(job_resources, "llm_client", lambda: f1)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: f1)
     j1 = Job(id="cn1", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j1))
 
     f2 = _full_fake()
-    monkeypatch.setattr(job_resources, "llm_client", lambda: f2)
+    monkeypatch.setattr(api_resources, "llm_client", lambda: f2)
     j2 = Job(id="cn2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j2))
     assert j2.from_cache is False and "StepJudgment" in f2.calls  # not cached: a real run each time

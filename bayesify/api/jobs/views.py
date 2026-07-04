@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+from bayesify.api.db.mongo import mongo
 from bayesify.api.jobs.model import Job
-from bayesify.api.mongo import find_latest_job_state, find_report_by_paper_id
 from bayesify.api.runtime import api
 from bayesify.core import schema as s
 from bayesify.core.detectors import EvidenceInventory
@@ -81,8 +81,8 @@ async def job_or_mongo_report(paper_id: str) -> Job | None:
     job = api.store.get(paper_id)
     if job is not None:
         return job
-    report = await asyncio.to_thread(find_report_by_paper_id, paper_id)
+    report = await asyncio.to_thread(mongo.find_report_by_paper_id, paper_id)
     if report is not None:
         return job_from_report_doc(report)
-    state = await asyncio.to_thread(find_latest_job_state, paper_id)
+    state = await asyncio.to_thread(mongo.find_latest_job_state, paper_id)
     return job_from_state_event(state) if state is not None else None

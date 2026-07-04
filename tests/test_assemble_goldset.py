@@ -196,7 +196,7 @@ def test_submit_persists_durably_and_assembles(tmp_path, monkeypatch) -> None:
 
     from bayesify.api.app import app, store
     from bayesify.api.jobs import Job
-    from bayesify.api.jobs.resources import ratings_store
+    from bayesify.api.resources import ratings_store
 
     client = TestClient(app)
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))

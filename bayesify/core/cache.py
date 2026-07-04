@@ -3,7 +3,7 @@
 The manuscript bytes are held here only transiently while a job runs (ingest writes them; parse and
 the engine read them by sha256). The store is content-addressed — the handle *is* the sha256 — so
 identical bytes are written once. Report persistence and the cross-user dedup cache live in MongoDB
-(see ``bayesify.api.mongo``): nothing about a paper is kept on local disk beyond the run.
+(see ``bayesify.api.db``): nothing about a paper is kept on local disk beyond the run.
 """
 
 from __future__ import annotations

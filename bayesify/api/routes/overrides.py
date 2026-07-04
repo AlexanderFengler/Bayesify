@@ -8,9 +8,9 @@ import secrets
 from fastapi import APIRouter, Form, HTTPException
 from fastapi.responses import PlainTextResponse
 
-from bayesify.api import config
-from bayesify.api.jobs import pipeline, resources, tasks
-from bayesify.api.mongo import save_event
+from bayesify.api import config, resources
+from bayesify.api.db.mongo import mongo
+from bayesify.api.jobs import pipeline, tasks
 from bayesify.api.runtime import api
 from bayesify.core.validation.override_store import Override
 
@@ -90,7 +90,7 @@ async def rerun(
         value="force_grade" if is_review else relevance_override,
     )
     resources.overrides_store().add(override)
-    await asyncio.to_thread(save_event, override_event_payload(override))
+    await asyncio.to_thread(mongo.save_event, override_event_payload(override))
     tasks.spawn(pipeline.run_job(job))
     return {"paper_id": job.id, "status": job.status}
 
@@ -153,7 +153,7 @@ async def record_override(
         evidence_quotes=evidence_quotes,
     )
     resources.overrides_store().add(override)
-    await asyncio.to_thread(save_event, override_event_payload(override))
+    await asyncio.to_thread(mongo.save_event, override_event_payload(override))
     return {
         "recorded": True,
         "trusted": override.trusted,

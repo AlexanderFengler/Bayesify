@@ -5,12 +5,12 @@ from __future__ import annotations
 import asyncio
 
 from bayesify.api import config as api_config
-from bayesify.api.mongo import find_trusted_step_overrides
+from bayesify.api import resources
+from bayesify.api.db.mongo import mongo
 from bayesify.api.runtime import api
 from bayesify.core.override_review import BankOverride, review_overrides
 from bayesify.llm import config as llm_config
 
-from . import resources
 from .model import Job
 
 BANK_PER_STEP = 8
@@ -32,7 +32,7 @@ def local_trusted_overrides(profile: str) -> list[dict]:
 
 
 def override_bank(profile: str) -> dict[str, list[BankOverride]]:
-    docs = find_trusted_step_overrides(profile)
+    docs = mongo.find_trusted_step_overrides(profile)
     if docs is None:
         docs = local_trusted_overrides(profile)
     bank: dict[str, list[BankOverride]] = {}

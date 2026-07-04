@@ -7,8 +7,8 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
 
-from bayesify.api.jobs import resources
-from bayesify.api.mongo import find_report_by_paper_id, save_event, upsert_report
+from bayesify.api import resources
+from bayesify.api.db.mongo import mongo
 from bayesify.api.papers_store import ArchivedPaper, methods_from_inventory, report_fields
 from bayesify.api.routes.rubrics import rubric_payload
 from bayesify.api.runtime import api
@@ -64,7 +64,7 @@ def require_complete_relevant_rating(rating: Rating, rubric) -> None:
 
 
 async def stored_report_for_expired_job(paper_id: str) -> dict | None:
-    return await asyncio.to_thread(find_report_by_paper_id, paper_id)
+    return await asyncio.to_thread(mongo.find_report_by_paper_id, paper_id)
 
 
 @router.get("/api/rate/context/{paper_id}")
@@ -186,9 +186,9 @@ async def rate_submit(body: RateSubmit) -> dict:
             ),
             human_rating=sub.model_dump(mode="json"),
         )
-        await asyncio.to_thread(upsert_report, archived.key, report_fields(archived))
+        await asyncio.to_thread(mongo.upsert_report, archived.key, report_fields(archived))
     await asyncio.to_thread(
-        save_event,
+        mongo.save_event,
         compact_event(
             {
                 "event": "blind_rating_submitted",
