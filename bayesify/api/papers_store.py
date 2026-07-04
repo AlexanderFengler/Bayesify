@@ -50,11 +50,13 @@ def methods_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
     de-duplicated). Empty when there is no inventory (e.g. the placeholder stub path)."""
     if inventory is None:
         return []
-    seen: set[str] = set()
-    out: list[str] = []
+    seen = set()
+    out = []
     for fam in inventory.families:
+
         if fam.family not in _METHOD_FAMILIES:
             continue
+
         for hit in fam.found:
             label = _METHOD_LABELS.get(hit.detector_id)
             if label is None:

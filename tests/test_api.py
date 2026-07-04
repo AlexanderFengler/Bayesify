@@ -826,6 +826,7 @@ def test_fresh_full_llm_completion_saves_analysis_event(monkeypatch) -> None:
 
 def test_analysis_persistence_writes_report_and_pointer_event(monkeypatch) -> None:
     from bayesify.core.stub import build_stub_result
+    from bayesify.llm import config as llm_config
 
     saved_events: list[dict] = []
     saved_reports: list[tuple[str, dict]] = []
@@ -858,6 +859,8 @@ def test_analysis_persistence_writes_report_and_pointer_event(monkeypatch) -> No
     report_id, report = saved_reports[0]
     assert report_id == f"{'ab' * 32}__synthesis"
     assert report["result"]["rubric_profile"] == "synthesis"
+    assert report["engine_version"].endswith(";models=") is False
+    assert llm_config.judge_model() in report["engine_version"]
     assert saved_events == [
         {"event": "analysis_report_ready", "paper_id": "persist-ai", "report_id": report_id}
     ]

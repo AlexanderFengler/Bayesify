@@ -13,7 +13,7 @@ from bayesify.api.papers_store import (
     report_fields,
 )
 from bayesify.core import config, schema
-from bayesify.core.stub import ENGINE_VERSION
+from bayesify.core.stub import engine_version
 from bayesify.core.validation.rating_store import bucket_key
 
 from . import tasks
@@ -86,7 +86,7 @@ def archived_from_analysis(job: Job) -> ArchivedPaper:
         methods=methods_from_inventory(job.inventory),
         result=result.model_dump(mode="json") if result else None,
         inventory=job.inventory.model_dump(mode="json") if job.inventory else None,
-        engine_version=ENGINE_VERSION,
+        engine_version=engine_version(),
         rubric_version=result.rubric_version if result else "",
         grading_strategy=config.grading_strategy(),
     )
@@ -105,7 +105,7 @@ def replayable_report(doc: dict | None, rubric) -> bool:
         doc
         and doc.get("result")
         and doc.get("mode") == "full"
-        and doc.get("engine_version") == ENGINE_VERSION
+        and doc.get("engine_version") == engine_version()
         and doc.get("rubric_version") == rubric.rubric_version
         and doc.get("grading_strategy") == config.grading_strategy()
     )

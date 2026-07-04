@@ -16,7 +16,7 @@ from bayesify.core.fetcher import Fetcher
 from bayesify.core.ingest import ingest_upload, parse_input
 from bayesify.core.parse import parse
 from bayesify.core.rubric.loader import load_rubric
-from bayesify.core.stub import ENGINE_VERSION, build_stub_result
+from bayesify.core.stub import build_stub_result, engine_version
 from bayesify.core.validation.rating_store import bucket_key
 from bayesify.llm import config as llm_config
 
@@ -164,7 +164,7 @@ async def run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
         evidence,
         client=client,
         rubric=rubric,
-        engine_version=ENGINE_VERSION,
+        engine_version=engine_version(),
         rubric_version=rubric.rubric_version,
         relevance_override=job.relevance_override,
         force_grade=job.force_grade,

@@ -40,3 +40,34 @@ def test_stub_engine_version_pins_models() -> None:
     assert llm_config.screen_model() in r.engine_version
     assert llm_config.classify_model() in r.engine_version
     assert llm_config.refuter_model() in r.engine_version
+
+
+def test_engine_version_is_computed_after_env_is_loaded(monkeypatch) -> None:
+    import importlib
+
+    import bayesify.core.stub as stub
+
+    for name in (
+        "BAYESIFY_JUDGE_MODEL",
+        "BAYESIFY_SCREEN_MODEL",
+        "BAYESIFY_CLASSIFY_MODEL",
+        "BAYESIFY_REFUTER_MODEL",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    stub = importlib.reload(stub)
+    assert stub.ENGINE_VERSION.endswith(";models=")
+
+    monkeypatch.setenv("BAYESIFY_JUDGE_MODEL", "gpt-5.4")
+    monkeypatch.setenv("BAYESIFY_SCREEN_MODEL", "gpt-5.4-nano")
+    monkeypatch.setenv("BAYESIFY_CLASSIFY_MODEL", "gpt-5.4-mini")
+    monkeypatch.setenv("BAYESIFY_REFUTER_MODEL", "gpt-5.5")
+
+    current = stub.engine_version()
+    assert current.endswith(";models=gpt-5.4+gpt-5.4-mini+gpt-5.4-nano+gpt-5.5")
+    assert stub.build_stub_result().engine_version == current
+
+    monkeypatch.setenv("BAYESIFY_JUDGE_MODEL", "claude-opus-4-8")
+    monkeypatch.setenv("BAYESIFY_SCREEN_MODEL", "claude-haiku-4-5")
+    monkeypatch.setenv("BAYESIFY_CLASSIFY_MODEL", "claude-haiku-4-5")
+    monkeypatch.setenv("BAYESIFY_REFUTER_MODEL", "claude-opus-4-8")
+    importlib.reload(stub)
