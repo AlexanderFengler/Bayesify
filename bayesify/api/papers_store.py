@@ -23,9 +23,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from bayesify.core.detectors import EvidenceInventory
 from bayesify.core.schema import PaperClass
 
-# Detector-id → friendly method/software tag. Only the families a reader thinks of as "methods and
-# software" are surfaced (software, method, workflow, and the headline diagnostics); sampler config
-# and open-science signals are left out of the facet. Unknown ids fall back to a prettified suffix.
+# Detector-id -> friendly method/software tag. This is intentionally an explicit allowlist: broad
+# Bayesian vocabulary detectors are useful for screening/rubric evidence, but too noisy for Archive
+# facets. Unknown ids are skipped rather than prettified into tags.
 _METHOD_LABELS: dict[str, str] = {
     "software.stan": "Stan",
     "software.brms": "brms",
@@ -42,15 +42,8 @@ _METHOD_LABELS: dict[str, str] = {
     "method.mcmc": "MCMC",
     "method.variational": "Variational inference",
     "method.sbi": "SBI",
-    "method.analytic": "Analytic posterior",
 }
 _METHOD_FAMILIES = {"software", "method"}
-
-
-def _prettify(detector_id: str) -> str:
-    """Fallback label for a detector id with no curated name: drop the family prefix, spacify."""
-    return detector_id.split(".", 1)[-1].replace("_", " ")
-
 
 def methods_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
     """Friendly method/software tags from the detector inventory's found hits (order-preserving,
@@ -63,7 +56,9 @@ def methods_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
         if fam.family not in _METHOD_FAMILIES:
             continue
         for hit in fam.found:
-            label = _METHOD_LABELS.get(hit.detector_id) or _prettify(hit.detector_id)
+            label = _METHOD_LABELS.get(hit.detector_id)
+            if label is None:
+                continue
             if label not in seen:
                 seen.add(label)
                 out.append(label)

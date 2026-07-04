@@ -105,8 +105,27 @@ def _hit(detector_id: str, family: str) -> InventoryHit:
 def _inventory() -> EvidenceInventory:
     return EvidenceInventory(
         families=[
-            InventoryFamily(family="software", found=[_hit("software.stan", "software")]),
-            InventoryFamily(family="method", found=[_hit("method.mcmc", "method")]),
+            InventoryFamily(
+                family="software",
+                found=[
+                    _hit("software.stan", "software"),
+                    _hit("software.bayesflow", "software"),
+                    _hit("software.unknown", "software"),
+                ],
+            ),
+            InventoryFamily(
+                family="method",
+                found=[
+                    _hit("method.prior", "method"),
+                    _hit("method.posterior", "method"),
+                    _hit("method.credible_interval", "method"),
+                    _hit("method.analytic", "method"),
+                    _hit("method.mcmc", "method"),
+                    _hit("method.variational", "method"),
+                    _hit("method.sbi", "method"),
+                    _hit("method.unknown", "method"),
+                ],
+            ),
             # sampler is deliberately excluded from the "methods & software" facet
             InventoryFamily(family="sampler", found=[_hit("sampler.chains", "sampler")]),
         ],
@@ -116,7 +135,8 @@ def _inventory() -> EvidenceInventory:
 
 def test_methods_from_inventory_maps_and_filters_families() -> None:
     labels = methods_from_inventory(_inventory())
-    assert labels == ["Stan", "MCMC"]  # sampler.chains excluded; curated labels
+    assert labels == ["Stan", "BayesFlow", "MCMC", "Variational inference", "SBI"]
+    assert not {"prior", "posterior", "credible interval", "Analytic posterior"} & set(labels)
     assert methods_from_inventory(None) == []
 
 
