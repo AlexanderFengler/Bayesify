@@ -6,8 +6,7 @@ them by paper, derives the consensus, and writes only admissible gold records (s
 
 from __future__ import annotations
 
-import fitz  # PyMuPDF — a tiny Bayesian PDF so local ingest yields detector evidence
-
+from bayesify.core.rubric import load_rubric
 from bayesify.core.schema import (
     EvidenceSpan,
     GateFacts,
@@ -49,6 +48,42 @@ def _rating(rater_id: str, rel: RelevanceLabel = RelevanceLabel.yes) -> Rating:
                 rationale="note",
             )
         ],
+    )
+
+
+def _complete_rating(rater_id: str) -> Rating:
+    steps: list[StepRating] = []
+    for i, step in enumerate(load_rubric().steps):
+        if i == 0:
+            steps.append(
+                StepRating(
+                    step_id=step.id,
+                    applicable=True,
+                    status=StepStatus.adequate,
+                    confidence=0.9,
+                    evidence=[_SPAN],
+                    rationale="the model is specified",
+                )
+            )
+        else:
+            steps.append(
+                StepRating(
+                    step_id=step.id,
+                    applicable=False,
+                    status=StepStatus.not_applicable,
+                    confidence=0.8,
+                    evidence=[],
+                    rationale="not applicable for this paper",
+                )
+            )
+    return Rating(
+        rater_id=rater_id,
+        relationship=RaterRelationship.independent,
+        relevance_label=RelevanceLabel.yes,
+        relevance_rationale="fits a Bayesian model",
+        paper_class_labels=[PaperClassLabel.data_analysis],
+        gate_facts=GateFacts(),
+        steps=steps,
     )
 
 
@@ -157,24 +192,22 @@ def test_assemble_skips_single_rater_and_no_consensus(tmp_path) -> None:
 
 
 def test_submit_persists_durably_and_assembles(tmp_path, monkeypatch) -> None:
-    import asyncio
-
     from fastapi.testclient import TestClient
 
     from bayesify.api.app import app, store
-    from bayesify.api.jobs import Job, run_job
+    from bayesify.api.jobs import Job
     from bayesify.api.jobs.resources import ratings_store
 
     client = TestClient(app)
     monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path))
-    # ingest a paper locally so it has a content_sha256/version_label the submit captures
-    job = Job(id="rate-persist", mode="local", source_label="x.pdf", data=_HDDM, filename="x.pdf")
+    # Seed the durable provenance that /api/rate/context would have given the client.
+    job = Job(id="rate-persist", mode="local", source_label="x.pdf")
+    job.content_sha256 = "ab" * 32
+    job.version_label = "uploaded PDF (x.pdf)"
     store._jobs[job.id] = job
-    asyncio.run(run_job(job))
-    assert job.content_sha256
 
     def payload(rid: str) -> dict:
-        r = _rating(rid)
+        r = _complete_rating(rid)
         return {"paper_id": job.id, "rating": r.model_dump(mode="json")}
 
     assert client.post("/api/rate/submit", json=payload("r1")).json()["recorded"] is True
@@ -184,22 +217,3 @@ def test_submit_persists_durably_and_assembles(tmp_path, monkeypatch) -> None:
     assert ratings_store().count_for(job.content_sha256 or "", "synthesis") == 2
     written, _ = assemble(ratings_dir=tmp_path / "ratings", out_dir=tmp_path / "goldset")
     assert written == [bucket]
-
-
-def _pdf(lines: list[str]) -> bytes:
-    doc = fitz.open()
-    page = doc.new_page()
-    y = 72
-    for line in lines:
-        page.insert_text((72, y), line, fontsize=11)
-        y += 18
-    return doc.tobytes()
-
-
-_HDDM = _pdf(
-    [
-        "A hierarchical drift-diffusion model",
-        "We fit it with Bayesian inference in Stan using the NUTS sampler;",
-        "convergence checked with R-hat and bulk-ESS.",
-    ]
-)

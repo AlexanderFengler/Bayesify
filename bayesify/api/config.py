@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 from types import MappingProxyType
 
-
 API_CONFIG = MappingProxyType(
     {
         "title": "Bayesify API",
