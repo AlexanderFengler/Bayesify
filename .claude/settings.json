@@ -68,7 +68,8 @@
       "Bash(ps -p 937908,942701 -o pid,stat,comm)",
       "Bash(curl -sf -o /dev/null http://localhost:8000/)",
       "Bash(pkill -f \"uvicorn bayesify.api.app\")",
-      "Bash(curl -sf -o /dev/null -m 2 http://localhost:8000/)"
+      "Bash(curl -sf -o /dev/null -m 2 http://localhost:8000/)",
+      "Bash(git -C /home/a_huangm13/Documents/Dev/Bayesify status --short)"
     ]
   }
 }

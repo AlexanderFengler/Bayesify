@@ -11,7 +11,12 @@ type Org = {
 };
 
 const ORGS: Org[] = [
-  { name: "VeriBayes", logoDark: "/org-logo-dark.svg", logoLight: "/org-logo-light.svg", url: "https://www.bayesops.com" },
+  { name: "BayesOps", logoDark: "/bayesops-dark.svg", logoLight: "/bayesops-light.svg", url: "https://www.bayesops.com" },
+  {
+    name: "Laboratory of Neural Computation and Cognition",
+    logoDark: "/lncc-dark.png",
+    logoLight: "/lncc-light.png",
+  },
 ];
 
 // The people who build Bayesify. Add one entry per developer — plain strings, shown as a simple list
