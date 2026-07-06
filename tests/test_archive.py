@@ -9,8 +9,8 @@ import time
 from fastapi.testclient import TestClient
 
 from bayesify.api.app import app
-from bayesify.api.jobs import _replayable
-from bayesify.api.mongo import MongoDBService
+from bayesify.api.db import MongoDBService
+from bayesify.api.jobs.reports import replayable_report
 from bayesify.api.papers_store import (
     ArchivedPaper,
     methods_from_inventory,
@@ -105,8 +105,27 @@ def _hit(detector_id: str, family: str) -> InventoryHit:
 def _inventory() -> EvidenceInventory:
     return EvidenceInventory(
         families=[
-            InventoryFamily(family="software", found=[_hit("software.stan", "software")]),
-            InventoryFamily(family="method", found=[_hit("method.mcmc", "method")]),
+            InventoryFamily(
+                family="software",
+                found=[
+                    _hit("software.stan", "software"),
+                    _hit("software.bayesflow", "software"),
+                    _hit("software.unknown", "software"),
+                ],
+            ),
+            InventoryFamily(
+                family="method",
+                found=[
+                    _hit("method.prior", "method"),
+                    _hit("method.posterior", "method"),
+                    _hit("method.credible_interval", "method"),
+                    _hit("method.analytic", "method"),
+                    _hit("method.mcmc", "method"),
+                    _hit("method.variational", "method"),
+                    _hit("method.sbi", "method"),
+                    _hit("method.unknown", "method"),
+                ],
+            ),
             # sampler is deliberately excluded from the "methods & software" facet
             InventoryFamily(family="sampler", found=[_hit("sampler.chains", "sampler")]),
         ],
@@ -116,7 +135,8 @@ def _inventory() -> EvidenceInventory:
 
 def test_methods_from_inventory_maps_and_filters_families() -> None:
     labels = methods_from_inventory(_inventory())
-    assert labels == ["Stan", "MCMC"]  # sampler.chains excluded; curated labels
+    assert labels == ["Stan", "BayesFlow", "MCMC", "Variational inference", "SBI"]
+    assert not {"prior", "posterior", "credible interval", "Analytic posterior"} & set(labels)
     assert methods_from_inventory(None) == []
 
 
@@ -168,6 +188,7 @@ def test_report_store_upsert_merges_and_lists() -> None:
         rubric_profile="synthesis",
         mode="local",
         paper_type=["data_analysis"],
+        human_rating={"rating": {"rater_id": "r1"}},
     )
     svc.upsert_report(key, report_fields(human))
 
@@ -183,6 +204,24 @@ def test_report_store_upsert_merges_and_lists() -> None:
     listed = svc.list_reports()
     assert listed is not None and len(listed) == 1
     assert "result" not in listed[0] and "inventory" not in listed[0]
+    assert "human_rating" not in listed[0]
+
+
+def test_report_store_reads_by_paper_id() -> None:
+    reports = _FakeReports()
+    svc = _ready_service(reports)
+    old_key = bucket_key("aa" * 32, "synthesis")
+    new_key = bucket_key("bb" * 32, "synthesis")
+
+    svc.upsert_report(old_key, {"paper_id": "p1", "source_sha256": "aa" * 32})
+    svc.upsert_report(new_key, {"paper_id": "p1", "source_sha256": "bb" * 32})
+    reports.docs[old_key]["updated_at"] = 1
+    reports.docs[new_key]["updated_at"] = 2
+
+    stored = svc.find_report_by_paper_id("p1")
+
+    assert stored is not None
+    assert stored["_id"] == new_key
 
 
 def test_report_store_reads_none_when_mongo_down() -> None:
@@ -206,11 +245,11 @@ def test_replayable_requires_current_full_report() -> None:
         "rubric_version": rubric.rubric_version,
         "grading_strategy": config.grading_strategy(),
     }
-    assert _replayable(base, rubric) is True
-    assert _replayable(None, rubric) is False
-    assert _replayable({**base, "result": None}, rubric) is False  # no result to replay
-    assert _replayable({**base, "mode": "local"}, rubric) is False  # human/inventory entry
-    assert _replayable({**base, "engine_version": "old"}, rubric) is False  # stale engine
+    assert replayable_report(base, rubric) is True
+    assert replayable_report(None, rubric) is False
+    assert replayable_report({**base, "result": None}, rubric) is False  # no result to replay
+    assert replayable_report({**base, "mode": "local"}, rubric) is False  # human/inventory entry
+    assert replayable_report({**base, "engine_version": "old"}, rubric) is False  # stale engine
 
 
 # --- the read-only list endpoint (Mongo-backed) ---------------------------------------------------
@@ -244,7 +283,7 @@ def _archive_docs() -> list[dict]:
 
 
 def test_list_papers_endpoint_filters(monkeypatch) -> None:
-    monkeypatch.setattr("bayesify.api.app.list_reports", lambda: _archive_docs())
+    monkeypatch.setattr("bayesify.api.routes.archive.mongo.list_reports", lambda: _archive_docs())
 
     # unfiltered: both, plus facet vocabularies over the whole archive; the Mongo _id is stripped
     body = client.get("/api/papers").json()
@@ -271,14 +310,14 @@ def test_list_papers_fills_missing_array_fields(monkeypatch) -> None:
     # the store drops empty arrays on upsert; the endpoint must still return them so the client
     # (which does p.paper_type.length etc.) never crashes on a sparse paper.
     sparse = {"_id": "k1", "key": "k1", "paper_id": "p1", "paper_title": "Bare", "mode": "full"}
-    monkeypatch.setattr("bayesify.api.app.list_reports", lambda: [sparse])
+    monkeypatch.setattr("bayesify.api.routes.archive.mongo.list_reports", lambda: [sparse])
     p = client.get("/api/papers").json()["papers"][0]
     for arr in ("paper_authors", "paper_type", "discipline", "methods"):
         assert p[arr] == []
 
 
 def test_list_papers_empty_when_mongo_down(monkeypatch) -> None:
-    monkeypatch.setattr("bayesify.api.app.list_reports", lambda: None)
+    monkeypatch.setattr("bayesify.api.routes.archive.mongo.list_reports", lambda: None)
     body = client.get("/api/papers").json()
     assert body == {
         "papers": [],

@@ -9,9 +9,7 @@ from datetime import datetime
 
 import pytest
 
-from bayesify.core import config
 from bayesify.core import screen as S
-from bayesify.core.llm import FakeLLMClient, LLMError, LLMTransientError
 from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
@@ -23,6 +21,8 @@ from bayesify.core.schema import (
     SectionKind,
     SourceDoc,
 )
+from bayesify.llm import FakeLLMClient, LLMError, LLMTransientError
+from bayesify.llm import config as llm_config
 
 _WHEN = datetime(2026, 1, 1)
 
@@ -59,7 +59,7 @@ def test_screen_returns_relevance_and_meters_cost() -> None:
     rel, entry = S.screen(parsed, evidence, client=client)
 
     assert rel.label is RelevanceLabel.yes
-    assert entry.stage == "screen" and entry.model == config.screen_model()
+    assert entry.stage == "screen" and entry.model == llm_config.screen_model()
     assert client.calls[0]["schema"] == "Relevance"
     assert "DETECTOR HITS" in client.calls[0]["user"]  # evidence digest reached the prompt
 

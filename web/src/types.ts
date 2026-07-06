@@ -232,7 +232,5 @@ export const STAGES = [
   "assess",
   "score",
 ] as const;
-// Local-only mode runs detectors only no LLM, no scores.
-export const LOCAL_STAGES = ["ingest", "parse", "detect"] as const;
 export type Stage = (typeof STAGES)[number];
 

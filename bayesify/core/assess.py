@@ -44,6 +44,7 @@ from bayesify.core.schema import (
     Suggestion,
 )
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
+from bayesify.llm import config as llm_config
 
 
 class AssessError(RuntimeError):
@@ -190,8 +191,8 @@ def assess(
     sequential path. This is a pure latency optimization: assessments and ledger entries are always
     reassembled in rubric-step order, so the result is byte-identical to the serial run.
     """
-    model = model or config.judge_model()
-    refuter_model = refuter_model or config.refuter_model()
+    model = model or llm_config.judge_model()
+    refuter_model = refuter_model or llm_config.refuter_model()
     gate_facts = derive_gate_facts(evidence, paper_class)
     searched = _scanned_section_ids(parsed)  # paper-level; identical for every step
 

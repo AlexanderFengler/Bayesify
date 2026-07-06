@@ -16,7 +16,6 @@ Two deterministic guards wrap the LLM (d-screen-classify.md):
 
 from __future__ import annotations
 
-from bayesify.core import config
 from bayesify.core.context import build_user, validate_evidence_refs
 from bayesify.core.prompts import SCREEN_SYSTEM
 from bayesify.core.schema import (
@@ -28,6 +27,7 @@ from bayesify.core.schema import (
     RelevanceLabel,
 )
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
+from bayesify.llm import config as llm_config
 
 # Evidence kinds that count as *Bayesian-substantive* for the floor. open_science is excluded — a
 # GitHub link or data-availability statement is not evidence of Bayesian methodology. The two
@@ -55,7 +55,7 @@ def screen(
     Raises ``LLMError`` (fail closed) if the cheap-model call cannot complete — never a defaulted
     label.
     """
-    model = model or config.screen_model()
+    model = model or llm_config.screen_model()
     user = build_user(parsed, evidence)
     response = call_with_policy(
         client, model=model, system=SCREEN_SYSTEM, user=user, schema=Relevance, max_tokens=600

@@ -9,8 +9,8 @@ from typing import Protocol
 
 from pydantic import BaseModel
 
-from bayesify.core import config
 from bayesify.core.schema import CostLedgerEntry
+from bayesify.llm import config as llm_config
 
 
 class LLMError(Exception):
@@ -76,7 +76,7 @@ def ledger_entry(
     pass_label: str | None = None,
 ) -> CostLedgerEntry:
     """Price a response into the engine cost ledger."""
-    cost = config.estimate_cost(response.model, response.input_tokens, response.output_tokens)
+    cost = llm_config.estimate_cost(response.model, response.input_tokens, response.output_tokens)
     return CostLedgerEntry(
         stage=stage,
         step_id=step_id,

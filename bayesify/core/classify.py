@@ -12,11 +12,11 @@ on LLM error, and meters its single call into the cost ledger (stage tag ``class
 
 from __future__ import annotations
 
-from bayesify.core import config
 from bayesify.core.context import build_user, validate_evidence_refs
 from bayesify.core.prompts import CLASSIFY_SYSTEM
 from bayesify.core.schema import CostLedgerEntry, Evidence, PaperClass, ParsedDoc
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
+from bayesify.llm import config as llm_config
 
 
 def classify(
@@ -28,7 +28,7 @@ def classify(
 ) -> tuple[PaperClass, CostLedgerEntry]:
     """Classify the paper type. Returns the ``PaperClass`` and its cost entry; raises ``LLMError``
     (fail closed) if the cheap-model call cannot complete."""
-    model = model or config.classify_model()
+    model = model or llm_config.classify_model()
     user = build_user(parsed, evidence)
     response = call_with_policy(
         client, model=model, system=CLASSIFY_SYSTEM, user=user, schema=PaperClass, max_tokens=600

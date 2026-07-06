@@ -148,8 +148,8 @@ class _FakeLLM:
 
     def complete(self, *, model, system, user, schema, max_tokens=1024):
         from bayesify.core.assess import RefuterVerdict, StepJudgment
-        from bayesify.core.llm import LLMResponse
         from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+        from bayesify.llm import LLMResponse
 
         name = schema.__name__
         if name == "Relevance":
@@ -211,8 +211,8 @@ class _NoGateLLM:
 
     def complete(self, *, model, system, user, schema, max_tokens=1024):
         from bayesify.core.assess import RefuterVerdict, StepJudgment
-        from bayesify.core.llm import LLMResponse
         from bayesify.core.schema import PaperClass, PaperClassLabel
+        from bayesify.llm import LLMResponse
 
         name = schema.__name__
         if name == "Relevance":

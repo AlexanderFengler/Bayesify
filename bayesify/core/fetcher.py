@@ -26,7 +26,6 @@ from xml.etree.ElementTree import ParseError
 
 import httpx
 
-from bayesify.core import config
 from bayesify.core import schema as s
 from bayesify.core.cache import BlobStore
 from bayesify.core.errors import (
@@ -70,10 +69,8 @@ class Fetcher:
     ) -> None:
         self._client = client
         self._blobs = blob_store
-        self._oa_key = (
-            openalex_api_key if openalex_api_key is not None else config.openalex_api_key()
-        )
-        self._email = unpaywall_email if unpaywall_email is not None else config.unpaywall_email()
+        self._oa_key = openalex_api_key
+        self._email = unpaywall_email
 
     # --- public entry -----------------------------------------------------------------------------
 

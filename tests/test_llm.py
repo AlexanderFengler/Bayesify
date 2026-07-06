@@ -10,7 +10,7 @@ import sys
 import pytest
 from pydantic import BaseModel
 
-from bayesify.core.llm import (
+from bayesify.llm import (
     FakeLLMClient,
     LLMError,
     LLMResponse,
@@ -107,7 +107,7 @@ def test_ledger_entry_unpriced_model_fails_loud() -> None:
 def test_anthropic_client_maps_parsed_output_and_usage() -> None:
     from types import SimpleNamespace
 
-    from bayesify.core.llm import AnthropicClient
+    from bayesify.llm import AnthropicClient
 
     class _Msgs:
         def parse(self, **kw):
@@ -166,7 +166,7 @@ def test_factory_builds_openai_client() -> None:
 def _agent_complete(monkeypatch, messages):
     import claude_agent_sdk as sdk
 
-    from bayesify.core.llm import AgentSDKClient
+    from bayesify.llm import AgentSDKClient
 
     async def fake_query(*, prompt, options):
         for m in messages:

@@ -7,8 +7,6 @@ from datetime import datetime
 import pytest
 
 from bayesify.core import classify as C
-from bayesify.core import config
-from bayesify.core.llm import FakeLLMClient, LLMError, LLMTransientError
 from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
@@ -20,6 +18,8 @@ from bayesify.core.schema import (
     SectionKind,
     SourceDoc,
 )
+from bayesify.llm import FakeLLMClient, LLMError, LLMTransientError
+from bayesify.llm import config as llm_config
 
 _WHEN = datetime(2026, 1, 1)
 
@@ -50,7 +50,7 @@ def test_classify_returns_paperclass_and_meters_cost() -> None:
     cls, entry = C.classify(_parsed("We fit a model to real RT data."), [_ev()], client=client)
 
     assert cls.labels == [PaperClassLabel.data_analysis]
-    assert entry.stage == "classify" and entry.model == config.classify_model()
+    assert entry.stage == "classify" and entry.model == llm_config.classify_model()
     assert client.calls[0]["schema"] == "PaperClass"
     assert "DETECTOR HITS" in client.calls[0]["user"]
 
