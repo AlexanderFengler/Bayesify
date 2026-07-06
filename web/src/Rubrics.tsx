@@ -21,12 +21,13 @@ import { useEffect, useState } from "react";
 import { fetchRubrics } from "./api";
 import { GoldText } from "./GoldText";
 import { fetchRubric, type Rubric } from "./rubric";
+import { SectionHeader, SubsectionTitle } from "./SectionHeader";
 
 // Short column headers for the comparison table, keyed by rubric profile id.
 const SHORT_LABEL: Record<string, string> = {
   synthesis: "Synthesis",
-  gelman: "Gelman",
-  schad: "Schad",
+  gelman: "Gelman et al.",
+  schad: "Schad et al.",
 };
 
 // Display order for the rubric columns (and the comparison-table columns, which follow the same list).
@@ -83,9 +84,10 @@ const FEATURES: { label: string; has: Record<string, boolean>; future?: boolean 
 const CURRENT_FEATURES = FEATURES.filter((f) => !f.future);
 // const FUTURE_FEATURES = FEATURES.filter((f) => f.future);
 
-// The dedicated reference page for the rubrics: the three sets shown side by side, then a comparison
-// table of what each one covers. Linked from the footer and from every rubric mention in the app.
-export function Rubrics() {
+// The rubrics reference — a section of the main page (anchored by `id` for the footer nav and every
+// rubric mention in the app): the three sets shown side by side, then a comparison table of what
+// each one covers.
+export function Rubrics({ id }: { id?: string }) {
   const [rubrics, setRubrics] = useState<Rubric[] | null>(null);
 
   useEffect(() => {
@@ -102,18 +104,18 @@ export function Rubrics() {
   }, []);
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
-            The rubrics
-          </Typography>
-          <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 1440 }}>
+    <Container id={id} maxWidth="xl" sx={{ py: { xs: 6, md: 8 } }}>
+      <SectionHeader
+        title="The rubrics"
+        leadMaxWidth={1440}
+        lead={
+          <>
             Bayesify grades against one of three rubrics. Each decomposes the Bayesian workflow into
-            named steps. While the workflow is iterative, Bayesify's step-by-step decomposition represents the linearized sequence for one cycle. Pick the one whose lens fits your paper.
-          </Typography>
-        </Box>
-      </Box>
+            named steps. While the workflow is iterative, Bayesify&rsquo;s step-by-step decomposition
+            represents the linearized sequence for one cycle. Pick the one whose lens fits your paper.
+          </>
+        }
+      />
 
       {!rubrics ? (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, color: "text.secondary", py: 6 }}>
@@ -128,7 +130,6 @@ export function Rubrics() {
               much text each carries. The steps band is 1fr so the columns stay equal height. */}
           <Box
             sx={{
-              mt: 3,
               display: "grid",
               gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
               gridTemplateRows: { md: "auto auto auto auto 1fr" },
@@ -142,21 +143,19 @@ export function Rubrics() {
             ))}
           </Box>
 
-          <Divider sx={{ my: { xs: 4, md: 5 } }} />
+          <Divider sx={{ my: { xs: 5, md: 7 } }} />
 
-          {/* the comparison — the shipped capabilities, then the roadmap, as two separate tables */}
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-            How they differ
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {/* the comparison — the shipped capabilities, then the roadmap. Subsection headings sit on
+              the same tier as the guide's flow titles so the whole page reads one scale. */}
+          <SubsectionTitle>How they differ</SubsectionTitle>
+          {/* subsection captions run full width on the 0.95rem caption tier (matching the guide's) */}
+          <Typography color="text.secondary" sx={{ mt: 0.75, mb: 3, fontSize: "0.95rem", lineHeight: 1.6 }}>
             Which workflow capabilities each rubric has a dedicated step for.
           </Typography>
           <ComparisonTable columns={rubrics.map((r) => r.rubric_profile)} rows={CURRENT_FEATURES} />
 
-          <Typography variant="h5" sx={{ fontWeight: 700, mt: { xs: 4, md: 5 }, mb: 0.5 }}>
-            On the roadmap
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+          <SubsectionTitle sx={{ mt: { xs: 5, md: 7 } }}>On the roadmap</SubsectionTitle>
+          <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: "0.95rem", lineHeight: 1.6 }}>
             Capabilities planned for the Synthesis rubric: amortized workflow, Bayes factor workflow, and hierarchical modeling. Stay tuned!
           </Typography>
         </>

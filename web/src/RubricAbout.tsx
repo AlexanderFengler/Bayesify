@@ -3,7 +3,7 @@ import { Link as RouterLink } from "react-router-dom";
 import type { Rubric } from "./rubric";
 
 // The rubric blurb shown under the landing-page picker and atop the report. It no longer spells out
-// the full step outline — that lives on the dedicated /rubrics page now — it gives the one-line
+// the full step outline — that lives in the main page's rubrics section now — it gives the one-line
 // description and links there. `showHeader` adds the small-caps section header the report uses.
 export function RubricAbout({ rubric, showHeader = false }: { rubric: Rubric; showHeader?: boolean }) {
   return (
@@ -21,7 +21,7 @@ export function RubricAbout({ rubric, showHeader = false }: { rubric: Rubric; sh
       </Typography>
       <Link
         component={RouterLink}
-        to="/rubrics"
+        to="/#rubrics"
         variant="body2"
         underline="hover"
         sx={{ mt: 1, display: "inline-block", fontWeight: 600 }}

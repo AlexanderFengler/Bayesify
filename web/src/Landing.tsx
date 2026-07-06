@@ -3,6 +3,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import {
   Box,
   Button,
+  Container,
   Divider,
   Link,
   MenuItem,
@@ -16,12 +17,14 @@ import { alpha } from "@mui/material/styles";
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import type { RubricSummary } from "./api";
-import { HeroShell } from "./HeroShell";
+import { GoldText } from "./GoldText";
+import { Guide, ReviewerTokenField } from "./Guide";
+import { Rubrics } from "./Rubrics";
 
-// The immersive landing page (first screen of the MUI migration). A bold accent hero band fills the
-// viewport: brand + headline + blurb on the left, the upload panel on a light surface on the right.
-// Collapses to a single stacked column on phones. This screen is fully MUI — it does NOT use the
-// legacy .page/.container chrome; App renders it directly for the idle/landing state.
+// The main page — the first (and only) landing screen. A bold hero band fills the initial viewport:
+// headline + blurb on the left, the upload panel on the right; scrolling continues into the
+// "How it works" and "Rubrics" sections (anchored #how-it-works / #rubrics for the footer nav), so
+// the whole pitch reads as one page. Collapses to a single stacked column on phones.
 //
 // Layout uses Box + sx flex rather than MUI <Stack> (Stack's overloaded typing is broken under
 // @mui/material v9 + @types/react 18); flex `gap` uses the same theme spacing units Stack would.
@@ -46,57 +49,135 @@ export function Landing(p: LandingProps) {
   const rubricOptions = p.rubrics.length ? p.rubrics : [{ id: p.profile, label: p.profile }];
 
   return (
-    <HeroShell maxWidth="xl">
-      {/* two columns: pitch | upload panel */}
+    <Box>
+      {/* hero — fills the full height between the pinned header and footer (100cqh: the scroll area
+          in Layout is a size query container), so the how-it-works and rubrics sections wait exactly
+          below the fold. The dvh calc is a fallback for browsers without container-query units. */}
       <Box
         sx={{
+          minHeight: "calc(100dvh - 220px)",
+          "@supports (min-height: 100cqh)": { minHeight: "100cqh" },
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          gap: { xs: 4, md: 10 },
-          alignItems: { xs: "stretch", md: "center" },
+          flexDirection: "column",
+          justifyContent: "center",
         }}
       >
-        <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
-          {/* the title sets the column width; the subcaption (width:0; min-width:100%) fills that
-              same width without widening it, so the two blocks share an exact right edge */}
-          <Box sx={{ width: "fit-content", maxWidth: "100%" }}>
-            <Typography
-              variant="h2"
-              sx={{
-                fontWeight: 700,
-                lineHeight: 1.1,
-                letterSpacing: "-0.02em",
-                fontSize: { xs: "2rem", sm: "2.75rem", md: "3.25rem" },
-              }}
-            >
-              {/* always three lines */}
-              Put your
-              <br />
-              Bayesian workflow
-              <br />
-              to the test.
-            </Typography>
-            <Typography
-              sx={{
-                mt: 3,
-                fontSize: { xs: "1rem", md: "1.2rem" },
-                color: "text.secondary",
-                width: 0,
-                minWidth: "100%",
-              }}
-            >
-              Drop a PDF or paste an identifier. You will get a per-step report with a coverage and
-              a quality score. Every finding is grounded in the paper and in the methodological
-              literature.
-            </Typography>
-          </Box>
-        </Box>
+        <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
+          {/* two columns: pitch | upload panel */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              gap: { xs: 4, md: 10 },
+              alignItems: { xs: "stretch", md: "center" },
+            }}
+          >
+            {/* pitch column — title and caption span the whole column, so both share the exact
+                width of the upload panel across the gap */}
+            <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
+              <Typography
+                variant="h2"
+                sx={{
+                  fontWeight: 700,
+                  lineHeight: 1.08,
+                  letterSpacing: "-0.02em",
+                  fontSize: { xs: "2rem", sm: "2.75rem", md: "3.5rem" },
+                }}
+              >
+                {/* always three lines */}
+                Put your
+                <br />
+                Bayesian workflow
+                <br />
+                to the test.
+              </Typography>
+              <Typography
+                sx={{
+                  mt: 3,
+                  fontSize: { xs: "1rem", md: "1.2rem" },
+                  lineHeight: 1.6,
+                  color: "text.secondary",
+                }}
+              >
+                Bayesify is a multi-stage agentic framework for evaluating the integrity of
+                Bayesian workflows. Backed by curated rubrics from the methodological
+                literature, it grades your paper step by step and helps you bring your workflow
+                to the{" "}
+                <GoldText>
+                  <strong>gold standard</strong>
+                </GoldText>
+                .
+              </Typography>
+            </Box>
 
-        <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
-          <UploadPanel {...p} canStart={canStart} rubricOptions={rubricOptions} />
-        </Box>
+            <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
+              <UploadPanel {...p} canStart={canStart} rubricOptions={rubricOptions} />
+            </Box>
+          </Box>
+        </Container>
       </Box>
-    </HeroShell>
+
+      {/* the former standalone pages, folded in as scrollable sections of the main page */}
+      <Divider />
+      <Guide id="how-it-works" />
+      <Divider />
+      <Rubrics id="rubrics" />
+
+      {/* reviewer plumbing lives at the very bottom of the page, out of the pitch's way */}
+      <Divider />
+      <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
+        <ReviewerTokenField />
+      </Container>
+    </Box>
+  );
+}
+
+// The rolling neon ring on the upload panel: a luminous arc with two fading endpoints that slowly
+// travels around the panel's border. Built as a masked overlay — the mask (content-box XOR full box)
+// keeps only a 2px frame visible, and inside it an oversized conic-gradient square rotates, so the
+// arc appears to run along the edge. Sits over the faint static border; pointer-events off.
+function BorderBeam() {
+  return (
+    <Box
+      aria-hidden
+      sx={(t) => ({
+        position: "absolute",
+        inset: -1, // cover the panel's own 1px hairline so the beam rides exactly on the edge
+        borderRadius: "inherit",
+        p: "2px", // beam thickness
+        pointerEvents: "none",
+        overflow: "hidden",
+        // show only the padding frame: full box minus the content box
+        WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+        mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+        WebkitMaskComposite: "xor",
+        maskComposite: "exclude",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          // an oversized square centred on the panel, so its conic gradient reaches every corner
+          // at any rotation angle
+          width: "250%",
+          aspectRatio: "1 / 1",
+          transform: "translate(-50%, -50%) rotate(0deg)",
+          // the comet: a ~110° arc that fades in from both endpoints to a hot fuchsia core, so the
+          // neon reads against light and dark auroras alike
+          background: `conic-gradient(from 0deg,
+            transparent 0deg 250deg,
+            ${alpha(t.palette.primary.main, 0.9)} 290deg,
+            #e879f9 305deg,
+            ${alpha(t.palette.primary.main, 0.9)} 320deg,
+            transparent 360deg)`,
+          animation: "beamRoll 8s linear infinite",
+        },
+        "@keyframes beamRoll": {
+          to: { transform: "translate(-50%, -50%) rotate(360deg)" },
+        },
+        "@media (prefers-reduced-motion: reduce)": { "&::before": { animation: "none" } },
+      })}
+    />
   );
 }
 
@@ -113,16 +194,19 @@ function UploadPanel(
   return (
     <Paper
       elevation={0}
-      // Highlighted like the rubric cards on hover: a primary-tinted border and glow, so the panel
-      // stands out from the aurora in dark mode (the old flat dark drop-shadow vanished against it).
+      // The panel's neon edge is alive: a faint primary hairline as the base ring, with a bright
+      // comet (the BorderBeam below) slowly rolling around it. The soft glow stays, dialled down so
+      // the moving beam reads as the light source.
       sx={{
+        position: "relative",
         p: { xs: 2.5, md: 3 },
         borderRadius: 3,
         border: "1px solid",
-        borderColor: "primary.main",
-        boxShadow: (t) => `0 14px 36px ${alpha(t.palette.primary.main, 0.22)}`,
+        borderColor: (t) => alpha(t.palette.primary.main, 0.35),
+        boxShadow: (t) => `0 14px 36px ${alpha(t.palette.primary.main, 0.14)}`,
       }}
     >
+      <BorderBeam />
       {/* dropzone */}
       <Box
         onClick={() => p.fileInput.current?.click()}
@@ -216,7 +300,7 @@ function UploadPanel(
       </TextField>
       <Link
         component={RouterLink}
-        to="/rubrics"
+        to="/#rubrics"
         variant="body2"
         underline="hover"
         sx={{ display: "inline-block", mt: 1, fontWeight: 600 }}

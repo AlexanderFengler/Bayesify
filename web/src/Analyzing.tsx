@@ -1,10 +1,22 @@
 import CheckIcon from "@mui/icons-material/Check";
-import { Box, CircularProgress, Typography, useMediaQuery, useTheme } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import { Box, Button, CircularProgress, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { Fragment, useEffect, useState } from "react";
 import { HeroShell } from "./HeroShell";
+import { MathText } from "./MathText";
 
-type StepState = "pending" | "running" | "done";
+type StepState = "pending" | "running" | "done" | "failed";
 const CIRCLE = 52; // px — node diameter; connectors align to its centre (CIRCLE / 2)
+
+// The gate stop, rendered on this page when the engine decides the paper is out of scope: which
+// verdict it was (relevance gate vs paper-type), the engine's reasons, and the two ways out.
+export interface GateFailure {
+  isReview: boolean; // true → the paper-type gate (a review/opinion piece); false → the relevance gate
+  rationale: string;
+  confidence: number;
+  onRerun: () => void; // the escape hatch: override the gate and grade anyway
+  onReset: () => void; // start over with another paper
+}
 
 // The rotating "working…" words for the title, typed out one at a time (à la a CLI status line).
 const WORKING_WORDS = [
@@ -54,18 +66,22 @@ function useTypewriter(words: string[], { typeMs = 85, deleteMs = 40, holdMs = 1
 
 // The immersive "Analyzing" page: same bold hero as the landing (no card), with a connected
 // flow-chart stepper instead of loose dots. Each step is a circle — hollow when pending, a spinning
-// ring while running, a filled checkmark once done — joined by connectors that fill in as the run
-// advances. Horizontal on desktop, vertical on phones.
+// ring while running, a filled checkmark once done, a red cross when the run stopped there — joined
+// by connectors that fill in as the run advances. Horizontal on desktop, vertical on phones.
+// When `gate` is set the run ended at a gate: the typewriter gives way to a static verdict and the
+// engine's reasons (plus the override / start-over actions) render beneath the flow.
 export function Analyzing({
   stageState,
   stages,
   source,
   byline,
+  gate,
 }: {
-  stageState: Record<string, "running" | "done">;
+  stageState: Record<string, "running" | "done" | "failed">;
   stages: readonly string[];
   source?: string;
   byline?: string | null;
+  gate?: GateFailure | null;
 }) {
   const typed = useTypewriter(WORKING_WORDS);
   return (
@@ -76,20 +92,26 @@ export function Analyzing({
           variant="h3"
           sx={{ fontWeight: 700, letterSpacing: "-0.02em", fontSize: { xs: "1.75rem", md: "2.25rem" }, minHeight: "1.3em" }}
         >
-          {typed}
-          <Box
-            component="span"
-            aria-hidden
-            sx={{
-              display: "inline-block",
-              ml: "2px",
-              fontWeight: 400,
-              animation: "caretBlink 1s steps(1) infinite",
-              "@keyframes caretBlink": { "0%,50%": { opacity: 1 }, "50.01%,100%": { opacity: 0 } },
-            }}
-          >
-            ▌
-          </Box>
+          {gate ? (
+            "Out of scope."
+          ) : (
+            <>
+              {typed}
+              <Box
+                component="span"
+                aria-hidden
+                sx={{
+                  display: "inline-block",
+                  ml: "2px",
+                  fontWeight: 400,
+                  animation: "caretBlink 1s steps(1) infinite",
+                  "@keyframes caretBlink": { "0%,50%": { opacity: 1 }, "50.01%,100%": { opacity: 0 } },
+                }}
+              >
+                ▌
+              </Box>
+            </>
+          )}
         </Typography>
         {source && (
           <Typography sx={{ mt: 1, color: "text.secondary", wordBreak: "break-word" }}>
@@ -104,8 +126,51 @@ export function Analyzing({
         <Box sx={{ mt: { xs: 5, md: 7 } }}>
           <StepFlow stages={stages} stageState={stageState} />
         </Box>
+        {gate && <GatePanel gate={gate} />}
       </Box>
     </HeroShell>
+  );
+}
+
+// Why the run stopped: the gate's verdict and rationale, plus the two ways out — override the gate
+// and grade anyway, or start over with another paper.
+function GatePanel({ gate }: { gate: GateFailure }) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <Box sx={{ mt: { xs: 5, md: 6 }, pl: 2.5, borderLeft: "4px solid", borderColor: "error.main" }}>
+      <Typography variant="h6" sx={{ fontWeight: 700 }}>
+        {gate.isReview ? "The per-step rubric doesn’t apply here" : "This doesn’t appear to be a Bayesian application"}
+      </Typography>
+      <Typography variant="body2" sx={{ mt: 0.75, color: "text.secondary" }}>
+        {gate.isReview
+          ? "This reads as a review / opinion / perspective piece about the Bayesian workflow rather than one applying it to data, so nothing was graded."
+          : "The relevance gate found no Bayesian statistical methodology to assess, so nothing was graded."}
+      </Typography>
+      <Box sx={{ mt: 2 }}>
+        <Typography variant="overline" color="text.secondary">
+          Why · {Math.round(gate.confidence * 100)}% confidence
+        </Typography>
+        <Typography variant="body2">
+          <MathText>{gate.rationale}</MathText>
+        </Typography>
+      </Box>
+      <Box sx={{ mt: 2.5, display: "flex", gap: 1.5, flexWrap: "wrap" }}>
+        <Button
+          variant="contained"
+          disableElevation
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            gate.onRerun();
+          }}
+        >
+          {busy ? "Re-running…" : "Run full assessment anyway"}
+        </Button>
+        <Button variant="outlined" onClick={gate.onReset}>
+          Analyze another
+        </Button>
+      </Box>
+    </Box>
   );
 }
 
@@ -114,7 +179,7 @@ function StepFlow({
   stageState,
 }: {
   stages: readonly string[];
-  stageState: Record<string, "running" | "done">;
+  stageState: Record<string, "running" | "done" | "failed">;
 }) {
   const theme = useTheme();
   const horizontal = useMediaQuery(theme.breakpoints.up("sm"));
@@ -178,7 +243,7 @@ function StepNode({ state, label, horizontal }: { state: StepState; label: strin
           fontSize: "0.875rem",
           fontWeight: state === "pending" ? 400 : 600,
           textTransform: "capitalize",
-          color: state === "pending" ? "text.disabled" : "text.primary",
+          color: state === "pending" ? "text.disabled" : state === "failed" ? "error.main" : "text.primary",
           textAlign: "center",
         }}
       >
@@ -205,6 +270,14 @@ function NodeCircle({ state }: { state: StepState }) {
     return (
       <Box sx={{ ...base, bgcolor: "primary.main", color: "primary.contrastText" }}>
         <CheckIcon sx={{ fontSize: 28 }} />
+      </Box>
+    );
+  }
+  // the run stopped at this step (a gate said no) — a filled red circle with a cross
+  if (state === "failed") {
+    return (
+      <Box sx={{ ...base, bgcolor: "error.main", color: "error.contrastText" }}>
+        <CloseIcon sx={{ fontSize: 28 }} />
       </Box>
     );
   }
