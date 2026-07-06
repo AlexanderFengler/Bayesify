@@ -2,19 +2,16 @@ import { Alert, AlertTitle, Box, Button, CircularProgress, Container, Typography
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { getPaper } from "./api";
-import { Analyzing } from "./Analyzing";
+import { Analyzing, type GateFailure } from "./Analyzing";
 import { Archive } from "./Archive";
 import { useApp } from "./AppContext";
 import { Calibration } from "./Calibration";
-import { Cover } from "./Cover";
-import { Guide } from "./Guide";
 import { Inventory, LocalNotice } from "./Inventory";
 import { Landing } from "./Landing";
 import { Layout } from "./Layout";
 import { formatByline } from "./paper";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
-import { Rubrics } from "./Rubrics";
 import { SupportedBy } from "./SupportedBy";
 import { LOCAL_STAGES, type PaperState, STAGES } from "./types";
 
@@ -27,28 +24,25 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<CoverRoute />} />
-          <Route path="/start" element={<LandingRoute />} />
+          <Route path="/" element={<LandingRoute />} />
+          {/* the old standalone pages fold into the main page now — keep the URLs alive as redirects
+              (bookmarks, shared links): /start → the main page, /guide + /rubrics → their sections */}
+          <Route path="/start" element={<Navigate to="/" replace />} />
+          <Route path="/guide" element={<Navigate to="/#how-it-works" replace />} />
+          <Route path="/rubrics" element={<Navigate to="/#rubrics" replace />} />
           <Route path="/processing" element={<ProcessingRoute />} />
           {/* splat captures the optional /full segment; one route element so the component persists
               across the summary↔full morph */}
           <Route path="/paper/:id/*" element={<PaperRoute />} />
           <Route path="/rate/:id" element={<RateRoute />} />
           <Route path="/calibration" element={<CalibrationRoute />} />
-          <Route path="/rubrics" element={<RubricsRoute />} />
           <Route path="/archive" element={<ArchiveRoute />} />
-          <Route path="/guide" element={<GuideRoute />} />
           <Route path="/supported" element={<SupportedByRoute />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>
   );
-}
-
-function CoverRoute() {
-  const navigate = useNavigate();
-  return <Cover onGetStarted={() => navigate("/start")} />;
 }
 
 function LandingRoute() {
@@ -72,16 +66,12 @@ function LandingRoute() {
   );
 }
 
-function RubricsRoute() {
-  return <Rubrics />;
-}
-
 function ArchiveRoute() {
   return <Archive />;
 }
 
 function ProcessingRoute() {
-  const { running, error, stageState, file, identifier, mode, reset, paper } = useApp();
+  const { running, error, stageState, file, identifier, mode, reset, paper, rerunPaper } = useApp();
   const navigate = useNavigate();
   if (error) return <ErrorPage error={error} onRetry={reset} />;
   // A direct hit / refresh on /processing has no run in flight. We show an idle panel rather than
@@ -93,7 +83,7 @@ function ProcessingRoute() {
         <Typography color="text.secondary" sx={{ mb: 2 }}>
           No analysis is in progress.
         </Typography>
-        <Button variant="contained" disableElevation onClick={() => navigate("/start")}>
+        <Button variant="contained" disableElevation onClick={() => navigate("/")}>
           Start an analysis
         </Button>
       </Container>
@@ -110,7 +100,28 @@ function ProcessingRoute() {
   // filename; until then fall back to the filename / pasted identifier.
   const source = paper?.paper_title ?? file?.name ?? identifier;
   const byline = paper ? formatByline(paper.paper_authors, paper.paper_year) : null;
-  return <Analyzing stageState={stageState} stages={stages} source={source} byline={byline} />;
+  // The gate stop: when the run finished but the paper was judged out of scope (not Bayesian, or the
+  // rubric doesn't apply to its type), the flow stays here — the deciding step is shown as a red
+  // cross and the reasons render below (Layout marked that stage "failed" and did not navigate away).
+  const r = paper?.result;
+  const gate: GateFailure | null =
+    r && !r.relevance.overridden && (r.relevance.label === "no" || r.not_applicable_reason)
+      ? {
+          isReview: r.not_applicable_reason === "not_an_application",
+          rationale:
+            (r.not_applicable_reason === "not_an_application" && r.paper_class?.rationale) ||
+            r.relevance.rationale,
+          confidence:
+            r.not_applicable_reason === "not_an_application" && r.paper_class
+              ? r.paper_class.confidence
+              : r.relevance.confidence,
+          onRerun: () => rerunPaper(paper!.paper_id),
+          onReset: reset,
+        }
+      : null;
+  return (
+    <Analyzing stageState={stageState} stages={stages} source={source} byline={byline} gate={gate} />
+  );
 }
 
 // Dispatches a paper by payload (report / inventory / local notice / failed). Uses the in-memory
@@ -157,20 +168,16 @@ function RateRoute() {
   const { id } = useParams();
   const { ratingPending } = useApp();
   const navigate = useNavigate();
-  if (!id) return <Navigate to="/start" replace />;
-  // Cancelling or finishing a blind rating returns to the start page (a fresh analysis), not back
+  if (!id) return <Navigate to="/" replace />;
+  // Cancelling or finishing a blind rating returns to the main page (a fresh analysis), not back
   // into the rating's origin. `pending` holds the page in its loading state while the background
   // detector run (which feeds the rating context) finishes — so the rate flow skips /processing.
-  return <Rate paperId={id} pending={ratingPending === id} onExit={() => navigate("/start")} />;
+  return <Rate paperId={id} pending={ratingPending === id} onExit={() => navigate("/")} />;
 }
 
 function CalibrationRoute() {
   const { exitToMain } = useApp();
   return <Calibration onExit={exitToMain} />;
-}
-
-function GuideRoute() {
-  return <Guide />;
 }
 
 function SupportedByRoute() {

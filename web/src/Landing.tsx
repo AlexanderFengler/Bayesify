@@ -3,6 +3,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import {
   Box,
   Button,
+  Container,
   Divider,
   Link,
   MenuItem,
@@ -16,12 +17,14 @@ import { alpha } from "@mui/material/styles";
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import type { RubricSummary } from "./api";
-import { HeroShell } from "./HeroShell";
+import { GoldText } from "./GoldText";
+import { Guide, ReviewerTokenField } from "./Guide";
+import { Rubrics } from "./Rubrics";
 
-// The immersive landing page (first screen of the MUI migration). A bold accent hero band fills the
-// viewport: brand + headline + blurb on the left, the upload panel on a light surface on the right.
-// Collapses to a single stacked column on phones. This screen is fully MUI — it does NOT use the
-// legacy .page/.container chrome; App renders it directly for the idle/landing state.
+// The main page — the first (and only) landing screen. A bold hero band fills the initial viewport:
+// headline + blurb on the left, the upload panel on the right; scrolling continues into the
+// "How it works" and "Rubrics" sections (anchored #how-it-works / #rubrics for the footer nav), so
+// the whole pitch reads as one page. Collapses to a single stacked column on phones.
 //
 // Layout uses Box + sx flex rather than MUI <Stack> (Stack's overloaded typing is broken under
 // @mui/material v9 + @types/react 18); flex `gap` uses the same theme spacing units Stack would.
@@ -46,57 +49,86 @@ export function Landing(p: LandingProps) {
   const rubricOptions = p.rubrics.length ? p.rubrics : [{ id: p.profile, label: p.profile }];
 
   return (
-    <HeroShell maxWidth="xl">
-      {/* two columns: pitch | upload panel */}
+    <Box>
+      {/* hero — fills the full height between the pinned header and footer (100cqh: the scroll area
+          in Layout is a size query container), so the how-it-works and rubrics sections wait exactly
+          below the fold. The dvh calc is a fallback for browsers without container-query units. */}
       <Box
         sx={{
+          minHeight: "calc(100dvh - 220px)",
+          "@supports (min-height: 100cqh)": { minHeight: "100cqh" },
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          gap: { xs: 4, md: 10 },
-          alignItems: { xs: "stretch", md: "center" },
+          flexDirection: "column",
+          justifyContent: "center",
         }}
       >
-        <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
-          {/* the title sets the column width; the subcaption (width:0; min-width:100%) fills that
-              same width without widening it, so the two blocks share an exact right edge */}
-          <Box sx={{ width: "fit-content", maxWidth: "100%" }}>
-            <Typography
-              variant="h2"
-              sx={{
-                fontWeight: 700,
-                lineHeight: 1.1,
-                letterSpacing: "-0.02em",
-                fontSize: { xs: "2rem", sm: "2.75rem", md: "3.25rem" },
-              }}
-            >
-              {/* always three lines */}
-              Put your
-              <br />
-              Bayesian workflow
-              <br />
-              to the test.
-            </Typography>
-            <Typography
-              sx={{
-                mt: 3,
-                fontSize: { xs: "1rem", md: "1.2rem" },
-                color: "text.secondary",
-                width: 0,
-                minWidth: "100%",
-              }}
-            >
-              Drop a PDF or paste an identifier. You will get a per-step report with a coverage and
-              a quality score. Every finding is grounded in the paper and in the methodological
-              literature.
-            </Typography>
-          </Box>
-        </Box>
+        <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
+          {/* two columns: pitch | upload panel */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              gap: { xs: 4, md: 10 },
+              alignItems: { xs: "stretch", md: "center" },
+            }}
+          >
+            {/* pitch column — title and caption span the whole column, so both share the exact
+                width of the upload panel across the gap */}
+            <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
+              <Typography
+                variant="h2"
+                sx={{
+                  fontWeight: 700,
+                  lineHeight: 1.08,
+                  letterSpacing: "-0.02em",
+                  fontSize: { xs: "2rem", sm: "2.75rem", md: "3.5rem" },
+                }}
+              >
+                {/* always three lines */}
+                Put your
+                <br />
+                Bayesian workflow
+                <br />
+                to the test.
+              </Typography>
+              <Typography
+                sx={{
+                  mt: 3,
+                  fontSize: { xs: "1rem", md: "1.2rem" },
+                  lineHeight: 1.6,
+                  color: "text.secondary",
+                }}
+              >
+                Bayesify is a multi-stage generative-AI framework for evaluating the integrity of
+                Bayesian workflows. Backed by expert-curated rubrics and the methodological
+                literature, it grades your paper step by step — and helps you bring your workflow
+                to the{" "}
+                <GoldText>
+                  <strong>gold standard</strong>
+                </GoldText>
+                .
+              </Typography>
+            </Box>
 
-        <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
-          <UploadPanel {...p} canStart={canStart} rubricOptions={rubricOptions} />
-        </Box>
+            <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
+              <UploadPanel {...p} canStart={canStart} rubricOptions={rubricOptions} />
+            </Box>
+          </Box>
+        </Container>
       </Box>
-    </HeroShell>
+
+      {/* the former standalone pages, folded in as scrollable sections of the main page */}
+      <Divider />
+      <Guide id="how-it-works" />
+      <Divider />
+      <Rubrics id="rubrics" />
+
+      {/* reviewer plumbing lives at the very bottom of the page, out of the pitch's way */}
+      <Divider />
+      <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
+        <ReviewerTokenField />
+      </Container>
+    </Box>
   );
 }
 
@@ -216,7 +248,7 @@ function UploadPanel(
       </TextField>
       <Link
         component={RouterLink}
-        to="/rubrics"
+        to="/#rubrics"
         variant="body2"
         underline="hover"
         sx={{ display: "inline-block", mt: 1, fontWeight: 600 }}

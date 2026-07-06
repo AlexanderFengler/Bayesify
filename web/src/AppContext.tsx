@@ -24,7 +24,7 @@ export interface AppState {
   // the in-flight run (drives the /processing page)
   running: boolean;
   ratingPending: string | null; // paper id whose rating-feeding run is still in flight (or null)
-  stageState: Record<string, "running" | "done">;
+  stageState: Record<string, "running" | "done" | "failed">;
   paper: PaperState | null;
   setPaper: (p: PaperState | null) => void;
   error: string | null;
@@ -33,7 +33,7 @@ export interface AppState {
   start: (intent?: "analyze" | "rate") => void;
   rerunPaper: (paperId: string) => void;
   reset: () => void;
-  exitToMain: () => void; // return to the last cover/start/report page (reference-page Back)
+  exitToMain: () => void; // return to the last main/report page (reference-page Back)
 }
 
 export const AppContext = createContext<AppState | null>(null);
