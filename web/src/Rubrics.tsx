@@ -111,7 +111,7 @@ export function Rubrics({ id }: { id?: string }) {
         lead={
           <>
             Bayesify grades against one of three rubrics. Each decomposes the Bayesian workflow into
-            named steps. While the workflow is iterative, Bayesify&rsquo;s step-by-step decomposition
+            distinct steps. While some workflows are iterative, Bayesify&rsquo;s step-by-step decomposition
             represents the linearized sequence for one cycle. Pick the one whose lens fits your paper.
           </>
         }
@@ -150,7 +150,7 @@ export function Rubrics({ id }: { id?: string }) {
           <SubsectionTitle>How they differ</SubsectionTitle>
           {/* subsection captions run full width on the 0.95rem caption tier (matching the guide's) */}
           <Typography color="text.secondary" sx={{ mt: 0.75, mb: 3, fontSize: "0.95rem", lineHeight: 1.6 }}>
-            Which workflow capabilities each rubric has a dedicated step for.
+            Each rubric encompasses slightly different steps.
           </Typography>
           <ComparisonTable columns={rubrics.map((r) => r.rubric_profile)} rows={CURRENT_FEATURES} />
 

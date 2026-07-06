@@ -11,7 +11,7 @@ type Org = {
 };
 
 const ORGS: Org[] = [
-  { name: "BayesOps", logoDark: "/bayesops-dark.svg", logoLight: "/bayesops-light.svg", url: "https://www.bayesops.com" },
+  { name: "BayesOps", logoDark: "/bayesops-dark.svg", logoLight: "/bayesops-light.svg", url: "https://bayesops.com" },
   {
     name: "Laboratory of Neural Computation and Cognition",
     logoDark: "/lncc-dark.png",

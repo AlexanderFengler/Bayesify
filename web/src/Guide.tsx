@@ -49,7 +49,7 @@ const GET_RATED_STEPS: FlowStep[] = [
     head: "Edge cases",
     body: (
       <>
-        If the paper isn&rsquo;t about Bayesian methodology, the rubric doesn&rsquo;t directly apply 
+        If the paper isn&rsquo;t about Bayesian methodology, the rubric doesn&rsquo;t apply 
         and nothing is graded.
       </>
     ),
@@ -79,7 +79,7 @@ const RATE_BLIND_STEPS: FlowStep[] = [
     body: (
       <>
         Mark whether it applies, its status, your confidence, a
-        one-line rationale, and the relevant quotes.
+        short rationale, and the relevant quotes.
       </>
     ),
   },
@@ -117,10 +117,10 @@ export function Guide({ id }: { id?: string }) {
         lead={
           <>
             Bayesify checks how well a paper follows the <strong>Bayesian workflow</strong> (e.g.,
-            model specification, priors, predictive checks, convergence diagnostics) against a rubric 
-            of community best practices, with every finding grounded in the paper and the rubric. 
+            model specification, priors, predictive checks, convergence diagnostics, reporting) against a rubric 
+            of community best practices, with every finding grounded in the paper and judged against the rubric. 
             Scores are <strong>formative, not a verdict</strong>.
-            There are two ways to use it.
+            There are two ways to use the tool.
           </>
         }
       />
@@ -256,27 +256,48 @@ function FlowStepper({ steps }: { steps: FlowStep[] }) {
 // (to the database), which is what makes the Archive browsable. Absorbs the plain-spoken data-path
 // wording from the old privacy dialog: what leaves the machine, and the two caveats worth knowing.
 function PrivacySection() {
+  const itemSx = {
+    position: "relative",
+    pl: 2.75,
+    color: "text.secondary",
+    fontSize: "0.95rem",
+    lineHeight: 1.6,
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      left: 0,
+      top: "0.78em",
+      width: 7,
+      height: 7,
+      borderRadius: "50%",
+      bgcolor: "primary.main",
+      opacity: 0.8,
+      transform: "translateY(-50%)",
+    },
+  };
+
   return (
     <Box sx={{ mt: { xs: 5, md: 8 } }}>
       <SubsectionTitle>Privacy &amp; data handling</SubsectionTitle>
-      {/* full-width paragraphs on the caption tier (0.95rem), like every other subsection body */}
-      <Typography color="text.secondary" sx={{ mt: 1.25, fontSize: "0.95rem", lineHeight: 1.6 }}>
-        <strong>Your paper is not saved.</strong> To make its per-step judgments, Bayesify sends the{" "}
-        <strong>extracted text</strong> of your document to the configured LLM provider — nothing else
-        leaves the machine: not the PDF file, not your identity. The uploaded file is used only to run
-        the analysis and is then discarded.
-      </Typography>
-      <Typography color="text.secondary" sx={{ mt: 1.5, fontSize: "0.95rem", lineHeight: 1.6 }}>
-        <strong>Only the report is stored.</strong> The graded assessment is saved to the database so
-        you can reopen it and browse it in the <strong>Archive</strong>. The source manuscript itself
-        is never kept.
-      </Typography>
-      <Typography color="text.secondary" sx={{ mt: 1.5, fontSize: "0.95rem", lineHeight: 1.6 }}>
-        If a manuscript is confidential or embargoed, treat this as &ldquo;this text will be sent to a
-        third-party API for processing&rdquo; and decide accordingly. Submitting an identifier
-        (arXiv/DOI/OpenAlex/URL) instead of a file fetches its open-access PDF — which reveals to that
-        provider which paper you&rsquo;re looking up.
-      </Typography>
+      <Box component="ul" sx={{ display: "grid", gap: 1.5, m: 0, mt: 1.5, p: 0, listStyle: "none" }}>
+        <Box component="li" sx={itemSx}>
+          <strong>Your paper is not saved.</strong> To make its per-step judgments, Bayesify sends the{" "}
+          <strong>extracted text</strong> of your document to the configured LLM provider. Nothing else
+          leaves the machine: not the PDF file, not your identity. The uploaded file is used only to
+          run the analysis and is then discarded.
+        </Box>
+        <Box component="li" sx={itemSx}>
+          <strong>Only the report is stored.</strong> The graded assessment is saved to the database so
+          you can reopen it and browse it in the <strong>Archive</strong>. The source manuscript itself
+          is never kept.
+        </Box>
+        <Box component="li" sx={itemSx}>
+          <strong>Confidential or embargoed manuscripts need care.</strong> Treat this as &ldquo;this
+          text will be sent to a third-party API for processing&rdquo; and decide accordingly.
+          Submitting an identifier (arXiv/DOI/OpenAlex/URL) instead of a file fetches its open-access
+          PDF, which reveals to that provider which paper you&rsquo;re looking up.
+        </Box>
+      </Box>
     </Box>
   );
 }
