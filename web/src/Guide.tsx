@@ -190,13 +190,17 @@ function FlowStepper({ steps }: { steps: FlowStep[] }) {
     "&.Mui-active": { fontWeight: 700 },
   };
   const bodySx = { fontSize: "0.9rem", lineHeight: 1.6 };
+  // The node circle fills its SVG viewport edge-to-edge, so on fractional display scaling (common
+  // on Linux/Firefox) the bottom row of pixels can get shaved. 1px padding + visible overflow keeps
+  // the full circle visible on any renderer; the box stays 32px so the connector maths hold.
+  const iconSx = { fontSize: 32, p: "1px", boxSizing: "border-box", overflow: "visible" };
 
   if (!horizontal) {
     return (
       <Stepper
         orientation="vertical"
         sx={{
-          "& .MuiStepIcon-root": { fontSize: 32 },
+          "& .MuiStepIcon-root": iconSx,
           "& .MuiStepLabel-label": labelSx,
           // the vertical rail and the content's guide line re-centre under the 32px node (16px)
           "& .MuiStepConnector-root": { ml: "16px" },
@@ -224,7 +228,7 @@ function FlowStepper({ steps }: { steps: FlowStep[] }) {
         alignItems: "flex-start",
         // left-align each step: node at the step's left edge, label and body text under it
         "& .MuiStep-root": { px: 0, pr: 3 },
-        "& .MuiStepIcon-root": { fontSize: 32 },
+        "& .MuiStepIcon-root": iconSx,
         "& .MuiStepLabel-root": { alignItems: "flex-start" },
         "& .MuiStepLabel-label": {
           ...labelSx,

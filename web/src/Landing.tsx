@@ -132,6 +132,55 @@ export function Landing(p: LandingProps) {
   );
 }
 
+// The rolling neon ring on the upload panel: a luminous arc with two fading endpoints that slowly
+// travels around the panel's border. Built as a masked overlay — the mask (content-box XOR full box)
+// keeps only a 2px frame visible, and inside it an oversized conic-gradient square rotates, so the
+// arc appears to run along the edge. Sits over the faint static border; pointer-events off.
+function BorderBeam() {
+  return (
+    <Box
+      aria-hidden
+      sx={(t) => ({
+        position: "absolute",
+        inset: -1, // cover the panel's own 1px hairline so the beam rides exactly on the edge
+        borderRadius: "inherit",
+        p: "2px", // beam thickness
+        pointerEvents: "none",
+        overflow: "hidden",
+        // show only the padding frame: full box minus the content box
+        WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+        mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+        WebkitMaskComposite: "xor",
+        maskComposite: "exclude",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          // an oversized square centred on the panel, so its conic gradient reaches every corner
+          // at any rotation angle
+          width: "250%",
+          aspectRatio: "1 / 1",
+          transform: "translate(-50%, -50%) rotate(0deg)",
+          // the comet: a ~110° arc that fades in from both endpoints to a hot fuchsia core, so the
+          // neon reads against light and dark auroras alike
+          background: `conic-gradient(from 0deg,
+            transparent 0deg 250deg,
+            ${alpha(t.palette.primary.main, 0.9)} 290deg,
+            #e879f9 305deg,
+            ${alpha(t.palette.primary.main, 0.9)} 320deg,
+            transparent 360deg)`,
+          animation: "beamRoll 8s linear infinite",
+        },
+        "@keyframes beamRoll": {
+          to: { transform: "translate(-50%, -50%) rotate(360deg)" },
+        },
+        "@media (prefers-reduced-motion: reduce)": { "&::before": { animation: "none" } },
+      })}
+    />
+  );
+}
+
 // The upload surface: the dropzone, the identifier fallback, the rubric picker, the mode toggle, and
 // the two actions.
 function UploadPanel(
@@ -145,16 +194,19 @@ function UploadPanel(
   return (
     <Paper
       elevation={0}
-      // Highlighted like the rubric cards on hover: a primary-tinted border and glow, so the panel
-      // stands out from the aurora in dark mode (the old flat dark drop-shadow vanished against it).
+      // The panel's neon edge is alive: a faint primary hairline as the base ring, with a bright
+      // comet (the BorderBeam below) slowly rolling around it. The soft glow stays, dialled down so
+      // the moving beam reads as the light source.
       sx={{
+        position: "relative",
         p: { xs: 2.5, md: 3 },
         borderRadius: 3,
         border: "1px solid",
-        borderColor: "primary.main",
-        boxShadow: (t) => `0 14px 36px ${alpha(t.palette.primary.main, 0.22)}`,
+        borderColor: (t) => alpha(t.palette.primary.main, 0.35),
+        boxShadow: (t) => `0 14px 36px ${alpha(t.palette.primary.main, 0.14)}`,
       }}
     >
+      <BorderBeam />
       {/* dropzone */}
       <Box
         onClick={() => p.fileInput.current?.click()}

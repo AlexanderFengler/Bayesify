@@ -16,6 +16,7 @@ const ORGS: Org[] = [
     name: "Laboratory of Neural Computation and Cognition",
     logoDark: "/lncc-dark.png",
     logoLight: "/lncc-light.png",
+    url: "https://www.lnccbrown.com/",
   },
 ];
 
