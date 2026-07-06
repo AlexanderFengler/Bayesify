@@ -27,18 +27,8 @@ const GET_RATED_STEPS: FlowStep[] = [
     head: "Add the paper",
     body: (
       <>
-        Drop a PDF, or paste an identifier (arXiv ID, DOI, OpenAlex ID, or URL) and Bayesify fetches
-        the open-access copy.
-      </>
-    ),
-  },
-  {
-    head: "Pick a mode",
-    body: (
-      <>
-        <em>Connected</em> sends the extracted text to the configured LLM provider and returns the
-        graded report; <em>Local</em> runs the on-device detectors with nothing leaving your machine
-        (an evidence inventory, no scores).
+        Drop a PDF, or paste an identifier (arXiv ID, DOI, OpenAlex ID, or URL) and Bayesify 
+        will try to fetch the open-access copy.
       </>
     ),
   },
@@ -46,10 +36,8 @@ const GET_RATED_STEPS: FlowStep[] = [
     head: "Click Analyze",
     body: (
       <>
-        You get a dashboard &mdash; the steps at a glance plus a coverage and a quality score (hover
-        the &#9432; for exactly how each is computed) &mdash; then the <strong>Full report</strong>:
-        per step, what was adequate, concrete suggestions, and the supporting quotes &ldquo;in the
-        paper&rdquo;.
+        The paper goes through our multi-stage pipeline and you get a step-by-step coverage report with 
+        suggestions and adversarial checks.
       </>
     ),
   },
@@ -61,10 +49,8 @@ const GET_RATED_STEPS: FlowStep[] = [
     head: "Edge cases",
     body: (
       <>
-        If the paper isn&rsquo;t a Bayesian application &mdash; e.g. a review or opinion piece &mdash;
-        the rubric doesn&rsquo;t directly apply and nothing is graded; you can still &ldquo;Run full
-        assessment anyway&rdquo;. Disagree with a step? Use <em>Disagree?</em> to record a correction.
-        Download the report as JSON or Markdown anytime.
+        If the paper isn&rsquo;t about Bayesian methodology, the rubric doesn&rsquo;t directly apply 
+        and nothing is graded.
       </>
     ),
   },
@@ -76,8 +62,7 @@ const RATE_BLIND_STEPS: FlowStep[] = [
     head: "Open the blind form",
     body: (
       <>
-        On the landing page click <em>Rate it yourself (blind)</em>, or open a <code>/rate/&hellip;</code>{" "}
-        link you were assigned. The paper is ingested on-device (detectors only, no LLM).
+        As before, upload a paper, select <em>Human Expert</em>, then click <em>Rate it yourself</em>.
       </>
     ),
   },
@@ -85,8 +70,7 @@ const RATE_BLIND_STEPS: FlowStep[] = [
     head: "See the rubric & evidence",
     body: (
       <>
-        The steps to walk and the raw detected spans (where the engine looked) &mdash; never the
-        engine&rsquo;s grades.
+        The steps to grade and the raw detected spans (what our parsers extracted).
       </>
     ),
   },
@@ -94,8 +78,8 @@ const RATE_BLIND_STEPS: FlowStep[] = [
     head: "Judge each step",
     body: (
       <>
-        Mark whether it applies, its status (adequate / partial / missing / N/A), your confidence, a
-        one-line rationale, and cite the relevant quotes.
+        Mark whether it applies, its status, your confidence, a
+        one-line rationale, and the relevant quotes.
       </>
     ),
   },
@@ -103,9 +87,7 @@ const RATE_BLIND_STEPS: FlowStep[] = [
     head: "Submit",
     body: (
       <>
-        Your rating is stored durably. When several experts rate the same paper, their ratings are
-        combined into a consensus that drives the <strong>Calibration</strong> page (engine-vs-expert
-        agreement).
+        Your rating is stored durably and anonymously. Expert ratings will eventually drive the calibration of our engine.
       </>
     ),
   },
@@ -134,10 +116,10 @@ export function Guide({ id }: { id?: string }) {
         title="How it works"
         lead={
           <>
-            Bayesify checks how well a paper follows the <strong>Bayesian workflow</strong> &mdash;
-            model specification, priors, predictive checks, convergence diagnostics, and so on &mdash;
-            against a rubric of community best practices, with every finding grounded in the paper and
-            in the methodological literature. Scores are <strong>formative, not a verdict</strong>.
+            Bayesify checks how well a paper follows the <strong>Bayesian workflow</strong> (e.g.,
+            model specification, priors, predictive checks, convergence diagnostics) against a rubric 
+            of community best practices, with every finding grounded in the paper and the rubric. 
+            Scores are <strong>formative, not a verdict</strong>.
             There are two ways to use it.
           </>
         }
@@ -146,13 +128,13 @@ export function Guide({ id }: { id?: string }) {
       {/* the two flows, stacked, each drawn as a stepper diagram */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 5, md: 8 } }}>
         <FlowSection
-          title="Get your paper rated"
-          lead="For authors and readers: an evidence-linked, per-step report on a paper."
+          title="Analyze a paper using our AI agent"
+          lead=""
           steps={GET_RATED_STEPS}
         />
         <FlowSection
-          title="Rate a paper (blind)"
-          lead="For domain experts: your ratings are the gold standard the engine is measured against. You rate blind (you never see the engine's verdict), so your judgment isn't anchored to it."
+          title="Rate a paper as a human expert"
+          lead=""
           steps={RATE_BLIND_STEPS}
         />
       </Box>

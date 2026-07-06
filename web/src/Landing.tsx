@@ -99,9 +99,9 @@ export function Landing(p: LandingProps) {
                   color: "text.secondary",
                 }}
               >
-                Bayesify is a multi-stage generative-AI framework for evaluating the integrity of
-                Bayesian workflows. Backed by expert-curated rubrics and the methodological
-                literature, it grades your paper step by step — and helps you bring your workflow
+                Bayesify is a multi-stage agentic framework for evaluating the integrity of
+                Bayesian workflows. Backed by curated rubrics from the methodological
+                literature, it grades your paper step by step and helps you bring your workflow
                 to the{" "}
                 <GoldText>
                   <strong>gold standard</strong>
