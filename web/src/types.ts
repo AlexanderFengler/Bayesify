@@ -206,6 +206,9 @@ export interface PaperState {
   paper_title: string | null; // best-effort title from parsing; falls back to source_label for display
   paper_authors: string[]; // best-effort author names (provider or PDF metadata); may be empty
   paper_year: number | null; // best-effort publication year (provider or PDF metadata); may be null
+  // Transient mid-run classification, set once `classify` passes (only for papers that will be fully
+  // graded) so the Analyzing screen can reveal the paper type / methods; null until then / if rejected.
+  paper_class: PaperClass | null;
 
   relevance_override: string | null; // set when the user forced a short-circuited paper to be graded
   result: ScoredResult | null;

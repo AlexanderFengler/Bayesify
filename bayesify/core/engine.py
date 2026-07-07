@@ -22,7 +22,14 @@ from bayesify.core.ingest import ingest_upload
 from bayesify.core.parse import parse
 from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.rubric.models import RubricSpec
-from bayesify.core.schema import Evidence, PaperClassLabel, ParsedDoc, RelevanceLabel, ScoredResult
+from bayesify.core.schema import (
+    Evidence,
+    PaperClass,
+    PaperClassLabel,
+    ParsedDoc,
+    RelevanceLabel,
+    ScoredResult,
+)
 from bayesify.core.score import ScoreMeta, score
 from bayesify.core.stub import cost_ledger
 from bayesify.llm import LLMClient
@@ -44,6 +51,7 @@ def grade_parsed(
     relevance_override: str | None = None,
     force_grade: bool = False,
     on_stage: StageCallback | None = None,
+    on_paper_class: Callable[[PaperClass], None] | None = None,
 ) -> ScoredResult:
     """Grade a parsed+detected document end-to-end: relevance gate → (short-circuit on ``no``) →
     classify → assess → score. The **single grading composition** shared by the validation harness
@@ -52,7 +60,9 @@ def grade_parsed(
     Escape hatch (the API rerun path; the harness uses the defaults): ``relevance_override`` forces
     a relevance so a screened-out paper is graded anyway, and ``force_grade`` grades a review piece
     as advisory instead of short-circuiting it. ``on_stage`` is an optional progress sink the API
-    uses to drive its UI stepper; it never affects the graded result.
+    uses to drive its UI stepper; ``on_paper_class`` (fired once, just before ``classify`` is marked
+    done — so only for papers that pass the gates and will be fully graded) lets the API reveal the
+    classification mid-run. Neither ever affects the graded result.
     """
     emit = on_stage or (lambda stage, state: None)
     emit("screen", "running")
@@ -95,6 +105,8 @@ def grade_parsed(
     if paper_class is None:  # the gate had said 'no' but the user forced grading → classify now
         paper_class, classify_cost = classify(parsed, evidence, client=client)
         costs = costs + [classify_cost]
+    if on_paper_class is not None:  # paper_class is set past the short-circuits above
+        on_paper_class(paper_class)
     emit("classify", "done")
 
     emit("assess", "running")

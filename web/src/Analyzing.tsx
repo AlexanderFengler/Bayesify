@@ -1,9 +1,11 @@
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
-import { Box, Button, CircularProgress, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Button, Chip, CircularProgress, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { Fragment, useEffect, useState } from "react";
 import { HeroShell } from "./HeroShell";
+import { methodChips } from "./labels";
 import { MathText } from "./MathText";
+import type { PaperClass } from "./types";
 
 type StepState = "pending" | "running" | "done" | "failed";
 const CIRCLE = 52; // px — node diameter; connectors align to its centre (CIRCLE / 2)
@@ -75,12 +77,14 @@ export function Analyzing({
   stages,
   source,
   byline,
+  paperClass,
   gate,
 }: {
   stageState: Record<string, "running" | "done" | "failed">;
   stages: readonly string[];
   source?: string;
   byline?: string | null;
+  paperClass?: PaperClass | null;
   gate?: GateFailure | null;
 }) {
   const typed = useTypewriter(WORKING_WORDS);
@@ -123,12 +127,32 @@ export function Analyzing({
             {byline}
           </Typography>
         )}
+        {paperClass && <ClassChips paperClass={paperClass} />}
         <Box sx={{ mt: { xs: 5, md: 7 } }}>
           <StepFlow stages={stages} stageState={stageState} />
         </Box>
         {gate && <GatePanel gate={gate} />}
       </Box>
     </HeroShell>
+  );
+}
+
+// The classification revealed mid-run: once `classify` passes (only for papers that will be fully
+// graded — a rejected paper never reaches this), show the paper type (filled) and inference methods
+// (outlined) while the slower assess + score stages run, so the user sees what the engine decided.
+function ClassChips({ paperClass }: { paperClass: PaperClass }) {
+  const types = paperClass.labels.map((l) => l.replace(/_/g, " "));
+  const methods = methodChips(paperClass.methods_used);
+  if (types.length === 0 && methods.length === 0) return null;
+  return (
+    <Box sx={{ mt: 2, display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+      {types.map((t) => (
+        <Chip key={t} label={t} size="small" sx={{ textTransform: "capitalize" }} />
+      ))}
+      {methods.map((m) => (
+        <Chip key={m} label={m} size="small" variant="outlined" />
+      ))}
+    </Box>
   );
 }
 

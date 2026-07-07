@@ -168,6 +168,12 @@ async def run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
 
         loop.call_soon_threadsafe(apply)
 
+    def on_paper_class(pc: s.PaperClass) -> None:
+        # Transient: lets the Analyzing screen reveal the classification while assess/score run. Set
+        # before the classify-done SSE the frontend refreshes on, so getPaper sees it. A plain
+        # attribute assignment is atomic under the GIL — no need to hop to the loop thread.
+        job.paper_class = pc.model_dump(mode="json")
+
     job.result = await asyncio.to_thread(
         grade_parsed,
         parsed,
@@ -179,6 +185,7 @@ async def run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
         relevance_override=job.relevance_override,
         force_grade=job.force_grade,
         on_stage=on_stage,
+        on_paper_class=on_paper_class,
     )
 
     job.status = "done"

@@ -116,7 +116,14 @@ function ProcessingRoute() {
         }
       : null;
   return (
-    <Analyzing stageState={stageState} stages={stages} source={source} byline={byline} gate={gate} />
+    <Analyzing
+      stageState={stageState}
+      stages={stages}
+      source={source}
+      byline={byline}
+      paperClass={paper?.paper_class}
+      gate={gate}
+    />
   );
 }
 
