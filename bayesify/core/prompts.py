@@ -48,7 +48,9 @@ step, diagnostic, or validation method.
 - "software_development": introduces or substantially extends Bayesian software, tooling, packages, \
 or computational infrastructure.
 - "data_analysis": fits Bayesian model(s) to real observed data to draw substantive domain \
-conclusions.
+conclusions. Assign this even when the real-data analysis is SECONDARY to the paper's main \
+contribution (e.g. a method or software paper with an applied example) or appears only in a later \
+section — if the paper analyses any real observed data, it is (also) a data_analysis paper.
 - "numerical_analysis": evaluates Bayesian models/methods on simulated data, benchmark data, \
 or controlled numerical experiments.
 - "theoretical_analysis": presents mathematical, theoretical, identifiability, asymptotic, or \
