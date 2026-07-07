@@ -1499,20 +1499,65 @@ function NotApplicable({
 
 function ProvenanceFooter({ r }: { r: ScoredResult }) {
   const validated = r.validation_ref !== "unvalidated";
+  const [showDetails, setShowDetails] = useState(false);
+
+  // engine_version is a compact "pkg=…;prompts=…;detectors=…;models=…" string — parse for display.
+  const engineParts: Record<string, string> = Object.fromEntries(
+    r.engine_version.split(";").map((kv) => {
+      const i = kv.indexOf("=");
+      return i < 0 ? [kv, ""] : [kv.slice(0, i), kv.slice(i + 1)];
+    }),
+  );
+
+  // Which model ran each pipeline step, derived from the cost ledger.
+  const byStage = new Map<string, Set<string>>();
+  for (const e of r.cost_ledger.entries) {
+    if (!byStage.has(e.stage)) byStage.set(e.stage, new Set());
+    byStage.get(e.stage)!.add(e.model);
+  }
+  const modelsByStage = Array.from(
+    byStage,
+    ([stage, models]) => `${stage}: ${Array.from(models).join(", ")}`,
+  );
+
   return (
     <Box component="footer" sx={{ bgcolor: "background.paper", borderTop: 1, borderColor: "divider" }}>
       <Container maxWidth="lg" sx={{ py: 2 }}>
-        <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", color: "text.secondary", fontSize: "0.8rem" }}>
-          <span>engine {r.engine_version}</span>
-          <span>
-            rubric {r.rubric_version} · {r.rubric_profile}
-          </span>
-          <span>${r.cost_ledger.total_cost_usd.toFixed(3)}</span>
+        <Box
+          sx={{
+            display: "flex", gap: 2, flexWrap: "wrap", alignItems: "baseline",
+            color: "text.secondary", fontSize: "0.8rem",
+          }}
+        >
+          <span>app engine version {engineParts.pkg ?? r.engine_version}</span>
+          <span>rubric {r.rubric_version} · {r.rubric_profile}</span>
+          {modelsByStage.length > 0 && <span>models — {modelsByStage.join(" · ")}</span>}
+          <span>est. cost ${r.cost_ledger.total_cost_usd.toFixed(3)}</span>
+          <ButtonBase
+            onClick={() => setShowDetails((v) => !v)}
+            sx={{ fontSize: "0.8rem", color: "text.secondary", textDecoration: "underline" }}
+          >
+            {showDetails ? "hide details" : "details"}
+          </ButtonBase>
         </Box>
-        <Typography variant="caption" color={validated ? "text.secondary" : "warning.main"}>
+        <Collapse in={showDetails}>
+          <Box
+            sx={{
+              mt: 0.5, color: "text.disabled", fontSize: "0.72rem",
+              fontFamily: "monospace", wordBreak: "break-all",
+            }}
+          >
+            prompts={engineParts.prompts} · detectors={engineParts.detectors}
+          </Box>
+        </Collapse>
+        <Typography
+          variant="caption"
+          color={validated ? "text.secondary" : "warning.main"}
+          sx={{ display: "block", mt: 0.5 }}
+        >
           {validated
             ? `development-set agreement applies (${r.validation_ref})`
-            : "preliminary — the engine is not yet validated against expert ratings (validation runs at M7)."}
+            : "Caution — this engine is not yet calibrated against human experts."}
         </Typography>
       </Container>
     </Box>
