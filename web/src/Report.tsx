@@ -198,7 +198,9 @@ export function Report({
             {r.paper_class && (
               <MetaChips label="paper type" values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))} info={STAT_INFO.paperType} />
             )}
-            <MetaChips label="methods" values={METHODS} info={STAT_INFO.methods} />
+            {methodChips(r.paper_class?.methods_used).length > 0 && (
+              <MetaChips label="methods" values={methodChips(r.paper_class?.methods_used)} info={STAT_INFO.methods} />
+            )}
             {r.profile && (
               <MetaChips label="weighting" values={[anyReduced ? "weighted" : "uniform"]} info={STAT_INFO.weighting} />
             )}
@@ -347,10 +349,20 @@ function BackendBadge({ backend, fromCache }: { backend: string | null; fromCach
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const formatLabels = (labels: string[]) => labels.map((label) => label.replace(/_/g, " ")).join(", ");
 
-// The methods surfaced as chips in the meta row. Static for now (no per-run method detection on the
-// scored result yet) — the categories the workflow recognises: MCMC, Variational, and simulation-
-// based inference (SBI).
-const METHODS = ["MCMC", "Variational", "SBI"];
+// Friendly labels for the classifier's inference methods (paper_class.methods_used). KEEP IN SYNC
+// with inference_method_tags in bayesify/api/papers_store.py — the Archive facet uses the same
+// mapping, so a paper's report chips and Archive tags show identical labels.
+const METHOD_LABELS: Record<string, string> = {
+  mcmc: "MCMC",
+  hmc_nuts: "MCMC (HMC/NUTS)",
+  variational: "Variational inference",
+  sbi: "SBI",
+  abc: "ABC",
+  laplace_inla: "Laplace/INLA",
+  exact_analytic: "Analytic",
+};
+const methodChips = (methodsUsed?: string[]): string[] =>
+  (methodsUsed ?? []).map((m) => METHOD_LABELS[m] ?? m);
 
 // Hover explanations for the header stats — a one-line description plus the possible categories.
 type StatInfo = { what: string; categories: string[] };
@@ -372,8 +384,8 @@ const STAT_INFO: Record<"rubric" | "paperType" | "methods" | "weighting", StatIn
     ],
   },
   methods: {
-    what: "The Bayesian computation the paper relies on.",
-    categories: ["MCMC", "Variational", "SBI"],
+    what: "The Bayesian computation the paper's analysis uses (classifier-detected).",
+    categories: ["MCMC", "Variational inference", "SBI", "ABC", "Laplace/INLA", "Analytic"],
   },
   weighting: {
     what:

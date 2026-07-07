@@ -8,6 +8,7 @@ from bayesify.api.db.mongo import mongo
 from bayesify.api.papers_store import (
     ArchivedPaper,
     discipline_tags,
+    inference_method_tags,
     methods_from_inventory,
     paper_type_tags,
     report_fields,
@@ -83,7 +84,11 @@ def archived_from_analysis(job: Job) -> ArchivedPaper:
         coverage_applicable=(coverage.applicable if coverage else None),
         paper_type=paper_type_tags(paper_class),
         discipline=discipline_tags(paper_class),
-        methods=methods_from_inventory(job.inventory),
+        methods=list(
+            dict.fromkeys(
+                methods_from_inventory(job.inventory) + inference_method_tags(paper_class)
+            )
+        ),
         result=result.model_dump(mode="json") if result else None,
         inventory=job.inventory.model_dump(mode="json") if job.inventory else None,
         engine_version=engine_version(),

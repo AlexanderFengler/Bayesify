@@ -135,8 +135,9 @@ def _inventory() -> EvidenceInventory:
 
 def test_methods_from_inventory_maps_and_filters_families() -> None:
     labels = methods_from_inventory(_inventory())
-    assert labels == ["Stan", "BayesFlow", "MCMC", "Variational inference", "SBI"]
-    assert not {"prior", "posterior", "credible interval", "Analytic posterior"} & set(labels)
+    assert labels == ["Stan", "BayesFlow"]  # software only; unknown ids skipped
+    # inference-method detectors fire on any mention, so the method family is NOT a facet source
+    assert not {"MCMC", "Variational inference", "SBI"} & set(labels)
     assert methods_from_inventory(None) == []
 
 

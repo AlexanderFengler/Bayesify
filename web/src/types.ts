@@ -91,6 +91,7 @@ export interface Relevance {
 export interface PaperClass {
   labels: string[];
   disciplines: string[]; // soft-vocabulary scientific fields (multi-label); drives the Archive facet
+  methods_used?: string[]; // classifier-detected inference methods the paper USES (raw enum values)
   confidence: number;
   rationale: string;
 }

@@ -84,3 +84,26 @@ def test_classify_rejects_out_of_range_evidence_ref() -> None:
     )
     with pytest.raises(ValueError, match="evidence_refs"):
         C.classify(_parsed("We fit a model."), [_ev()], client=FakeLLMClient(canned))
+
+
+def test_classify_carries_methods_used() -> None:
+    from bayesify.core.schema import InferenceMethod
+
+    canned = PaperClass(
+        labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="fits real data",
+        evidence_refs=[0], methods_used=[InferenceMethod.hmc_nuts, InferenceMethod.sbi],
+    )
+    cls, _ = C.classify(_parsed("We fit with NUTS and SBI."), [_ev()], client=FakeLLMClient(canned))
+    assert cls.methods_used == [InferenceMethod.hmc_nuts, InferenceMethod.sbi]
+
+
+def test_paperclass_methods_used_drops_unknown_unstated_and_dupes() -> None:
+    # A stray/hallucinated method token is filtered (mode="before"), not a hard failure; "unstated"
+    # and duplicates are dropped by the after-validator, so one bad word never fails the whole call.
+    from bayesify.core.schema import InferenceMethod
+
+    pc = PaperClass(
+        labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="r", evidence_refs=[0],
+        methods_used=["mcmc", "nuts", "mcmc", "unstated"],  # "nuts" not in vocab; dup + unstated
+    )
+    assert pc.methods_used == [InferenceMethod.mcmc]

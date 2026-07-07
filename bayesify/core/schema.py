@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class _Base(BaseModel):
@@ -76,6 +76,8 @@ class InferenceMethod(StrEnum):
     hmc_nuts = "hmc_nuts"
     variational = "variational"
     sbi = "sbi"
+    abc = "abc"
+    laplace_inla = "laplace_inla"
     exact_analytic = "exact_analytic"
     unstated = "unstated"
 
@@ -197,6 +199,19 @@ class PaperClass(_Base):
     confidence: float = Field(ge=0.0, le=1.0)
     rationale: str
     evidence_refs: list[int] = Field(default_factory=list)
+    # Bayesian computation methods the paper's own analysis USES (not merely mentions). Typed to
+    # InferenceMethod for a controlled facet vocabulary; the mode="before" validator drops any
+    # out-of-vocab token the classifier emits so one stray word can't fail the whole call, and the
+    # after-validator drops "unstated" (a list uses empty, never [unstated]) and de-duplicates.
+    methods_used: list[InferenceMethod] = Field(default_factory=list)
+
+    @field_validator("methods_used", mode="before")
+    @classmethod
+    def _drop_unknown_methods(cls, v: object) -> object:
+        if not isinstance(v, list):
+            return v
+        known = {m.value for m in InferenceMethod}
+        return [x for x in v if (x.value if isinstance(x, InferenceMethod) else x) in known]
 
     @model_validator(mode="after")
     def _refs_discipline(self) -> PaperClass:
@@ -217,6 +232,15 @@ class PaperClass(_Base):
                 seen.add(tag)
                 normalised.append(tag)
         self.disciplines = normalised
+        # methods_used: drop "unstated" and de-duplicate, order-preserving (unknowns already gone).
+        seen_m: set[InferenceMethod] = set()
+        methods: list[InferenceMethod] = []
+        for m in self.methods_used:
+            if m is InferenceMethod.unstated or m in seen_m:
+                continue
+            seen_m.add(m)
+            methods.append(m)
+        self.methods_used = methods
         return self
 
 
