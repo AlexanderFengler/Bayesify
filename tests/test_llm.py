@@ -93,12 +93,14 @@ def test_ledger_entry_carries_step_and_pass_labels() -> None:
     assert entry.step_id == "S4" and entry.pass_label == "primary"
 
 
-def test_ledger_entry_unpriced_model_fails_loud() -> None:
+def test_ledger_entry_unpriced_model_records_zero_cost() -> None:
+    # An unpriced model records a 0.0-cost entry instead of raising, so a completed (billed) run is
+    # never destroyed just because we can't price the model.
     resp = LLMResponse(
         parsed=_Answer(label="x"), model="not-a-pinned-model", input_tokens=1, output_tokens=1
     )
-    with pytest.raises(KeyError):
-        ledger_entry("screen", resp)
+    entry = ledger_entry("screen", resp)
+    assert entry.model == "not-a-pinned-model" and entry.cost_usd == 0.0
 
 
 # --- real AnthropicClient (SDK injected; no network) ----------------------------------------------
@@ -152,6 +154,11 @@ def test_openai_client_maps_parsed_output_and_usage(monkeypatch) -> None:
     assert resp.input_tokens == 13 and resp.output_tokens == 7
     assert calls["text_format"] is _Answer
     assert calls["store"] is False
+    # reasoning models spend max_output_tokens on reasoning too, so the client pads the answer
+    # budget with headroom (here default max_tokens=1024) — otherwise a small budget starves output.
+    from bayesify.llm import openai as openai_mod
+
+    assert calls["max_output_tokens"] == 1024 + openai_mod._REASONING_HEADROOM_TOKENS
 
 
 def test_factory_builds_openai_client() -> None:

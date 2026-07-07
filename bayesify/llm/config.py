@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
+import logging
 import os
 import shutil
 from dataclasses import dataclass
+
+_log = logging.getLogger("bayesify.llm.config")
+_unpriced_warned: set[str] = set()
 
 
 class LLMConfigError(RuntimeError):
@@ -100,8 +104,16 @@ MODEL_PRICING: dict[str, ModelPrice] = {
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
-    """Estimate USD cost for a call. Raises ``KeyError`` for an unpriced model."""
-    price = MODEL_PRICING[model]
+    """Estimate USD cost for a call. An unpriced model records ``0.0`` (warned once) rather than
+    raising, so a valid-but-unpriced model — e.g. an OpenAI id not in ``MODEL_PRICING`` — never
+    crashes grading *after* the API call was already billed. Add the model to ``MODEL_PRICING`` to
+    price it (the ledger then shows the real cost instead of 0.0)."""
+    price = MODEL_PRICING.get(model)
+    if price is None:
+        if model not in _unpriced_warned:
+            _unpriced_warned.add(model)
+            _log.warning("no price for model %r; recording 0.0 (add it to MODEL_PRICING)", model)
+        return 0.0
     return (
         input_tokens / 1_000_000 * price.input_per_mtok
         + output_tokens / 1_000_000 * price.output_per_mtok
