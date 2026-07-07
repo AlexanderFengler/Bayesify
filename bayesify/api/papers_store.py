@@ -129,6 +129,7 @@ _INFERENCE_LABELS: dict[InferenceMethod, str] = {
     InferenceMethod.hmc_nuts: "MCMC (HMC/NUTS)",
     InferenceMethod.variational: "Variational inference",
     InferenceMethod.sbi: "SBI",
+    InferenceMethod.smc: "SMC",
     InferenceMethod.abc: "ABC",
     InferenceMethod.laplace_inla: "Laplace/INLA",
     InferenceMethod.exact_analytic: "Analytic",

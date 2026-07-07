@@ -76,6 +76,7 @@ class InferenceMethod(StrEnum):
     hmc_nuts = "hmc_nuts"
     variational = "variational"
     sbi = "sbi"
+    smc = "smc"
     abc = "abc"
     laplace_inla = "laplace_inla"
     exact_analytic = "exact_analytic"

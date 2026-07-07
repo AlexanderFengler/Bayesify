@@ -91,10 +91,13 @@ def test_classify_carries_methods_used() -> None:
 
     canned = PaperClass(
         labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="fits real data",
-        evidence_refs=[0], methods_used=[InferenceMethod.hmc_nuts, InferenceMethod.sbi],
+        evidence_refs=[0],
+        methods_used=[InferenceMethod.hmc_nuts, InferenceMethod.sbi, InferenceMethod.smc],
     )
-    cls, _ = C.classify(_parsed("We fit with NUTS and SBI."), [_ev()], client=FakeLLMClient(canned))
-    assert cls.methods_used == [InferenceMethod.hmc_nuts, InferenceMethod.sbi]
+    cls, _ = C.classify(
+        _parsed("We fit with NUTS, SBI, SMC."), [_ev()], client=FakeLLMClient(canned)
+    )
+    assert cls.methods_used == [InferenceMethod.hmc_nuts, InferenceMethod.sbi, InferenceMethod.smc]
 
 
 def test_paperclass_methods_used_drops_unknown_unstated_and_dupes() -> None:

@@ -357,6 +357,7 @@ const METHOD_LABELS: Record<string, string> = {
   hmc_nuts: "MCMC (HMC/NUTS)",
   variational: "Variational inference",
   sbi: "SBI",
+  smc: "SMC",
   abc: "ABC",
   laplace_inla: "Laplace/INLA",
   exact_analytic: "Analytic",
@@ -385,7 +386,7 @@ const STAT_INFO: Record<"rubric" | "paperType" | "methods" | "weighting", StatIn
   },
   methods: {
     what: "The Bayesian computation the paper's analysis uses (classifier-detected).",
-    categories: ["MCMC", "Variational inference", "SBI", "ABC", "Laplace/INLA", "Analytic"],
+    categories: ["MCMC", "Variational inference", "SBI", "SMC", "ABC", "Laplace/INLA", "Analytic"],
   },
   weighting: {
     what:
