@@ -12,12 +12,14 @@ from bayesify.core.cache import sha256_bytes
 from bayesify.core.detectors import evidence_inventory, run_detectors
 from bayesify.core.engine import grade_parsed
 from bayesify.core.errors import IngestError
+from bayesify.core.extract import extract_metadata
 from bayesify.core.fetcher import Fetcher
 from bayesify.core.ingest import ingest_upload, parse_input
 from bayesify.core.parse import parse
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.stub import build_stub_result, engine_version
 from bayesify.core.validation.rating_store import bucket_key
+from bayesify.llm import LLMClient, LLMError
 from bayesify.llm import config as llm_config
 
 from . import overrides, reports
@@ -88,7 +90,7 @@ async def fetch_into(job: Job) -> s.SourceDoc:
 
 
 async def front_half(
-    job: Job, *, source: s.SourceDoc | None = None
+    job: Job, *, source: s.SourceDoc | None = None, client: LLMClient | None = None
 ) -> tuple[s.ParsedDoc, list[s.Evidence]]:
     blobs = resources.blob_store()
     if source is None:
@@ -106,6 +108,14 @@ async def front_half(
     job.emit({"type": "stage", "stage": "parse", "state": "running"})
     parsed = await asyncio.to_thread(parse, source, blobs)
     job.parser, job.parser_version = parsed.parser, parsed.parser_version
+    # Title precedence: a provider (arXiv/DOI) title wins; else an LLM extraction on full runs; else
+    # the parse heuristic (weak for uploads). Runs in the parse stage so the parse-done refresh
+    # surfaces it; a title miss is never fatal.
+    if client is not None and not job.paper_title:
+        try:
+            job.paper_title = await asyncio.to_thread(extract_metadata, parsed, client=client)
+        except LLMError as exc:
+            api.logger.warning("title extraction failed for job %s: %s", job.id, exc)
     job.paper_title = job.paper_title or parsed.title
     job.paper_authors = job.paper_authors or parsed.authors
     job.paper_year = job.paper_year or parsed.year
@@ -145,9 +155,9 @@ async def run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
             job.emit({"type": "done"})
             return
 
-    parsed, evidence = await front_half(job, source=source)
     client = resources.llm_client()
     job.backend = llm_config.llm_backend()
+    parsed, evidence = await front_half(job, source=source, client=client)
     loop = asyncio.get_running_loop()
 
     def on_stage(stage: str, state: str) -> None:
