@@ -14,13 +14,36 @@ import type { PaperState } from "./types";
 // renders into <Outlet />.
 export function Layout() {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
 
-  // Remember the last "meaningful" page (cover / start / a report) so the reference pages' Back
-  // buttons can return there, skipping transient stops like /processing. Defaults to the cover.
+  // The middle box is the app's only scroll area (header/footer are pinned outside it). With the
+  // long, scrollable main page, restore the scroll on every page change: jump to the top on a plain
+  // navigation, or smooth-scroll to the addressed section when the URL carries a hash (the footer's
+  // "How it works" / "Rubrics" links target sections of the main page).
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (hash) {
+      // When arriving from another page the section only exists after the 200ms cross-fade swaps the
+      // content in — retry briefly until the anchor is mounted, then scroll to it.
+      const id = hash.slice(1);
+      let tries = 0;
+      let timer: number | undefined;
+      const seek = () => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+        else if (tries++ < 10) timer = window.setTimeout(seek, 80);
+      };
+      seek();
+      return () => clearTimeout(timer);
+    }
+    scrollRef.current?.scrollTo({ top: 0 });
+  }, [pathname, hash]);
+
+  // Remember the last "meaningful" page (the main page / a report) so the reference pages' Back
+  // buttons can return there, skipping transient stops like /processing. Defaults to the main page.
   const lastMainRef = useRef("/");
   useEffect(() => {
-    if (pathname === "/" || pathname === "/start" || pathname.startsWith("/paper/")) {
+    if (pathname === "/" || pathname.startsWith("/paper/")) {
       lastMainRef.current = pathname;
     }
   }, [pathname]);
@@ -31,7 +54,7 @@ export function Layout() {
   const [identifier, setIdentifier] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [stageState, setStageState] = useState<Record<string, "running" | "done">>({});
+  const [stageState, setStageState] = useState<Record<string, "running" | "done" | "failed">>({});
   const [running, setRunning] = useState(false);
   const [paper, setPaper] = useState<PaperState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +79,7 @@ export function Layout() {
     setError(null);
     setRunning(false);
     setRatingPending(null);
-    navigate("/start");
+    navigate("/");
   }, [navigate]);
 
   // Stream one paper_id to completion and route to its result. Shared by a fresh run and a rerun.
@@ -88,13 +111,28 @@ export function Layout() {
           if (result.status === "failed") {
             setError(result.error ?? "assessment failed");
           }
+          // The gate stop: the paper was judged out of scope (not a Bayesian application, or a paper
+          // type the rubric doesn't grade), so there is no report to navigate to. Mark the deciding
+          // stage failed (a red cross on the flow) and STAY on /processing — the reasons and the
+          // "run anyway" escape hatch render there. An overridden rerun skips this and proceeds.
+          const r = result.result;
+          if (
+            !opts?.rateOnDone &&
+            r &&
+            !r.relevance.overridden &&
+            (r.relevance.label === "no" || r.not_applicable_reason)
+          ) {
+            const stage = r.not_applicable_reason === "not_an_application" ? "classify" : "screen";
+            setStageState((prev) => ({ ...prev, [stage]: "failed" }));
+            return;
+          }
           // The paper page dispatches by payload (report / inventory / local notice / failed); the
           // rate flow already navigated to the blind form (below) — re-navigating to the same URL is a
           // harmless no-op. We deliberately do NOT clear `running` here: react-router navigation is a
           // concurrent transition, so an urgent setRunning(false) would render /processing for one
           // frame with running=false and trip its idle state mid-flight. `running` is cleared only by
           // reset()/the next run. `replace`: /processing is a transient stop, so swap it out of
-          // history — browser-Back from the report lands on /start, not the processing screen.
+          // history — browser-Back from the report lands on the main page, not the processing screen.
           navigate(opts?.rateOnDone ? `/rate/${paperId}` : `/paper/${paperId}`, { replace: true });
         },
       );
@@ -212,7 +250,13 @@ export function Layout() {
         }}
       >
         <Header />
-        <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+        {/* containerType "size" makes this scroll area a CSS query container, so pages can size
+            sections against the exact viewport space between header and footer (100cqh — the
+            landing hero uses it to fill the first screenful precisely) */}
+        <Box
+          ref={scrollRef}
+          sx={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", containerType: "size" }}
+        >
           <FadingOutlet />
         </Box>
         <Footer />

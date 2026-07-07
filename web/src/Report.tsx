@@ -194,12 +194,13 @@ export function Report({
           {/* meta chips — full width, below the title/score row (always under the numbers); persist
               across both views; hidden on the narrowest screens */}
           <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 3, mt: 2, flexWrap: "wrap" }}>
-            <MetaChips label="relevance" values={[r.relevance.label]} info={STAT_INFO.relevance} />
             <MetaChips label="rubric" values={[r.rubric_profile]} info={STAT_INFO.rubric} />
             {r.paper_class && (
               <MetaChips label="paper type" values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))} info={STAT_INFO.paperType} />
             )}
-            <MetaChips label="methods" values={METHODS} info={STAT_INFO.methods} />
+            {methodChips(r.paper_class?.methods_used).length > 0 && (
+              <MetaChips label="methods" values={methodChips(r.paper_class?.methods_used)} info={STAT_INFO.methods} />
+            )}
             {r.profile && (
               <MetaChips label="weighting" values={[anyReduced ? "weighted" : "uniform"]} info={STAT_INFO.weighting} />
             )}
@@ -207,10 +208,9 @@ export function Report({
 
           <Divider sx={{ mt: 2.5 }} />
 
-          {/* relevance gate + actions — the gate and the summary/full toggle persist across both
-              views; the override notice and the secondary actions are summary-only. */}
+          {/* actions — the summary/full toggle persists across both views; the override notice and
+              the secondary actions are summary-only. */}
           <Box sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: 2.5 }}>
-            <RelevanceGate r={r} />
             {r.relevance.overridden && (
               <Collapse in={!expanded} timeout={300}>
                 <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "warning.light", color: "text.primary", fontSize: "0.875rem" }}>
@@ -346,37 +346,27 @@ function BackendBadge({ backend, fromCache }: { backend: string | null; fromCach
   return <span className="backend-badge be-live">Live · {name}</span>;
 }
 
-// The relevance-gate description: why the gate landed on its verdict (the value itself is in the Stat
-// row above), with the gate's confidence.
-function RelevanceGate({ r }: { r: ScoredResult }) {
-  if (!r.relevance.rationale) return null;
-  return (
-    <Box>
-      <Typography variant="overline" color="text.secondary">
-        Relevance gate · {Math.round(r.relevance.confidence * 100)}% Confidence
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
-        <MathText>{r.relevance.rationale}</MathText>
-      </Typography>
-    </Box>
-  );
-}
-
 const cap = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const formatLabels = (labels: string[]) => labels.map((label) => label.replace(/_/g, " ")).join(", ");
 
-// The methods surfaced as chips in the meta row. Static for now (no per-run method detection on the
-// scored result yet) — the categories the workflow recognises: MCMC, Variational, and simulation-
-// based inference (SBI).
-const METHODS = ["MCMC", "Variational", "SBI"];
+// Friendly labels for the classifier's inference methods (paper_class.methods_used). KEEP IN SYNC
+// with inference_method_tags in bayesify/api/papers_store.py — the Archive facet uses the same
+// mapping, so a paper's report chips and Archive tags show identical labels.
+const METHOD_LABELS: Record<string, string> = {
+  mcmc: "MCMC",
+  hmc_nuts: "MCMC (HMC/NUTS)",
+  variational: "Variational inference",
+  sbi: "SBI",
+  abc: "ABC",
+  laplace_inla: "Laplace/INLA",
+  exact_analytic: "Analytic",
+};
+const methodChips = (methodsUsed?: string[]): string[] =>
+  (methodsUsed ?? []).map((m) => METHOD_LABELS[m] ?? m);
 
 // Hover explanations for the header stats — a one-line description plus the possible categories.
 type StatInfo = { what: string; categories: string[] };
-const STAT_INFO: Record<"relevance" | "rubric" | "paperType" | "methods" | "weighting", StatInfo> = {
-  relevance: {
-    what: "Does the paper actually apply Bayesian statistical methodology? This gate decides whether the rubric applies.",
-    categories: ["yes", "partial", "no"],
-  },
+const STAT_INFO: Record<"rubric" | "paperType" | "methods" | "weighting", StatInfo> = {
   rubric: {
     what: "Which rubric the paper was graded against — the default synthesis standard or a source-pure profile.",
     categories: ["Synthesis", "Gelman (2020)", "Schad (2021)"],
@@ -394,8 +384,8 @@ const STAT_INFO: Record<"relevance" | "rubric" | "paperType" | "methods" | "weig
     ],
   },
   methods: {
-    what: "The Bayesian computation the paper relies on.",
-    categories: ["MCMC", "Variational", "SBI"],
+    what: "The Bayesian computation the paper's analysis uses (classifier-detected).",
+    categories: ["MCMC", "Variational inference", "SBI", "ABC", "Laplace/INLA", "Analytic"],
   },
   weighting: {
     what:

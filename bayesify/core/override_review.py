@@ -17,12 +17,12 @@ from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict
 
-from bayesify.core import config
 from bayesify.core.prompts import OVERRIDE_REVIEW_SYSTEM
 from bayesify.core.rubric.models import RubricSpec, RubricStep
 from bayesify.core.schema import CostLedgerEntry, ScoredResult, StepAssessment, StepStatus
 from bayesify.core.score import ScoreMeta, score
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
+from bayesify.llm import config as llm_config
 
 _ORDER = (StepStatus.missing, StepStatus.partial, StepStatus.adequate)  # gradeable, low -> high
 _BY_VALUE = {s.value: s for s in _ORDER}
@@ -83,7 +83,7 @@ def review_overrides(
     one LLM call per step-with-candidates, none when ``bank`` is empty."""
     if result.paper_class is None or not result.step_assessments:
         return result, [], []
-    model = model or config.judge_model()
+    model = model or llm_config.judge_model()
     by_id = {a.step_id: a for a in result.step_assessments}
     steps = {st.id: st for st in rubric.steps}
     changes: dict[str, StepStatus] = {}

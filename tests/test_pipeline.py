@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from bayesify.core.llm import FakeLLMClient
 from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.schema import (
     Evidence,
@@ -19,6 +18,7 @@ from bayesify.core.schema import (
     SectionKind,
     SourceDoc,
 )
+from bayesify.llm import FakeLLMClient
 
 _WHEN = datetime(2026, 1, 1)
 

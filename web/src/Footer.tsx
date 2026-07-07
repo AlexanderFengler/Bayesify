@@ -29,9 +29,9 @@ export function Footer() {
             Alpha version - {APP_VERSION}
           </Typography>
           <Box sx={{ display: "flex", gap: 3 }}>
-            <FooterLink onClick={() => navigate("/start")}>Home</FooterLink>
-            <FooterLink onClick={() => navigate("/guide")}>How it works</FooterLink>
-            <FooterLink onClick={() => navigate("/rubrics")}>Rubrics</FooterLink>
+            {/* How-it-works and Rubrics are sections of the main page now (still addressable at
+                /#how-it-works and /#rubrics) — the footer only carries the standalone pages */}
+            <FooterLink onClick={() => navigate("/")}>Home</FooterLink>
             <FooterLink onClick={() => navigate("/archive")}>Archive</FooterLink>
             <FooterLink onClick={() => navigate("/supported")}>About us</FooterLink>
           </Box>

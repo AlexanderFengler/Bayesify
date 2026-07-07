@@ -1,6 +1,6 @@
 """The report record for the Archive page and the cross-user dedup cache.
 
-The archive is backed by the MongoDB ``reports`` collection (see ``bayesify.api.mongo``): one doc
+The archive is backed by the MongoDB ``reports`` collection (see ``bayesify.api.db``): one doc
 per paper-content + rubric, keyed by the **durable** identity ``<sha>__<profile>`` (the same
 ``bucket_key`` the rating store uses), so a paper processed twice (rerun, or AI then a human rating)
 updates one entry rather than duplicating. Nothing is written to local disk — only the report and
@@ -21,11 +21,12 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from bayesify.core.detectors import EvidenceInventory
-from bayesify.core.schema import PaperClass
+from bayesify.core.schema import InferenceMethod, PaperClass
 
-# Detector-id → friendly method/software tag. Only the families a reader thinks of as "methods and
-# software" are surfaced (software, method, workflow, and the headline diagnostics); sampler config
-# and open-science signals are left out of the facet. Unknown ids fall back to a prettified suffix.
+# Software-detector-id -> friendly tag for the Archive facet. Software mentions are high-precision
+# proper nouns; the context-free method detectors (MCMC/VI/SBI) fire on any mention (incl.
+# alternatives / related work), so they are too noisy as facet tags and are NOT surfaced here —
+# inference-method tags come from the classifier. Unknown ids are skipped rather than prettified.
 _METHOD_LABELS: dict[str, str] = {
     "software.stan": "Stan",
     "software.brms": "brms",
@@ -36,44 +37,28 @@ _METHOD_LABELS: dict[str, str] = {
     "software.jags": "JAGS",
     "software.bugs": "BUGS",
     "software.hddm": "HDDM",
+    "software.hssm": "HSSM",
     "software.turing": "Turing.jl",
-    "method.prior": "Priors",
-    "method.posterior": "Posterior",
-    "method.credible_interval": "Credible intervals",
-    "method.bayes_factor": "Bayes factor",
-    "method.mcmc": "MCMC",
-    "method.variational": "Variational inference",
-    "method.analytic": "Analytic posterior",
-    "diag.rhat": "R-hat",
-    "diag.ess": "ESS",
-    "diag.divergences": "Divergences",
-    "diag.loo_waic": "LOO/WAIC",
-    "workflow.prior_predictive": "Prior predictive check",
-    "workflow.posterior_predictive": "Posterior predictive check",
-    "workflow.sensitivity": "Sensitivity analysis",
-    "workflow.sbc": "SBC",
-    "workflow.recovery": "Parameter recovery",
+    "software.bayesflow": "BayesFlow",
 }
-_METHOD_FAMILIES = {"software", "method", "workflow", "diagnostic"}
-
-
-def _prettify(detector_id: str) -> str:
-    """Fallback label for a detector id with no curated name: drop the family prefix, spacify."""
-    return detector_id.split(".", 1)[-1].replace("_", " ")
-
+_METHOD_FAMILIES = {"software"}
 
 def methods_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
     """Friendly method/software tags from the detector inventory's found hits (order-preserving,
     de-duplicated). Empty when there is no inventory (e.g. the placeholder stub path)."""
     if inventory is None:
         return []
-    seen: set[str] = set()
-    out: list[str] = []
+    seen = set()
+    out = []
     for fam in inventory.families:
+
         if fam.family not in _METHOD_FAMILIES:
             continue
+
         for hit in fam.found:
-            label = _METHOD_LABELS.get(hit.detector_id) or _prettify(hit.detector_id)
+            label = _METHOD_LABELS.get(hit.detector_id)
+            if label is None:
+                continue
             if label not in seen:
                 seen.add(label)
                 out.append(label)
@@ -107,6 +92,9 @@ class ArchivedPaper(BaseModel):
     # content+rubric resubmission replays this instead of re-analyzing (cross-user dedup cache).
     result: dict[str, Any] | None = None
     inventory: dict[str, Any] | None = None
+    # Latest complete, relevance-passing human rubric pass. The append-only local rating store
+    # remains the adjudication source; Mongo keeps this with reports so events stay pointer-only.
+    human_rating: dict[str, Any] | None = None
     # cache-bust dimensions: a code/model/rubric/strategy change makes a stored report stale, so a
     # replay is served only when these still match the current engine.
     engine_version: str = ""
@@ -131,3 +119,26 @@ def paper_type_tags(paper_class: PaperClass | None) -> list[str]:
 def discipline_tags(paper_class: PaperClass | None) -> list[str]:
     """Auto discipline tags from a PaperClass (already normalised soft-vocabulary strings)."""
     return list(paper_class.disciplines) if paper_class else []
+
+
+# InferenceMethod -> friendly label for the report chips + Archive facet. Total over the enum (minus
+# "unstated") so a classifier-emitted method never silently vanishes. Mirrors the friendly-label
+# shape of methods_from_inventory (NOT paper_type_tags, which returns raw enum values).
+_INFERENCE_LABELS: dict[InferenceMethod, str] = {
+    InferenceMethod.mcmc: "MCMC",
+    InferenceMethod.hmc_nuts: "MCMC (HMC/NUTS)",
+    InferenceMethod.variational: "Variational inference",
+    InferenceMethod.sbi: "SBI",
+    InferenceMethod.abc: "ABC",
+    InferenceMethod.laplace_inla: "Laplace/INLA",
+    InferenceMethod.exact_analytic: "Analytic",
+}
+
+
+def inference_method_tags(paper_class: PaperClass | None) -> list[str]:
+    """Friendly inference-method tags from a PaperClass's classifier-extracted ``methods_used``
+    (order-preserving; ``unstated`` is already dropped by the PaperClass validator). This is the
+    single source of truth for inference-method labels — the report chips read the same list."""
+    if paper_class is None:
+        return []
+    return [_INFERENCE_LABELS[m] for m in paper_class.methods_used if m in _INFERENCE_LABELS]

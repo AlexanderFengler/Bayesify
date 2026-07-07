@@ -121,9 +121,10 @@ for grading — and **Local** — on-device detectors only; the wire value stays
 
 ### Test deploy
 
-The FastAPI app is importable at `bayesify.api.app:app`, and the root `main.py` re-exports it as
-`app` so FastAPI Cloud's default `fastapi run` auto-discovery can find it. For a hosted API smoke
-test, use:
+The FastAPI app is still importable at `bayesify.api.app:app`, but construction now lives in
+`bayesify.api.factory` with shared process state in `bayesify.api.runtime`. The root `main.py`
+re-exports `app` so FastAPI Cloud's default `fastapi run` auto-discovery can find it. For a hosted
+API smoke test, use:
 
 ```sh
 fastapi run
@@ -148,7 +149,7 @@ For FastAPI Cloud or another Python host, set these environment variables for a 
 | `BAYESIFY_MONGODB_AUTOSTART` | `0` | Hosted runtimes should not try to start a local `mongod`. |
 | `BAYESIFY_LLM_BACKEND` | `none` | Avoids live model calls; Connected mode uses the labelled stub. |
 | `BAYESIFY_DATA_DIR` | host-writable path, if provided | Keeps uploaded blobs/cache outside the app source tree. |
-| `BAYESIFY_MONGODB_URI` | Atlas URI, optional | Enables durable event writes; omitted is OK for a smoke test. |
+| `BAYESIFY_MONGODB_URI` | Atlas URI, optional | Enables durable reports and audit events; omitted is OK for a smoke test. |
 
 `GET /healthz` returns `{"status":"ok"}` for liveness checks. The React UI is served only when
 `web/dist` exists. For this MVP test deploy, `web/dist` is intentionally committed so FastAPI Cloud's
@@ -156,9 +157,9 @@ default Python deploy can serve the UI without running a Node build step.
 
 ### Database (MongoDB / Atlas)
 
-The API persists each analysis report and blind rating as an event in MongoDB (the `events`
-collection). Persistence is **best-effort**: if MongoDB is unreachable the app keeps serving — the
-events just aren't saved — and the startup log reports which database it reached. Use the shared
+The API persists completed, relevance-passing reports in MongoDB (the `reports` collection) and
+writes only sparse lifecycle/audit records to `events`. Persistence is **best-effort**: if MongoDB is
+unreachable the app keeps serving, and the startup log reports which database it reached. Use the
 **MongoDB Atlas** cluster for a team setup, or a **local** MongoDB for solo/offline work.
 
 #### Connect to the shared Atlas cluster
@@ -215,9 +216,10 @@ team default) or a username + password — so nothing shared is ever committed t
    path is correct and the cert hasn't expired, (3) a SCRAM password is url-encoded. The credential is
    redacted in the log, so it is safe to share.
 
-8. **Confirm writes land.** Analyze a paper or submit a blind rating, then open Atlas
-   **Database → Data Explorer → `bayesify` → `events`** — you'll see `analysis_report_ready` /
-   `blind_rating_submitted` documents.
+8. **Confirm writes land.** Analyze a relevant paper or submit a complete relevant blind rating,
+   then open Atlas **Database → Data Explorer → `bayesify` → `reports`**. The `events`
+   collection should contain only small pointer/audit records such as `analysis_report_ready` or
+   `blind_rating_submitted`.
 
 #### Local MongoDB (solo / offline)
 
@@ -236,8 +238,8 @@ otherwise start MongoDB yourself, or set `BAYESIFY_MONGODB_AUTOSTART=0` to disab
 | `BAYESIFY_MONGODB_AUTOSTART` | Auto-start a local `mongod` for a localhost URI | enabled |
 | `BAYESIFY_ENV_FILE` | Path to the local env file auto-loaded at startup | `bayesify.env` |
 
-Query the `events` collection by `event` (`analysis_report_ready` / `blind_rating_submitted`),
-`paper_id`, `source_sha256`, or `rubric_profile`.
+Query `reports` by `paper_id`, `_id` (`<source_sha256>__<rubric_profile>`), `identifier`, or
+`rubric_profile`. Query `events` only for lifecycle/audit records by `event` or `paper_id`.
 
 > **Never commit secrets.** `secrets/`, `*.pem`, and `*.env` are gitignored — confirm with
 > `git check-ignore secrets/atlas-x509.pem bayesify.env`. The `.pem` holds a private key: keep it

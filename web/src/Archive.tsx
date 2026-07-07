@@ -216,7 +216,6 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
     if (p.quality_score != null) bits.push(`Score ${Math.round(p.quality_score * 100)}`);
     if (p.coverage_present != null && p.coverage_applicable != null)
       bits.push(`Coverage ${p.coverage_present}/${p.coverage_applicable}`);
-    if (p.relevance_label) bits.push(p.relevance_label);
     return bits.join(" · ");
   }, [p]);
 

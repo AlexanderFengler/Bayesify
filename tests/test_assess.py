@@ -10,7 +10,6 @@ from datetime import datetime
 
 from bayesify.core import assess as A
 from bayesify.core.assess import RefuterVerdict, StepJudgment, derive_gate_facts
-from bayesify.core.llm import LLMResponse
 from bayesify.core.rubric.applicability import step_applicability
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.schema import (
@@ -30,6 +29,7 @@ from bayesify.core.schema import (
     SourceDoc,
     StepStatus,
 )
+from bayesify.llm import LLMResponse
 
 _RUBRIC = load_rubric()
 _WHEN = datetime(2026, 1, 1)

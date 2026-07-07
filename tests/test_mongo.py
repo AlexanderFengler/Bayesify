@@ -1,21 +1,21 @@
 """MongoDBService: the event-write envelope, graceful degradation, the reconnect backoff, and the
-pure URI/path/index helpers — all without a real MongoDB server (an injected fake collection).
+pure URI/index helpers — all without a real MongoDB server (an injected fake collection).
 
-mongo.py is live-wired (lifespan start/stop, save_event on every analysis/rating) but its promise —
-"persist events; when Mongo is down, fail gracefully and keep serving" — was previously untested.
+mongo.py is live-wired (lifespan connect/close, save_event on every analysis/rating), but its
+promise — "persist events; when Mongo is down, fail gracefully and keep serving" — was previously
+untested.
 """
 
 from __future__ import annotations
 
 import logging
 import time
-from pathlib import Path
 from types import SimpleNamespace
 
 from pymongo.errors import PyMongoError
 from pymongo.server_api import ServerApi
 
-from bayesify.api.mongo import MongoDBService
+from bayesify.api.db import MongoDBService
 
 
 class _FakeCollection:
@@ -93,32 +93,13 @@ def test_save_event_backoff_does_not_reconnect_storm(monkeypatch) -> None:
     svc._ready = False
     svc._next_retry_monotonic = 0.0  # eligible to retry now
     calls: list[int] = []
-    monkeypatch.setattr(svc, "start", lambda: calls.append(1))  # a reconnect that stays down
+    monkeypatch.setattr(svc, "connect", lambda: calls.append(1))  # a reconnect that stays down
 
     assert svc.save_event({"event": "x"}) is None
     assert calls == [1]  # attempted exactly one reconnect
     assert svc._next_retry_monotonic > time.monotonic()  # armed the ~5s backoff
     assert svc.save_event({"event": "y"}) is None
     assert calls == [1]  # the immediate next call must NOT retry again
-
-
-def test_find_latest_analysis_report_reads_newest_matching_event() -> None:
-    fake = _FakeCollection()
-    svc = _ready_service(fake)
-    svc.save_event({"event": "analysis_report_ready", "paper_id": "p1", "result": {"older": True}})
-    svc.save_event({"event": "other", "paper_id": "p1"})
-    svc.save_event({"event": "analysis_report_ready", "paper_id": "p1", "result": {"newer": True}})
-
-    doc = svc.find_latest_analysis_report("p1")
-
-    assert doc is not None
-    assert doc["event"] == "analysis_report_ready"
-    assert doc["result"] == {"newer": True}
-
-
-def test_find_latest_analysis_report_returns_none_when_missing() -> None:
-    svc = _ready_service(_FakeCollection())
-    assert svc.find_latest_analysis_report("missing") is None
 
 
 def test_find_latest_job_state_reads_newest_matching_event() -> None:
@@ -145,11 +126,6 @@ def test_is_local_uri() -> None:
     assert local("mongodb://[::1]:27017")
     assert not local("mongodb://db.example.com:27017")  # a remote host is not local
     assert not local("http://localhost:27017")  # not a mongodb scheme
-
-
-def test_local_port() -> None:
-    assert MongoDBService._local_port("mongodb://localhost:27018") == 27018
-    assert MongoDBService._local_port("mongodb://localhost") == 27017  # default port
 
 
 def test_remote_uris_use_longer_timeout() -> None:
@@ -192,6 +168,32 @@ def test_status_masks_atlas_uri_and_reports_mode(monkeypatch) -> None:
     assert "secret" not in status.uri
 
 
+def test_mongodb_uri_accepts_atlas_style_alias(monkeypatch) -> None:
+    monkeypatch.delenv("BAYESIFY_MONGODB_URI", raising=False)
+    monkeypatch.setenv("MONGODB_URI", "mongodb+srv://user:pass@example.mongodb.net/?appName=bayesify")
+    assert (
+        MongoDBService.mongodb_uri()
+        == "mongodb+srv://user:pass@example.mongodb.net/?appName=bayesify"
+    )
+
+
+def test_mongodb_uri_prefers_bayesify_override(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MONGODB_URI", "mongodb://localhost:27018")
+    monkeypatch.setenv("MONGODB_URI", "mongodb+srv://user:pass@example.mongodb.net")
+    assert MongoDBService.mongodb_uri() == "mongodb://localhost:27018"
+
+
+def test_mongodb_database_accepts_common_aliases(monkeypatch) -> None:
+    monkeypatch.delenv("BAYESIFY_MONGODB_DB", raising=False)
+    monkeypatch.setenv("MONGODB_DATABASE", "atlas_db")
+    assert MongoDBService.mongodb_database() == "atlas_db"
+
+
+def test_mongodb_server_api_can_be_disabled(monkeypatch) -> None:
+    monkeypatch.setenv("BAYESIFY_MONGODB_SERVER_API", "0")
+    assert MongoDBService.mongodb_server_api() is None
+
+
 def test_create_client_uses_stable_api_for_atlas(monkeypatch) -> None:
     calls: list[tuple[str, dict]] = []
 
@@ -199,7 +201,7 @@ def test_create_client_uses_stable_api_for_atlas(monkeypatch) -> None:
         calls.append((uri, kwargs))
         return object()
 
-    monkeypatch.setattr("bayesify.api.mongo.MongoClient", fake_client)
+    monkeypatch.setattr("bayesify.api.db.mongo.MongoClient", fake_client)
     MongoDBService._create_client("mongodb+srv://user:pass@example.mongodb.net/?appName=bayesify")
 
     _, kwargs = calls[0]
@@ -214,24 +216,11 @@ def test_create_client_skips_stable_api_for_local(monkeypatch) -> None:
         calls.append((uri, kwargs))
         return object()
 
-    monkeypatch.setattr("bayesify.api.mongo.MongoClient", fake_client)
+    monkeypatch.setattr("bayesify.api.db.mongo.MongoClient", fake_client)
     MongoDBService._create_client("mongodb://localhost:27017")
 
     _, kwargs = calls[0]
     assert kwargs == {"serverSelectionTimeoutMS": 500}
-
-
-def test_mongodb_data_dir(monkeypatch, tmp_path) -> None:
-    monkeypatch.delenv("BAYESIFY_DATA_DIR", raising=False)
-    monkeypatch.setenv("BAYESIFY_MONGODB_DATA_DIR", str(tmp_path / "explicit"))
-    assert MongoDBService._mongodb_data_dir() == tmp_path / "explicit"  # explicit override wins
-
-    monkeypatch.delenv("BAYESIFY_MONGODB_DATA_DIR")
-    monkeypatch.setenv("BAYESIFY_DATA_DIR", str(tmp_path / "data"))
-    assert MongoDBService._mongodb_data_dir() == tmp_path / "data" / "mongodb"  # under the data dir
-
-    monkeypatch.delenv("BAYESIFY_DATA_DIR")
-    assert MongoDBService._mongodb_data_dir() == Path.home() / ".bayesify" / "mongodb"  # default
 
 
 def test_ensure_indexes_builds_the_query_indexes() -> None:
@@ -239,7 +228,7 @@ def test_ensure_indexes_builds_the_query_indexes() -> None:
     svc = MongoDBService()
     svc._events = fake
     svc._ensure_indexes()
-    assert len(fake.indexes) == 5
+    assert len(fake.indexes) == 3
     assert [("event", 1), ("created_at", -1)] in fake.indexes  # query-by-event (README)
     assert [("paper_id", 1), ("created_at", -1)] in fake.indexes  # query-by-paper
     # the global override-bank read (override-review pass)

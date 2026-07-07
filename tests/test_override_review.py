@@ -6,11 +6,11 @@ from __future__ import annotations
 
 import pathlib
 
-from bayesify.core import config
 from bayesify.core.override_review import BankOverride, ReviewVerdict, review_overrides
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.schema import ScoredResult, StepStatus
 from bayesify.llm import FakeLLMClient
+from bayesify.llm import config as llm_config
 
 _FIX = pathlib.Path(__file__).parent / "fixtures" / "scored_result" / "empirical_mixed.json"
 _RUBRIC = load_rubric()
@@ -47,7 +47,7 @@ def test_relevant_override_nudges_one_level_and_rescores() -> None:
         )
     )
     corrected, applied, cost = review_overrides(
-        result, _bank_for(target.step_id), _RUBRIC, client=fake, model=config.judge_model()
+        result, _bank_for(target.step_id), _RUBRIC, client=fake, model=llm_config.judge_model()
     )
 
     new = next(a for a in corrected.step_assessments if a.step_id == target.step_id)
@@ -66,7 +66,7 @@ def test_irrelevant_verdict_leaves_the_grade_unchanged() -> None:
     )
     fake = FakeLLMClient(ReviewVerdict(relevant=False))
     corrected, applied, cost = review_overrides(
-        result, _bank_for(target.step_id), _RUBRIC, client=fake, model=config.judge_model()
+        result, _bank_for(target.step_id), _RUBRIC, client=fake, model=llm_config.judge_model()
     )
     assert corrected is result and applied == [] and len(cost) == 1  # judged once, no change
 
@@ -75,6 +75,6 @@ def test_empty_bank_makes_no_llm_call() -> None:
     result = _result()
     fake = FakeLLMClient()  # no scripted responses → any call would raise
     corrected, applied, cost = review_overrides(
-        result, {}, _RUBRIC, client=fake, model=config.judge_model()
+        result, {}, _RUBRIC, client=fake, model=llm_config.judge_model()
     )
     assert corrected is result and applied == [] and cost == [] and fake.calls == []

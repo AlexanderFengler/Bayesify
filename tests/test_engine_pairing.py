@@ -143,13 +143,35 @@ def test_engine_runs_two_grades_tier_a_twice(tmp_path) -> None:
 # --- the shared engine (grade_document == the app's engine) ---------------------------------------
 
 
+def _fake_batch(name: str, user: str, status: str = "adequate"):
+    """Batch-schema responses for the fakes (grade_parsed dispatches to assess_batch by default);
+    step ids are parsed from the batch prompt, mirroring test_assess_batch."""
+    import re
+
+    from bayesify.core.assess_batch import (
+        BatchAssessJudgments,
+        BatchRefuterVerdict,
+        BatchRefuterVerdicts,
+        BatchStepJudgment,
+    )
+
+    ids = re.findall(r"^STEP (S\d+):", user, re.M)
+    if name == "BatchAssessJudgments":
+        return BatchAssessJudgments(
+            judgments=[BatchStepJudgment(step_id=s, status=status, confidence=0.9) for s in ids]
+        )
+    return BatchRefuterVerdicts(
+        verdicts=[BatchRefuterVerdict(step_id=s, refuted=False, notes="absent") for s in ids]
+    )
+
+
 class _FakeLLM:
     """Schema-aware fake driving the full grade path, no real LLM (mirrors test_api._full_fake)."""
 
     def complete(self, *, model, system, user, schema, max_tokens=1024):
         from bayesify.core.assess import RefuterVerdict, StepJudgment
-        from bayesify.core.llm import LLMResponse
         from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+        from bayesify.llm import LLMResponse
 
         name = schema.__name__
         if name == "Relevance":
@@ -165,6 +187,8 @@ class _FakeLLM:
             )
         elif name == "StepJudgment":
             p = StepJudgment(status="adequate", confidence=0.9)
+        elif name in ("BatchAssessJudgments", "BatchRefuterVerdicts"):
+            p = _fake_batch(name, user)
         else:
             p = RefuterVerdict(refuted=False, notes="absent")
         return LLMResponse(parsed=p, model=model, input_tokens=10, output_tokens=5)
@@ -211,8 +235,8 @@ class _NoGateLLM:
 
     def complete(self, *, model, system, user, schema, max_tokens=1024):
         from bayesify.core.assess import RefuterVerdict, StepJudgment
-        from bayesify.core.llm import LLMResponse
         from bayesify.core.schema import PaperClass, PaperClassLabel
+        from bayesify.llm import LLMResponse
 
         name = schema.__name__
         if name == "Relevance":
@@ -224,6 +248,8 @@ class _NoGateLLM:
             )
         elif name == "StepJudgment":
             p = StepJudgment(status="adequate", confidence=0.9)
+        elif name in ("BatchAssessJudgments", "BatchRefuterVerdicts"):
+            p = _fake_batch(name, user)
         else:
             p = RefuterVerdict(refuted=False, notes="absent")
         return LLMResponse(parsed=p, model=model, input_tokens=10, output_tokens=5)

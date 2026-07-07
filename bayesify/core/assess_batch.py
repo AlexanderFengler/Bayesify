@@ -21,7 +21,6 @@ from bayesify.core.assess import (
     _scanned_section_ids,
     _step_evidence,
     _to_assessment,
-    _wider_context,
     derive_gate_facts,
 )
 from bayesify.core.context import assessment_context, evidence_digest
@@ -38,6 +37,7 @@ from bayesify.core.schema import (
     StepStatus,
 )
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
+from bayesify.llm import config as llm_config
 
 
 class BatchStepJudgment(StepJudgment):
@@ -82,8 +82,8 @@ def assess_batch(
     refuter_model: str | None = None,
 ) -> tuple[list[StepAssessment], GateFacts, list[CostLedgerEntry]]:
     """Assess all applicable rubric steps with two LLM calls: judge batch, then refute batch."""
-    model = model or config.judge_model()
-    refuter_model = refuter_model or config.refuter_model()
+    model = model or llm_config.judge_model()
+    refuter_model = refuter_model or llm_config.refuter_model()
     gate_facts = derive_gate_facts(evidence, paper_class)
     searched = _scanned_section_ids(parsed)
     plans = [
@@ -101,7 +101,7 @@ def assess_batch(
             system=ASSESS_BATCH_JUDGE_SYSTEM,
             user=_build_batch_judge_user(applicable, parsed, evidence, rubric),
             schema=BatchAssessJudgments,
-            max_tokens=5000,
+            max_tokens=10000,
         )
         cost.append(ledger_entry("assess", judge, pass_label="batch_judge"))
         judgments = _judgments_by_step(judge.parsed, [step.id for step, _ in applicable])
@@ -123,7 +123,7 @@ def assess_batch(
             system=ASSESS_BATCH_REFUTE_SYSTEM,
             user=_build_batch_refuter_user(negative, parsed),
             schema=BatchRefuterVerdicts,
-            max_tokens=3000,
+            max_tokens=5000,
         )
         cost.append(ledger_entry("assess", refute, pass_label="batch_refute"))
         verdicts = _verdicts_by_step(refute.parsed, [step.id for step, _ in negative])
@@ -245,5 +245,5 @@ def _build_batch_refuter_user(
         "Return verdicts for exactly these challenged rubric steps:\n\n"
         + "\n\n".join(blocks)
         + "\n\nWIDER CONTEXT (includes supplements & captions):\n"
-        + _wider_context(parsed)
+        + assessment_context(parsed, max_chars=config.assess_context_chars())
     )

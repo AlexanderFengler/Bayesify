@@ -68,7 +68,9 @@ _POSITIVE = [
     ("The model ran in JAGS.", "software.jags"),
     ("Posterior sampling used WinBUGS.", "software.bugs"),
     ("Drift-diffusion fitting used HDDM.", "software.hddm"),
+    ("Response times were modelled with HSSM.", "software.hssm"),
     ("Implemented with Turing.jl in Julia.", "software.turing"),
+    ("Amortized inference used BayesFlow.", "software.bayesflow"),
     # method
     ("We placed a prior distribution on the slope.", "method.prior"),
     ("We used a weakly-informative prior for sigma.", "method.prior"),
@@ -79,6 +81,7 @@ _POSITIVE = [
     ("Inference used MCMC with four chains.", "method.mcmc"),
     ("Sampling used the NUTS algorithm.", "method.mcmc"),
     ("We used variational inference (ADVI).", "method.variational"),
+    ("Posteriors were obtained with simulation-based inference (SBI).", "method.sbi"),
     ("A conjugate prior yields an analytic posterior.", "method.analytic"),
     # workflow
     ("We performed prior predictive checks.", "workflow.prior_predictive"),
@@ -126,6 +129,8 @@ _FALSE_POSITIVES = [
     ("The process converged after ten steps.", "diag.ess"),
     ("Participants cracked nuts during the task.", "method.mcmc"),
     ("The looser threshold was preferred.", "diag.loo_waic"),
+    ("The sbi scores stayed below threshold.", "method.sbi"),  # lowercase, case-sensitive SBI
+    ("We validated with simulation-based calibration.", "method.sbi"),  # SBC != SBI
 ]
 
 
