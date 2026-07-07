@@ -74,11 +74,19 @@ physics, astronomy, chemistry, genetics, engineering. Use lower-case, hyphenated
 methodological/statistical paper with no applied domain may be just ["statistics"] or \
 ["machine-learning"].
 
+Also assign `methods_used`: the Bayesian computation method(s) the paper's OWN analysis actually \
+USES, chosen only from: mcmc, hmc_nuts (Hamiltonian Monte Carlo / NUTS), variational, sbi \
+(simulation-based / neural inference), abc (approximate Bayesian computation), laplace_inla \
+(Laplace approximation / INLA), exact_analytic (conjugate / closed-form). Include a method ONLY if \
+the paper uses it for its OWN inference — do NOT include methods named merely as alternatives, \
+baselines, related work, or future directions. If none is stated, return an empty list.
+
 You are given paper excerpts and indexed DETECTOR HITS. Rules:
 - evidence_refs MUST cite at least one detector-hit index supporting the selected labels.
 - confidence in [0,1] applies to the selected label set.
 - rationale must state, briefly, why each selected label applies.
 - disciplines: 1-3 fields, most specific first; never leave it empty.
+- methods_used: only methods the paper actually uses (never mentioned-but-unused); may be empty.
 """
 
 

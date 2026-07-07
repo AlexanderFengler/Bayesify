@@ -31,7 +31,7 @@ def classify(
     model = model or llm_config.classify_model()
     user = build_user(parsed, evidence)
     response = call_with_policy(
-        client, model=model, system=CLASSIFY_SYSTEM, user=user, schema=PaperClass, max_tokens=600
+        client, model=model, system=CLASSIFY_SYSTEM, user=user, schema=PaperClass, max_tokens=800
     )
     paper_class = response.parsed
     # A3: reject a hallucinated citation before it becomes a dangling ref. Guarded on `evidence`

@@ -17,7 +17,8 @@
     "rationale": "real RT data",
     "evidence_refs": [
       0
-    ]
+    ],
+    "methods_used": []
   },
   "gate_facts": {
     "inference_method": "hmc_nuts",
