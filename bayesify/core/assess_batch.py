@@ -21,7 +21,6 @@ from bayesify.core.assess import (
     _scanned_section_ids,
     _step_evidence,
     _to_assessment,
-    _wider_context,
     derive_gate_facts,
 )
 from bayesify.core.context import assessment_context, evidence_digest
@@ -246,5 +245,5 @@ def _build_batch_refuter_user(
         "Return verdicts for exactly these challenged rubric steps:\n\n"
         + "\n\n".join(blocks)
         + "\n\nWIDER CONTEXT (includes supplements & captions):\n"
-        + _wider_context(parsed)
+        + assessment_context(parsed, max_chars=config.assess_context_chars())
     )

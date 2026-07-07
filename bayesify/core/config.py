@@ -38,6 +38,6 @@ def grading_strategy() -> str:
 def assess_context_chars() -> int:
     """Character budget for assessment-stage paper context."""
     try:
-        return max(1_000, int(os.environ.get("BAYESIFY_ASSESS_CONTEXT_CHARS", "60000")))
+        return max(1_000, int(os.environ.get("BAYESIFY_ASSESS_CONTEXT_CHARS", "500000")))
     except ValueError:
-        return 60_000
+        return 500_000
