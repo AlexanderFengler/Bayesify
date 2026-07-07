@@ -45,5 +45,8 @@
       "Bash(python -m pytest tests/test_archive.py -q)",
       "Bash(node -e ' *)"
     ]
+  },
+  "enabledPlugins": {
+    "ponytail@ponytail": true
   }
 }
