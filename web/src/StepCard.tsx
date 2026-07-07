@@ -2,6 +2,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import { Box, ButtonBase, Collapse, Paper, Typography } from "@mui/material";
 import { type ReactNode, useState } from "react";
+import { MathText } from "./MathText";
 import type { EvidenceSpan, StepStatus } from "./types";
 
 // Shared, blind-safe step-card atoms used by BOTH the engine report (Report.tsx) and the blind
@@ -120,7 +121,7 @@ export function EvidenceBlock({
               }}
             >
               <FormatQuoteIcon sx={{ fontSize: 14, mr: 0.5, opacity: 0.5, verticalAlign: "middle" }} />
-              {s.quote}
+              <MathText>{s.quote}</MathText>
               <Typography component="cite" variant="caption" sx={{ display: "block", mt: 0.25, color: "text.disabled", fontStyle: "normal" }}>
                 §{s.section_id}
                 {s.page != null && `, p.${s.page}`}

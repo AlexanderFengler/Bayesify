@@ -1,5 +1,6 @@
 import { Box, Link, Typography } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
+import { MathText } from "./MathText";
 import type { Rubric } from "./rubric";
 
 // The rubric blurb shown under the landing-page picker and atop the report. It no longer spells out
@@ -17,7 +18,7 @@ export function RubricAbout({ rubric, showHeader = false }: { rubric: Rubric; sh
         </Typography>
       )}
       <Typography variant="body2" color="text.secondary" sx={{ mt: showHeader ? 0.5 : 0 }}>
-        <strong>{rubric.label}.</strong> {rubric.summary}
+        <strong>{rubric.label}.</strong> <MathText>{rubric.summary}</MathText>
       </Typography>
       <Link
         component={RouterLink}

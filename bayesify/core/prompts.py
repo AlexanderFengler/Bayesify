@@ -116,7 +116,10 @@ downstream, not by you).
 justified? was the check informative?).
 - Math notation: write any mathematical symbols, statistics, or equations in LaTeX — inline as \
 $...$ and display as $$...$$ (e.g. $\\hat{R} < 1.01$, $\\mathrm{Normal}(0, 1)$, $\\sigma$). This \
-applies to did_well, suggestions, and any prose; quoted verbatim evidence stays verbatim.
+applies to did_well, suggestions, and any prose you write, INCLUDING math inside phrases you quote \
+or paraphrase from the paper — e.g. write "the weights are drawn from $\\mathcal{N}(0, 1)$", not \
+"the weights are drawn from N(0, 1)", and $p(y \\mid \\theta)$, not "p(y | θ)". Only the exact \
+substrings you place in the evidence `quote` field stay verbatim.
 """
 
 ASSESS_REFUTE_SYSTEM = """You are an adversarial verifier. A first-pass judge flagged this rubric step \
@@ -129,7 +132,9 @@ Return:
 quote (an exact substring) and the upgraded_status it now deserves ("partial" or "adequate").
 - refuted = false if the step is genuinely absent — do not invent or stretch evidence (no yes-machine).
 Explain your reasoning in `notes`, kept to AT MOST 2 sentences (~40 words) and ending on a complete \
-sentence — be concise, do not trail off. Write any math in LaTeX: inline as $...$, display as $$...$$.
+sentence — be concise, do not trail off. Write any math in LaTeX (inline $...$, display $$...$$), \
+including math inside phrases you quote (write $p(y \\mid \\theta)$, not "p(y | θ)"); only the exact \
+rescuing quote substring stays verbatim.
 """
 
 
@@ -169,7 +174,9 @@ Rules:
 - suggestions: each {text, how_to, ease}; ease ∈ low|medium|high.
 - standard_ids: choose only from the provided candidate ids — never invent a citation.
 - confidence in [0,1] is your calibrated belief in the status.
-- Math notation: write symbols/statistics/equations in LaTeX, except verbatim evidence stays verbatim.
+- Math notation: write symbols/statistics/equations in LaTeX everywhere, including math inside \
+phrases you quote or paraphrase (write $p(y \\mid \\theta)$, not "p(y | θ)"). Only the exact \
+substrings in the evidence `quote` field stay verbatim.
 """
 
 
@@ -183,7 +190,8 @@ rescuing_quote and the upgraded_status it now deserves ("partial" or "adequate")
 - refuted = false if the step is genuinely absent or still incomplete.
 
 Do not invent evidence. Keep notes to AT MOST 2 sentences per step and end on a complete sentence. \
-Write math in LaTeX except quoted evidence stays verbatim.
+Write math in the notes in LaTeX, including math inside phrases you quote (write $p(y \\mid \\theta)$, \
+not "p(y | θ)"); only the exact rescuing_quote substring stays verbatim.
 """
 
 

@@ -20,6 +20,7 @@ import { alpha } from "@mui/material/styles";
 import { useEffect, useState } from "react";
 import { fetchRubrics } from "./api";
 import { GoldText } from "./GoldText";
+import { MathText } from "./MathText";
 import { fetchRubric, type Rubric } from "./rubric";
 import { SectionHeader, SubsectionTitle } from "./SectionHeader";
 
@@ -212,7 +213,7 @@ function RubricColumn({ rubric }: { rubric: Rubric }) {
       <Divider sx={{ my: 2 }} />
 
       <Typography variant="body2" color="text.secondary">
-        {rubric.summary}
+        <MathText>{rubric.summary}</MathText>
       </Typography>
 
       <Divider sx={{ my: 2 }} />

@@ -935,12 +935,12 @@ function CorrectionBadge({ c }: { c: AppliedCorrection }) {
         Adjusted by a trusted expert override
       </Typography>
       <Typography variant="caption" sx={{ display: "block", mt: 0.5 }}>
-        Source: {c.source_paper_title || "(untitled paper)"}
+        Source: <MathText>{c.source_paper_title || "(untitled paper)"}</MathText>
         {c.override_author ? ` · ${c.override_author}` : ""}
       </Typography>
       {c.override_rationale && (
         <Typography variant="caption" sx={{ display: "block", mt: 0.5 }}>
-          Expert: &ldquo;{c.override_rationale}&rdquo;
+          Expert: &ldquo;<MathText>{c.override_rationale}</MathText>&rdquo;
         </Typography>
       )}
       {c.justification && (
