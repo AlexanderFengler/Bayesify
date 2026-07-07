@@ -101,7 +101,7 @@ def assess_batch(
             system=ASSESS_BATCH_JUDGE_SYSTEM,
             user=_build_batch_judge_user(applicable, parsed, evidence, rubric),
             schema=BatchAssessJudgments,
-            max_tokens=5000,
+            max_tokens=10000,
         )
         cost.append(ledger_entry("assess", judge, pass_label="batch_judge"))
         judgments = _judgments_by_step(judge.parsed, [step.id for step, _ in applicable])
@@ -123,7 +123,7 @@ def assess_batch(
             system=ASSESS_BATCH_REFUTE_SYSTEM,
             user=_build_batch_refuter_user(negative, parsed),
             schema=BatchRefuterVerdicts,
-            max_tokens=3000,
+            max_tokens=5000,
         )
         cost.append(ledger_entry("assess", refute, pass_label="batch_refute"))
         verdicts = _verdicts_by_step(refute.parsed, [step.id for step, _ in negative])

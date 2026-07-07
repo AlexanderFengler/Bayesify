@@ -22,7 +22,7 @@ def assess_concurrency() -> int:
 
 def grading_strategy() -> str:
     """How full-mode grading should call the LLM."""
-    value = os.environ.get("BAYESIFY_GRADING_STRATEGY", "per-step").strip().lower()
+    value = os.environ.get("BAYESIFY_GRADING_STRATEGY", "batch").strip().lower()
     aliases = {
         "batched": "batch",
         "batch-assess": "batch",
@@ -32,7 +32,7 @@ def grading_strategy() -> str:
         "perstep": "per-step",
     }
     value = aliases.get(value, value)
-    return value if value in ("per-step", "batch") else "per-step"
+    return value if value in ("per-step", "batch") else "batch"
 
 
 def assess_context_chars() -> int:
