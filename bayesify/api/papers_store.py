@@ -23,9 +23,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from bayesify.core.detectors import EvidenceInventory
 from bayesify.core.schema import PaperClass
 
-# Detector-id -> friendly method/software tag. This is intentionally an explicit allowlist: broad
-# Bayesian vocabulary detectors are useful for screening/rubric evidence, but too noisy for Archive
-# facets. Unknown ids are skipped rather than prettified into tags.
+# Software-detector-id -> friendly tag for the Archive facet. Software mentions are high-precision
+# proper nouns; the context-free method detectors (MCMC/VI/SBI) fire on any mention (incl.
+# alternatives / related work), so they are too noisy as facet tags and are NOT surfaced here —
+# inference-method tags come from the classifier. Unknown ids are skipped rather than prettified.
 _METHOD_LABELS: dict[str, str] = {
     "software.stan": "Stan",
     "software.brms": "brms",
@@ -39,11 +40,8 @@ _METHOD_LABELS: dict[str, str] = {
     "software.hssm": "HSSM",
     "software.turing": "Turing.jl",
     "software.bayesflow": "BayesFlow",
-    "method.mcmc": "MCMC",
-    "method.variational": "Variational inference",
-    "method.sbi": "SBI",
 }
-_METHOD_FAMILIES = {"software", "method"}
+_METHOD_FAMILIES = {"software"}
 
 def methods_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
     """Friendly method/software tags from the detector inventory's found hits (order-preserving,
