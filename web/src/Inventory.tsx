@@ -1,5 +1,6 @@
 import FormatQuoteIcon from "@mui/icons-material/FormatQuote";
 import { Box, Button, Chip, Container, Link, Typography } from "@mui/material";
+import { MathText } from "./MathText";
 import { formatByline } from "./paper";
 import type { EvidenceInventory, InventoryFamily, InventoryHit, PaperState } from "./types";
 
@@ -88,7 +89,7 @@ function SummaryColumn({
       <Box>
         <Chip size="small" variant="outlined" color="success" label="Local · detection mode" sx={{ mb: 1 }} />
         <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-          {paper.paper_title ?? paper.source_label}
+          <MathText>{paper.paper_title ?? paper.source_label}</MathText>
         </Typography>
         {formatByline(paper.paper_authors, paper.paper_year) && (
           <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -198,7 +199,7 @@ function Hit({ h }: { h: InventoryHit }) {
       <Typography variant="body2" sx={{ display: "flex", gap: 0.5, mt: 0.25 }}>
         <FormatQuoteIcon sx={{ fontSize: 16, color: "text.disabled", flex: "0 0 auto", mt: "2px" }} />
         <span>
-          {h.quote}
+          <MathText>{h.quote}</MathText>
           <Box component="span" sx={{ display: "block", color: "text.secondary", fontSize: "0.75rem", mt: 0.25 }}>
             {h.section_title || h.section_id}
             {h.page != null && `, p.${h.page}`}

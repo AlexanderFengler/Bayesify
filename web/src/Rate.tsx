@@ -26,6 +26,7 @@ import {
   submitRating,
 } from "./api";
 import { STATUS_LABEL, STATUS_OPTIONS } from "./rubric";
+import { MathText } from "./MathText";
 import { StepCardShell } from "./StepCard";
 import type { StepStatus } from "./types";
 
@@ -318,7 +319,7 @@ export function Rate({
         </TextField>
         {ctx.rubric.summary && (
           <Typography variant="body2" color="text.secondary">
-            {ctx.rubric.summary}
+            <MathText>{ctx.rubric.summary}</MathText>
           </Typography>
         )}
 
@@ -662,7 +663,7 @@ function EvidenceCite({
           }
           label={
             <Typography variant="body2">
-              &ldquo;{e.quote}&rdquo;{" "}
+              &ldquo;<MathText>{e.quote}</MathText>&rdquo;{" "}
               <Box component="cite" sx={{ color: "text.disabled", fontStyle: "normal" }}>
                 §{e.section_id}
               </Box>

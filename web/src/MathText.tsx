@@ -41,7 +41,7 @@ function render(tex: string, display: boolean): string | null {
 }
 
 // Scan a plain-prose run for bare `\macro` tokens and typeset each; the rest stays text.
-function pushProse(out: Segment[], value: string): void {
+function pushMacros(out: Segment[], value: string): void {
   let last = 0;
   for (const m of value.matchAll(MACRO_RE)) {
     const start = m.index ?? 0;
@@ -51,6 +51,81 @@ function pushProse(out: Segment[], value: string): void {
     last = start + m[0].length;
   }
   if (last < value.length) out.push({ kind: "text", value: value.slice(last) });
+}
+
+// Some engine prose (and every verbatim paper quote) carries math with NO LaTeX delimiters at all —
+// the model emits it as literal Unicode, e.g. `x = Sim(θ, z; ξ)` or `p(x | ξ) = ∫ p(x | θ) dθ`. We
+// still want that typeset. The anchor is a Unicode *math* character (Greek letters, operators like
+// ∫ ∑ ∝ ∼ ≤ ∈ →, ± × ÷ ·) — these essentially never occur in ordinary English report prose, so
+// keying on them keeps false positives near zero.
+const UNICODE_MATH =
+  /[Ͱ-Ͽἀ-῿℀-⅏←-⇿∀-⋿⟀-⟯⦀-⧿±×÷·°]/;
+
+// Classify one whitespace-delimited token when growing a bare-math fragment:
+//  - "strong"    contains a Unicode math char — the only thing that can anchor a fragment.
+//  - "connector" mathematical glue (operators, parens, digits, single letters like variables) with
+//                no real word (longest ASCII-letter run ≤ 2) — merges into an adjacent fragment.
+//  - "plain"     an ordinary word — a hard boundary that ends the current fragment.
+function tokenClass(tok: string): "strong" | "connector" | "plain" {
+  if (UNICODE_MATH.test(tok)) return "strong";
+  const words = tok.match(/[A-Za-z]+/g);
+  const longest = words ? Math.max(...words.map((w) => w.length)) : 0;
+  const hasMathSignal = /[()[\]{}|=+\-*/^_<>~0-9\\,;:.]/.test(tok);
+  if (longest <= 2 && (tok.length === 1 || hasMathSignal)) return "connector";
+  return "plain";
+}
+
+// Trim surrounding whitespace and sentence punctuation off a fragment span (kept as text instead).
+function trimSpan(v: string, s: number, e: number): [number, number] {
+  while (s < e && /[\s.,;:]/.test(v[s])) s++;
+  while (e > s && /[\s.,;:]/.test(v[e - 1])) e--;
+  return [s, e];
+}
+
+// Find the [start, end) spans of maximal bare-math fragments in a prose run: runs of strong/connector
+// tokens (joined only across spaces, never across a newline or a quote glyph) that hold ≥1 strong
+// token. Returns [] when the run has no Unicode math at all — the overwhelmingly common case.
+function mathFragments(value: string): [number, number][] {
+  const spans: [number, number][] = [];
+  let grp: { s: number; e: number; strong: boolean } | null = null;
+  const flush = () => {
+    if (grp && grp.strong) {
+      const [a, b] = trimSpan(value, grp.s, grp.e);
+      if (a < b) spans.push([a, b]);
+    }
+  };
+  for (const m of value.matchAll(/[^\s"'“”‘’]+/g)) {
+    const s = m.index ?? 0;
+    const e = s + m[0].length;
+    const cls = tokenClass(m[0]);
+    const contiguous = grp !== null && !/[\n"'“”‘’]/.test(value.slice(grp.e, s));
+    if (cls !== "plain" && (grp === null || contiguous)) {
+      if (grp === null) grp = { s, e, strong: cls === "strong" };
+      else grp = { s: grp.s, e, strong: grp.strong || cls === "strong" };
+    } else {
+      flush();
+      grp = cls !== "plain" ? { s, e, strong: cls === "strong" } : null;
+    }
+  }
+  flush();
+  return spans;
+}
+
+// Typeset a prose run: first any bare Unicode-math fragments, then bare `\macro` tokens in the rest.
+function pushProse(out: Segment[], value: string): void {
+  if (!UNICODE_MATH.test(value)) {
+    pushMacros(out, value);
+    return;
+  }
+  let last = 0;
+  for (const [s, e] of mathFragments(value)) {
+    if (s > last) pushMacros(out, value.slice(last, s));
+    const tex = value.slice(s, e);
+    const html = render(tex, false);
+    out.push(html ? { kind: "math", html } : { kind: "text", value: tex });
+    last = e;
+  }
+  if (last < value.length) pushMacros(out, value.slice(last));
 }
 
 function parse(input: string): Segment[] {
