@@ -116,7 +116,9 @@ CATALOG: list[Detector] = [
     Detector("software.jags", SW, "software", _c(r"\bJAGS\b", ci=False)),
     Detector("software.bugs", SW, "software", _c(r"\b(?:Win|Open)?BUGS\b", ci=False)),
     Detector("software.hddm", SW, "software", _c(r"\bHDDM\b")),
+    Detector("software.hssm", SW, "software", _c(r"\bHSSM\b")),
     Detector("software.turing", SW, "software", _c(r"\bTuring\.jl\b")),
+    Detector("software.bayesflow", SW, "software", _c(r"\bBayesFlow\b")),
     # --- Bayesian method / inference mentions (the d-screen relevance floor keys on these) ---
     Detector("method.prior", ME, "method",
              _c(r"\bprior(?:s)?\s+(?:distribution|on|over|for)\b"
@@ -133,6 +135,8 @@ CATALOG: list[Detector] = [
                 r"|(?i:hamiltonian monte carlo)|\bHMC\b|(?i:gibbs sampl)", ci=False)),
     Detector("method.variational", ME, "method",
              _c(r"(?i:variational (?:inference|bayes))|\bADVI\b|\bELBO\b", ci=False)),
+    Detector("method.sbi", ME, "method",
+             _c(r"(?i:simulation[- ]based inference)|\bSBI\b", ci=False)),
     Detector("method.analytic", ME, "method",
              _c(r"(?i:conjugate prior|analytic(?:al)? posterior|closed[- ]form posterior)", ci=False)),
     # --- diagnostics with numeric extraction (value -> diagnostic_value, else diagnostic_mention) ---

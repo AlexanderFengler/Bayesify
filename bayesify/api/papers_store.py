@@ -21,11 +21,12 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from bayesify.core.detectors import EvidenceInventory
-from bayesify.core.schema import PaperClass
+from bayesify.core.schema import InferenceMethod, PaperClass
 
-# Detector-id -> friendly method/software tag. This is intentionally an explicit allowlist: broad
-# Bayesian vocabulary detectors are useful for screening/rubric evidence, but too noisy for Archive
-# facets. Unknown ids are skipped rather than prettified into tags.
+# Software-detector-id -> friendly tag for the Archive facet. Software mentions are high-precision
+# proper nouns; the context-free method detectors (MCMC/VI/SBI) fire on any mention (incl.
+# alternatives / related work), so they are too noisy as facet tags and are NOT surfaced here —
+# inference-method tags come from the classifier. Unknown ids are skipped rather than prettified.
 _METHOD_LABELS: dict[str, str] = {
     "software.stan": "Stan",
     "software.brms": "brms",
@@ -39,11 +40,8 @@ _METHOD_LABELS: dict[str, str] = {
     "software.hssm": "HSSM",
     "software.turing": "Turing.jl",
     "software.bayesflow": "BayesFlow",
-    "method.mcmc": "MCMC",
-    "method.variational": "Variational inference",
-    "method.sbi": "SBI",
 }
-_METHOD_FAMILIES = {"software", "method"}
+_METHOD_FAMILIES = {"software"}
 
 def methods_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
     """Friendly method/software tags from the detector inventory's found hits (order-preserving,
@@ -121,3 +119,26 @@ def paper_type_tags(paper_class: PaperClass | None) -> list[str]:
 def discipline_tags(paper_class: PaperClass | None) -> list[str]:
     """Auto discipline tags from a PaperClass (already normalised soft-vocabulary strings)."""
     return list(paper_class.disciplines) if paper_class else []
+
+
+# InferenceMethod -> friendly label for the report chips + Archive facet. Total over the enum (minus
+# "unstated") so a classifier-emitted method never silently vanishes. Mirrors the friendly-label
+# shape of methods_from_inventory (NOT paper_type_tags, which returns raw enum values).
+_INFERENCE_LABELS: dict[InferenceMethod, str] = {
+    InferenceMethod.mcmc: "MCMC",
+    InferenceMethod.hmc_nuts: "MCMC (HMC/NUTS)",
+    InferenceMethod.variational: "Variational inference",
+    InferenceMethod.sbi: "SBI",
+    InferenceMethod.abc: "ABC",
+    InferenceMethod.laplace_inla: "Laplace/INLA",
+    InferenceMethod.exact_analytic: "Analytic",
+}
+
+
+def inference_method_tags(paper_class: PaperClass | None) -> list[str]:
+    """Friendly inference-method tags from a PaperClass's classifier-extracted ``methods_used``
+    (order-preserving; ``unstated`` is already dropped by the PaperClass validator). This is the
+    single source of truth for inference-method labels — the report chips read the same list."""
+    if paper_class is None:
+        return []
+    return [_INFERENCE_LABELS[m] for m in paper_class.methods_used if m in _INFERENCE_LABELS]
