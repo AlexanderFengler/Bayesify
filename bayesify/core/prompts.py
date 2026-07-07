@@ -78,8 +78,9 @@ methodological/statistical paper with no applied domain may be just ["statistics
 
 Also assign `methods_used`: the Bayesian computation method(s) the paper's OWN analysis actually \
 USES, chosen only from: mcmc, hmc_nuts (Hamiltonian Monte Carlo / NUTS), variational, sbi \
-(simulation-based / neural inference), abc (approximate Bayesian computation), laplace_inla \
-(Laplace approximation / INLA), exact_analytic (conjugate / closed-form). Include a method ONLY if \
+(simulation-based / neural inference), smc (sequential Monte Carlo / particle filters), abc \
+(approximate Bayesian computation), laplace_inla (Laplace approximation / INLA), exact_analytic \
+(conjugate / closed-form). Include a method ONLY if \
 the paper uses it for its OWN inference — do NOT include methods named merely as alternatives, \
 baselines, related work, or future directions. If none is stated, return an empty list.
 

@@ -46,6 +46,10 @@ class Job:
     paper_title: str | None = None
     paper_authors: list[str] = field(default_factory=list)
     paper_year: int | None = None
+    # Transient mid-run classification (PaperClass.model_dump), set once classify passes so the
+    # Analyzing screen can reveal the paper type / methods while assess+score run. Not persisted;
+    # the final classification lives in `result`.
+    paper_class: dict | None = None
     backend: str | None = None
     from_cache: bool = False
     force_fresh: bool = False

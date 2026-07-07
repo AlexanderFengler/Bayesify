@@ -91,6 +91,7 @@ export function Layout() {
       setPaper(null); // clear any prior run so the Analyzing screen starts clean
       setRunning(true);
       let metaFetched = false;
+      let classFetched = false;
       streamProgress(
         paperId,
         (e) => {
@@ -100,6 +101,12 @@ export function Layout() {
             // (once) so the Analyzing screen shows the real paper, not the filename.
             if (e.stage === "parse" && e.state === "done" && !metaFetched) {
               metaFetched = true;
+              getPaper(paperId).then(setPaper).catch(() => {});
+            }
+            // Classify done (only for papers that pass the gates) → pull the classification in once so
+            // the Analyzing screen reveals the paper type / methods while assess + score still run.
+            if (e.stage === "classify" && e.state === "done" && !classFetched) {
+              classFetched = true;
               getPaper(paperId).then(setPaper).catch(() => {});
             }
           }

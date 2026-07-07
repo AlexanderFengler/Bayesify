@@ -16,6 +16,8 @@ from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
     EvidenceSpan,
+    PaperClass,
+    PaperClassLabel,
     ParsedDoc,
     Relevance,
     RelevanceLabel,
@@ -304,3 +306,15 @@ def test_grade_parsed_emits_stage_events_in_order() -> None:
         ("assess", "running"), ("assess", "done"),
         ("score", "running"), ("score", "done"),
     ]
+
+
+def test_grade_parsed_reveals_paper_class_once_for_a_graded_paper() -> None:
+    seen: list[PaperClass] = []
+    _grade(_FakeLLM(), on_paper_class=seen.append)
+    assert len(seen) == 1 and seen[0].labels == [PaperClassLabel.data_analysis]
+
+
+def test_grade_parsed_does_not_reveal_paper_class_when_screened_out() -> None:
+    seen: list[PaperClass] = []
+    _grade(_NoGateLLM(), on_paper_class=seen.append)
+    assert seen == []  # a rejected paper never reaches the classify-done reveal

@@ -16,10 +16,13 @@ Conventions:
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+_log = logging.getLogger("bayesify.core.schema")
 
 
 class _Base(BaseModel):
@@ -76,6 +79,7 @@ class InferenceMethod(StrEnum):
     hmc_nuts = "hmc_nuts"
     variational = "variational"
     sbi = "sbi"
+    smc = "smc"
     abc = "abc"
     laplace_inla = "laplace_inla"
     exact_analytic = "exact_analytic"
@@ -208,10 +212,19 @@ class PaperClass(_Base):
     @field_validator("methods_used", mode="before")
     @classmethod
     def _drop_unknown_methods(cls, v: object) -> object:
+        """Drop tokens that aren't a real InferenceMethod (so one stray/hallucinated method can't
+        fail the whole classify call) and log them, so a method we don't yet track surfaces instead
+        of vanishing silently."""
         if not isinstance(v, list):
             return v
         known = {m.value for m in InferenceMethod}
-        return [x for x in v if (x.value if isinstance(x, InferenceMethod) else x) in known]
+        kept, dropped = [], []
+        for x in v:
+            token = x.value if isinstance(x, InferenceMethod) else x
+            (kept if token in known else dropped).append(token)
+        if dropped:
+            _log.warning("classifier named methods outside InferenceMethod (dropped): %s", dropped)
+        return kept
 
     @model_validator(mode="after")
     def _refs_discipline(self) -> PaperClass:

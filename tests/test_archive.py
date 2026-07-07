@@ -141,6 +141,26 @@ def test_methods_from_inventory_maps_and_filters_families() -> None:
     assert methods_from_inventory(None) == []
 
 
+def test_inference_method_tags_maps_smc_and_covers_the_enum() -> None:
+    from bayesify.api.papers_store import inference_method_tags
+    from bayesify.core.schema import InferenceMethod, PaperClass, PaperClassLabel
+
+    def _pc(methods: list) -> PaperClass:
+        return PaperClass(
+            labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="r",
+            evidence_refs=[0], methods_used=methods,
+        )
+
+    assert inference_method_tags(_pc([InferenceMethod.smc, InferenceMethod.mcmc])) == [
+        "SMC", "MCMC",
+    ]
+    assert inference_method_tags(None) == []
+    # every displayable member maps to a label, so no classifier-emitted method silently vanishes
+    for m in InferenceMethod:
+        if m is not InferenceMethod.unstated:
+            assert inference_method_tags(_pc([m])), f"{m} has no friendly label"
+
+
 # --- report_fields: the $set payload drops empties so a merge preserves ---------------------------
 
 

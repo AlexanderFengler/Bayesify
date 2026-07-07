@@ -778,7 +778,7 @@ def test_local_completion_does_not_save_analysis_event(monkeypatch) -> None:
 
     monkeypatch.setattr(job_reports, "save_analysis_report", fake_save)
 
-    async def fake_front_half(job, *, source=None):
+    async def fake_front_half(job, *, source=None, client=None):
         job.content_sha256 = "ab" * 32
         job.version_label = "uploaded PDF"
         return None, []
@@ -804,7 +804,7 @@ def test_fresh_full_llm_completion_saves_analysis_event(monkeypatch) -> None:
     monkeypatch.setattr(job_pipeline.llm_config, "llm_backend", lambda: "api")
     monkeypatch.setattr(api_resources, "llm_client", lambda: object())
 
-    async def fake_front_half(job, *, source=None):
+    async def fake_front_half(job, *, source=None, client=None):
         job.content_sha256 = "ab" * 32
         job.version_label = "uploaded PDF"
         return object(), []
@@ -1027,6 +1027,7 @@ def _full_fake(
         BatchRefuterVerdicts,
         BatchStepJudgment,
     )
+    from bayesify.core.extract import PaperMetadata
     from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
     from bayesify.llm import LLMResponse
 
@@ -1051,6 +1052,8 @@ def _full_fake(
                     rationale="r",
                     evidence_refs=[0],
                 )
+            elif schema.__name__ == "PaperMetadata":
+                p = PaperMetadata(title="Extracted Title")
             elif schema.__name__ == "StepJudgment":
                 p = StepJudgment(status=judge_status, confidence=0.9)
             elif schema.__name__ == "BatchAssessJudgments":
@@ -1132,7 +1135,8 @@ def test_full_upload_short_circuits_on_no(tmp_path, monkeypatch) -> None:
     assert job.result.relevance.label is RelevanceLabel.no
     assert job.result.paper_class is None  # short-circuit: classify + assess skipped, scores null
     assert job.result.quality_score is None
-    assert fake.calls == ["Relevance"]  # only the screen call; no classify/assess
+    # only the screen call among grading calls; no classify/assess (extract ran first)
+    assert [c for c in fake.calls if c != "PaperMetadata"] == ["Relevance"]
 
 
 def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch) -> None:
@@ -1164,7 +1168,7 @@ def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch
     assert r.paper_class is not None  # classify ran even though the gate had said 'no'
     assert len(r.step_assessments) == 10  # fully graded, not short-circuited
     assert r.coverage is not None and r.quality_score is not None
-    assert fake.calls[0] == "Relevance" and "PaperClass" in fake.calls  # screen + forced classify
+    assert "Relevance" in fake.calls and "PaperClass" in fake.calls  # screen + forced classify
 
 
 def test_grading_under_gelman_uses_the_gelman_rubric(tmp_path, monkeypatch) -> None:

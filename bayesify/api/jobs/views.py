@@ -22,6 +22,7 @@ def job_payload(job: Job) -> dict:
         "paper_title": job.paper_title,
         "paper_authors": job.paper_authors,
         "paper_year": job.paper_year,
+        "paper_class": job.paper_class,
         "relevance_override": job.relevance_override,
         "result": job.result.model_dump(mode="json") if job.result else None,
         "fix_list": (

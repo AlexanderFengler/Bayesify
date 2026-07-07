@@ -91,10 +91,13 @@ def test_classify_carries_methods_used() -> None:
 
     canned = PaperClass(
         labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="fits real data",
-        evidence_refs=[0], methods_used=[InferenceMethod.hmc_nuts, InferenceMethod.sbi],
+        evidence_refs=[0],
+        methods_used=[InferenceMethod.hmc_nuts, InferenceMethod.sbi, InferenceMethod.smc],
     )
-    cls, _ = C.classify(_parsed("We fit with NUTS and SBI."), [_ev()], client=FakeLLMClient(canned))
-    assert cls.methods_used == [InferenceMethod.hmc_nuts, InferenceMethod.sbi]
+    cls, _ = C.classify(
+        _parsed("We fit with NUTS, SBI, SMC."), [_ev()], client=FakeLLMClient(canned)
+    )
+    assert cls.methods_used == [InferenceMethod.hmc_nuts, InferenceMethod.sbi, InferenceMethod.smc]
 
 
 def test_paperclass_methods_used_drops_unknown_unstated_and_dupes() -> None:
@@ -107,3 +110,18 @@ def test_paperclass_methods_used_drops_unknown_unstated_and_dupes() -> None:
         methods_used=["mcmc", "nuts", "mcmc", "unstated"],  # "nuts" not in vocab; dup + unstated
     )
     assert pc.methods_used == [InferenceMethod.mcmc]
+
+
+def test_paperclass_methods_used_logs_dropped(caplog) -> None:
+    # Out-of-vocab tokens are dropped (not fatal) AND logged, so an untracked method surfaces.
+    import logging
+
+    from bayesify.core.schema import InferenceMethod
+
+    with caplog.at_level(logging.WARNING, logger="bayesify.core.schema"):
+        pc = PaperClass(
+            labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="r",
+            evidence_refs=[0], methods_used=["mcmc", "particle_filter"],
+        )
+    assert pc.methods_used == [InferenceMethod.mcmc]
+    assert any("particle_filter" in r.getMessage() for r in caplog.records)
