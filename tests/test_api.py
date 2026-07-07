@@ -1015,9 +1015,18 @@ def _full_fake(
     relevance: str = "yes", judge_status: str = "adequate", paper_class: str = "data_analysis"
 ):
     """A schema-aware fake for the whole full pipeline: Relevance for screen, PaperClass for
-    classify, StepJudgment for each assess judge call, RefuterVerdict for refuters. Records the
-    schema name of every call so tests can assert what ran."""
+    classify, StepJudgment / BatchAssessJudgments for assess judge calls, RefuterVerdict /
+    BatchRefuterVerdicts for refuters (per-step vs batch strategy). Records the schema name of
+    every call so tests can assert what ran."""
+    import re
+
     from bayesify.core.assess import RefuterVerdict, StepJudgment
+    from bayesify.core.assess_batch import (
+        BatchAssessJudgments,
+        BatchRefuterVerdict,
+        BatchRefuterVerdicts,
+        BatchStepJudgment,
+    )
     from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
     from bayesify.llm import LLMResponse
 
@@ -1044,11 +1053,32 @@ def _full_fake(
                 )
             elif schema.__name__ == "StepJudgment":
                 p = StepJudgment(status=judge_status, confidence=0.9)
+            elif schema.__name__ == "BatchAssessJudgments":
+                ids = re.findall(r"^STEP (S\d+):", user, re.M)
+                p = BatchAssessJudgments(
+                    judgments=[
+                        BatchStepJudgment(step_id=sid, status=judge_status, confidence=0.9)
+                        for sid in ids
+                    ]
+                )
+            elif schema.__name__ == "BatchRefuterVerdicts":
+                ids = re.findall(r"^STEP (S\d+):", user, re.M)
+                p = BatchRefuterVerdicts(
+                    verdicts=[
+                        BatchRefuterVerdict(step_id=sid, refuted=False, notes="absent")
+                        for sid in ids
+                    ]
+                )
             else:
                 p = RefuterVerdict(refuted=False, notes="absent")
             return LLMResponse(parsed=p, model=model, input_tokens=10, output_tokens=5)
 
     return _F()
+
+
+def _assess_ran(calls: list[str]) -> bool:
+    """True if the assess stage made a judge call, under either grading strategy."""
+    return any(s in calls for s in ("StepJudgment", "BatchAssessJudgments"))
 
 
 def test_full_upload_grades_end_to_end(tmp_path, monkeypatch) -> None:
@@ -1193,7 +1223,7 @@ def test_review_paper_short_circuits(tmp_path, monkeypatch) -> None:
     assert r.not_applicable_reason == "not_an_application"
     assert r.relevance.label is RelevanceLabel.yes  # Bayesian-relevant...
     assert r.paper_class.labels == [PaperClassLabel.review] and not r.step_assessments  # not graded
-    assert "StepJudgment" not in fake.calls  # assess never ran
+    assert not _assess_ran(fake.calls)  # assess never ran
 
 
 def test_force_grade_reruns_a_review_paper(tmp_path, monkeypatch) -> None:
@@ -1211,7 +1241,7 @@ def test_force_grade_reruns_a_review_paper(tmp_path, monkeypatch) -> None:
 
     r = job.result
     assert job.status == "done" and r is not None and r.not_applicable_reason is None
-    assert len(r.step_assessments) == 10 and "StepJudgment" in fake.calls  # graded despite review
+    assert len(r.step_assessments) == 10 and _assess_ran(fake.calls)  # graded despite review
 
 
 def test_rerun_endpoint_force_grades_a_review_result(tmp_path, monkeypatch) -> None:
@@ -1307,7 +1337,7 @@ def test_identical_rerun_is_served_from_cache_without_calling_the_model(tmp_path
     j1 = Job(id="ca1", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j1))
     assert j1.from_cache is False and j1.result is not None
-    assert "StepJudgment" in f1.calls  # the full pipeline really ran
+    assert _assess_ran(f1.calls)  # the full pipeline really ran
 
     # same bytes → cache hit; the LLM client must NOT be called again
     f2 = FakeLLMClient()  # empty: would raise if invoked
@@ -1337,7 +1367,7 @@ def test_failed_run_is_not_cached_so_breakage_is_never_masked(tmp_path, monkeypa
     monkeypatch.setattr(api_resources, "llm_client", lambda: f2)
     j2 = Job(id="cf2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j2))
-    assert j2.status == "done" and j2.from_cache is False and "StepJudgment" in f2.calls
+    assert j2.status == "done" and j2.from_cache is False and _assess_ran(f2.calls)
 
 
 def test_no_cache_env_always_runs_fresh(tmp_path, monkeypatch):
@@ -1353,7 +1383,7 @@ def test_no_cache_env_always_runs_fresh(tmp_path, monkeypatch):
     monkeypatch.setattr(api_resources, "llm_client", lambda: f2)
     j2 = Job(id="cn2", mode="full", source_label="p.pdf", data=_HDDM_PDF, filename="p.pdf")
     asyncio.run(run_job(j2))
-    assert j2.from_cache is False and "StepJudgment" in f2.calls  # not cached: a real run each time
+    assert j2.from_cache is False and _assess_ran(f2.calls)  # not cached: a real run each time
 
 
 def test_local_report_json_and_md(tmp_path, monkeypatch) -> None:

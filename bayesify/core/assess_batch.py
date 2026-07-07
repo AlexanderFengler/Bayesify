@@ -21,7 +21,6 @@ from bayesify.core.assess import (
     _scanned_section_ids,
     _step_evidence,
     _to_assessment,
-    _wider_context,
     derive_gate_facts,
 )
 from bayesify.core.context import assessment_context, evidence_digest
@@ -102,7 +101,7 @@ def assess_batch(
             system=ASSESS_BATCH_JUDGE_SYSTEM,
             user=_build_batch_judge_user(applicable, parsed, evidence, rubric),
             schema=BatchAssessJudgments,
-            max_tokens=5000,
+            max_tokens=10000,
         )
         cost.append(ledger_entry("assess", judge, pass_label="batch_judge"))
         judgments = _judgments_by_step(judge.parsed, [step.id for step, _ in applicable])
@@ -124,7 +123,7 @@ def assess_batch(
             system=ASSESS_BATCH_REFUTE_SYSTEM,
             user=_build_batch_refuter_user(negative, parsed),
             schema=BatchRefuterVerdicts,
-            max_tokens=3000,
+            max_tokens=5000,
         )
         cost.append(ledger_entry("assess", refute, pass_label="batch_refute"))
         verdicts = _verdicts_by_step(refute.parsed, [step.id for step, _ in negative])
@@ -246,5 +245,5 @@ def _build_batch_refuter_user(
         "Return verdicts for exactly these challenged rubric steps:\n\n"
         + "\n\n".join(blocks)
         + "\n\nWIDER CONTEXT (includes supplements & captions):\n"
-        + _wider_context(parsed)
+        + assessment_context(parsed, max_chars=config.assess_context_chars())
     )

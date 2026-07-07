@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pydantic import BaseModel, Field
 
 from bayesify.core import config
-from bayesify.core.context import evidence_digest, excerpt_context
+from bayesify.core.context import assessment_context, evidence_digest
 from bayesify.core.prompts import ASSESS_JUDGE_SYSTEM, ASSESS_REFUTE_SYSTEM
 from bayesify.core.rubric.applicability import step_applicability_for_labels
 from bayesify.core.rubric.models import RubricSpec, RubricStep
@@ -100,7 +100,6 @@ _STEP_SYNONYMS: dict[str, list[str]] = {
 _STATUS = {s.value: s for s in (StepStatus.adequate, StepStatus.partial, StepStatus.missing)}
 _RANK = {StepStatus.missing: 0, StepStatus.partial: 1, StepStatus.adequate: 2}
 _NEGATIVE = (StepStatus.missing, StepStatus.partial)
-_REFUTER_BUDGET = 14_000
 
 # Detectors that imply the posterior was sampled or approximated, not closed-form. They override a
 # stray "conjugate prior"/"analytic posterior" mention so a mixed-method paper (conjugate block +
@@ -319,13 +318,13 @@ def _build_judge_user(
         + (f"THRESHOLDS:\n{thresholds}\n" if thresholds else "")
         + f"\nCANDIDATE STANDARDS (cite by id only):\n{candidates}\n\n"
         f"DETECTOR HITS for this step:\n{evidence_digest(step_ev)}\n\n"
-        f"PAPER EXCERPTS:\n{excerpt_context(parsed)}"
+        f"PAPER EXCERPTS:\n{assessment_context(parsed, max_chars=config.assess_context_chars())}"
     )
 
 
 def _build_refuter_user(step: RubricStep, parsed, assessment: StepAssessment) -> str:
     synonyms = ", ".join(_STEP_SYNONYMS.get(step.id, [])) or "(none)"
-    wider = _wider_context(parsed)
+    wider = assessment_context(parsed, max_chars=config.assess_context_chars())
     return (
         f"RUBRIC STEP {step.id}: {step.name}\n"
         f"The first pass judged this '{assessment.status.value}'.\n"
@@ -333,21 +332,6 @@ def _build_refuter_user(step: RubricStep, parsed, assessment: StepAssessment) ->
         f"Alternative wordings to search for: {synonyms}\n\n"
         f"WIDER CONTEXT (includes supplements & captions):\n{wider}"
     )
-
-
-def _wider_context(parsed, *, max_chars: int = _REFUTER_BUDGET) -> str:
-    blocks = []
-    used = 0
-    for s in parsed.sections:
-        if s.kind.value == "references" or not s.text:
-            continue
-        block = f"## {s.title or s.kind.value}\n{s.text}"
-        if used + len(block) > max_chars:
-            blocks.append(block[: max_chars - used])
-            break
-        blocks.append(block)
-        used += len(block)
-    return "\n\n".join(blocks) or "(no extractable text)"
 
 
 def _scanned_section_ids(parsed) -> list[str]:
