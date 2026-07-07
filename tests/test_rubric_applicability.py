@@ -143,12 +143,22 @@ def test_s8_method_development_still_escalates_under_informative_priors() -> Non
     assert ap.tier is ExpectationTier.expected
 
 
-def test_s3_s8_still_essential_for_other_development_classes() -> None:
-    # The demotion is scoped to method_development; model/software/theoretical stay expected.
+def test_s3_still_essential_for_model_and_theoretical_development() -> None:
+    for pc in (PaperClassLabel.model_development, PaperClassLabel.theoretical_analysis):
+        assert _ap("S3", pc).tier is ExpectationTier.expected
+
+
+def test_s3_is_optional_for_software_development() -> None:
+    ap = _ap("S3", PaperClassLabel.software_development)
+    assert ap.applicable is True and ap.tier is ExpectationTier.none
+
+
+def test_s8_still_essential_for_other_development_classes() -> None:
+    # The S8 default demotion is scoped to method_development;
+    # model/software/theoretical stay expected.
     for pc in (
         PaperClassLabel.model_development,
         PaperClassLabel.software_development,
         PaperClassLabel.theoretical_analysis,
     ):
-        assert _ap("S3", pc).tier is ExpectationTier.expected
         assert _ap("S8", pc).tier is ExpectationTier.expected

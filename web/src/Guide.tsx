@@ -33,10 +33,19 @@ const GET_RATED_STEPS: FlowStep[] = [
     ),
   },
   {
+    head: "Select a rubric",
+    body: (
+      <>
+        There is no standard Bayesian workflow. Select among existing <em>rubrics</em> embodying
+        different workflow philosophies.
+      </>
+    ),
+  },
+  {
     head: "Click Analyze",
     body: (
       <>
-        The paper goes through our multi-stage pipeline and you get a step-by-step coverage report with 
+        The paper goes through our multi-stage pipeline and you get a step-by-step coverage report with
         suggestions and adversarial checks.
       </>
     ),
@@ -116,7 +125,7 @@ export function Guide({ id }: { id?: string }) {
         title="How it works"
         lead={
           <>
-            Bayesify checks how well a paper follows the <strong>Bayesian workflow</strong> (e.g.,
+            Bayesify checks how well a paper follows a <strong>Bayesian workflow</strong> (e.g.,
             model specification, priors, predictive checks, convergence diagnostics, reporting) against a rubric 
             of community best practices, with every finding grounded in the paper and judged against the rubric. 
             Scores are <strong>formative, not a verdict</strong>.

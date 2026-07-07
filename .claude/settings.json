@@ -71,5 +71,8 @@
       "Bash(curl -sf -o /dev/null -m 2 http://localhost:8000/)",
       "Bash(git -C /home/a_huangm13/Documents/Dev/Bayesify status --short)"
     ]
+  },
+  "enabledPlugins": {
+    "ponytail@ponytail": true
   }
 }

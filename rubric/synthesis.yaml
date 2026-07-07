@@ -13,7 +13,7 @@
 #   (this whole file; the default, to be developed into the gold standard) or a source-pure
 #   profile compiled by filtering steps/thresholds on `citations` provenance (first: `schad2021`).
 
-rubric_version: "0.3-draft"
+rubric_version: "0.4-draft"
 label: "Synthesis (merged gold standard)"
 summary: >
   The default Bayesify rubric: a merged, provenance-tracked standard drawing on the major
@@ -64,9 +64,6 @@ steps:
   - id: S2
     name: Prior specification
     essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
-    # v0: S2 is always applicable (no na_when) — priors are always expected to be reported, so the
-    # engine and a blind rater gate it identically. The immaterial-priors nuance is a `note`, not an
-    # N/A path; depth of justification may be relaxed there, but reporting is still required.
     why: "Priors are part of the model and shape the posterior; leaving them unstated hides assumptions and makes the analysis impossible to reproduce or critique."
     note: "When the likelihood fully dominates and priors are immaterial, the depth of justification may be relaxed — but the priors must still be reported (silence remains a defect)."
     adequate: "Every prior listed and justified (weakly-informative vs informative, and why); informative priors sourced."
@@ -75,9 +72,7 @@ steps:
 
   - id: S3
     name: Prior predictive / prior pushforward checks
-    # method_development demoted to recommended (2026-06: a methods paper whose data work is
-    # illustrative shouldn't be held to a substantive-analysis prior-predictive check by default).
-    essential_for: [model_development, software_development, theoretical_analysis]
+    essential_for: [model_development, theoretical_analysis]
     recommended_for: [data_analysis, numerical_analysis, method_development]
     why: "Simulating from the prior before seeing data catches implausible assumptions while they are still cheap to fix, and before the data can bias the prior choice."
     adequate: "Simulations from prior(+likelihood) shown/described BEFORE data; implausible implications caught & priors revised."
@@ -90,10 +85,10 @@ steps:
     na_when: "Exact/analytic/conjugate posterior — no sampler. Mark not_applicable, do not penalize."
     gate:
       na_when_inference: [exact_analytic]   # no sampler to diagnose → not_applicable (G6)
-    inference_scope: [mcmc, hmc_nuts, variational]
-    why: "Convergence diagnostics tell you whether the sampler actually approximated the posterior; without them, every number reported could be an artifact of a broken fit."
-    adequate: "Reports R-hat AND ESS for every parameter (BARG); divergences=0; warmup/iters/chains stated; treedepth/E-FMI/MCSE as relevant."
-    missing: "No convergence diagnostics; single chain; ignored divergences; only one of R-hat/ESS."
+    inference_scope: [mcmc, hmc_nuts, variational, sbi]
+    why: "Convergence diagnostics tell you whether the sampler (or, for SBI, the trained network) actually approximated the posterior; without them, every number reported could be an artifact of a broken fit."
+    adequate: "MCMC/HMC: R-hat AND ESS for every parameter (BARG); divergences=0; warmup/iters/chains stated; SBI/amortized: training budget and loss/network convergence stated, plus SBC in place of R-hat/ESS."
+    missing: "No convergence diagnostics; single chain; ignored divergences; only one of R-hat/ESS. SBI: no stated training budget/convergence, or no calibration check."
     thresholds:
       rhat_modern: { value: "< 1.01", source: vehtari2021, verified: false, note: "fetched but not adversarially verified this run; cite directly. 2026 pass line." }
       rhat_historical: { value: "> 1.1 flagged", source: betancourt_workflow, verified: true, note: "stan_utility; use to judge older papers in context." }
@@ -111,22 +106,22 @@ steps:
     essential_for: [data_analysis]
     recommended_for: [numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
     why: "Comparing the fitted model's predictions back to the observed data is the main test of whether the model is actually adequate for the question."
-    adequate: "PPCs shown (graphical overlays and/or test quantities); discrepancies discussed and acted on."
-    missing: "No PPC; fit asserted without checking; obvious misfit ignored."
-    note: "PPC discrepancies are signals to investigate, NOT auto-diagnoses of a specific defect."
+    adequate: "PPCs shown (graphical overlays and/or test quantities) covering the quantities the paper's conclusions actually rest on; discrepancies discussed and acted on."
+    missing: "No PPC; fit asserted without checking; obvious misfit ignored; PPC checks a narrower quantity (e.g., means) than what the conclusions claim (e.g., tails, variance, extremes)."
+    note: "PPC discrepancies are signals to investigate, NOT auto-diagnoses of a specific defect. A PPC that only supports a narrower claim than the paper makes is a mismatch, not a pass."
     citations: [gabry2019, gelman2020]
 
   - id: S6
     name: Model comparison / selection
-    na_when: "Only one model entertained and no Bayes factor reported."
+    na_when: "Only one model entertained and no comparison metric (BF, posterior model probability, or LOO/WAIC) reported."
     essential_for: []   # conditionally essential only when >=2 models or a BF is claimed
     gate:               # G6: model comparison is N/A for a single model w/o BF, else expected
       na_when_single_model_no_bf: true
       essential_when_models_gte: 2
       essential_when_bf_claimed: true
-    why: "When more than one model is in play, an honest comparison carrying uncertainty prevents cherry-picking the specification that merely happened to look best."
-    adequate: "PSIS-LOO/WAIC with SE and Pareto-k reported, interpreted with uncertainty. For BF: robust BF sub-workflow (verify priors, bridge-sample >=2x, SBC-check BF accuracy)."
-    missing: "Model chosen with no comparison / inappropriate criterion; high Pareto-k ignored; BF reported without prior justification, stability, or SBC."
+    why: "When more than one model is in play, an honest comparison carrying uncertainty prevents cherry-picking the specification that merely happened to look best. Ideally combines a prior-predictive metric (BF/posterior model probability) with a posterior-predictive metric (LOO/WAIC/RMSE) — each probes a different notion of fit."
+    adequate: "PSIS-LOO/WAIC (or RMSE etc.) with SE and Pareto-k reported, interpreted with uncertainty — ideally alongside a prior-predictive metric (BF/posterior model probability) for converging evidence. Bonus if the posterior-predictive comparison uses held-out/new data rather than only the fitting data (retrodictive). For BF: robust BF sub-workflow (verify priors, bridge-sample >=2x, SBC-check BF accuracy)."
+    missing: "Model chosen with no comparison metric (BF, posterior model probability, or LOO/WAIC all absent) / inappropriate criterion; high Pareto-k ignored; BF reported without prior justification, stability, or SBC."
     thresholds:
       pareto_k: { value: "k>0.5 monitor, k>0.7 bad", source: vehtari2017, verified: false, note: "SCOPE GAP: widely used but NOT verified this run. Fill from Vehtari 2017 + Stan loo docs before v1.0." }
       elpd_diff: { value: "report elpd differences WITH standard errors", source: vehtari2017, verified: false }
@@ -140,18 +135,16 @@ steps:
     na_when: "Routine fit with reliable self-diagnostics (S4) on a simple/standard model — may be done once per research program."
     why: "Calibration / recovery studies show the inference machinery itself is trustworthy on this model — essential for a new method, before any real-data claim is believed."
     adequate: "SBC (rank-uniformity) or parameter-recovery study reported; for BF, SBC of BF estimates."
-    missing: "New method/model with no recovery or calibration evidence."
+    missing: "New model coupled with an approximate method (e.g., MCMC, SBI) with no recovery or calibration evidence."
     citations: [talts2018, modrak2023, schad2022_bf]
 
   - id: S8
     name: Prior / model sensitivity analysis
-    # method_development demoted to recommended (2026-06): same rationale as S3. The gate below still
-    # re-escalates S8 to expected when (weakly-)informative priors or a BF claim are detected.
     essential_for: [model_development, software_development, theoretical_analysis]
     recommended_for: [data_analysis, numerical_analysis, method_development]
     na_when: "Likelihood clearly dominates and priors are immaterial AND no BF/informative prior used."
     mandatory_when: "Informative/weakly-informative priors used, OR any Bayes-factor claim (WAMBS; Schad 2022)."
-    gate:               # G6: informative priors or a BF claim escalate S8 to expected (any class)
+    gate:
       essential_when_prior_informative: true
       essential_when_bf_claimed: true
     why: "Checking whether conclusions survive reasonable changes to the priors/specification distinguishes a robust finding from an artifact of one arbitrary choice."
@@ -162,15 +155,15 @@ steps:
   - id: S9
     name: Reporting & reproducibility
     essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
-    why: "A Bayesian result is only usable if others can see and rerun the model, priors, settings, and data — opacity makes the analysis impossible to verify or build on."
+    why: "A Bayesian result is only usable if others can see and rerun the model, priors, settings, and data; opacity makes the analysis impossible to verify or build on."
     adequate: "Model, priors, software+version, sampler settings (chains/iters/warmup/seed), diagnostics, data/code availability all reported (BARG 6 steps)."
     missing: "Opaque 'we fit a Bayesian model'; missing settings; point estimates with no uncertainty; no data/code."
     citations: [barg2021, wambs2017]
 
   - id: S10
     name: Posterior summary & inference communication
-    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development, theoretical_analysis]
-    why: "How the posterior is summarized and claimed is where the analysis meets the science — dropping uncertainty or over-claiming undoes the careful work upstream."
+    essential_for: [data_analysis, numerical_analysis, model_development, method_development, software_development]
+    why: "How the posterior is summarized and claimed is where analysis meets science; dropping uncertainty or over-claiming undoes the careful work upstream."
     adequate: "Point + interval (CrI/HDI, defined) with uncertainty; claims tied to posterior quantities; no over-claiming."
     missing: "Point estimates only; significance-style misreadings; intervals undefined."
     citations: [barg2021, vandeschoot2021]
