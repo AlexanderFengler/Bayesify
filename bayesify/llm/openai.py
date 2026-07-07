@@ -8,6 +8,20 @@ from pydantic import BaseModel, ValidationError
 
 from bayesify.llm.base import LLMError, LLMResponse, LLMTransientError, brace_json, usage_tokens
 
+# Reasoning models (e.g. GPT-5.x) count internal reasoning tokens against max_output_tokens, so a
+# per-stage answer budget sized for the answer alone (extract=120, screen=600, ...) can be fully
+# consumed by reasoning, leaving nothing for the structured answer: the response comes back
+# status=incomplete / reason=max_output_tokens with no visible output (empty -> retry -> error).
+# Add headroom on top of each call's answer budget so reasoning never starves the answer. Output is
+# billed per token actually used and the schema self-limits the answer, so the larger ceiling
+# neither inflates cost nor lengthens the answer; it only prevents truncation. Deliberately does NOT
+# force a low reasoning effort — the judge/refuter stages need their depth. Harmless for
+# non-reasoning models (they simply won't use the extra room).
+# 50k is double OpenAI's >=25k reserve guidance for reasoning+output on such models — headroom is
+# free unless the tokens are actually spent, so we err generous to never truncate a deep judgment.
+# ponytail: raise it only if a high-effort model still returns "no parseable structured output".
+_REASONING_HEADROOM_TOKENS = 50_000
+
 
 class OpenAIClient:
     """LLM client backed by OpenAI's Responses API."""
@@ -68,23 +82,19 @@ class OpenAIClient:
         max_tokens: int,
     ):
         responses = self._client().responses
-        input_messages = [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ]
+        request = {
+            "model": model,
+            "input": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            "max_output_tokens": max_tokens + _REASONING_HEADROOM_TOKENS,
+            "store": False,
+        }
         if hasattr(responses, "parse"):
-            return responses.parse(
-                model=model,
-                input=input_messages,
-                text_format=schema,
-                max_output_tokens=max_tokens,
-                store=False,
-            )
+            return responses.parse(**request, text_format=schema)
         return responses.create(
-            model=model,
-            input=input_messages,
-            max_output_tokens=max_tokens,
-            store=False,
+            **request,
             text={
                 "format": {
                     "type": "json_schema",

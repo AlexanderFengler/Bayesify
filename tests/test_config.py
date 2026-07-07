@@ -78,10 +78,14 @@ def test_cheap_tier_exists_in_pricing() -> None:
     assert haiku < opus
 
 
-def test_unpriced_model_fails_loud() -> None:
-    # An unpriced model usually means an unpinned one, which G1 forbids — fail, don't guess $0.
-    with pytest.raises(KeyError):
-        llm_config.estimate_cost("some-unpinned-model", 100, 100)
+def test_unpriced_model_records_zero_cost_not_crash(caplog) -> None:
+    # A valid-but-unpriced model (e.g. an OpenAI id we haven't pinned) must NOT crash grading after
+    # the API call was already billed — it records 0.0 and warns so the gap is visible.
+    import logging
+
+    with caplog.at_level(logging.WARNING, logger="bayesify.llm.config"):
+        assert llm_config.estimate_cost("some-unpinned-model", 100, 100) == 0.0
+    assert any("some-unpinned-model" in r.message for r in caplog.records)
 
 
 def test_zero_tokens_zero_cost() -> None:
