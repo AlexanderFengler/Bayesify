@@ -2,7 +2,7 @@ import { Box, Container, Link, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 
 // Current app version, surfaced as the footer's alpha-stage marker. Keep in step with package.json.
-const APP_VERSION = "0.1.0";
+const APP_VERSION = "0.1.1";
 
 // The permanent app footer: a single transparent bar rendered once by Layout (like the header), so
 // the dynamic aurora shows through and blends with it. A thin horizontal divider sits on top. It
@@ -26,7 +26,7 @@ export function Footer() {
           }}
         >
           <Typography variant="body2" sx={{ color: "inherit", fontSize: "0.875rem" }}>
-            Alpha version - {APP_VERSION}
+            Beta version - {APP_VERSION}
           </Typography>
           <Box sx={{ display: "flex", gap: 3 }}>
             {/* How-it-works and Rubrics are sections of the main page now (still addressable at
