@@ -20,13 +20,13 @@ const ORGS: Org[] = [
   },
 ];
 
-// The people who build Bayesify. Add one entry per developer — plain strings, shown as a simple list
-// under the org logos. Leave the array empty to hide the section entirely.
+// The people who build Bayesify. Add one entry per developer, shown as a simple linked list under
+// the org logos. Leave the array empty to hide the section entirely.
 //   >>> ADD DEVELOPER NAMES HERE <<<
-const DEVELOPERS: string[] = [
-  "Alexander Fengler",
-  "Stefan T. Radev",
-  "Jerry M. Huang"
+const DEVELOPERS: { name: string; url: string }[] = [
+  { name: "Alexander Fengler", url: "https://alexanderfengler.github.io/about/" },
+  { name: "Stefan T. Radev", url: "https://bayesops.com/members/stefan-radev" },
+  { name: "Jerry M. Huang", url: "https://bayesops.com/members/jerry-huang" },
 ];
 
 // A dedicated "Supported by" page reached from the footer: the org wordmarks that back the project,
@@ -83,9 +83,9 @@ export function SupportedBy() {
             component="ul"
             sx={{ listStyle: "none", p: 0, m: 0, mt: 1.5, display: "flex", flexWrap: "wrap", gap: { xs: 1, md: 2 } }}
           >
-            {DEVELOPERS.map((name, i) => (
+            {DEVELOPERS.map((dev, i) => (
               <Typography
-                key={name}
+                key={dev.name}
                 component="li"
                 sx={{
                   color: "text.secondary",
@@ -101,7 +101,9 @@ export function SupportedBy() {
                     sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "common.white", flexShrink: 0 }}
                   />
                 )}
-                {name}
+                <Link href={dev.url} target="_blank" rel="noreferrer" underline="hover" color="inherit">
+                  {dev.name}
+                </Link>
               </Typography>
             ))}
           </Box>

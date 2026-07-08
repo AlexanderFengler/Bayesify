@@ -1229,29 +1229,43 @@ function StepDisclosures({
       </Collapse>
 
       <Collapse in={showStandards}>
-        <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 0.75 }}>
+        <Box component="ul" sx={{ mt: 1.5, mb: 0, p: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 1 }}>
           {standards.map((s, i) => {
             const url = standardUrl(s);
             const text = cleanCitation(s.citation);
             return (
-              <Box key={i} sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                <Typography variant="body2" color="text.secondary">
-                  {url ? (
-                    <Link href={url} target="_blank" rel="noreferrer" underline="hover" sx={{ fontWeight: 600, color: "inherit" }}>
+              <Box component="li" key={`${s.source_id}-${s.locator ?? "standard"}-${i}`} sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+                <Box
+                  aria-hidden="true"
+                  sx={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    bgcolor: s.verified ? "success.main" : "text.disabled",
+                    boxShadow: (t) => `0 0 0 3px ${alpha(s.verified ? t.palette.success.main : t.palette.text.disabled, 0.12)}`,
+                    flex: "0 0 auto",
+                    mt: "0.58rem",
+                  }}
+                />
+                <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ flex: "1 1 28rem", minWidth: 0, lineHeight: 1.55 }}>
+                    {url ? (
+                      <Link href={url} target="_blank" rel="noreferrer" underline="hover" sx={{ fontWeight: 600, color: "inherit" }}>
+                        <MathText>{text}</MathText>
+                      </Link>
+                    ) : (
                       <MathText>{text}</MathText>
-                    </Link>
+                    )}
+                    {s.locator && (
+                      <Box component="span" sx={{ color: "text.disabled" }}> · {s.locator}</Box>
+                    )}
+                  </Typography>
+                  {s.verified ? (
+                    <Chip size="small" color="success" variant="outlined" label="verified" sx={{ flex: "0 0 auto" }} />
                   ) : (
-                    <MathText>{text}</MathText>
+                    <Chip size="small" variant="outlined" label="unverified" sx={{ flex: "0 0 auto" }} />
                   )}
-                  {s.locator && (
-                    <Box component="span" sx={{ color: "text.disabled" }}> · {s.locator}</Box>
-                  )}
-                </Typography>
-                {s.verified ? (
-                  <Chip size="small" color="success" variant="outlined" label="verified" sx={{ ml: "auto" }} />
-                ) : (
-                  <Chip size="small" variant="outlined" label="unverified" sx={{ ml: "auto" }} />
-                )}
+                </Box>
               </Box>
             );
           })}

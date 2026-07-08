@@ -7,17 +7,17 @@ interface ColorMode {
   variant: AuroraVariant;
   toggle: () => void;
 }
-const ColorModeContext = createContext<ColorMode>({ variant: "light", toggle: () => {} });
+const ColorModeContext = createContext<ColorMode>({ variant: "dark", toggle: () => {} });
 export const useColorMode = () => useContext(ColorModeContext);
 
 const KEY = "bayesify.aurora"; // persisted aurora variant
 
-// Holds the active aurora variant (light default / dark), builds the matching MUI theme, and exposes
+// Holds the active aurora variant (dark default / light), builds the matching MUI theme, and exposes
 // a toggle. Sits above the Router so the whole app (including Aurora) re-themes on switch.
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const [variant, setVariant] = useState<AuroraVariant>(() => {
     const stored = localStorage.getItem(KEY);
-    return stored === "light" || stored === "dark" ? stored : "light";
+    return stored === "light" || stored === "dark" ? stored : "dark";
   });
   const theme = useMemo(() => makeTheme(variant), [variant]);
   const ctx = useMemo<ColorMode>(
