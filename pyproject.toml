@@ -161,7 +161,9 @@ test = "pytest -q"
 lint = "ruff check bayesify tests"
 fmt = "ruff format bayesify tests"
 imports = "lint-imports"
-check = { depends-on = ["lint", "imports", "test"] }
+# The one gate (local + CI). setup-web/web-build extend it over the frontend: web-build runs
+# `tsc -b && vite build`, so a type error or broken build fails the check, not the next deploy.
+check = { depends-on = ["lint", "imports", "test", "setup-web", "web-build"] }
 test-parse = "pytest tests/test_parse.py -v"  # run with: pixi run -e parse test-parse
 # Live screen/classify accuracy gates over the labeled fixture set. Needs ANTHROPIC_API_KEY and makes
 # real (paid) cheap-model calls; opt-in via this task's env so it never fires during `pixi run check`.

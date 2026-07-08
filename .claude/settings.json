@@ -71,7 +71,10 @@
       "Bash(curl -sf -o /dev/null -m 2 http://localhost:8000/)",
       "Bash(git -C /home/a_huangm13/Documents/Dev/Bayesify status --short)",
       "Bash(git stash *)",
-      "Bash(git restore *)"
+      "Bash(git restore *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(curl -s -o /dev/null http://localhost:8000/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/about)"
     ]
   },
   "enabledPlugins": {

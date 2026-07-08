@@ -370,7 +370,15 @@ export function streamProgress(
   };
 
   es.onmessage = (msg) => {
-    const e = JSON.parse(msg.data) as ProgressEvent;
+    let e: ProgressEvent;
+    try {
+      e = JSON.parse(msg.data) as ProgressEvent;
+    } catch {
+      // a malformed frame (proxy noise, truncation) — skip it rather than let the throw kill the
+      // handler. If the *terminal* frame is the mangled one, the polling fallback still resolves:
+      // the connection's eventual close fires onerror, which switches to polling.
+      return;
+    }
     if (e.type === "done" || e.type === "failed") {
       finish(e);
       return;
