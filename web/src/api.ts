@@ -27,6 +27,12 @@ export interface SubmitInput {
   profile?: string; // which rubric to grade against (registry id; default synthesis)
 }
 
+export interface SubmitResult {
+  paperId: string;
+  archiveHit: boolean;
+  sessionHit: boolean;
+}
+
 // One available rubric, for the pickers (GET /api/rubrics).
 export interface RubricSummary {
   id: string;
@@ -49,7 +55,7 @@ function classifyIdentifier(raw: string): Record<string, string> {
   return { url: v };
 }
 
-export async function submitPaper(input: SubmitInput): Promise<string> {
+export async function submitPaper(input: SubmitInput): Promise<SubmitResult> {
   const form = new FormData();
   form.set("mode", input.mode);
   form.set("profile", input.profile || "synthesis");
@@ -57,12 +63,20 @@ export async function submitPaper(input: SubmitInput): Promise<string> {
   else if (input.identifier) {
     for (const [k, val] of Object.entries(classifyIdentifier(input.identifier))) form.set(k, val);
   }
-  const body = await fetchJson<{ paper_id: string }>(
+  const body = await fetchJson<{
+    paper_id: string;
+    archive_hit?: boolean;
+    session_hit?: boolean;
+  }>(
     "/api/papers",
     { method: "POST", body: form },
     { detail: true, error: "upload failed" },
   );
-  return body.paper_id;
+  return {
+    paperId: body.paper_id,
+    archiveHit: body.archive_hit === true,
+    sessionHit: body.session_hit === true,
+  };
 }
 
 export async function getPaper(paperId: string): Promise<PaperState> {
@@ -317,6 +331,7 @@ export async function fetchPapers(filters: ArchiveFilters = {}): Promise<Archive
   for (const v of filters.paper_type ?? []) p.append("paper_type", v);
   for (const v of filters.discipline ?? []) p.append("discipline", v);
   for (const v of filters.method ?? []) p.append("method", v);
+  for (const v of filters.software ?? []) p.append("software", v);
   if (filters.mode) p.set("mode", filters.mode);
   if (filters.rubric) p.set("rubric", filters.rubric);
   const qs = p.toString();

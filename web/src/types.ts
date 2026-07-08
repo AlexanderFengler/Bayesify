@@ -115,7 +115,8 @@ export interface ArchivePaper {
   coverage_applicable: number | null;
   paper_type: string[]; // auto
   discipline: string[]; // auto
-  methods: string[]; // auto
+  methods: string[]; // classifier-derived inference methods actually used
+  software: string[]; // deterministic software mentions
   created_at: string;
   updated_at: string;
 }
@@ -123,6 +124,7 @@ export interface ArchiveFacets {
   paper_type: string[];
   discipline: string[];
   methods: string[];
+  software: string[];
 }
 export interface ArchiveResponse {
   papers: ArchivePaper[];
@@ -134,6 +136,7 @@ export interface ArchiveFilters {
   paper_type?: string[];
   discipline?: string[];
   method?: string[];
+  software?: string[];
   mode?: string;
   rubric?: string;
 }
@@ -209,6 +212,8 @@ export interface PaperState {
   // Transient mid-run classification, set once `classify` passes (only for papers that will be fully
   // graded) so the Analyzing screen can reveal the paper type / methods; null until then / if rejected.
   paper_class: PaperClass | null;
+  methods: string[]; // classifier-derived inference methods actually used
+  software: string[]; // deterministic software mentions
 
   relevance_override: string | null; // set when the user forced a short-circuited paper to be graded
   result: ScoredResult | null;
@@ -237,4 +242,3 @@ export const STAGES = [
   "score",
 ] as const;
 export type Stage = (typeof STAGES)[number];
-

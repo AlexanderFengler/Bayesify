@@ -8,8 +8,9 @@ its content hash are stored, never the manuscript bytes.
 
 This module holds the record schema (``ArchivedPaper``) and the pure helpers that derive its auto
 tags; ``report_fields`` turns a record into the Mongo ``$set`` payload. Each entry carries the
-paper's metadata plus auto tags — ``paper_type`` / ``discipline`` / ``methods``, derived from the
-engine's PaperClass and the detector inventory — and, for an AI run, the full ``result`` for replay.
+paper's metadata plus auto tags — ``paper_type`` / ``discipline`` / ``methods`` / ``software``,
+derived from the engine's PaperClass and detector inventory — and, for an AI run, the full
+``result`` for replay.
 The archive is populated by real analysis runs and human ratings — never by the labelled stub (a
 fake result is not archived), matching the analysis-event persistence policy.
 """
@@ -27,7 +28,7 @@ from bayesify.core.schema import InferenceMethod, PaperClass
 # proper nouns; the context-free method detectors (MCMC/VI/SBI) fire on any mention (incl.
 # alternatives / related work), so they are too noisy as facet tags and are NOT surfaced here —
 # inference-method tags come from the classifier. Unknown ids are skipped rather than prettified.
-_METHOD_LABELS: dict[str, str] = {
+_SOFTWARE_LABELS: dict[str, str] = {
     "software.stan": "Stan",
     "software.brms": "brms",
     "software.rstanarm": "rstanarm",
@@ -41,22 +42,21 @@ _METHOD_LABELS: dict[str, str] = {
     "software.turing": "Turing.jl",
     "software.bayesflow": "BayesFlow",
 }
-_METHOD_FAMILIES = {"software"}
 
-def methods_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
-    """Friendly method/software tags from the detector inventory's found hits (order-preserving,
-    de-duplicated). Empty when there is no inventory (e.g. the placeholder stub path)."""
+
+def software_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
+    """Friendly software tags from deterministic detector hits (order-preserving, de-duplicated).
+    Empty when there is no inventory (e.g. the placeholder stub path)."""
     if inventory is None:
         return []
     seen = set()
     out = []
     for fam in inventory.families:
-
-        if fam.family not in _METHOD_FAMILIES:
+        if fam.family != "software":
             continue
 
         for hit in fam.found:
-            label = _METHOD_LABELS.get(hit.detector_id)
+            label = _SOFTWARE_LABELS.get(hit.detector_id)
             if label is None:
                 continue
             if label not in seen:
@@ -88,6 +88,7 @@ class ArchivedPaper(BaseModel):
     paper_type: list[str] = Field(default_factory=list)
     discipline: list[str] = Field(default_factory=list)
     methods: list[str] = Field(default_factory=list)
+    software: list[str] = Field(default_factory=list)
     # the full graded report + the detection inventory — kept only for an AI run, so a matching
     # content+rubric resubmission replays this instead of re-analyzing (cross-user dedup cache).
     result: dict[str, Any] | None = None
@@ -123,7 +124,7 @@ def discipline_tags(paper_class: PaperClass | None) -> list[str]:
 
 # InferenceMethod -> friendly label for the report chips + Archive facet. Total over the enum (minus
 # "unstated") so a classifier-emitted method never silently vanishes. Mirrors the friendly-label
-# shape of methods_from_inventory (NOT paper_type_tags, which returns raw enum values).
+# shape of software_from_inventory (NOT paper_type_tags, which returns raw enum values).
 _INFERENCE_LABELS: dict[InferenceMethod, str] = {
     InferenceMethod.mcmc: "MCMC",
     InferenceMethod.hmc_nuts: "MCMC (HMC/NUTS)",

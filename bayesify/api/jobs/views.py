@@ -6,6 +6,7 @@ import asyncio
 
 from bayesify.api.db.mongo import mongo
 from bayesify.api.jobs.model import Job
+from bayesify.api.papers_store import inference_method_tags, software_from_inventory
 from bayesify.api.runtime import api
 from bayesify.core import schema as s
 from bayesify.core.detectors import EvidenceInventory
@@ -13,6 +14,7 @@ from bayesify.core.report import fix_list
 
 
 def job_payload(job: Job) -> dict:
+    paper_class = job.result.paper_class if job.result else None
     return {
         "paper_id": job.id,
         "status": job.status,
@@ -23,6 +25,8 @@ def job_payload(job: Job) -> dict:
         "paper_authors": job.paper_authors,
         "paper_year": job.paper_year,
         "paper_class": job.paper_class,
+        "methods": inference_method_tags(paper_class),
+        "software": software_from_inventory(job.inventory),
         "relevance_override": job.relevance_override,
         "result": job.result.model_dump(mode="json") if job.result else None,
         "fix_list": (

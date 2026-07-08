@@ -19,12 +19,13 @@ import { MathText } from "./MathText";
 import { articleUrl, formatByline } from "./paper";
 import type { ArchiveFacets, ArchivePaper } from "./types";
 
-const EMPTY_FACETS: ArchiveFacets = { paper_type: [], discipline: [], methods: [] };
+const EMPTY_FACETS: ArchiveFacets = { paper_type: [], discipline: [], methods: [], software: [] };
 // the facet groups, in render order — key into the facets payload + the paper's own auto-tag arrays
 const GROUPS = [
   { key: "paper_type", label: "Paper type", field: "paper_type" },
   { key: "discipline", label: "Discipline", field: "discipline" },
-  { key: "methods", label: "Methods & software", field: "methods" },
+  { key: "methods", label: "Methods", field: "methods" },
+  { key: "software", label: "Software", field: "software" },
 ] as const;
 
 const pretty = (s: string) => s.replace(/[-_]/g, " ");
@@ -39,6 +40,7 @@ export function Archive() {
     paper_type: [],
     discipline: [],
     methods: [],
+    software: [],
   });
   const [papers, setPapers] = useState<ArchivePaper[]>([]);
   const [facets, setFacets] = useState<ArchiveFacets>(EMPTY_FACETS);
@@ -61,6 +63,7 @@ export function Archive() {
       paper_type: selected.paper_type,
       discipline: selected.discipline,
       method: selected.methods,
+      software: selected.software,
     })
       .then((r) => {
         if (!alive) return;
@@ -83,7 +86,8 @@ export function Archive() {
     });
 
   const activeCount = Object.values(selected).reduce((n, a) => n + a.length, 0);
-  const clearAll = () => setSelected({ paper_type: [], discipline: [], methods: [] });
+  const clearAll = () =>
+    setSelected({ paper_type: [], discipline: [], methods: [], software: [] });
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
@@ -94,7 +98,7 @@ export function Archive() {
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 1440 }}>
             Every paper run through Bayesify, tagged automatically by paper type, discipline, and the
-            methods & software detected. Search the text or filter by tags.
+            inference methods used, and software detected. Search the text or filter by tags.
           </Typography>
         </Box>
       </Box>
@@ -212,7 +216,7 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
   const url = articleUrl(p.source_label); // the source article, when the paper was submitted by URL
   const scoreLine = useMemo(() => {
     const bits: string[] = [];
-    if (p.quality_score != null) bits.push(`Score ${Math.round(p.quality_score * 100)}`);
+    if (p.quality_score != null) bits.push(`Bayesify score ${Math.round(p.quality_score * 100)}`);
     if (p.coverage_present != null && p.coverage_applicable != null)
       bits.push(`Coverage ${p.coverage_present}/${p.coverage_applicable}`);
     return bits.join(" · ");
@@ -248,6 +252,13 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
               variant="outlined"
               sx={{ height: 20, mr: 1 }}
             />
+            <Chip
+              label={`${pretty(p.rubric_profile)}`}
+              size="small"
+              color="primary"
+              variant="outlined"
+              sx={{ height: 20, mr: 1, textTransform: "capitalize" }}
+            />
             {scoreLine}
           </Typography>
         </Box>
@@ -260,13 +271,37 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
         )}
       </Box>
 
-      {(p.paper_type.length > 0 || p.discipline.length > 0 || p.methods.length > 0) && (
+      {(p.paper_type.length > 0 || p.discipline.length > 0) && (
         <Box sx={{ mt: 1.5, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
           {groupChips(p.paper_type, "default")}
           {groupChips(p.discipline, "info")}
-          {groupChips(p.methods, "success")}
         </Box>
       )}
+      {p.methods.length > 0 && (
+        <ArchiveTagRow label="Methods">{groupChips(p.methods, "success")}</ArchiveTagRow>
+      )}
+      {p.software.length > 0 && (
+        <ArchiveTagRow label="Software">{groupChips(p.software, "default")}</ArchiveTagRow>
+      )}
     </Paper>
+  );
+}
+
+function ArchiveTagRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Box sx={{ mt: 1.25, display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+      <Typography
+        sx={{
+          fontSize: "0.65rem",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          color: "text.secondary",
+        }}
+      >
+        {label}
+      </Typography>
+      {children}
+    </Box>
   );
 }

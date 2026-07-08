@@ -33,6 +33,8 @@ class Job:
     filename: str | None = None
     identifier: str | None = None
     profile: str = "synthesis"
+    # May be precomputed by the upload route for its archive lookup; direct/background jobs compute
+    # it lazily in the pipeline. Reusing it avoids hashing a large upload twice.
     content_sha256: str | None = None
     version_label: str | None = None
     relevance_override: str | None = None
@@ -90,6 +92,7 @@ class JobStore:
         filename: str | None = None,
         identifier: str | None = None,
         profile: str = "synthesis",
+        content_sha256: str | None = None,
     ) -> Job:
         job = Job(
             id=uuid.uuid4().hex[:12],
@@ -99,6 +102,7 @@ class JobStore:
             filename=filename,
             identifier=identifier,
             profile=profile,
+            content_sha256=content_sha256,
         )
         self._jobs[job.id] = job
 
@@ -111,3 +115,30 @@ class JobStore:
         if job is not None:
             self._jobs.move_to_end(paper_id)
         return job
+
+    def find_cached_rejection(self, content_sha256: str, profile: str) -> Job | None:
+        """Newest completed full-mode result for this exact document/rubric, when it stopped at
+        the not-Bayesian gate. This is intentionally process-local: rejected uploads avoid repeated
+        classification during the current session without becoming entries in the public archive."""
+        for paper_id in reversed(self._jobs):
+            job = self._jobs[paper_id]
+            if (
+                job.mode != "full"
+                or job.profile != profile
+                or job.content_sha256 != content_sha256
+                or job.status != "done"
+                or job.result is None
+            ):
+                continue
+
+            # The newest completed result is authoritative. A later forced/overridden run must not
+            # be shadowed by an older rejection of the same bytes.
+            if (
+                not job.relevance_override
+                and not job.force_grade
+                and job.result.not_applicable_reason == "not_bayesian"
+            ):
+                self._jobs.move_to_end(paper_id)
+                return job
+            return None
+        return None

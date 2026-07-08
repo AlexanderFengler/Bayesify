@@ -138,7 +138,9 @@ async def run_local(job: Job, *, source: s.SourceDoc | None = None) -> None:
 
 async def run_full(job: Job, *, source: s.SourceDoc | None = None) -> None:
     rubric = load_rubric(profile=job.profile)
-    content_sha = sha256_bytes(job.data)
+    # The submission route already hashes uploads for its pre-job archive lookup. Jobs constructed
+    # directly (tests/internal callers) still compute the same durable identity here.
+    content_sha = job.content_sha256 or sha256_bytes(job.data)
     key = bucket_key(content_sha, job.profile)
     clean = not job.force_fresh and not job.relevance_override and not job.force_grade
     if resources.cache_enabled() and clean:

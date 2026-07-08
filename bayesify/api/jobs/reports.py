@@ -9,9 +9,9 @@ from bayesify.api.papers_store import (
     ArchivedPaper,
     discipline_tags,
     inference_method_tags,
-    methods_from_inventory,
     paper_type_tags,
     report_fields,
+    software_from_inventory,
 )
 from bayesify.core import config, schema
 from bayesify.core.stub import engine_version
@@ -84,11 +84,8 @@ def archived_from_analysis(job: Job) -> ArchivedPaper:
         coverage_applicable=(coverage.applicable if coverage else None),
         paper_type=paper_type_tags(paper_class),
         discipline=discipline_tags(paper_class),
-        methods=list(
-            dict.fromkeys(
-                methods_from_inventory(job.inventory) + inference_method_tags(paper_class)
-            )
-        ),
+        methods=inference_method_tags(paper_class),
+        software=software_from_inventory(job.inventory),
         result=result.model_dump(mode="json") if result else None,
         inventory=job.inventory.model_dump(mode="json") if job.inventory else None,
         engine_version=engine_version(),
@@ -101,7 +98,19 @@ async def save_analysis_report(job: Job) -> None:
     if not is_persistable_report(job):
         return
     archived = archived_from_analysis(job)
-    await asyncio.to_thread(mongo.upsert_report, archived.key, report_fields(archived))
+    fields = report_fields(archived)
+    # An AI analysis is authoritative for auto-tags. Include empty arrays so reanalysis can clear a
+    # stale classifier method/software tag; human-rating upserts still use report_fields alone and
+    # therefore preserve the AI-derived values when they have no replacement.
+    fields.update(
+        {
+            "paper_type": archived.paper_type,
+            "discipline": archived.discipline,
+            "methods": archived.methods,
+            "software": archived.software,
+        }
+    )
+    await asyncio.to_thread(mongo.upsert_report, archived.key, fields)
     tasks.spawn(asyncio.to_thread(mongo.save_event, analysis_report_event(job, archived.key)))
 
 

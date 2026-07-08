@@ -23,6 +23,7 @@ export interface AppState {
 
   // the in-flight run (drives the /processing page)
   running: boolean;
+  archiveHit: string | null; // completed paper id shown briefly before its report redirect
   ratingPending: string | null; // paper id whose rating-feeding run is still in flight (or null)
   stageState: Record<string, "running" | "done" | "failed">;
   paper: PaperState | null;

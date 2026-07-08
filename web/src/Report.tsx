@@ -41,7 +41,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SwitchTransition } from "react-transition-group";
 import { recordOverride } from "./api";
-import { methodChips } from "./labels";
 import { MathText } from "./MathText";
 import { articleUrl, formatByline } from "./paper";
 import { STATUS_LABEL, STATUS_OPTIONS, useRubric, useStepNames } from "./rubric";
@@ -199,8 +198,11 @@ export function Report({
             {r.paper_class && (
               <MetaChips label="paper type" values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))} info={STAT_INFO.paperType} />
             )}
-            {methodChips(r.paper_class?.methods_used).length > 0 && (
-              <MetaChips label="methods" values={methodChips(r.paper_class?.methods_used)} info={STAT_INFO.methods} />
+            {(paper.methods ?? []).length > 0 && (
+              <MetaChips label="methods" values={paper.methods ?? []} info={STAT_INFO.methods} />
+            )}
+            {(paper.software ?? []).length > 0 && (
+              <MetaChips label="software" values={paper.software ?? []} info={STAT_INFO.software} />
             )}
             {r.profile && (
               <MetaChips label="weighting" values={[anyReduced ? "weighted" : "uniform"]} info={STAT_INFO.weighting} />
@@ -352,7 +354,7 @@ const formatLabels = (labels: string[]) => labels.map((label) => label.replace(/
 
 // Hover explanations for the header stats — a one-line description plus the possible categories.
 type StatInfo = { what: string; categories: string[] };
-const STAT_INFO: Record<"rubric" | "paperType" | "methods" | "weighting", StatInfo> = {
+const STAT_INFO: Record<"rubric" | "paperType" | "methods" | "software" | "weighting", StatInfo> = {
   rubric: {
     what: "Which rubric the paper was graded against — the default synthesis standard or a source-pure profile.",
     categories: ["Synthesis", "Gelman (2020)", "Schad (2021)"],
@@ -372,6 +374,10 @@ const STAT_INFO: Record<"rubric" | "paperType" | "methods" | "weighting", StatIn
   methods: {
     what: "The Bayesian computation the paper's analysis uses (classifier-detected).",
     categories: ["MCMC", "Variational inference", "SBI", "SMC", "ABC", "Laplace/INLA", "Analytic"],
+  },
+  software: {
+    what: "Named statistical software detected in the paper.",
+    categories: ["Stan", "PyMC", "NumPyro", "BayesFlow", "JAGS", "BUGS"],
   },
   weighting: {
     what:
