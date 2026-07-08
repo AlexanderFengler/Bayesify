@@ -33,7 +33,7 @@ export function Footer() {
                 /#how-it-works and /#rubrics) — the footer only carries the standalone pages */}
             <FooterLink onClick={() => navigate("/")}>Home</FooterLink>
             <FooterLink onClick={() => navigate("/archive")}>Archive</FooterLink>
-            <FooterLink onClick={() => navigate("/supported")}>About us</FooterLink>
+            <FooterLink onClick={() => navigate("/about")}>About us</FooterLink>
           </Box>
         </Box>
       </Container>

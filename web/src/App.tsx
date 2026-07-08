@@ -1,6 +1,7 @@
 import { Alert, AlertTitle, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { AboutUs } from "./AboutUs";
 import { getPaper } from "./api";
 import { Analyzing, type GateFailure } from "./Analyzing";
 import { Archive } from "./Archive";
@@ -12,7 +13,6 @@ import { Layout } from "./Layout";
 import { formatByline } from "./paper";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
-import { SupportedBy } from "./SupportedBy";
 import { type PaperState, STAGES } from "./types";
 
 // The whole app is client-side routed: a single Layout holds the app-wide state (mode, the upload
@@ -37,7 +37,9 @@ export function App() {
           <Route path="/rate/:id" element={<RateRoute />} />
           <Route path="/calibration" element={<CalibrationRoute />} />
           <Route path="/archive" element={<ArchiveRoute />} />
-          <Route path="/supported" element={<SupportedByRoute />} />
+          <Route path="/about" element={<AboutUsRoute />} />
+          {/* the page used to live at /supported — keep the URL alive as a redirect */}
+          <Route path="/supported" element={<Navigate to="/about" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
@@ -183,8 +185,8 @@ function CalibrationRoute() {
   return <Calibration onExit={exitToMain} />;
 }
 
-function SupportedByRoute() {
-  return <SupportedBy />;
+function AboutUsRoute() {
+  return <AboutUs />;
 }
 
 // --- shared status pages (loading / error). The permanent header is supplied by Layout; these just

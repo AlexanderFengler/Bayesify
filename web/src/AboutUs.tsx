@@ -31,9 +31,9 @@ const DEVELOPERS: { name: string; url: string }[] = [
   { name: "Jerry M. Huang", url: "https://bayesops.com/members/jerry-huang" },
 ];
 
-// A dedicated "Supported by" page reached from the footer: the org wordmarks that back the project,
+// A dedicated "About us" page reached from the footer: the org wordmarks that back the project,
 // laid out as a responsive row of logos (no boxes), matching the other reference pages' chrome.
-export function SupportedBy() {
+export function AboutUs() {
   const { variant } = useColorMode();
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
