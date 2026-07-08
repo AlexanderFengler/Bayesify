@@ -13,7 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import { fetchPapers } from "./api";
 import { MathText } from "./MathText";
 import { articleUrl, formatByline } from "./paper";
@@ -208,9 +208,8 @@ function EmptyState({ hasArchive }: { hasArchive: boolean }) {
 }
 
 function ArchiveCard({ p }: { p: ArchivePaper }) {
-  const navigate = useNavigate();
   const byline = formatByline(p.paper_authors, p.paper_year);
-  const url = articleUrl(p.source_label); // link the title when the paper was submitted by URL
+  const url = articleUrl(p.source_label); // the source article, when the paper was submitted by URL
   const scoreLine = useMemo(() => {
     const bits: string[] = [];
     if (p.quality_score != null) bits.push(`Score ${Math.round(p.quality_score * 100)}`);
@@ -226,17 +225,15 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
 
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 2 }}>
-      {/* title block and the Open-report button on one line, 5:1 on wide screens (stacked on phones) */}
+      {/* title block and the Open-paper button on one line, 5:1 on wide screens (stacked on phones).
+          The title is the primary action — it opens the report; the source article moves to the
+          side button (shown only when the paper was submitted by URL). */}
       <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { sm: "flex-start" }, gap: 2 }}>
         <Box sx={{ flex: { sm: 5 }, minWidth: 0 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-            {url ? (
-              <Link href={url} target="_blank" rel="noreferrer" color="inherit" underline="none">
-                <MathText>{p.paper_title ?? p.source_label}</MathText>
-              </Link>
-            ) : (
+            <Link component={RouterLink} to={`/paper/${p.paper_id}`} color="inherit" underline="hover">
               <MathText>{p.paper_title ?? p.source_label}</MathText>
-            )}
+            </Link>
           </Typography>
           {byline && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
@@ -254,11 +251,13 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
             {scoreLine}
           </Typography>
         </Box>
-        <Box sx={{ flex: { sm: 1 }, display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" } }}>
-          <Button size="small" onClick={() => navigate(`/paper/${p.paper_id}`)} sx={{ flexShrink: 0 }}>
-            Open report
-          </Button>
-        </Box>
+        {url && (
+          <Box sx={{ flex: { sm: 1 }, display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" } }}>
+            <Button size="small" href={url} target="_blank" rel="noreferrer" sx={{ flexShrink: 0 }}>
+              Open paper
+            </Button>
+          </Box>
+        )}
       </Box>
 
       {(p.paper_type.length > 0 || p.discipline.length > 0 || p.methods.length > 0) && (
