@@ -47,3 +47,19 @@ def override_review_timeout_s() -> float:
         return max(0.0, float(os.environ.get("BAYESIFY_OVERRIDE_REVIEW_TIMEOUT_S", "8")))
     except ValueError:
         return 8.0
+
+
+def resend_api_key() -> str | None:
+    """Resend API key for the About-us contact form. Absent → the form is disabled (503)."""
+    return os.environ.get("RESEND_API_KEY") or None
+
+
+def contact_to_email() -> str:
+    """Where contact-form messages are delivered."""
+    return os.environ.get("CONTACT_TO_EMAIL") or "fengleralexander@gmail.com"
+
+
+def contact_from_email() -> str:
+    """The verified sender address the contact email is sent *from* (must be a Resend-verified
+    domain in production; `onboarding@resend.dev` works for testing to the account owner only)."""
+    return os.environ.get("CONTACT_FROM_EMAIL") or "onboarding@resend.dev"

@@ -14,6 +14,7 @@ dependencies = [
     "openai>=1.80",  # optional LLM backend: OpenAI Responses API
     "pymongo>=4.10",  # MongoDB report persistence client
     "fastapi[standard]>=0.138.2,<0.139",  # API runtime + FastAPI CLI for hosted deploys
+    "email-validator>=2.0",  # EmailStr validation for the contact-form route
     "sse-starlette>=2.0",  # SSE progress stream; imported by the FastAPI app at startup
     "PyMuPDF>=1.24",  # deployed PDF parser fallback; Pixi also provides this from conda-forge
 ]

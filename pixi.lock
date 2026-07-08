@@ -10698,6 +10698,7 @@ packages:
   - openai>=1.80
   - pymongo>=4.10
   - fastapi[standard]>=0.138.2,<0.139
+  - email-validator>=2.0
   - sse-starlette>=2.0
   - pymupdf>=1.24
   - pytest>=8.0 ; extra == 'dev'
