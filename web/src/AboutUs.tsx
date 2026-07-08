@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Container, Divider, Link, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Container, Link, Stack, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 import { sendContact } from "./api";
 import { useColorMode } from "./ThemeMode";
@@ -32,112 +32,115 @@ const DEVELOPERS: { name: string; url: string }[] = [
 ];
 
 // A dedicated "About us" page reached from the footer: the org wordmarks that back the project,
-// laid out as a responsive row of logos (no boxes), matching the other reference pages' chrome.
+// laid out as a responsive row of logos (no boxes). Mirrors the landing page's hero layout — a
+// full-height band between header and footer, vertically centred, with two equal columns (the
+// about/team content left, the contact form right) sharing the landing hero's gaps and breakpoints.
 export function AboutUs() {
   const { variant } = useColorMode();
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          alignItems: "flex-start",
-          gap: { xs: 6, md: 8 },
-        }}
-      >
-        {/* Left column: who builds and backs Bayesify (unchanged content). */}
-        <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
-          <Box>
-            <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
-              About us
-            </Typography>
-            <Typography sx={{ mt: 1.5, color: "text.secondary", maxWidth: 760 }}>
-              Bayesify is built and supported by the organisations below.
-            </Typography>
-          </Box>
-
-          <Box
-            sx={{
-              mt: { xs: 4, md: 6 },
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              gap: { xs: 4, md: 6 },
-            }}
-          >
-            {ORGS.map((org) => {
-              // dark-ink wordmark for light mode, white-ink for dark mode — so it reads against the aurora
-              const src = variant === "dark" ? org.logoLight : org.logoDark;
-              const logo = (
-                <Box
-                  component="img"
-                  src={src}
-                  alt={org.name}
-                  sx={{ height: { xs: 40, md: 52 }, width: "auto", display: "block" }}
-                />
-              );
-              return org.url ? (
-                <Link key={org.name} href={org.url} target="_blank" rel="noreferrer" sx={{ display: "block" }}>
-                  {logo}
-                </Link>
-              ) : (
-                <Box key={org.name}>{logo}</Box>
-              );
-            })}
-          </Box>
-
-          {DEVELOPERS.length > 0 && (
-            <Box sx={{ mt: { xs: 5, md: 7 } }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                The team
+    <Box
+      sx={{
+        minHeight: "calc(100dvh - 220px)",
+        "@supports (min-height: 100cqh)": { minHeight: "100cqh" },
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+      }}
+    >
+      <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: { xs: "column", md: "row" },
+            gap: { xs: 4, md: 10 },
+            alignItems: { xs: "stretch", md: "center" },
+          }}
+        >
+          {/* Left column: who builds and backs Bayesify (unchanged content). */}
+          <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
+            <Box>
+              <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.01em" }}>
+                About us
               </Typography>
-              <Box
-                component="ul"
-                sx={{ listStyle: "none", p: 0, m: 0, mt: 1.5, display: "flex", flexWrap: "wrap", gap: { xs: 1, md: 2 } }}
-              >
-                {DEVELOPERS.map((dev, i) => (
-                  <Typography
-                    key={dev.name}
-                    component="li"
-                    sx={{
-                      color: "text.secondary",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: { xs: 1, md: 2 },
-                    }}
-                  >
-                    {/* a white bullet dot separates members — omitted before the first */}
-                    {i > 0 && (
-                      <Box
-                        component="span"
-                        sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "common.white", flexShrink: 0 }}
-                      />
-                    )}
-                    <Link href={dev.url} target="_blank" rel="noreferrer" underline="hover" color="inherit">
-                      {dev.name}
-                    </Link>
-                  </Typography>
-                ))}
-              </Box>
+              <Typography sx={{ mt: 1.5, color: "text.secondary", maxWidth: 760 }}>
+                Bayesify is built and supported by the organisations below.
+              </Typography>
             </Box>
-          )}
-        </Box>
 
-        {/* A divider between the two sides: vertical on the desktop two-column layout, horizontal
-            (full-width) once the columns stack on mobile. */}
-        <Divider
-          orientation="vertical"
-          flexItem
-          sx={{ display: { xs: "none", md: "block" } }}
-        />
-        <Divider sx={{ display: { xs: "block", md: "none" }, width: "100%" }} />
+            <Box
+              sx={{
+                mt: { xs: 4, md: 6 },
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: { xs: 4, md: 6 },
+              }}
+            >
+              {ORGS.map((org) => {
+                // dark-ink wordmark for light mode, white-ink for dark mode — so it reads against the aurora
+                const src = variant === "dark" ? org.logoLight : org.logoDark;
+                const logo = (
+                  <Box
+                    component="img"
+                    src={src}
+                    alt={org.name}
+                    sx={{ height: { xs: 40, md: 52 }, width: "auto", display: "block" }}
+                  />
+                );
+                return org.url ? (
+                  <Link key={org.name} href={org.url} target="_blank" rel="noreferrer" sx={{ display: "block" }}>
+                    {logo}
+                  </Link>
+                ) : (
+                  <Box key={org.name}>{logo}</Box>
+                );
+              })}
+            </Box>
 
-        {/* Right column: the contact form. */}
-        <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%", maxWidth: { md: 480 } }}>
-          <ContactForm />
+            {DEVELOPERS.length > 0 && (
+              <Box sx={{ mt: { xs: 5, md: 7 } }}>
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  The team
+                </Typography>
+                <Box
+                  component="ul"
+                  sx={{ listStyle: "none", p: 0, m: 0, mt: 1.5, display: "flex", flexWrap: "wrap", gap: { xs: 1, md: 2 } }}
+                >
+                  {DEVELOPERS.map((dev, i) => (
+                    <Typography
+                      key={dev.name}
+                      component="li"
+                      sx={{
+                        color: "text.secondary",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: { xs: 1, md: 2 },
+                      }}
+                    >
+                      {/* a white bullet dot separates members — omitted before the first */}
+                      {i > 0 && (
+                        <Box
+                          component="span"
+                          sx={{ width: 4, height: 4, borderRadius: "50%", bgcolor: "common.white", flexShrink: 0 }}
+                        />
+                      )}
+                      <Link href={dev.url} target="_blank" rel="noreferrer" underline="hover" color="inherit">
+                        {dev.name}
+                      </Link>
+                    </Typography>
+                  ))}
+                </Box>
+              </Box>
+            )}
+          </Box>
+
+          {/* Right column: the contact form, in the landing hero's panel position. */}
+          <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
+            <ContactForm />
+          </Box>
         </Box>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 }
 
