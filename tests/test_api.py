@@ -18,7 +18,9 @@ from bayesify.api.jobs import pipeline as job_pipeline
 from bayesify.api.jobs import reports as job_reports
 from bayesify.api.jobs import tasks as job_tasks
 from bayesify.api.routes.rating import RateSubmit, rate_submit
+from bayesify.core.cache import sha256_bytes
 from bayesify.core.rubric import load_rubric
+from bayesify.core.validation.rating_store import bucket_key
 
 client = TestClient(app)
 
@@ -141,6 +143,8 @@ def test_create_with_id_returns_paper_id() -> None:
     body = r.json()
     assert body["paper_id"]
     assert body["status"] in ("queued", "running", "done")
+    assert body["archive_hit"] is False
+    assert body["session_hit"] is False
 
 
 def test_upload_rejects_oversize_pdf(monkeypatch) -> None:
@@ -150,6 +154,135 @@ def test_upload_rejects_oversize_pdf(monkeypatch) -> None:
         "/api/papers", files={"file": ("big.pdf", big, "application/pdf")}, data={"mode": "local"}
     )
     assert r.status_code == 413
+
+
+def test_upload_archive_hit_returns_existing_report_before_job_creation(monkeypatch) -> None:
+    from bayesify.api.routes.papers import create_paper
+
+    class Upload:
+        filename = "same.pdf"
+        size = len(_HDDM_PDF)
+
+        async def read(self) -> bytes:
+            return _HDDM_PDF
+
+    expected_key = bucket_key(sha256_bytes(_HDDM_PDF), "synthesis")
+    seen: list[str] = []
+
+    def find_report(key: str) -> dict:
+        seen.append(key)
+        return {"paper_id": "already-done"}
+
+    async def inline(fn, *args):
+        return fn(*args)
+
+    monkeypatch.setattr("bayesify.api.routes.papers.asyncio.to_thread", inline)
+    monkeypatch.setattr("bayesify.api.routes.papers.resources.cache_enabled", lambda: True)
+    monkeypatch.setattr("bayesify.api.routes.papers.mongo.find_report", find_report)
+    monkeypatch.setattr(
+        "bayesify.api.routes.papers.reports.replayable_report", lambda doc, rubric: True
+    )
+    monkeypatch.setattr(
+        store,
+        "create",
+        lambda **kwargs: pytest.fail("an archive hit must not create or start a job"),
+    )
+
+    body = asyncio.run(
+        create_paper(
+            mode="full",
+            profile="synthesis",
+            file=Upload(),
+            arxiv_id=None,
+            doi=None,
+            openalex_id=None,
+            url=None,
+        )
+    )
+
+    assert body == {
+        "paper_id": "already-done",
+        "status": "done",
+        "archive_hit": True,
+        "session_hit": False,
+    }
+    assert seen == [expected_key]
+
+
+def test_rejected_upload_is_reused_from_the_process_session(monkeypatch) -> None:
+    from bayesify.api.routes.papers import create_paper
+    from bayesify.core.schema import Relevance, RelevanceLabel, ScoredResult
+    from bayesify.core.stub import ENGINE_VERSION, build_stub_result
+
+    class Upload:
+        filename = "same-decoy.pdf"
+        size = len(_DECOY_PDF)
+
+        async def read(self) -> bytes:
+            return _DECOY_PDF
+
+    content_sha = sha256_bytes(_DECOY_PDF)
+    session_store = JobStore()
+    rejected = session_store.create(
+        mode="full",
+        source_label="first-decoy.pdf",
+        data=None,
+        filename="first-decoy.pdf",
+        profile="synthesis",
+        content_sha256=content_sha,
+    )
+    rejected.status = "done"
+    rejected.result = ScoredResult.short_circuit(
+        relevance=Relevance(
+            label=RelevanceLabel.no,
+            confidence=0.95,
+            rationale="not a Bayesian workflow paper",
+        ),
+        engine_version=ENGINE_VERSION,
+        rubric_version=load_rubric().rubric_version,
+    )
+
+    async def inline(fn, *args):
+        return fn(*args)
+
+    monkeypatch.setattr("bayesify.api.routes.papers.asyncio.to_thread", inline)
+    monkeypatch.setattr("bayesify.api.routes.papers.api.store", session_store)
+    monkeypatch.setattr("bayesify.api.routes.papers.resources.cache_enabled", lambda: True)
+    monkeypatch.setattr("bayesify.api.routes.papers.mongo.find_report", lambda key: None)
+    monkeypatch.setattr(
+        "bayesify.api.routes.papers.tasks.spawn",
+        lambda coro: pytest.fail("a session hit must not spawn analysis work"),
+    )
+
+    body = asyncio.run(
+        create_paper(
+            mode="full",
+            profile="synthesis",
+            file=Upload(),
+            arxiv_id=None,
+            doi=None,
+            openalex_id=None,
+            url=None,
+        )
+    )
+
+    assert body == {
+        "paper_id": rejected.id,
+        "status": "done",
+        "archive_hit": False,
+        "session_hit": True,
+    }
+    assert session_store.find_cached_rejection(content_sha, "other-rubric") is None
+
+    newer = session_store.create(
+        mode="full",
+        source_label="later-run.pdf",
+        profile="synthesis",
+        content_sha256=content_sha,
+    )
+    newer.status = "done"
+    newer.result = build_stub_result("full")
+    assert session_store.find_cached_rejection(content_sha, "synthesis") is None
 
 
 def test_jobstore_evicts_least_recently_used_beyond_cap(monkeypatch) -> None:
@@ -522,7 +655,8 @@ def test_rate_submit_uses_mongo_report_when_job_expired(tmp_path, monkeypatch) -
             "paper_title": "DB recovered",
             "paper_authors": ["Ada"],
             "paper_year": 2026,
-            "methods": ["Stan"],
+            "methods": [],
+            "software": ["Stan"],
         },
     )
     monkeypatch.setattr(
@@ -547,7 +681,8 @@ def test_rate_submit_uses_mongo_report_when_job_expired(tmp_path, monkeypatch) -
     assert ok["recorded"] is True
     assert saved_reports[0][0] == report_id
     assert saved_reports[0][1]["source_label"] == "db.pdf"
-    assert saved_reports[0][1]["methods"] == ["Stan"]
+    assert "methods" not in saved_reports[0][1]
+    assert saved_reports[0][1]["software"] == ["Stan"]
     assert saved_events[0]["report_id"] == report_id
 
 

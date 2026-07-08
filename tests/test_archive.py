@@ -4,17 +4,19 @@ written to local disk — so these exercise the store against an injected in-mem
 
 from __future__ import annotations
 
+import asyncio
 import time
 
 from fastapi.testclient import TestClient
 
 from bayesify.api.app import app
 from bayesify.api.db import MongoDBService
-from bayesify.api.jobs.reports import replayable_report
+from bayesify.api.jobs.model import Job
+from bayesify.api.jobs.reports import archived_from_analysis, replayable_report
 from bayesify.api.papers_store import (
     ArchivedPaper,
-    methods_from_inventory,
     report_fields,
+    software_from_inventory,
 )
 from bayesify.core import config
 from bayesify.core.detectors import EvidenceInventory, InventoryFamily, InventoryHit
@@ -126,19 +128,19 @@ def _inventory() -> EvidenceInventory:
                     _hit("method.unknown", "method"),
                 ],
             ),
-            # sampler is deliberately excluded from the "methods & software" facet
+            # sampler is deliberately excluded from the software facet
             InventoryFamily(family="sampler", found=[_hit("sampler.chains", "sampler")]),
         ],
         n_hits=3,
     )
 
 
-def test_methods_from_inventory_maps_and_filters_families() -> None:
-    labels = methods_from_inventory(_inventory())
+def test_software_from_inventory_maps_and_filters_families() -> None:
+    labels = software_from_inventory(_inventory())
     assert labels == ["Stan", "BayesFlow"]  # software only; unknown ids skipped
     # inference-method detectors fire on any mention, so the method family is NOT a facet source
     assert not {"MCMC", "Variational inference", "SBI"} & set(labels)
-    assert methods_from_inventory(None) == []
+    assert software_from_inventory(None) == []
 
 
 def test_inference_method_tags_maps_smc_and_covers_the_enum() -> None:
@@ -161,6 +163,27 @@ def test_inference_method_tags_maps_smc_and_covers_the_enum() -> None:
             assert inference_method_tags(_pc([m])), f"{m} has no friendly label"
 
 
+def test_archived_analysis_keeps_methods_and_software_separate() -> None:
+    from bayesify.core.schema import InferenceMethod, PaperClass, PaperClassLabel
+    from bayesify.core.stub import build_stub_result
+
+    job = Job(id="separate", mode="full", source_label="paper.pdf", content_sha256="ab" * 32)
+    job.inventory = _inventory()
+    job.result = build_stub_result("full")
+    job.result.paper_class = PaperClass(
+        labels=[PaperClassLabel.data_analysis],
+        confidence=0.9,
+        rationale="uses SBI",
+        evidence_refs=[0],
+        methods_used=[InferenceMethod.sbi],
+    )
+
+    archived = archived_from_analysis(job)
+
+    assert archived.methods == ["SBI"]
+    assert archived.software == ["Stan", "BayesFlow"]
+
+
 # --- report_fields: the $set payload drops empties so a merge preserves ---------------------------
 
 
@@ -171,12 +194,13 @@ def test_report_fields_drops_empty_values() -> None:
             source_sha256="ab" * 32,
             paper_type=["data_analysis"],
             methods=[],  # empty → dropped so an existing value is preserved on merge
+            software=[],  # likewise
             paper_title=None,  # None → dropped
             quality_score=0.0,  # a real 0 is kept (not "empty")
         )
     )
     assert fields["paper_type"] == ["data_analysis"]
-    assert "methods" not in fields and "paper_title" not in fields
+    assert "methods" not in fields and "software" not in fields and "paper_title" not in fields
     assert fields["quality_score"] == 0.0
     assert "created_at" not in fields  # timestamps are owned by the Mongo upsert
 
@@ -197,7 +221,8 @@ def test_report_store_upsert_merges_and_lists() -> None:
         paper_title="A paper",
         paper_type=["data_analysis"],
         discipline=["neuroscience"],
-        methods=["Stan", "MCMC"],
+        methods=["MCMC"],
+        software=["Stan"],
         result={"quality_score": 0.7},
     )
     svc.upsert_report(key, report_fields(ai))
@@ -217,7 +242,8 @@ def test_report_store_upsert_merges_and_lists() -> None:
     assert stored is not None
     assert stored["mode"] == "local"  # refreshed by the human upsert
     assert stored["discipline"] == ["neuroscience"]  # auto tags preserved (upsert omitted them)
-    assert stored["methods"] == ["Stan", "MCMC"]
+    assert stored["methods"] == ["MCMC"]
+    assert stored["software"] == ["Stan"]
     assert stored["result"] == {"quality_score": 0.7}  # the AI result is never wiped
     assert len(reports.docs) == 1  # one entry, keyed by sha+profile
 
@@ -287,7 +313,8 @@ def _archive_docs() -> list[dict]:
             "mode": "full",
             "paper_type": ["data_analysis"],
             "discipline": ["neuroscience"],
-            "methods": ["Stan"],
+            "methods": [],
+            "software": ["Stan"],
         },
         {
             "_id": bucket_key("22" * 32, "synthesis"),
@@ -303,6 +330,34 @@ def _archive_docs() -> list[dict]:
     ]
 
 
+def test_list_papers_keeps_method_and_software_facets_separate(monkeypatch) -> None:
+    from bayesify.api.routes.archive import list_papers
+
+    async def inline(fn, *args):
+        return fn(*args)
+
+    monkeypatch.setattr("bayesify.api.routes.archive.asyncio.to_thread", inline)
+    monkeypatch.setattr("bayesify.api.routes.archive.mongo.list_reports", lambda: _archive_docs())
+
+    body = asyncio.run(
+        list_papers(
+            q="",
+            paper_type=[],
+            discipline=[],
+            method=[],
+            software=[],
+            mode="",
+            rubric="",
+        )
+    )
+
+    first = body["papers"][0]
+    assert first["methods"] == []
+    assert first["software"] == ["Stan"]
+    assert body["facets"]["methods"] == ["MCMC"]
+    assert body["facets"]["software"] == ["Stan"]
+
+
 def test_list_papers_endpoint_filters(monkeypatch) -> None:
     monkeypatch.setattr("bayesify.api.routes.archive.mongo.list_reports", lambda: _archive_docs())
 
@@ -312,6 +367,7 @@ def test_list_papers_endpoint_filters(monkeypatch) -> None:
     assert all("_id" not in p for p in body["papers"])
     assert "data_analysis" in body["facets"]["paper_type"]
     assert "neuroscience" in body["facets"]["discipline"]
+    assert "Stan" in body["facets"]["software"]
     assert "tags" not in body["facets"]  # manual tags dropped
 
     # free-text matches title/authors
@@ -325,6 +381,8 @@ def test_list_papers_endpoint_filters(monkeypatch) -> None:
     # facet AND-filter
     got = client.get("/api/papers", params={"discipline": "statistics"}).json()["papers"]
     assert [p["paper_title"] for p in got] == ["A new sampler"]
+    got = client.get("/api/papers", params={"software": "Stan"}).json()["papers"]
+    assert [p["paper_title"] for p in got] == ["Hierarchical DDM"]
 
 
 def test_list_papers_fills_missing_array_fields(monkeypatch) -> None:
@@ -333,7 +391,7 @@ def test_list_papers_fills_missing_array_fields(monkeypatch) -> None:
     sparse = {"_id": "k1", "key": "k1", "paper_id": "p1", "paper_title": "Bare", "mode": "full"}
     monkeypatch.setattr("bayesify.api.routes.archive.mongo.list_reports", lambda: [sparse])
     p = client.get("/api/papers").json()["papers"][0]
-    for arr in ("paper_authors", "paper_type", "discipline", "methods"):
+    for arr in ("paper_authors", "paper_type", "discipline", "methods", "software"):
         assert p[arr] == []
 
 
@@ -342,7 +400,7 @@ def test_list_papers_empty_when_mongo_down(monkeypatch) -> None:
     body = client.get("/api/papers").json()
     assert body == {
         "papers": [],
-        "facets": {"paper_type": [], "discipline": [], "methods": []},
+        "facets": {"paper_type": [], "discipline": [], "methods": [], "software": []},
         "total": 0,
     }
 

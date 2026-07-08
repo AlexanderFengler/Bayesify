@@ -76,9 +76,11 @@ function ArchiveRoute() {
 }
 
 function ProcessingRoute() {
-  const { running, error, stageState, file, identifier, mode, reset, paper, rerunPaper } = useApp();
+  const { running, archiveHit, error, stageState, file, identifier, mode, reset, paper, rerunPaper } =
+    useApp();
   const navigate = useNavigate();
   if (error) return <ErrorPage error={error} onRetry={reset} />;
+  if (archiveHit) return <ArchiveRedirect />;
   // A direct hit / refresh on /processing has no run in flight. We show an idle panel rather than
   // redirecting — a render-time <Navigate> here would fire during the completion transition (when
   // running briefly reads false on the old location) and bounce an in-flight run back to /start.
@@ -129,6 +131,26 @@ function ProcessingRoute() {
       paperClass={paper?.paper_class}
       gate={gate}
     />
+  );
+}
+
+function ArchiveRedirect() {
+  return (
+    <Box
+      role="status"
+      aria-live="polite"
+      sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", px: 3 }}
+    >
+      <Box sx={{ textAlign: "center" }}>
+        <Typography variant="h4" sx={{ fontWeight: 700, letterSpacing: "-0.02em" }}>
+          Found in the archive.
+        </Typography>
+        <Typography color="text.secondary" sx={{ mt: 1 }}>
+          This paper has already been analyzed. Taking you to its report…
+        </Typography>
+        <CircularProgress size={22} sx={{ mt: 3 }} aria-label="Opening archived report" />
+      </Box>
+    </Box>
   );
 }
 

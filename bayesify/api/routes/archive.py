@@ -12,7 +12,12 @@ router = APIRouter()
 
 
 def facets(papers: list[dict]) -> dict[str, list[str]]:
-    out: dict[str, list[str]] = {"paper_type": [], "discipline": [], "methods": []}
+    out: dict[str, list[str]] = {
+        "paper_type": [],
+        "discipline": [],
+        "methods": [],
+        "software": [],
+    }
     for paper in papers:
         for bucket in out:
             for value in paper.get(bucket) or []:
@@ -29,13 +34,14 @@ async def list_papers(
     paper_type: list[str] = Query(default=[]),
     discipline: list[str] = Query(default=[]),
     method: list[str] = Query(default=[]),
+    software: list[str] = Query(default=[]),
     mode: str = "",
     rubric: str = "",
 ) -> dict:
     docs = await asyncio.to_thread(mongo.list_reports) or []
     for doc in docs:
         doc.pop("_id", None)
-        for array_field in ("paper_authors", "paper_type", "discipline", "methods"):
+        for array_field in ("paper_authors", "paper_type", "discipline", "methods", "software"):
             doc.setdefault(array_field, [])
     needle = q.strip().lower()
 
@@ -47,6 +53,7 @@ async def list_papers(
                 *(paper.get("paper_type") or []),
                 *(paper.get("discipline") or []),
                 *(paper.get("methods") or []),
+                *(paper.get("software") or []),
             ]
             hay = " ".join(parts).lower().replace("_", " ").replace("-", " ")
             if needle.replace("_", " ").replace("-", " ") not in hay:
@@ -56,6 +63,8 @@ async def list_papers(
         if any(tag not in (paper.get("discipline") or []) for tag in discipline):
             return False
         if any(tag not in (paper.get("methods") or []) for tag in method):
+            return False
+        if any(tag not in (paper.get("software") or []) for tag in software):
             return False
         if mode and paper.get("mode") != mode:
             return False

@@ -56,6 +56,7 @@ export function Layout() {
   const [dragging, setDragging] = useState(false);
   const [stageState, setStageState] = useState<Record<string, "running" | "done" | "failed">>({});
   const [running, setRunning] = useState(false);
+  const [archiveHit, setArchiveHit] = useState<string | null>(null);
   const [paper, setPaper] = useState<PaperState | null>(null);
   const [error, setError] = useState<string | null>(null);
   // The paper id whose blind-rating pipeline is still running. The rate flow jumps straight to the
@@ -78,9 +79,26 @@ export function Layout() {
     setPaper(null);
     setError(null);
     setRunning(false);
+    setArchiveHit(null);
     setRatingPending(null);
     navigate("/");
   }, [navigate]);
+
+  // Keep an archive hit visible long enough to be read, then replace the transient processing URL
+  // with the completed report. Clear the marker once the report mounts so it cannot be replayed by
+  // a later direct visit to /processing.
+  useEffect(() => {
+    if (!archiveHit) return;
+    if (pathname.startsWith("/paper/")) {
+      setArchiveHit(null);
+      return;
+    }
+    const timer = window.setTimeout(
+      () => navigate(`/paper/${archiveHit}`, { replace: true }),
+      2000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [archiveHit, navigate, pathname]);
 
   // Stream one paper_id to completion and route to its result. Shared by a fresh run and a rerun.
   // `rateOnDone` opens the blind rating form once the paper is ingested (the rate-from-landing flow).
@@ -117,6 +135,12 @@ export function Layout() {
           setRatingPending(null); // the inventory is ready now — the rating page can load its context
           if (result.status === "failed") {
             setError(result.error ?? "assessment failed");
+          }
+          // Another worker may complete the same paper between the submission check and this job's
+          // pipeline lookup. Give that defensive cache hit the same short archive redirect message.
+          if (!opts?.rateOnDone && result.from_cache) {
+            setArchiveHit(paperId);
+            return;
           }
           // The gate stop: the paper was judged out of scope (not a Bayesian application, or a paper
           // type the rubric doesn't grade), so there is no report to navigate to. Mark the deciding
@@ -155,13 +179,23 @@ export function Layout() {
       const runMode = intent === "rate" ? "local" : mode;
       setStageState({});
       setError(null);
+      setArchiveHit(null);
       setRunning(true);
       // Analyze shows the /processing screen; rate skips it — once we have an id we jump straight to
       // the blind-rating page, which shows its own "loading the rating context" state while the
       // (background) detector run finishes. ratingPending keeps that page in its loading state.
       if (intent === "analyze") navigate("/processing");
       try {
-        const paperId = await submitPaper({ file, identifier, mode: runMode, profile });
+        const { paperId, archiveHit: foundInArchive } = await submitPaper({
+          file,
+          identifier,
+          mode: runMode,
+          profile,
+        });
+        if (intent === "analyze" && foundInArchive) {
+          setArchiveHit(paperId);
+          return;
+        }
         if (intent === "rate") {
           setRatingPending(paperId);
           navigate(`/rate/${paperId}`, { replace: true });
@@ -210,6 +244,7 @@ export function Layout() {
       setDragging,
       fileInput,
       running,
+      archiveHit,
       ratingPending,
       stageState,
       paper,
@@ -228,6 +263,7 @@ export function Layout() {
       file,
       dragging,
       running,
+      archiveHit,
       ratingPending,
       stageState,
       paper,
