@@ -216,7 +216,7 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
   const url = articleUrl(p.source_label); // the source article, when the paper was submitted by URL
   const scoreLine = useMemo(() => {
     const bits: string[] = [];
-    if (p.quality_score != null) bits.push(`Score ${Math.round(p.quality_score * 100)}`);
+    if (p.quality_score != null) bits.push(`Bayesify score ${Math.round(p.quality_score * 100)}`);
     if (p.coverage_present != null && p.coverage_applicable != null)
       bits.push(`Coverage ${p.coverage_present}/${p.coverage_applicable}`);
     return bits.join(" · ");
@@ -251,6 +251,13 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
               color={p.mode === "full" ? "primary" : "secondary"}
               variant="outlined"
               sx={{ height: 20, mr: 1 }}
+            />
+            <Chip
+              label={`${pretty(p.rubric_profile)}`}
+              size="small"
+              color="primary"
+              variant="outlined"
+              sx={{ height: 20, mr: 1, textTransform: "capitalize" }}
             />
             {scoreLine}
           </Typography>
