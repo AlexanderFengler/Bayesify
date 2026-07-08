@@ -74,7 +74,8 @@
       "Bash(git restore *)",
       "Bash(echo \"exit: $?\")",
       "Bash(curl -s -o /dev/null http://localhost:8000/)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/about)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/about)",
+      "Bash(grep -n -i \"latex\\\\|math\\\\|delimit\\\\|\\\\\\\\$\\\\\\\\$\" bayesify/core/prompts.py)"
     ]
   },
   "enabledPlugins": {
