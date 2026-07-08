@@ -1,6 +1,7 @@
-# Runs the project's own gate (`pixi run check` = ruff lint + import contracts + pytest) on every PR
-# and on pushes to the integration branches, so the contracts and tests are enforced automatically
-# rather than relying on each developer remembering to run them locally.
+# Runs the project's own gate (`pixi run check` = ruff lint + import contracts + pytest + the
+# frontend typecheck/build) on every PR and on pushes to the integration branches, so the contracts
+# and tests are enforced automatically rather than relying on each developer remembering to run
+# them locally.
 name: check
 
 on:

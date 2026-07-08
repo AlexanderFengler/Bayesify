@@ -69,7 +69,13 @@
       "Bash(curl -sf -o /dev/null http://localhost:8000/)",
       "Bash(pkill -f \"uvicorn bayesify.api.app\")",
       "Bash(curl -sf -o /dev/null -m 2 http://localhost:8000/)",
-      "Bash(git -C /home/a_huangm13/Documents/Dev/Bayesify status --short)"
+      "Bash(git -C /home/a_huangm13/Documents/Dev/Bayesify status --short)",
+      "Bash(git stash *)",
+      "Bash(git restore *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(curl -s -o /dev/null http://localhost:8000/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8000/about)",
+      "Bash(grep -n -i \"latex\\\\|math\\\\|delimit\\\\|\\\\\\\\$\\\\\\\\$\" bayesify/core/prompts.py)"
     ]
   },
   "enabledPlugins": {

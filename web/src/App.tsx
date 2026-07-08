@@ -1,18 +1,19 @@
 import { Alert, AlertTitle, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
+import { AboutUs } from "./AboutUs";
 import { getPaper } from "./api";
 import { Analyzing, type GateFailure } from "./Analyzing";
 import { Archive } from "./Archive";
 import { useApp } from "./AppContext";
 import { Calibration } from "./Calibration";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { Inventory, LocalNotice } from "./Inventory";
 import { Landing } from "./Landing";
 import { Layout } from "./Layout";
 import { formatByline } from "./paper";
 import { Rate } from "./Rate";
 import { Report } from "./Report";
-import { SupportedBy } from "./SupportedBy";
 import { type PaperState, STAGES } from "./types";
 
 // The whole app is client-side routed: a single Layout holds the app-wide state (mode, the upload
@@ -22,25 +23,29 @@ import { type PaperState, STAGES } from "./types";
 export function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<LandingRoute />} />
-          {/* the old standalone pages fold into the main page now — keep the URLs alive as redirects
-              (bookmarks, shared links): /start → the main page, /guide + /rubrics → their sections */}
-          <Route path="/start" element={<Navigate to="/" replace />} />
-          <Route path="/guide" element={<Navigate to="/#how-it-works" replace />} />
-          <Route path="/rubrics" element={<Navigate to="/#rubrics" replace />} />
-          <Route path="/processing" element={<ProcessingRoute />} />
-          {/* splat captures the optional /full segment; one route element so the component persists
-              across the summary↔full morph */}
-          <Route path="/paper/:id/*" element={<PaperRoute />} />
-          <Route path="/rate/:id" element={<RateRoute />} />
-          <Route path="/calibration" element={<CalibrationRoute />} />
-          <Route path="/archive" element={<ArchiveRoute />} />
-          <Route path="/supported" element={<SupportedByRoute />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<LandingRoute />} />
+            {/* the old standalone pages fold into the main page now — keep the URLs alive as redirects
+                (bookmarks, shared links): /start → the main page, /guide + /rubrics → their sections */}
+            <Route path="/start" element={<Navigate to="/" replace />} />
+            <Route path="/guide" element={<Navigate to="/#how-it-works" replace />} />
+            <Route path="/rubrics" element={<Navigate to="/#rubrics" replace />} />
+            <Route path="/processing" element={<ProcessingRoute />} />
+            {/* splat captures the optional /full segment; one route element so the component persists
+                across the summary↔full morph */}
+            <Route path="/paper/:id/*" element={<PaperRoute />} />
+            <Route path="/rate/:id" element={<RateRoute />} />
+            <Route path="/calibration" element={<CalibrationRoute />} />
+            <Route path="/archive" element={<ArchiveRoute />} />
+            <Route path="/about" element={<AboutUsRoute />} />
+            {/* the page used to live at /supported — keep the URL alive as a redirect */}
+            <Route path="/supported" element={<Navigate to="/about" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }
@@ -183,8 +188,8 @@ function CalibrationRoute() {
   return <Calibration onExit={exitToMain} />;
 }
 
-function SupportedByRoute() {
-  return <SupportedBy />;
+function AboutUsRoute() {
+  return <AboutUs />;
 }
 
 // --- shared status pages (loading / error). The permanent header is supplied by Layout; these just

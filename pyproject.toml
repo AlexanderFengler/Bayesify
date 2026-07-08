@@ -14,6 +14,7 @@ dependencies = [
     "openai>=1.80",  # optional LLM backend: OpenAI Responses API
     "pymongo>=4.10",  # MongoDB report persistence client
     "fastapi[standard]>=0.138.2,<0.139",  # API runtime + FastAPI CLI for hosted deploys
+    "email-validator>=2.0",  # EmailStr validation for the contact-form route
     "sse-starlette>=2.0",  # SSE progress stream; imported by the FastAPI app at startup
     "PyMuPDF>=1.24",  # deployed PDF parser fallback; Pixi also provides this from conda-forge
 ]
@@ -160,7 +161,9 @@ test = "pytest -q"
 lint = "ruff check bayesify tests"
 fmt = "ruff format bayesify tests"
 imports = "lint-imports"
-check = { depends-on = ["lint", "imports", "test"] }
+# The one gate (local + CI). setup-web/web-build extend it over the frontend: web-build runs
+# `tsc -b && vite build`, so a type error or broken build fails the check, not the next deploy.
+check = { depends-on = ["lint", "imports", "test", "setup-web", "web-build"] }
 test-parse = "pytest tests/test_parse.py -v"  # run with: pixi run -e parse test-parse
 # Live screen/classify accuracy gates over the labeled fixture set. Needs ANTHROPIC_API_KEY and makes
 # real (paid) cheap-model calls; opt-in via this task's env so it never fires during `pixi run check`.

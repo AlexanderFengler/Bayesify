@@ -278,6 +278,28 @@ export interface TierCCase {
   steps: TierCStep[];
 }
 
+// --- About-us contact form ------------------------------------------------------------------------
+
+export interface ContactInput {
+  name: string;
+  email: string;
+  message: string;
+}
+
+// Relay a visitor's message to the team via the backend (which sends it through Resend). Surfaces
+// the API's {detail} on failure (e.g. 503 when the form is not configured) so the UI can show it.
+export async function sendContact(input: ContactInput): Promise<void> {
+  await fetchJson(
+    "/api/contact",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    },
+    { detail: true, error: "could not send your message" },
+  );
+}
+
 export async function getCalibration(): Promise<CalibrationReport> {
   return fetchJson<CalibrationReport>("/api/calibration", undefined, {
     error: "could not fetch calibration",
@@ -348,7 +370,15 @@ export function streamProgress(
   };
 
   es.onmessage = (msg) => {
-    const e = JSON.parse(msg.data) as ProgressEvent;
+    let e: ProgressEvent;
+    try {
+      e = JSON.parse(msg.data) as ProgressEvent;
+    } catch {
+      // a malformed frame (proxy noise, truncation) — skip it rather than let the throw kill the
+      // handler. If the *terminal* frame is the mangled one, the polling fallback still resolves:
+      // the connection's eventual close fires onerror, which switches to polling.
+      return;
+    }
     if (e.type === "done" || e.type === "failed") {
       finish(e);
       return;

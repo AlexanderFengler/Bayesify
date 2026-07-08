@@ -7,7 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from bayesify.api.config import API_CONFIG
 from bayesify.api.db.mongo import mongo
-from bayesify.api.routes import archive, calibration, health, overrides, papers, rating, rubrics
+from bayesify.api.routes import (
+    archive,
+    calibration,
+    contact,
+    health,
+    overrides,
+    papers,
+    rating,
+    rubrics,
+)
 from bayesify.api.runtime import BayesifyAPI, api
 from bayesify.api.static import mount_web_ui
 
@@ -37,6 +46,7 @@ def create_app(runtime: BayesifyAPI | None = None) -> FastAPI:
     app.include_router(rating.router)
     app.include_router(calibration.router)
     app.include_router(archive.router)
+    app.include_router(contact.router)
     mount_web_ui(app)
 
     runtime.app = app

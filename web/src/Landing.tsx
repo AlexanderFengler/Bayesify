@@ -193,6 +193,14 @@ function UploadPanel(
   const [intent, setIntent] = useState<"ai" | "human">("ai");
   return (
     <Paper
+      // A real <form> so Enter in the identifier field starts the analysis (implicit submission),
+      // same as clicking the action button. The buttons inside stay type="button" (MUI's default),
+      // so only the submit button and Enter trigger it.
+      component="form"
+      onSubmit={(e: React.FormEvent) => {
+        e.preventDefault();
+        if (p.canStart) p.onStart(intent === "human" ? "rate" : "analyze");
+      }}
       elevation={0}
       // The panel's neon edge is alive: a faint primary hairline as the base ring, with a bright
       // comet (the BorderBeam below) slowly rolling around it. The soft glow stays, dialled down so
@@ -337,10 +345,10 @@ function UploadPanel(
 
         <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "flex-end" }}>
           <Button
+            type="submit"
             variant="contained"
             disableElevation
             disabled={!p.canStart}
-            onClick={() => p.onStart(intent === "human" ? "rate" : "analyze")}
             title={
               intent === "human"
                 ? "Rate this paper yourself against the rubric, blind to the engine's verdict"
