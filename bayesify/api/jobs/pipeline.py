@@ -18,6 +18,7 @@ from bayesify.core.ingest import ingest_upload, parse_input
 from bayesify.core.parse import first_page_text, parse, render_page_image
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.stub import build_stub_result, engine_version
+from bayesify.core.titles import normalize_paper_title
 from bayesify.core.validation.rating_store import bucket_key
 from bayesify.llm import LLMClient, LLMError
 from bayesify.llm import config as llm_config
@@ -129,6 +130,7 @@ async def front_half(
         except LLMError as exc:
             api.logger.warning("metadata extraction failed for job %s: %s", job.id, exc)
     job.paper_title = job.paper_title or parsed.title
+    job.paper_title = normalize_paper_title(job.paper_title)
     job.paper_authors = job.paper_authors or parsed.authors
     job.paper_year = job.paper_year or parsed.year
     job.emit({"type": "stage", "stage": "parse", "state": "done"})

@@ -83,6 +83,14 @@ def test_pdf_title_prefers_the_visible_page1_title() -> None:
     assert _title_of(doc.tobytes()) == "The Visible Paper Title"
 
 
+def test_pdf_title_sentence_cases_all_caps_page1_title() -> None:
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 80), "BAYESIAN WORKFLOW FOR MODEL CHECKING", fontsize=22)
+    page.insert_text((72, 130), "An author and an affiliation line.", fontsize=11)
+    assert _title_of(doc.tobytes()) == "Bayesian workflow for model checking"
+
+
 def test_pdf_title_falls_back_to_metadata_when_page1_heuristic_fails() -> None:
     # page-1 has no usable title line (only a caption), so the embedded /Title is used instead
     real = "A Robust Bayesian Workflow for Cognitive Models"

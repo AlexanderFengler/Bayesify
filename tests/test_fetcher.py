@@ -9,7 +9,7 @@ import pytest
 
 from bayesify.core.cache import BlobStore
 from bayesify.core.errors import FetchFailedError, IdNotFoundError, NoOpenAccessError, NotAPdfError
-from bayesify.core.fetcher import Fetcher
+from bayesify.core.fetcher import Fetcher, _clean_title
 from bayesify.core.ingest import parse_input
 
 PDF = b"%PDF-1.5\n%mock pdf\n"
@@ -100,6 +100,13 @@ def test_arxiv_fetch_captures_version_and_license(fetcher: Fetcher) -> None:
     assert "creativecommons.org/licenses/by" in (fs.license or "")
     assert fs.authors == ["Andrew Gelman", "Aki Vehtari"] and fs.year == 2020  # provider metadata
     assert fetcher._blobs.exists(fs.source_doc.sha256)
+
+
+def test_clean_title_sentence_cases_all_caps_provider_title() -> None:
+    assert _clean_title("  BAYESIAN\nWORKFLOW FOR COGNITIVE MODELS  ") == (
+        "Bayesian workflow for cognitive models"
+    )
+    assert _clean_title("Bayesian Workflow") == "Bayesian Workflow"
 
 
 def test_arxiv_unknown_id_raises(fetcher: Fetcher) -> None:

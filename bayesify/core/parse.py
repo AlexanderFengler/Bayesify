@@ -20,6 +20,7 @@ from importlib.metadata import version
 from bayesify.core import schema as s
 from bayesify.core.cache import BlobStore
 from bayesify.core.errors import UnparseableDocument
+from bayesify.core.titles import normalize_paper_title
 
 _CAPTION_RE = re.compile(
     r"^\s*(figure|fig\.?|table|supplementary figure)\s*\.?\s*\w+", re.IGNORECASE
@@ -174,7 +175,7 @@ def _parse_docling(sha256: str, data: bytes) -> tuple[list[_RawSection], str | N
         if label in ("section_header", "title"):
             title = (getattr(item, "text", "") or "").strip()
             if label == "title" and paper_title is None and title:
-                paper_title = re.sub(r"\s+", " ", title)
+                paper_title = normalize_paper_title(title)
             kind, in_references = _header_kind(title, in_references)
             current = _RawSection(kind=kind, title=title, doc_sha256=sha256)
             _add_page(current, page)
@@ -316,7 +317,7 @@ def _pdf_title_from_page1(doc) -> str | None:  # doc: fitz.Document
     parts = [text for size, _, text in sorted(lines, key=lambda t: t[1]) if size >= max_size - 0.5]
     title = re.sub(r"\s+", " ", " ".join(parts)).strip()
     if 8 <= len(title) <= 250 and not _NON_TITLE_RE.match(title):
-        return title
+        return normalize_paper_title(title)
     return None
 
 
@@ -344,7 +345,7 @@ def _pdf_title_from_metadata(doc) -> str | None:  # doc: fitz.Document
     # a filename masquerading as a title (no spaces, but underscores or a trailing extension)
     if " " not in title and re.search(r"_|\.\w{2,4}$", title):
         return None
-    return title
+    return normalize_paper_title(title)
 
 
 def _pdf_title(doc) -> str | None:  # doc: fitz.Document

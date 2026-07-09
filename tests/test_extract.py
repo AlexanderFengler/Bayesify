@@ -33,6 +33,12 @@ def test_extract_metadata_strips_and_drops_blank_authors() -> None:
     assert meta.authors == ["Ada"]
 
 
+def test_extract_metadata_sentence_cases_all_caps_title() -> None:
+    client = FakeLLMClient(PaperMetadata(title="A HIERARCHICAL MODEL OF X"))
+    meta = extract_metadata(_parsed("x"), client=client, model="m")
+    assert meta.title == "A hierarchical model of x"
+
+
 def test_extract_metadata_blank_title_is_empty() -> None:
     # A blank title comes back empty (falsy) so the pipeline keeps the parse-time heuristic.
     client = FakeLLMClient(PaperMetadata(title="   "))

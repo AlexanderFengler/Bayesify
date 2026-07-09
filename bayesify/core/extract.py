@@ -16,16 +16,17 @@ from pydantic import BaseModel, Field
 
 from bayesify.core.context import excerpt_context
 from bayesify.core.schema import ParsedDoc
+from bayesify.core.titles import normalize_paper_title
 from bayesify.llm import LLMClient, call_with_policy
 from bayesify.llm import config as llm_config
 
 _TITLE_MAX_CHARS = 4_000  # the title + byline are on page 1 / the abstract, not the whole paper
 
 EXTRACT_SYSTEM = """You extract the title and author list of an academic paper from its opening \
-text and, when provided, an image of its first page. Return the title verbatim as printed (no \
-venue, no "Title:" prefix, no quotation marks) and the authors as a list of full names in the \
-order printed (given name first, no affiliations, degrees, or email addresses). Prefer the \
-first-page image over the text when they disagree. Use an empty string / empty list for anything \
+text and, when provided, an image of its first page. Return the title text (no venue, no "Title:" \
+prefix, no quotation marks, and do not preserve all-caps styling) and the authors as a list of full \
+names in the order printed (given name first, no affiliations, degrees, or email addresses). Prefer \
+the first-page image over the text when they disagree. Use an empty string / empty list for anything \
 the page does not clearly show — never invent a title or an author."""
 
 
@@ -62,6 +63,6 @@ def extract_metadata(
     )
     meta = response.parsed
     return PaperMetadata(
-        title=meta.title.strip(),
+        title=normalize_paper_title(meta.title) or "",
         authors=[a.strip() for a in meta.authors if a.strip()],
     )

@@ -18,7 +18,6 @@ redistribution honors the host/publisher terms (gate G3) — never the index's C
 
 from __future__ import annotations
 
-import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -35,6 +34,7 @@ from bayesify.core.errors import (
     NotAPdfError,
 )
 from bayesify.core.ingest import ParsedIdentifier
+from bayesify.core.titles import normalize_paper_title
 
 _ARXIV_NS = {"atom": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
 _TIMEOUT = httpx.Timeout(30.0)
@@ -281,11 +281,8 @@ class Fetcher:
 
 
 def _clean_title(title: str | None) -> str | None:
-    """Collapse whitespace (arXiv/crossref titles carry newlines); drop empties."""
-    if not title:
-        return None
-    cleaned = re.sub(r"\s+", " ", title).strip()
-    return cleaned or None
+    """Collapse provider whitespace and normalize all-caps title styling."""
+    return normalize_paper_title(title)
 
 
 def _year_prefix(date: str | None) -> int | None:
