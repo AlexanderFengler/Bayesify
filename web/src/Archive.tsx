@@ -462,8 +462,9 @@ function FacetChips({
 }
 
 // The card's auto-tag chips: Methods / Software always show in full (grouped and labelled — they're
-// the headline facts), while paper type + discipline are secondary, so they're pinned to a single line
-// (most-relevant chips first) with a "Show more" toggle to reveal the rest.
+// the headline facts). Paper type + discipline are secondary, so when collapsed they show just the
+// most-relevant chip of each (paper type first, then discipline, so both categories are always
+// represented), with a "Show more" toggle that reveals the full grouped list.
 function CardTags({
   p,
   groupChips,
@@ -471,6 +472,20 @@ function CardTags({
   p: ArchivePaper;
   groupChips: (values: string[], color: ChipColor) => React.ReactNode;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  // collapsed shows up to the top 2 chips of each category; more than that reveals a "Show more" toggle
+  const shownTags = Math.min(2, p.paper_type.length) + Math.min(2, p.discipline.length);
+  const hasMoreTags = p.paper_type.length + p.discipline.length > shownTags;
+
+  // position/zIndex keep the toggle clickable above the card's stretched-link overlay
+  const toggleSx = {
+    ...LABEL_FONT,
+    display: "inline-block",
+    position: "relative",
+    zIndex: 1,
+    color: "text.secondary",
+  } as const;
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
       {(p.methods.length > 0 || p.software.length > 0) && (
@@ -484,14 +499,27 @@ function CardTags({
         </Box>
       )}
       {(p.paper_type.length > 0 || p.discipline.length > 0) && (
-        // lead with the top (most relevant) chip of each category so the collapsed single line shows
-        // both paper type and discipline; the remaining chips of each follow, revealed on expand.
-        <ClampChips rows={1}>
-          {groupChips(p.paper_type.slice(0, 1), "periwinkle")}
-          {groupChips(p.discipline.slice(0, 1), "aqua")}
-          {groupChips(p.paper_type.slice(1), "periwinkle")}
-          {groupChips(p.discipline.slice(1), "aqua")}
-        </ClampChips>
+        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75 }}>
+          {expanded || !hasMoreTags ? (
+            <>
+              {groupChips(p.paper_type, "periwinkle")}
+              {groupChips(p.discipline, "aqua")}
+              {hasMoreTags && (
+                <Link component="button" type="button" underline="hover" onClick={() => setExpanded(false)} sx={toggleSx}>
+                  Show less
+                </Link>
+              )}
+            </>
+          ) : (
+            <>
+              {groupChips(p.paper_type.slice(0, 1), "periwinkle")}
+              {groupChips(p.discipline.slice(0, 1), "aqua")}
+              <Link component="button" type="button" underline="hover" onClick={() => setExpanded(true)} sx={toggleSx}>
+                Show more
+              </Link>
+            </>
+          )}
+        </Box>
       )}
     </Box>
   );
