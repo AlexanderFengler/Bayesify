@@ -1,7 +1,8 @@
-﻿"""Anthropic API implementation of the provider-neutral LLM client."""
+"""Anthropic API implementation of the provider-neutral LLM client."""
 
 from __future__ import annotations
 
+import base64
 import threading
 
 from pydantic import BaseModel
@@ -36,18 +37,32 @@ class AnthropicClient:
         user: str,
         schema: type[T],
         max_tokens: int = 1024,
+        image: bytes | None = None,
     ) -> LLMResponse[T]:
         try:
             import anthropic
         except ImportError as exc:  # pragma: no cover - dependency is declared
             raise LLMError("the 'anthropic' SDK is not installed") from exc
 
+        content: object = user
+        if image is not None:
+            content = [
+                {"type": "text", "text": user},
+                {
+                    "type": "image",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "image/png",
+                        "data": base64.standard_b64encode(image).decode(),
+                    },
+                },
+            ]
         try:
             response = self._client().messages.parse(
                 model=model,
                 max_tokens=max_tokens,
                 system=system,
-                messages=[{"role": "user", "content": user}],
+                messages=[{"role": "user", "content": content}],
                 output_format=schema,
             )
         except anthropic.APIError as exc:
@@ -66,4 +81,3 @@ class AnthropicClient:
             input_tokens=usage.input_tokens,
             output_tokens=usage.output_tokens,
         )
-

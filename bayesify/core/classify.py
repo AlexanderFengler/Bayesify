@@ -14,15 +14,39 @@ sees it.
 
 from __future__ import annotations
 
+import logging
+
 from bayesify.core.context import build_user, validate_evidence_refs
 from bayesify.core.prompts import CLASSIFY_SYSTEM
-from bayesify.core.schema import CostLedgerEntry, Evidence, PaperClass, ParsedDoc
+from bayesify.core.schema import (
+    CostLedgerEntry,
+    Evidence,
+    InferenceMethod,
+    PaperClass,
+    ParsedDoc,
+)
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
 from bayesify.llm import config as llm_config
+
+_log = logging.getLogger("bayesify.core.classify")
 
 # Wider than the screen gate's DEFAULT_MAX_CHARS (12k): the paper type / disciplines can depend on
 # content in a later section (e.g. a secondary real-data analysis) that a 12k prefix cut would drop.
 CLASSIFY_MAX_CHARS = 30_000
+
+# Each method chip must be corroborated by a detector hit, the same grounding the labels get via
+# evidence_refs — otherwise a hallucinated in-vocab method (the "SMC?!" report) shows as fact. smc/
+# abc/laplace_inla detectors were added to the catalog specifically so this mapping is total.
+_METHOD_DETECTOR: dict[InferenceMethod, str] = {
+    InferenceMethod.mcmc: "method.mcmc",
+    InferenceMethod.hmc_nuts: "method.mcmc",  # NUTS/HMC live in the method.mcmc pattern
+    InferenceMethod.variational: "method.variational",
+    InferenceMethod.sbi: "method.sbi",
+    InferenceMethod.smc: "method.smc",
+    InferenceMethod.abc: "method.abc",
+    InferenceMethod.laplace_inla: "method.laplace_inla",
+    InferenceMethod.exact_analytic: "method.analytic",
+}
 
 
 def classify(
@@ -45,4 +69,23 @@ def classify(
     # grounding by design); the normal relevance gate only reaches classify when evidence exists.
     if evidence:
         validate_evidence_refs(paper_class.evidence_refs, evidence, where="paper_class")
+        _ground_methods(paper_class, evidence)
     return paper_class, ledger_entry("classify", response)
+
+
+def _ground_methods(paper_class: PaperClass, evidence: list[Evidence]) -> None:
+    """Drop any ``methods_used`` entry with no corroborating detector hit — the same grounding the
+    labels get via ``evidence_refs``, applied to the (otherwise ungrounded) method chips. Mutates
+    ``paper_class`` in place. Precision-first: a real method the catalog missed loses its chip, but
+    a hallucinated in-vocab method can no longer surface as fact. Skipped when evidence is empty."""
+    fired = {e.detector_id for e in evidence}
+    kept: list[InferenceMethod] = []
+    dropped: list[InferenceMethod] = []
+    for m in paper_class.methods_used:
+        (kept if _METHOD_DETECTOR.get(m) in fired else dropped).append(m)
+    if dropped:
+        _log.warning(
+            "classifier named methods with no corroborating detector hit (dropped): %s",
+            [m.value for m in dropped],
+        )
+        paper_class.methods_used = kept

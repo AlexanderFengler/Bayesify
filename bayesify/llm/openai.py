@@ -1,7 +1,8 @@
-﻿"""OpenAI Responses API implementation of the provider-neutral LLM client."""
+"""OpenAI Responses API implementation of the provider-neutral LLM client."""
 
 from __future__ import annotations
 
+import base64
 import threading
 
 from pydantic import BaseModel, ValidationError
@@ -50,6 +51,7 @@ class OpenAIClient:
         user: str,
         schema: type[T],
         max_tokens: int = 1024,
+        image: bytes | None = None,
     ) -> LLMResponse[T]:
         try:
             import openai
@@ -57,7 +59,9 @@ class OpenAIClient:
             raise LLMError("the 'openai' SDK is not installed") from exc
 
         try:
-            response = self._complete(model, system, user, schema, max_tokens=max_tokens)
+            response = self._complete(
+                model, system, user, schema, max_tokens=max_tokens, image=image
+            )
         except openai.APIError as exc:
             status = getattr(exc, "status_code", None)
             if status is None or status >= 500 or status == 429:
@@ -80,13 +84,21 @@ class OpenAIClient:
         schema: type[T],
         *,
         max_tokens: int,
+        image: bytes | None = None,
     ):
         responses = self._client().responses
+        user_content: object = user
+        if image is not None:
+            b64 = base64.standard_b64encode(image).decode()
+            user_content = [
+                {"type": "input_text", "text": user},
+                {"type": "input_image", "image_url": f"data:image/png;base64,{b64}"},
+            ]
         request = {
             "model": model,
             "input": [
                 {"role": "system", "content": system},
-                {"role": "user", "content": user},
+                {"role": "user", "content": user_content},
             ],
             "max_output_tokens": max_tokens + _REASONING_HEADROOM_TOKENS,
             "store": False,
@@ -157,4 +169,3 @@ def _parsed_output[T: BaseModel](response: object, schema: type[T]) -> T | None:
             except ValidationError as exc:
                 raise LLMTransientError(f"OpenAI output failed schema validation: {exc}") from exc
     return None
-

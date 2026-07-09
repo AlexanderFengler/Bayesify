@@ -398,6 +398,37 @@ def _pdf_meta(data: bytes) -> tuple[list[str], int | None]:
     return _split_authors(meta.get("author")), _meta_year(meta.get("creationDate"))
 
 
+def render_page_image(data: bytes, *, page: int = 0, dpi: int = 150) -> bytes | None:
+    """Render one PDF page (page-1 by default) to a PNG for multimodal metadata extraction — the
+    page a human reads, robust to the reading-order scrambling PyMuPDF text extraction can suffer on
+    two-column layouts. Returns ``None`` on any error (empty doc, out-of-range page, no fitz) so the
+    caller degrades to text-only."""
+    try:
+        import fitz  # PyMuPDF — a base dep
+
+        with fitz.open(stream=data, filetype="pdf") as doc:
+            if not 0 <= page < doc.page_count:
+                return None
+            return doc[page].get_pixmap(dpi=dpi).tobytes("png")
+    except Exception:
+        return None
+
+
+def first_page_text(data: bytes, *, page: int = 0) -> str:
+    """The raw text of one page (page-1 by default). Metadata (title + byline) lives on page 1
+    *before* the abstract, which ``context.excerpt_context`` drops — so the metadata extractor reads
+    this instead. Returns ``""`` on any error (the image path still carries the byline)."""
+    try:
+        import fitz  # PyMuPDF — a base dep
+
+        with fitz.open(stream=data, filetype="pdf") as doc:
+            if not 0 <= page < doc.page_count:
+                return ""
+            return doc[page].get_text()
+    except Exception:
+        return ""
+
+
 # --- helpers --------------------------------------------------------------------------------------
 
 

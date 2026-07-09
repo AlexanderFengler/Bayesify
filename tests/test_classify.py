@@ -39,6 +39,15 @@ def _ev() -> Evidence:
     )
 
 
+def _method_ev(detector_id: str) -> Evidence:
+    return Evidence(
+        detector_id=detector_id,
+        detector_version="0.1.0",
+        kind=EvidenceKind.method_mention,
+        span=EvidenceSpan(section_id="s01", page=1, quote="m"),
+    )
+
+
 def test_classify_returns_paperclass_and_meters_cost() -> None:
     canned = PaperClass(
         labels=[PaperClassLabel.data_analysis],
@@ -86,18 +95,63 @@ def test_classify_rejects_out_of_range_evidence_ref() -> None:
         C.classify(_parsed("We fit a model."), [_ev()], client=FakeLLMClient(canned))
 
 
-def test_classify_carries_methods_used() -> None:
+def test_classify_keeps_methods_grounded_by_a_detector_hit() -> None:
     from bayesify.core.schema import InferenceMethod
 
     canned = PaperClass(
-        labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="fits real data",
+        labels=[PaperClassLabel.data_analysis],
+        confidence=0.8,
+        rationale="fits real data",
         evidence_refs=[0],
         methods_used=[InferenceMethod.hmc_nuts, InferenceMethod.sbi, InferenceMethod.smc],
     )
+    # hmc_nuts grounds on method.mcmc, sbi on method.sbi, smc on method.smc — all present, so all
+    # three survive.
+    evidence = [
+        _ev(),
+        _method_ev("method.mcmc"),
+        _method_ev("method.sbi"),
+        _method_ev("method.smc"),
+    ]
     cls, _ = C.classify(
-        _parsed("We fit with NUTS, SBI, SMC."), [_ev()], client=FakeLLMClient(canned)
+        _parsed("We fit with NUTS, SBI, SMC."), evidence, client=FakeLLMClient(canned)
     )
     assert cls.methods_used == [InferenceMethod.hmc_nuts, InferenceMethod.sbi, InferenceMethod.smc]
+
+
+def test_classify_drops_methods_with_no_detector_hit(caplog) -> None:
+    import logging
+
+    from bayesify.core.schema import InferenceMethod
+
+    canned = PaperClass(
+        labels=[PaperClassLabel.data_analysis],
+        confidence=0.8,
+        rationale="r",
+        evidence_refs=[0],
+        methods_used=[InferenceMethod.mcmc, InferenceMethod.smc],
+    )
+    # Only method.mcmc fired; the hallucinated smc has no corroborating detector hit -> dropped.
+    evidence = [_ev(), _method_ev("method.mcmc")]
+    with caplog.at_level(logging.WARNING, logger="bayesify.core.classify"):
+        cls, _ = C.classify(_parsed("mcmc yes, smc no"), evidence, client=FakeLLMClient(canned))
+    assert cls.methods_used == [InferenceMethod.mcmc]
+    assert any("smc" in r.getMessage() for r in caplog.records)
+
+
+def test_classify_skips_method_grounding_without_evidence() -> None:
+    from bayesify.core.schema import InferenceMethod
+
+    canned = PaperClass(
+        labels=[PaperClassLabel.data_analysis],
+        confidence=0.8,
+        rationale="r",
+        evidence_refs=[0],
+        methods_used=[InferenceMethod.smc],
+    )
+    # The forced-rerun escape hatch grades without grounding (evidence == []): methods pass through.
+    cls, _ = C.classify(_parsed("x"), [], client=FakeLLMClient(canned))
+    assert cls.methods_used == [InferenceMethod.smc]
 
 
 def test_paperclass_methods_used_drops_unknown_unstated_and_dupes() -> None:
@@ -106,7 +160,10 @@ def test_paperclass_methods_used_drops_unknown_unstated_and_dupes() -> None:
     from bayesify.core.schema import InferenceMethod
 
     pc = PaperClass(
-        labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="r", evidence_refs=[0],
+        labels=[PaperClassLabel.data_analysis],
+        confidence=0.8,
+        rationale="r",
+        evidence_refs=[0],
         methods_used=["mcmc", "nuts", "mcmc", "unstated"],  # "nuts" not in vocab; dup + unstated
     )
     assert pc.methods_used == [InferenceMethod.mcmc]
@@ -120,8 +177,11 @@ def test_paperclass_methods_used_logs_dropped(caplog) -> None:
 
     with caplog.at_level(logging.WARNING, logger="bayesify.core.schema"):
         pc = PaperClass(
-            labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="r",
-            evidence_refs=[0], methods_used=["mcmc", "particle_filter"],
+            labels=[PaperClassLabel.data_analysis],
+            confidence=0.8,
+            rationale="r",
+            evidence_refs=[0],
+            methods_used=["mcmc", "particle_filter"],
         )
     assert pc.methods_used == [InferenceMethod.mcmc]
     assert any("particle_filter" in r.getMessage() for r in caplog.records)

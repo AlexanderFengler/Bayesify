@@ -15,7 +15,7 @@ from bayesify.core.errors import IngestError
 from bayesify.core.extract import extract_metadata
 from bayesify.core.fetcher import Fetcher
 from bayesify.core.ingest import ingest_upload, parse_input
-from bayesify.core.parse import parse
+from bayesify.core.parse import first_page_text, parse, render_page_image
 from bayesify.core.rubric.loader import load_rubric
 from bayesify.core.stub import build_stub_result, engine_version
 from bayesify.core.validation.rating_store import bucket_key
@@ -108,14 +108,26 @@ async def front_half(
     job.emit({"type": "stage", "stage": "parse", "state": "running"})
     parsed = await asyncio.to_thread(parse, source, blobs)
     job.parser, job.parser_version = parsed.parser, parsed.parser_version
-    # Title precedence: a provider (arXiv/DOI) title wins; else an LLM extraction on full runs; else
-    # the parse heuristic (weak for uploads). Runs in the parse stage so the parse-done refresh
-    # surfaces it; a title miss is never fatal.
-    if client is not None and not job.paper_title:
+    # Title/author precedence: a provider (arXiv/DOI) value wins; else a multimodal LLM extraction
+    # on full runs (page-1 text + a rendered page-1 image); else the parse heuristics (weak for
+    # uploads — the embedded /Title and /Author fields are frequently blank). Runs in the parse
+    # stage so the parse-done refresh surfaces it; a miss is never fatal.
+    if client is not None and (not job.paper_title or not job.paper_authors):
         try:
-            job.paper_title = await asyncio.to_thread(extract_metadata, parsed, client=client)
+            data = await asyncio.to_thread(blobs.get, source.sha256)
+            page_image = await asyncio.to_thread(render_page_image, data)
+            page_text = await asyncio.to_thread(first_page_text, data)
+            meta = await asyncio.to_thread(
+                extract_metadata,
+                parsed,
+                client=client,
+                page_image=page_image,
+                opening_text=page_text,
+            )
+            job.paper_title = job.paper_title or meta.title
+            job.paper_authors = job.paper_authors or meta.authors
         except LLMError as exc:
-            api.logger.warning("title extraction failed for job %s: %s", job.id, exc)
+            api.logger.warning("metadata extraction failed for job %s: %s", job.id, exc)
     job.paper_title = job.paper_title or parsed.title
     job.paper_authors = job.paper_authors or parsed.authors
     job.paper_year = job.paper_year or parsed.year
