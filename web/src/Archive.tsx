@@ -1,7 +1,7 @@
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import SearchIcon from "@mui/icons-material/Search";
 import {
   Box,
-  Button,
   Chip,
   CircularProgress,
   Container,
@@ -11,8 +11,10 @@ import {
   Paper,
   TextField,
   Typography,
+  useTheme,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import type { Theme } from "@mui/material/styles";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
 import { fetchPapers } from "./api";
 import { MathText } from "./MathText";
@@ -20,15 +22,31 @@ import { articleUrl, formatByline } from "./paper";
 import type { ArchiveFacets, ArchivePaper } from "./types";
 
 const EMPTY_FACETS: ArchiveFacets = { paper_type: [], discipline: [], methods: [], software: [] };
-// the facet groups, in render order — key into the facets payload + the paper's own auto-tag arrays
+// the facet groups, in render order — key into the facets payload + the paper's own auto-tag arrays.
+// `color` is the shared per-category hue (a theme signifier), used for both the filter chips and the
+// matching in-card tag chips so a category reads the same colour everywhere.
 const GROUPS = [
-  { key: "paper_type", label: "Paper type", field: "paper_type" },
-  { key: "discipline", label: "Discipline", field: "discipline" },
-  { key: "methods", label: "Methods", field: "methods" },
-  { key: "software", label: "Software", field: "software" },
+  { key: "paper_type", label: "Paper type", field: "paper_type", color: "primary" },
+  { key: "discipline", label: "Discipline", field: "discipline", color: "info" },
+  { key: "methods", label: "Methods", field: "methods", color: "success" },
+  { key: "software", label: "Software", field: "software", color: "magenta" },
 ] as const;
+type ChipColor = (typeof GROUPS)[number]["color"];
 
 const pretty = (s: string) => s.replace(/[-_]/g, " ");
+
+// The compact uppercase label style, shared by the "Bayesify Score" label and the header chips so
+// they read as one family.
+const LABEL_FONT = {
+  fontSize: "0.72rem",
+  fontWeight: 700,
+  letterSpacing: "0.06em",
+  textTransform: "uppercase",
+} as const;
+
+// Chip clusters (the top filter facets and the card tags) collapse to this many lines by default,
+// hiding the rest behind a "Show more" toggle.
+const CHIP_CLAMP_ROWS = 2;
 
 // The Archive: every processed paper with its auto tags, searchable by free text + tag facets. Papers
 // are tagged automatically (paper type + discipline + methods). Backed by the shared MongoDB reports
@@ -121,34 +139,28 @@ export function Archive() {
         }}
       />
 
-      {/* facet filter chips — one row per group; clicking a chip AND-filters the list */}
-      <Box sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: 1.25 }}>
+      {/* facet filter chips — every group is a column: its label on the shared top row, its chips
+          stacked below. Clicking a chip AND-filters the list. */}
+      <Box
+        sx={{
+          mt: 2,
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", md: "repeat(4, 1fr)" },
+          gap: 2,
+          alignItems: "start",
+        }}
+      >
         {GROUPS.map((g) => {
           const values = facets[g.key as keyof ArchiveFacets];
           if (values.length === 0) return null;
           return (
-            <Box key={g.key} sx={{ display: "flex", alignItems: "baseline", gap: 1.5, flexWrap: "wrap" }}>
-              <Typography
-                sx={{ fontSize: "0.7rem", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "text.secondary", minWidth: 128 }}
-              >
-                {g.label}
-              </Typography>
-              <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-                {values.map((v) => {
-                  const on = selected[g.key].includes(v);
-                  return (
-                    <Chip
-                      key={v}
-                      label={pretty(v)}
-                      size="small"
-                      color={on ? "primary" : "default"}
-                      variant={on ? "filled" : "outlined"}
-                      onClick={() => toggle(g.key, v)}
-                    />
-                  );
-                })}
-              </Box>
-            </Box>
+            <FacetChips
+              key={g.key}
+              g={g}
+              values={values}
+              selected={selected[g.key]}
+              onToggle={(v) => toggle(g.key, v)}
+            />
           );
         })}
       </Box>
@@ -178,17 +190,13 @@ export function Archive() {
       ) : papers.length === 0 ? (
         <EmptyState hasArchive={total > 0} />
       ) : (
-        <Box
-          sx={{
-            mt: 3,
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
-            gap: 2,
-            alignItems: "start",
-          }}
-        >
+        // masonry-by-column: each column flows independently, so cards in a column keep a constant
+        // gap regardless of their (variable, collapsible) heights instead of aligning to row peers.
+        <Box sx={{ mt: 3, columnCount: { xs: 1, md: 2 }, columnGap: 2 }}>
           {papers.map((p) => (
-            <ArchiveCard key={p.key} p={p} />
+            <Box key={p.key} sx={{ breakInside: "avoid", WebkitColumnBreakInside: "avoid", mb: 2 }}>
+              <ArchiveCard p={p} />
+            </Box>
           ))}
         </Box>
       )}
@@ -211,29 +219,70 @@ function EmptyState({ hasArchive }: { hasArchive: boolean }) {
   );
 }
 
+// Quality bands for the score medallion — reuse the app's signifier hues (the same green/amber/red
+// language the report uses for step status), so a card's colour reads as "how well did it do".
+function scoreBand(theme: Theme, q: number): { fg: string; soft: string } {
+  const t = theme.tokens;
+  if (q >= 0.6) return { fg: t.green, soft: t.greenSoft };
+  if (q >= 0.4) return { fg: t.amber, soft: t.amberSoft };
+  return { fg: t.red, soft: t.redSoft };
+}
+
+// The score in the card header: a two-line "Bayesify / Score" label, right-aligned against the big
+// band-coloured number to its right (which spans both label lines). Falls back to a neutral "—" for
+// papers without a quality score (e.g. Human ratings that were never graded).
+function ScoreBadge({ p }: { p: ArchivePaper }) {
+  const theme = useTheme();
+  const q = p.quality_score;
+  const band = q != null ? scoreBand(theme, q) : null;
+  const labelSx = { ...LABEL_FONT, display: "block", lineHeight: 1.2, color: "text.secondary" } as const;
+
+  return (
+    <Box sx={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", textAlign: "right" }}>
+      <Typography
+        sx={{ fontSize: "2.4rem", fontWeight: 700, lineHeight: 1, color: band ? band.fg : "text.disabled" }}
+      >
+        {q == null ? "—" : Math.round(q * 100)}
+      </Typography>
+      <Typography sx={{ ...labelSx, mt: 0.5 }}>Bayesify</Typography>
+      <Typography sx={labelSx}>Score</Typography>
+    </Box>
+  );
+}
+
 function ArchiveCard({ p }: { p: ArchivePaper }) {
   const byline = formatByline(p.paper_authors, p.paper_year);
   const url = articleUrl(p.source_label); // the source article, when the paper was submitted by URL
-  const scoreLine = useMemo(() => {
-    const bits: string[] = [];
-    if (p.quality_score != null) bits.push(`Bayesify score ${Math.round(p.quality_score * 100)}`);
-    if (p.coverage_present != null && p.coverage_applicable != null)
-      bits.push(`Coverage ${p.coverage_present}/${p.coverage_applicable}`);
-    return bits.join(" · ");
-  }, [p]);
+  const hasTags =
+    p.paper_type.length > 0 || p.discipline.length > 0 || p.methods.length > 0 || p.software.length > 0;
 
-  const groupChips = (values: string[], color: "default" | "info" | "success") =>
+  const groupChips = (values: string[], color: ChipColor) =>
     values.map((v) => (
       <Chip key={v} label={pretty(v)} size="small" variant="outlined" color={color} sx={{ height: 24 }} />
     ));
 
   return (
-    <Paper variant="outlined" sx={{ p: { xs: 2, md: 2.5 }, borderRadius: 2 }}>
-      {/* title block and the Open-paper button on one line, 5:1 on wide screens (stacked on phones).
-          The title is the primary action — it opens the report; the source article moves to the
-          side button (shown only when the paper was submitted by URL). */}
-      <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { sm: "flex-start" }, gap: 2 }}>
-        <Box sx={{ flex: { sm: 5 }, minWidth: 0 }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: { xs: 2, md: 2.5 },
+        borderRadius: 2,
+        display: "flex",
+        flexDirection: "column",
+        transition: "transform .18s ease, box-shadow .18s ease, border-color .18s ease",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: 4,
+          borderColor: "primary.main",
+        },
+      }}
+    >
+      {/* header: title + author on the left, a vertical divider, then the score on the right (its top
+          aligned to the title's top; the divider spans the title+author height). The mode/rubric chips
+          sit below. The title opens the report; "Open paper" (the source article, when submitted by
+          URL) sits after the rubric chip. */}
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
             <Link component={RouterLink} to={`/paper/${p.paper_id}`} color="inherit" underline="hover">
               <MathText>{p.paper_title ?? p.source_label}</MathText>
@@ -244,64 +293,147 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
               {byline}
             </Typography>
           )}
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-            <Chip
-              label={p.mode === "full" ? "AI" : "Human"}
-              size="small"
-              color={p.mode === "full" ? "primary" : "secondary"}
-              variant="outlined"
-              sx={{ height: 20, mr: 1 }}
-            />
-            <Chip
-              label={`${pretty(p.rubric_profile)}`}
-              size="small"
-              color="primary"
-              variant="outlined"
-              sx={{ height: 20, mr: 1, textTransform: "capitalize" }}
-            />
-            {scoreLine}
-          </Typography>
         </Box>
+        <Divider orientation="vertical" flexItem />
+        <ScoreBadge p={p} />
+      </Box>
+      <Box sx={{ mt: 1, display: "flex", gap: 0.75, flexWrap: "wrap", alignItems: "center" }}>
+        <Chip
+          label={p.mode === "full" ? "AI" : "Human"}
+          size="small"
+          color={p.mode === "full" ? "primary" : "secondary"}
+          variant="filled"
+          sx={{ height: 20, ...LABEL_FONT }}
+        />
+        <Chip
+          label={pretty(p.rubric_profile)}
+          size="small"
+          color="primary"
+          variant="filled"
+          sx={{ height: 20, ...LABEL_FONT }}
+        />
         {url && (
-          <Box sx={{ flex: { sm: 1 }, display: "flex", justifyContent: { xs: "flex-start", sm: "flex-end" } }}>
-            <Button size="small" href={url} target="_blank" rel="noreferrer" sx={{ flexShrink: 0 }}>
+          <>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.25, my: 0.25 }} />
+            <Link
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              underline="hover"
+              sx={{ ...LABEL_FONT, display: "inline-flex", alignItems: "center", gap: 0.25, color: "primary.main" }}
+            >
               Open paper
-            </Button>
-          </Box>
+              <OpenInNewIcon sx={{ fontSize: 14 }} />
+            </Link>
+          </>
         )}
       </Box>
 
-      {(p.paper_type.length > 0 || p.discipline.length > 0) && (
-        <Box sx={{ mt: 1.5, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-          {groupChips(p.paper_type, "default")}
-          {groupChips(p.discipline, "info")}
-        </Box>
-      )}
-      {p.methods.length > 0 && (
-        <ArchiveTagRow label="Methods">{groupChips(p.methods, "success")}</ArchiveTagRow>
-      )}
-      {p.software.length > 0 && (
-        <ArchiveTagRow label="Software">{groupChips(p.software, "default")}</ArchiveTagRow>
+      {hasTags && (
+        <>
+          <Divider sx={{ my: 2 }} />
+          <ClampChips>
+            {groupChips(p.paper_type, "primary")}
+            {groupChips(p.discipline, "info")}
+            {groupChips(p.methods, "success")}
+            {groupChips(p.software, "magenta")}
+          </ClampChips>
+        </>
       )}
     </Paper>
   );
 }
 
-function ArchiveTagRow({ label, children }: { label: string; children: React.ReactNode }) {
+// A flex-wrap chip cluster clamped to CHIP_CLAMP_ROWS lines. When the chips wrap past that height the
+// overflow is hidden behind a "Show more"/"Show less" toggle. Shared by the top filter facets and the
+// card tags so both collapse identically. The overflow is measured (ResizeObserver) against the real
+// wrapped height at the current width, so it adapts to the column width rather than guessing by count.
+function ClampChips({ children }: { children: React.ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  const [clampHeight, setClampHeight] = useState<number>();
+  const [overflowing, setOverflowing] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const first = el.firstElementChild as HTMLElement | null;
+      if (!first) {
+        setOverflowing(false);
+        return;
+      }
+      const rowGap = parseFloat(getComputedStyle(el).rowGap) || 0;
+      const h = CHIP_CLAMP_ROWS * first.offsetHeight + (CHIP_CLAMP_ROWS - 1) * rowGap;
+      setClampHeight(h);
+      setOverflowing(el.scrollHeight > h + 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [children]);
+
+  const clamp = overflowing && !expanded;
   return (
-    <Box sx={{ mt: 1.25, display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-      <Typography
+    <Box>
+      <Box
+        ref={ref}
         sx={{
-          fontSize: "0.65rem",
-          fontWeight: 700,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "text.secondary",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 0.75,
+          overflow: "hidden",
+          maxHeight: clamp && clampHeight != null ? `${clampHeight}px` : "none",
         }}
       >
-        {label}
-      </Typography>
-      {children}
+        {children}
+      </Box>
+      {overflowing && (
+        <Link
+          component="button"
+          type="button"
+          underline="hover"
+          onClick={() => setExpanded((e) => !e)}
+          sx={{ ...LABEL_FONT, mt: 0.75, display: "inline-block", color: "text.secondary" }}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </Link>
+      )}
+    </Box>
+  );
+}
+
+// One top-filter category: its label plus the (clamped) filter chips. Selected values render filled.
+function FacetChips({
+  g,
+  values,
+  selected,
+  onToggle,
+}: {
+  g: (typeof GROUPS)[number];
+  values: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}) {
+  const selectedSet = new Set(selected);
+  return (
+    <Box>
+      <Typography sx={{ ...LABEL_FONT, fontSize: "0.7rem", color: "text.secondary" }}>{g.label}</Typography>
+      <Box sx={{ mt: 0.75 }}>
+        <ClampChips>
+          {values.map((v) => (
+            <Chip
+              key={v}
+              label={pretty(v)}
+              size="small"
+              color={g.color}
+              variant={selectedSet.has(v) ? "filled" : "outlined"}
+              onClick={() => onToggle(v)}
+            />
+          ))}
+        </ClampChips>
+      </Box>
     </Box>
   );
 }

@@ -61,6 +61,8 @@ interface Variant {
   text: { primary: string; secondary: string; disabled: string };
   divider: string;
   signifier: Signifier;
+  // a category accent outside the signifier set — used for the Archive's "software" tag chips.
+  magenta: { main: string; soft: string };
   aurora: { base: string; image: string; size: string };
 }
 
@@ -79,6 +81,7 @@ const VARIANTS: Record<AuroraVariant, Variant> = {
     text: { primary: "#30104e", secondary: "#5b5470", disabled: "#8e88a0" },
     divider: "rgba(48,16,78,0.14)",
     signifier: LIGHT_SIGNIFIER,
+    magenta: { main: "#b5179e", soft: "#f7e6f4" },
     aurora: {
       base: "#e8e8e8",
       image: [
@@ -103,6 +106,7 @@ const VARIANTS: Record<AuroraVariant, Variant> = {
     text: { primary: "rgba(255,255,255,0.92)", secondary: "rgba(255,255,255,0.66)", disabled: "rgba(255,255,255,0.40)" },
     divider: "rgba(255,255,255,0.14)",
     signifier: DARK_SIGNIFIER,
+    magenta: { main: "#f472d0", soft: "rgba(244,114,208,0.20)" },
     aurora: {
       base: "#1d0235",
       image: [
@@ -146,6 +150,7 @@ export function makeTheme(variant: AuroraVariant): Theme {
       warning: { main: sig.amber, light: sig.amberSoft },
       error: { main: sig.red, light: sig.redSoft },
       info: { main: sig.blue, light: sig.blueSoft },
+      magenta: { main: v.magenta.main, light: v.magenta.soft, contrastText: v.contrast },
       text: v.text,
       // default is transparent so content floats on the aurora; paper is the frosted-glass tint.
       background: { default: "transparent", paper: v.glass },
@@ -196,12 +201,24 @@ export function makeTheme(variant: AuroraVariant): Theme {
   });
 }
 
-// Make `theme.tokens` type-safe in sx callbacks and styled().
+// Make `theme.tokens` type-safe in sx callbacks and styled(), and register the custom `magenta`
+// palette colour so `<Chip color="magenta" />` typechecks.
 declare module "@mui/material/styles" {
   interface Theme {
     tokens: Tokens;
   }
   interface ThemeOptions {
     tokens?: Tokens;
+  }
+  interface Palette {
+    magenta: Palette["primary"];
+  }
+  interface PaletteOptions {
+    magenta?: PaletteOptions["primary"];
+  }
+}
+declare module "@mui/material/Chip" {
+  interface ChipPropsColorOverrides {
+    magenta: true;
   }
 }
