@@ -83,6 +83,11 @@ _POSITIVE = [
     ("We used variational inference (ADVI).", "method.variational"),
     ("Posteriors were obtained with simulation-based inference (SBI).", "method.sbi"),
     ("A conjugate prior yields an analytic posterior.", "method.analytic"),
+    ("Inference used sequential Monte Carlo (SMC) samplers.", "method.smc"),
+    ("We tracked the latent state with a particle filter.", "method.smc"),
+    ("Parameters were estimated via approximate Bayesian computation (ABC).", "method.abc"),
+    ("We used INLA for fast approximate inference.", "method.laplace_inla"),
+    ("A Laplace approximation to the posterior was used.", "method.laplace_inla"),
     # workflow
     ("We performed prior predictive checks.", "workflow.prior_predictive"),
     ("Posterior predictive checks matched the data.", "workflow.posterior_predictive"),
@@ -131,6 +136,11 @@ _FALSE_POSITIVES = [
     ("The looser threshold was preferred.", "diag.loo_waic"),
     ("The sbi scores stayed below threshold.", "method.sbi"),  # lowercase, case-sensitive SBI
     ("We validated with simulation-based calibration.", "method.sbi"),  # SBC != SBI
+    (
+        "The ABCD study recruited thousands of children.",
+        "method.abc",
+    ),  # ABCD != ABC (word boundary)
+    ("The smc pathway was upregulated.", "method.smc"),  # lowercase, case-sensitive SMC
 ]
 
 

@@ -44,7 +44,7 @@ class _Fake:
         self._refute = refute or RefuterVerdict(refuted=False, notes="genuinely absent")
         self.calls: list[dict] = []
 
-    def complete(self, *, model, system, user, schema, max_tokens=1024):
+    def complete(self, *, model, system, user, schema, max_tokens=1024, image=None):
         self.calls.append({"schema": schema.__name__, "user": user, "model": model})
         if schema.__name__ == "StepJudgment":
             parsed = self._judge(user) if callable(self._judge) else self._judge

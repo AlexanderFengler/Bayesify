@@ -170,7 +170,7 @@ def _fake_batch(name: str, user: str, status: str = "adequate"):
 class _FakeLLM:
     """Schema-aware fake driving the full grade path, no real LLM (mirrors test_api._full_fake)."""
 
-    def complete(self, *, model, system, user, schema, max_tokens=1024):
+    def complete(self, *, model, system, user, schema, max_tokens=1024, image=None):
         from bayesify.core.assess import RefuterVerdict, StepJudgment
         from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
         from bayesify.llm import LLMResponse
@@ -235,7 +235,7 @@ def test_grade_document_runs_the_full_engine(tmp_path) -> None:
 class _NoGateLLM:
     """Like _FakeLLM but the gate says 'no' (downstream still grades, for the override path)."""
 
-    def complete(self, *, model, system, user, schema, max_tokens=1024):
+    def complete(self, *, model, system, user, schema, max_tokens=1024, image=None):
         from bayesify.core.assess import RefuterVerdict, StepJudgment
         from bayesify.core.schema import PaperClass, PaperClassLabel
         from bayesify.llm import LLMResponse

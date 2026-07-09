@@ -1,4 +1,4 @@
-﻿"""Scripted in-memory LLM client for tests."""
+"""Scripted in-memory LLM client for tests."""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ class FakeLLMClient:
         user: str,
         schema: type[T],
         max_tokens: int = 1024,
+        image: bytes | None = None,
     ) -> LLMResponse[T]:
         self.calls.append(
             {
@@ -37,6 +38,7 @@ class FakeLLMClient:
                 "user": user,
                 "schema": schema.__name__,
                 "max_tokens": max_tokens,
+                "image": image,
             }
         )
         if not self._responses:
@@ -52,4 +54,3 @@ class FakeLLMClient:
         return LLMResponse(
             parsed=item, model=model, input_tokens=self._default_in, output_tokens=self._default_out
         )
-

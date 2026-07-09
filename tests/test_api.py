@@ -1170,7 +1170,7 @@ def _full_fake(
         def __init__(self) -> None:
             self.calls: list[str] = []
 
-        def complete(self, *, model, system, user, schema, max_tokens=1024):
+        def complete(self, *, model, system, user, schema, max_tokens=1024, image=None):
             self.calls.append(schema.__name__)
             if schema.__name__ == "Relevance":
                 refs = [] if relevance == "no" else [0]

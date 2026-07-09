@@ -139,6 +139,12 @@ CATALOG: list[Detector] = [
              _c(r"(?i:simulation[- ]based inference)|\bSBI\b", ci=False)),
     Detector("method.analytic", ME, "method",
              _c(r"(?i:conjugate prior|analytic(?:al)? posterior|closed[- ]form posterior)", ci=False)),
+    Detector("method.smc", ME, "method",
+             _c(r"(?i:sequential monte carlo)|\bSMC\b|(?i:particle filters?)", ci=False)),
+    Detector("method.abc", ME, "method",
+             _c(r"(?i:approximate bayesian computation)|\bABC\b", ci=False)),
+    Detector("method.laplace_inla", ME, "method",
+             _c(r"\bINLA\b|(?i:integrated nested laplace)|(?i:laplace approximation)", ci=False)),
     # --- diagnostics with numeric extraction (value -> diagnostic_value, else diagnostic_mention) ---
     Detector("diag.rhat", DV, "diagnostic",
              _c(r"(?:\bR[-\s]?hat\b|R̂|\bRhat\b)" + _val(_NUM)),

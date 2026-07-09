@@ -1,7 +1,8 @@
-﻿"""Claude Agent SDK implementation of the provider-neutral LLM client."""
+"""Claude Agent SDK implementation of the provider-neutral LLM client."""
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 
@@ -28,6 +29,7 @@ class AgentSDKClient:
         user: str,
         schema: type[T],
         max_tokens: int = 1024,
+        image: bytes | None = None,
     ) -> LLMResponse[T]:
         try:
             import claude_agent_sdk as sdk
@@ -47,18 +49,48 @@ class AgentSDKClient:
             max_turns=4,
             permission_mode="bypassPermissions",
         )
-        prompt = user
+        prompt_text = user
         if use_output_format:
             opts_kwargs["output_format"] = {
                 "type": "json_schema",
                 "schema": schema.model_json_schema(),
             }
         else:
-            prompt = (
+            prompt_text = (
                 f"{user}\n\nRespond with ONLY a JSON object matching this JSON Schema - no prose, "
                 f"no markdown fences:\n{json.dumps(schema.model_json_schema())}"
             )
         options = sdk.ClaudeAgentOptions(**opts_kwargs)
+
+        # A string prompt is text-only; to send an image we switch to the SDK's streaming-input form
+        # (an async iterable of message dicts), whose `content` accepts the same base64 image block
+        # the API backends use — the CLI forwards it to the model. This keeps vision uniform across
+        # every backend (api / openai / agent-sdk), not an API-only capability.
+        if image is None:
+            prompt: object = prompt_text
+        else:
+            b64 = base64.standard_b64encode(image).decode()
+
+            async def _stream():
+                yield {
+                    "type": "user",
+                    "message": {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt_text},
+                            {
+                                "type": "image",
+                                "source": {
+                                    "type": "base64",
+                                    "media_type": "image/png",
+                                    "data": b64,
+                                },
+                            },
+                        ],
+                    },
+                }
+
+            prompt = _stream()
 
         async def _collect():
             chunks: list[str] = []
@@ -95,4 +127,3 @@ class AgentSDKClient:
         return LLMResponse(
             parsed=parsed, model=model, input_tokens=result["in"], output_tokens=result["out"]
         )
-

@@ -1,4 +1,4 @@
-﻿"""Shared LLM interface, retry policy, token accounting, and cost ledger helpers."""
+"""Shared LLM interface, retry policy, token accounting, and cost ledger helpers."""
 
 from __future__ import annotations
 
@@ -42,6 +42,7 @@ class LLMClient(Protocol):
         user: str,
         schema: type[T],
         max_tokens: int = 1024,
+        image: bytes | None = None,
     ) -> LLMResponse[T]: ...
 
 
@@ -53,14 +54,25 @@ def call_with_policy[T: BaseModel](
     user: str,
     schema: type[T],
     max_tokens: int = 1024,
+    image: bytes | None = None,
     retries: int = 2,
 ) -> LLMResponse[T]:
-    """Call an LLM client with bounded retries on transient failures."""
+    """Call an LLM client with bounded retries on transient failures. ``image`` (a PNG, e.g. a
+    rendered page-1) is optional; every backend (Anthropic / OpenAI / Agent SDK) attaches it to the
+    user turn, so vision is uniform across the seam rather than an API-only capability."""
+    # Pass `image` only when set, so the many text-only fakes/clients whose complete() predates the
+    # image kwarg keep working — only the multimodal metadata path sends an image.
+    extra = {} if image is None else {"image": image}
     last: LLMError | None = None
     for _attempt in range(retries + 1):
         try:
             return client.complete(
-                model=model, system=system, user=user, schema=schema, max_tokens=max_tokens
+                model=model,
+                system=system,
+                user=user,
+                schema=schema,
+                max_tokens=max_tokens,
+                **extra,
             )
         except LLMTransientError as exc:
             last = exc
@@ -140,4 +152,3 @@ def brace_json(text: str) -> dict | None:
                     return None
                 return obj if isinstance(obj, dict) else None
     return None
-
