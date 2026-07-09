@@ -194,18 +194,18 @@ export function Report({
           {/* meta chips — full width, below the title/score row (always under the numbers); persist
               across both views; hidden on the narrowest screens */}
           <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 3, mt: 2, flexWrap: "wrap" }}>
-            <MetaChips label="rubric" values={[r.rubric_profile]} info={STAT_INFO.rubric} />
+            <MetaChips label="rubric" values={[r.rubric_profile]} info={STAT_INFO.rubric} color="slate" />
             {r.paper_class && (
-              <MetaChips label="paper type" values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))} info={STAT_INFO.paperType} />
+              <MetaChips label="paper type" values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))} info={STAT_INFO.paperType} color="periwinkle" />
             )}
             {(paper.methods ?? []).length > 0 && (
-              <MetaChips label="methods" values={paper.methods ?? []} info={STAT_INFO.methods} />
+              <MetaChips label="methods" values={paper.methods ?? []} info={STAT_INFO.methods} color="violet" />
             )}
             {(paper.software ?? []).length > 0 && (
-              <MetaChips label="software" values={paper.software ?? []} info={STAT_INFO.software} />
+              <MetaChips label="software" values={paper.software ?? []} info={STAT_INFO.software} color="magenta" />
             )}
             {r.profile && (
-              <MetaChips label="weighting" values={[anyReduced ? "weighted" : "uniform"]} info={STAT_INFO.weighting} />
+              <MetaChips label="weighting" values={[anyReduced ? "weighted" : "uniform"]} info={STAT_INFO.weighting} color="steel" />
             )}
           </Box>
 
@@ -445,7 +445,19 @@ function InfoTooltip({ info, children }: { info: StatInfo; children: React.React
 // the title. The chips run a size up from the report's other (small) chips so this meta row reads as
 // the paper's headline facts. `info` adds a hover-explained info icon beside the label; multi-value
 // fields (paper type, methods) wrap onto more chips.
-function MetaChips({ label, values, info }: { label: string; values: string[]; info?: StatInfo }) {
+function MetaChips({
+  label,
+  values,
+  info,
+  color,
+}: {
+  label: string;
+  values: string[];
+  info?: StatInfo;
+  // every meta field carries a solid, colour-coded chip from the shared categorical palette (matching
+  // the Archive): vivid tier for classification, muted slate/steel tier for config (rubric / weighting).
+  color?: "periwinkle" | "violet" | "magenta" | "slate" | "steel";
+}) {
   return (
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
@@ -464,7 +476,13 @@ function MetaChips({ label, values, info }: { label: string; values: string[]; i
       </Box>
       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
         {values.map((v) => (
-          <Chip key={v} label={cap(v)} sx={{ height: 34, fontSize: "0.9rem", fontWeight: 600, "& .MuiChip-label": { px: 1.5 } }} />
+          <Chip
+            key={v}
+            label={cap(v)}
+            color={color}
+            variant="filled"
+            sx={{ height: 30, fontSize: "0.84rem", fontWeight: 600, "& .MuiChip-label": { px: 1.25 } }}
+          />
         ))}
       </Box>
     </Box>

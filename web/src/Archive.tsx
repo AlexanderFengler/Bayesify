@@ -26,9 +26,9 @@ const EMPTY_FACETS: ArchiveFacets = { paper_type: [], discipline: [], methods: [
 // `color` is the shared per-category hue (a theme signifier), used for both the filter chips and the
 // matching in-card tag chips so a category reads the same colour everywhere.
 const GROUPS = [
-  { key: "paper_type", label: "Paper type", field: "paper_type", color: "primary" },
-  { key: "discipline", label: "Discipline", field: "discipline", color: "info" },
-  { key: "methods", label: "Methods", field: "methods", color: "success" },
+  { key: "paper_type", label: "Paper type", field: "paper_type", color: "periwinkle" },
+  { key: "discipline", label: "Discipline", field: "discipline", color: "aqua" },
+  { key: "methods", label: "Methods", field: "methods", color: "violet" },
   { key: "software", label: "Software", field: "software", color: "magenta" },
 ] as const;
 type ChipColor = (typeof GROUPS)[number]["color"];
@@ -47,6 +47,15 @@ const LABEL_FONT = {
 // Chip clusters (the top filter facets and the card tags) collapse to this many lines by default,
 // hiding the rest behind a "Show more" toggle.
 const CHIP_CLAMP_ROWS = 2;
+
+// The categorical-tag chip style, kept in sync with the report page's meta chips (solid, roomy) so a
+// tag looks the same on both pages. Colour + filled/outlined variant are set per chip by the caller.
+const TAG_CHIP_SX = {
+  height: 30,
+  fontSize: "0.84rem",
+  fontWeight: 600,
+  "& .MuiChip-label": { px: 1.25 },
+} as const;
 
 // The Archive: every processed paper with its auto tags, searchable by free text + tag facets. Papers
 // are tagged automatically (paper type + discipline + methods). Backed by the shared MongoDB reports
@@ -258,13 +267,14 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
 
   const groupChips = (values: string[], color: ChipColor) =>
     values.map((v) => (
-      <Chip key={v} label={pretty(v)} size="small" variant="outlined" color={color} sx={{ height: 24 }} />
+      <Chip key={`${color}:${v}`} label={pretty(v)} variant="filled" color={color} sx={TAG_CHIP_SX} />
     ));
 
   return (
     <Paper
       variant="outlined"
       sx={{
+        position: "relative",
         p: { xs: 2, md: 2.5 },
         borderRadius: 2,
         display: "flex",
@@ -284,7 +294,16 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
-            <Link component={RouterLink} to={`/paper/${p.paper_id}`} color="inherit" underline="hover">
+            {/* stretched link: the ::after overlay covers the whole card, so a click anywhere opens the
+                report. Genuinely-interactive children (Open paper, the tag toggles) sit above it via
+                z-index and keep their own behaviour. */}
+            <Link
+              component={RouterLink}
+              to={`/paper/${p.paper_id}`}
+              color="inherit"
+              underline="none"
+              sx={{ "&::after": { content: '""', position: "absolute", inset: 0, zIndex: 0 } }}
+            >
               <MathText>{p.paper_title ?? p.source_label}</MathText>
             </Link>
           </Typography>
@@ -308,7 +327,7 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
         <Chip
           label={pretty(p.rubric_profile)}
           size="small"
-          color="primary"
+          color="slate"
           variant="filled"
           sx={{ height: 20, ...LABEL_FONT }}
         />
@@ -320,7 +339,15 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
               target="_blank"
               rel="noreferrer"
               underline="hover"
-              sx={{ ...LABEL_FONT, display: "inline-flex", alignItems: "center", gap: 0.25, color: "primary.main" }}
+              sx={{
+                ...LABEL_FONT,
+                position: "relative",
+                zIndex: 1,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.25,
+                color: "primary.main",
+              }}
             >
               Open paper
               <OpenInNewIcon sx={{ fontSize: 14 }} />
@@ -332,23 +359,18 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
       {hasTags && (
         <>
           <Divider sx={{ my: 2 }} />
-          <ClampChips>
-            {groupChips(p.paper_type, "primary")}
-            {groupChips(p.discipline, "info")}
-            {groupChips(p.methods, "success")}
-            {groupChips(p.software, "magenta")}
-          </ClampChips>
+          <CardTags p={p} groupChips={groupChips} />
         </>
       )}
     </Paper>
   );
 }
 
-// A flex-wrap chip cluster clamped to CHIP_CLAMP_ROWS lines. When the chips wrap past that height the
-// overflow is hidden behind a "Show more"/"Show less" toggle. Shared by the top filter facets and the
-// card tags so both collapse identically. The overflow is measured (ResizeObserver) against the real
+// A flex-wrap chip cluster clamped to `rows` lines. When the chips wrap past that height the overflow
+// is hidden behind a "Show more"/"Show less" toggle. Shared by the top filter facets (2 lines) and the
+// card's paper-type/discipline row (1 line). The overflow is measured (ResizeObserver) against the real
 // wrapped height at the current width, so it adapts to the column width rather than guessing by count.
-function ClampChips({ children }: { children: React.ReactNode }) {
+function ClampChips({ children, rows = CHIP_CLAMP_ROWS }: { children: React.ReactNode; rows?: number }) {
   const [expanded, setExpanded] = useState(false);
   const [clampHeight, setClampHeight] = useState<number>();
   const [overflowing, setOverflowing] = useState(false);
@@ -364,7 +386,7 @@ function ClampChips({ children }: { children: React.ReactNode }) {
         return;
       }
       const rowGap = parseFloat(getComputedStyle(el).rowGap) || 0;
-      const h = CHIP_CLAMP_ROWS * first.offsetHeight + (CHIP_CLAMP_ROWS - 1) * rowGap;
+      const h = rows * first.offsetHeight + (rows - 1) * rowGap;
       setClampHeight(h);
       setOverflowing(el.scrollHeight > h + 1);
     };
@@ -372,7 +394,7 @@ function ClampChips({ children }: { children: React.ReactNode }) {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [children]);
+  }, [children, rows]);
 
   const clamp = overflowing && !expanded;
   return (
@@ -395,7 +417,8 @@ function ClampChips({ children }: { children: React.ReactNode }) {
           type="button"
           underline="hover"
           onClick={() => setExpanded((e) => !e)}
-          sx={{ ...LABEL_FONT, mt: 0.75, display: "inline-block", color: "text.secondary" }}
+          // position/zIndex keep the toggle clickable above the card's stretched-link overlay
+          sx={{ ...LABEL_FONT, mt: 0.75, display: "inline-block", position: "relative", zIndex: 1, color: "text.secondary" }}
         >
           {expanded ? "Show less" : "Show more"}
         </Link>
@@ -426,14 +449,59 @@ function FacetChips({
             <Chip
               key={v}
               label={pretty(v)}
-              size="small"
               color={g.color}
               variant={selectedSet.has(v) ? "filled" : "outlined"}
               onClick={() => onToggle(v)}
+              sx={TAG_CHIP_SX}
             />
           ))}
         </ClampChips>
       </Box>
+    </Box>
+  );
+}
+
+// The card's auto-tag chips: Methods / Software always show in full (grouped and labelled — they're
+// the headline facts), while paper type + discipline are secondary, so they're pinned to a single line
+// (most-relevant chips first) with a "Show more" toggle to reveal the rest.
+function CardTags({
+  p,
+  groupChips,
+}: {
+  p: ArchivePaper;
+  groupChips: (values: string[], color: ChipColor) => React.ReactNode;
+}) {
+  return (
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+      {(p.methods.length > 0 || p.software.length > 0) && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", columnGap: 3, rowGap: 1.25 }}>
+          {p.methods.length > 0 && (
+            <ArchiveTagRow label="Methods">{groupChips(p.methods, "violet")}</ArchiveTagRow>
+          )}
+          {p.software.length > 0 && (
+            <ArchiveTagRow label="Software">{groupChips(p.software, "magenta")}</ArchiveTagRow>
+          )}
+        </Box>
+      )}
+      {(p.paper_type.length > 0 || p.discipline.length > 0) && (
+        // lead with the top (most relevant) chip of each category so the collapsed single line shows
+        // both paper type and discipline; the remaining chips of each follow, revealed on expand.
+        <ClampChips rows={1}>
+          {groupChips(p.paper_type.slice(0, 1), "periwinkle")}
+          {groupChips(p.discipline.slice(0, 1), "aqua")}
+          {groupChips(p.paper_type.slice(1), "periwinkle")}
+          {groupChips(p.discipline.slice(1), "aqua")}
+        </ClampChips>
+      )}
+    </Box>
+  );
+}
+
+function ArchiveTagRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
+      <Typography sx={{ ...LABEL_FONT, fontSize: "0.65rem", color: "text.secondary" }}>{label}</Typography>
+      {children}
     </Box>
   );
 }
