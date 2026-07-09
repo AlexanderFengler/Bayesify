@@ -60,9 +60,6 @@ def call_with_policy[T: BaseModel](
     """Call an LLM client with bounded retries on transient failures. ``image`` (a PNG, e.g. a
     rendered page-1) is optional; every backend (Anthropic / OpenAI / Agent SDK) attaches it to the
     user turn, so vision is uniform across the seam rather than an API-only capability."""
-    # Pass `image` only when set, so the many text-only fakes/clients whose complete() predates the
-    # image kwarg keep working — only the multimodal metadata path sends an image.
-    extra = {} if image is None else {"image": image}
     last: LLMError | None = None
     for _attempt in range(retries + 1):
         try:
@@ -72,7 +69,7 @@ def call_with_policy[T: BaseModel](
                 user=user,
                 schema=schema,
                 max_tokens=max_tokens,
-                **extra,
+                image=image,
             )
         except LLMTransientError as exc:
             last = exc

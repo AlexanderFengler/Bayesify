@@ -63,5 +63,5 @@ def extract_metadata(
     meta = response.parsed
     return PaperMetadata(
         title=meta.title.strip(),
-        authors=[a.strip() for a in meta.authors if a and a.strip()],
+        authors=[a.strip() for a in meta.authors if a.strip()],
     )
