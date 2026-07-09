@@ -113,7 +113,7 @@ export function Rubrics({ id }: { id?: string }) {
           <>
             Bayesify grades against one of three rubrics. Each decomposes the Bayesian workflow into
             distinct steps. While some workflows are iterative, Bayesify&rsquo;s step-by-step decomposition
-            represents the linearized sequence for one cycle. Pick the one whose lens fits your paper.
+            represents the linearized sequence for one cycle. Pick the one whose lens fits your paper or try them all.
           </>
         }
       />

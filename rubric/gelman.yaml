@@ -23,10 +23,9 @@ rubric_version: "0.1-gelman"
 label: "Gelman et al. (2020) - Bayesian Workflow"
 summary: >
   Graded solely against Gelman et al. (2020), "Bayesian Workflow" (arXiv:2011.01808). The paper
-  presents a branching, non-linear workflow rather than a numbered recipe, so these 10 steps are
-  Bayesify's linearized decomposition of it — model building through modeling-as-software, including
-  computation diagnostics, the multiverse, and iterative model expansion. Resting on a single paper,
-  steps carry no separate per-step citation.
+  presents a branching, non-linear workflow, so the 10 steps below are Bayesify's linear interpretation:
+  from model building, through computational faithfulness, to model comparison and posterior reporting. 
+  Resting on a single paper, steps carry no separate per-step citation.
 status_values: [adequate, partial, missing, not_applicable]
 scoring_rule: >
   Same machine scoring as the synthesis rubric: coverage = present/applicable (present =

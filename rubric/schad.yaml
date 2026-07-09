@@ -20,10 +20,9 @@ rubric_version: "0.1-schad"
 label: "Schad et al. (2021) - Principled Bayesian Workflow"
 summary: >
   Graded solely against Schad, Betancourt & Vasishth (2021), "Toward a principled Bayesian workflow
-  in cognitive science" (arXiv:1904.12765). Its hallmark is the pre-data design analysis — prior
-  predictive checks, simulation-based calibration, and model sensitivity — done before any data are
-  seen, then the post-data arc of fit, diagnostics, and adequacy. These 7 steps are Bayesify's
-  decomposition; resting on a single paper, steps carry no separate per-step citation.
+  in cognitive science" (arXiv:1904.12765). Its hallmark is the pre-data design analysis done before 
+  any data are seen, then the post-data arc of predictive checks. The 7 steps below are Bayesify's
+  interpretation; resting on a single paper, steps carry no separate per-step citation.
 status_values: [adequate, partial, missing, not_applicable]
 scoring_rule: >
   Same machine scoring as the other rubrics: coverage = present/applicable (present =
