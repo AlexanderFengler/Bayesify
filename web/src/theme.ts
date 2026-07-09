@@ -61,6 +61,19 @@ interface Variant {
   text: { primary: string; secondary: string; disabled: string };
   divider: string;
   signifier: Signifier;
+  // The categorical-tag palette, in two tiers, both kept clear of the signifier hues so a tag is never
+  // mistaken for a status colour. Vivid tier — a stepped cool-spectrum (periwinkle → aqua → violet →
+  // magenta) for what a paper IS (type / discipline / methods / software). Muted tier — desaturated
+  // cool tones (slate / steel) for how it was GRADED (rubric / weighting). Each is a mid-tone in light
+  // mode (white text) and a brighter tone in dark mode (dark text), matching the signifier build.
+  chip: {
+    periwinkle: { main: string; soft: string };
+    aqua: { main: string; soft: string };
+    violet: { main: string; soft: string };
+    magenta: { main: string; soft: string };
+    slate: { main: string; soft: string };
+    steel: { main: string; soft: string };
+  };
   aurora: { base: string; image: string; size: string };
 }
 
@@ -79,6 +92,14 @@ const VARIANTS: Record<AuroraVariant, Variant> = {
     text: { primary: "#30104e", secondary: "#5b5470", disabled: "#8e88a0" },
     divider: "rgba(48,16,78,0.14)",
     signifier: LIGHT_SIGNIFIER,
+    chip: {
+      periwinkle: { main: "#6969ff", soft: "#eef0ff" },
+      aqua: { main: "#0a90a8", soft: "#e0f4f7" },
+      violet: { main: "#9b30d4", soft: "#f5e6fb" },
+      magenta: { main: "#cf1d8f", soft: "#fce4f2" },
+      slate: { main: "#5f6a94", soft: "#ecedf4" },
+      steel: { main: "#4c7f8b", soft: "#e6f1f2" },
+    },
     aurora: {
       base: "#e8e8e8",
       image: [
@@ -103,6 +124,14 @@ const VARIANTS: Record<AuroraVariant, Variant> = {
     text: { primary: "rgba(255,255,255,0.92)", secondary: "rgba(255,255,255,0.66)", disabled: "rgba(255,255,255,0.40)" },
     divider: "rgba(255,255,255,0.14)",
     signifier: DARK_SIGNIFIER,
+    chip: {
+      periwinkle: { main: "#9a9aff", soft: "rgba(105,105,255,0.20)" },
+      aqua: { main: "#34d6e8", soft: "rgba(52,214,232,0.18)" },
+      violet: { main: "#cf8bff", soft: "rgba(155,48,212,0.24)" },
+      magenta: { main: "#f472d0", soft: "rgba(244,114,208,0.20)" },
+      slate: { main: "#a3accd", soft: "rgba(95,106,148,0.22)" },
+      steel: { main: "#8ac2cc", soft: "rgba(76,127,139,0.20)" },
+    },
     aurora: {
       base: "#1d0235",
       image: [
@@ -146,6 +175,12 @@ export function makeTheme(variant: AuroraVariant): Theme {
       warning: { main: sig.amber, light: sig.amberSoft },
       error: { main: sig.red, light: sig.redSoft },
       info: { main: sig.blue, light: sig.blueSoft },
+      periwinkle: { main: v.chip.periwinkle.main, light: v.chip.periwinkle.soft, contrastText: v.contrast },
+      aqua: { main: v.chip.aqua.main, light: v.chip.aqua.soft, contrastText: v.contrast },
+      violet: { main: v.chip.violet.main, light: v.chip.violet.soft, contrastText: v.contrast },
+      magenta: { main: v.chip.magenta.main, light: v.chip.magenta.soft, contrastText: v.contrast },
+      slate: { main: v.chip.slate.main, light: v.chip.slate.soft, contrastText: v.contrast },
+      steel: { main: v.chip.steel.main, light: v.chip.steel.soft, contrastText: v.contrast },
       text: v.text,
       // default is transparent so content floats on the aurora; paper is the frosted-glass tint.
       background: { default: "transparent", paper: v.glass },
@@ -196,12 +231,39 @@ export function makeTheme(variant: AuroraVariant): Theme {
   });
 }
 
-// Make `theme.tokens` type-safe in sx callbacks and styled().
+// Make `theme.tokens` type-safe in sx callbacks and styled(), and register the custom categorical-tag
+// palette colours so `<Chip color="periwinkle" />` (etc.) typechecks.
 declare module "@mui/material/styles" {
   interface Theme {
     tokens: Tokens;
   }
   interface ThemeOptions {
     tokens?: Tokens;
+  }
+  interface Palette {
+    periwinkle: Palette["primary"];
+    aqua: Palette["primary"];
+    violet: Palette["primary"];
+    magenta: Palette["primary"];
+    slate: Palette["primary"];
+    steel: Palette["primary"];
+  }
+  interface PaletteOptions {
+    periwinkle?: PaletteOptions["primary"];
+    aqua?: PaletteOptions["primary"];
+    violet?: PaletteOptions["primary"];
+    magenta?: PaletteOptions["primary"];
+    slate?: PaletteOptions["primary"];
+    steel?: PaletteOptions["primary"];
+  }
+}
+declare module "@mui/material/Chip" {
+  interface ChipPropsColorOverrides {
+    periwinkle: true;
+    aqua: true;
+    violet: true;
+    magenta: true;
+    slate: true;
+    steel: true;
   }
 }

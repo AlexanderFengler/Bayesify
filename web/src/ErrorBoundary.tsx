@@ -1,5 +1,6 @@
-import { Alert, AlertTitle, Button, Container } from "@mui/material";
+import { Alert, AlertTitle, Button, Container, Link } from "@mui/material";
 import { Component, type ReactNode } from "react";
+import { Link as RouterLink } from "react-router-dom";
 
 // The app-wide render-error net. Without a boundary, any throw during render unmounts the entire
 // tree — a blank white page with no way out. This catches the throw and fills the content area with
@@ -32,7 +33,18 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
         >
           <AlertTitle>Something went wrong</AlertTitle>
           The page hit an unexpected error. Reloading usually fixes it; if it keeps happening, please
-          let us know via the contact form.
+          let us know via the{" "}
+          <Link
+            component={RouterLink}
+            to="/about"
+            underline="none"
+            color="inherit"
+            sx={{ fontWeight: 600 }}
+            onClick={() => this.setState({ error: null })}
+          >
+            contact form
+          </Link>
+          .
         </Alert>
       </Container>
     );
