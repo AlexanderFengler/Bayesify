@@ -79,7 +79,8 @@
       "Bash(break)",
       "Bash(cp /tmp/claude-1002/-home-a-huangm13-Documents-Dev-Bayesify/3bfcf9f1-664e-4e6c-a620-307af47a1ae0/scratchpad/../scratchpad/archive-test.tmp.mjs web/)",
       "Bash(curl -s -o /dev/null -m 2 http://localhost:8000/)",
-      "Bash(ps -p 1284942 -o pid,cmd --no-headers)"
+      "Bash(ps -p 1284942 -o pid,cmd --no-headers)",
+      "Bash(OUT_DIR=/tmp/claude-1002/-home-a-huangm13-Documents-Dev-Bayesify/6cd3218f-d92b-45ab-80cb-b01f2cfa719f/scratchpad/shots pixi run bash -c 'cd web && OUT_DIR=$OUT_DIR node shot-archive.mjs')"
     ]
   },
   "enabledPlugins": {

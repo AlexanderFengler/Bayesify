@@ -11,6 +11,7 @@ import {
   Paper,
   TextField,
   Typography,
+  useMediaQuery,
   useTheme,
 } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
@@ -31,7 +32,6 @@ const GROUPS = [
   { key: "methods", label: "Methods", field: "methods", color: "violet" },
   { key: "software", label: "Software", field: "software", color: "magenta" },
 ] as const;
-type ChipColor = (typeof GROUPS)[number]["color"];
 
 const pretty = (s: string) => s.replace(/[-_]/g, " ");
 
@@ -74,6 +74,9 @@ export function Archive() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // two card columns on md+; below that the split collapses to a single in-order stack (a CSS-only
+  // collapse of two stacks would read 0,2,4,…,1,3,5)
+  const twoCol = useMediaQuery((theme: Theme) => theme.breakpoints.up("md"));
 
   // debounce the free-text box so we don't refetch on every keystroke
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -199,14 +202,20 @@ export function Archive() {
       ) : papers.length === 0 ? (
         <EmptyState hasArchive={total > 0} />
       ) : (
-        // masonry-by-column: each column flows independently, so cards in a column keep a constant
-        // gap regardless of their (variable, collapsible) heights instead of aligning to row peers.
-        <Box sx={{ mt: 3, columnCount: { xs: 1, md: 2 }, columnGap: 2 }}>
-          {papers.map((p) => (
-            <Box key={p.key} sx={{ breakInside: "avoid", WebkitColumnBreakInside: "avoid", mb: 2 }}>
-              <ArchiveCard p={p} />
-            </Box>
-          ))}
+        // two explicit stacks instead of CSS columns: papers alternate left/right in order, so the
+        // left column always holds at least as many cards as the right (one more when the count is
+        // odd). Each stack flows independently, keeping a constant gap between cards regardless of
+        // their variable heights instead of aligning to row peers.
+        <Box sx={{ mt: 3, display: "grid", gridTemplateColumns: twoCol ? "1fr 1fr" : "1fr", gap: 2, alignItems: "start" }}>
+          {(twoCol ? [papers.filter((_, i) => i % 2 === 0), papers.filter((_, i) => i % 2 === 1)] : [papers]).map(
+            (col, ci) => (
+              <Box key={ci} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {col.map((p) => (
+                  <ArchiveCard key={p.key} p={p} />
+                ))}
+              </Box>
+            ),
+          )}
         </Box>
       )}
     </Container>
@@ -262,13 +271,6 @@ function ScoreBadge({ p }: { p: ArchivePaper }) {
 function ArchiveCard({ p }: { p: ArchivePaper }) {
   const byline = formatByline(p.paper_authors, p.paper_year);
   const url = articleUrl(p.source_label); // the source article, when the paper was submitted by URL
-  const hasTags =
-    p.paper_type.length > 0 || p.discipline.length > 0 || p.methods.length > 0 || p.software.length > 0;
-
-  const groupChips = (values: string[], color: ChipColor) =>
-    values.map((v) => (
-      <Chip key={`${color}:${v}`} label={pretty(v)} variant="filled" color={color} sx={TAG_CHIP_SX} />
-    ));
 
   return (
     <Paper
@@ -289,13 +291,14 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
     >
       {/* header: title + author on the left, a vertical divider, then the score on the right (its top
           aligned to the title's top; the divider spans the title+author height). The mode/rubric chips
-          sit below. The title opens the report; "Open paper" (the source article, when submitted by
-          URL) sits after the rubric chip. */}
+          sit below, with the steps-covered count after them; "Read paper" (the source article, when
+          submitted by URL) sits at that row's right edge — the card's bottom-right corner. The title
+          opens the report. */}
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25 }}>
             {/* stretched link: the ::after overlay covers the whole card, so a click anywhere opens the
-                report. Genuinely-interactive children (Open paper, the tag toggles) sit above it via
+                report. Genuinely-interactive children (Read paper, the tag toggles) sit above it via
                 z-index and keep their own behaviour. */}
             <Link
               component={RouterLink}
@@ -316,6 +319,7 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
         <Divider orientation="vertical" flexItem />
         <ScoreBadge p={p} />
       </Box>
+      <Divider sx={{my: 1.5}} />
       <Box sx={{ mt: 1, display: "flex", gap: 0.75, flexWrap: "wrap", alignItems: "center" }}>
         <Chip
           label={p.mode === "full" ? "AI" : "Human"}
@@ -331,37 +335,38 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
           variant="filled"
           sx={{ height: 20, ...LABEL_FONT }}
         />
-        {url && (
+        {p.coverage_present != null && p.coverage_applicable != null && (
           <>
             <Divider orientation="vertical" flexItem sx={{ mx: 0.25, my: 0.25 }} />
-            <Link
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              underline="hover"
-              sx={{
-                ...LABEL_FONT,
-                position: "relative",
-                zIndex: 1,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.25,
-                color: "primary.main",
-              }}
-            >
-              Open paper
-              <OpenInNewIcon sx={{ fontSize: 14 }} />
-            </Link>
+            <Typography sx={{ ...LABEL_FONT, color: "text.secondary" }}>
+              {p.coverage_present}/{p.coverage_applicable} steps covered
+            </Typography>
           </>
+        )}
+        {url && (
+          <Link
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            underline="hover"
+            sx={{
+              ...LABEL_FONT,
+              // ml:auto pushes the link to the row's right edge — the card's bottom-right corner
+              ml: "auto",
+              position: "relative",
+              zIndex: 1,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.25,
+              color: "primary.main",
+            }}
+          >
+            Read paper
+            <OpenInNewIcon sx={{ fontSize: 14 }} />
+          </Link>
         )}
       </Box>
 
-      {hasTags && (
-        <>
-          <Divider sx={{ my: 2 }} />
-          <CardTags p={p} groupChips={groupChips} />
-        </>
-      )}
     </Paper>
   );
 }
@@ -461,75 +466,3 @@ function FacetChips({
   );
 }
 
-// The card's auto-tag chips: Methods / Software always show in full (grouped and labelled — they're
-// the headline facts). Paper type + discipline are secondary, so when collapsed they show just the
-// most-relevant chip of each (paper type first, then discipline, so both categories are always
-// represented), with a "Show more" toggle that reveals the full grouped list.
-function CardTags({
-  p,
-  groupChips,
-}: {
-  p: ArchivePaper;
-  groupChips: (values: string[], color: ChipColor) => React.ReactNode;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  // collapsed shows up to the top 2 chips of each category; more than that reveals a "Show more" toggle
-  const shownTags = Math.min(2, p.paper_type.length) + Math.min(2, p.discipline.length);
-  const hasMoreTags = p.paper_type.length + p.discipline.length > shownTags;
-
-  // position/zIndex keep the toggle clickable above the card's stretched-link overlay
-  const toggleSx = {
-    ...LABEL_FONT,
-    display: "inline-block",
-    position: "relative",
-    zIndex: 1,
-    color: "text.secondary",
-  } as const;
-
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
-      {(p.methods.length > 0 || p.software.length > 0) && (
-        <Box sx={{ display: "flex", flexWrap: "wrap", columnGap: 3, rowGap: 1.25 }}>
-          {p.methods.length > 0 && (
-            <ArchiveTagRow label="Methods">{groupChips(p.methods, "violet")}</ArchiveTagRow>
-          )}
-          {p.software.length > 0 && (
-            <ArchiveTagRow label="Software">{groupChips(p.software, "magenta")}</ArchiveTagRow>
-          )}
-        </Box>
-      )}
-      {(p.paper_type.length > 0 || p.discipline.length > 0) && (
-        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75 }}>
-          {expanded || !hasMoreTags ? (
-            <>
-              {groupChips(p.paper_type, "periwinkle")}
-              {groupChips(p.discipline, "aqua")}
-              {hasMoreTags && (
-                <Link component="button" type="button" underline="hover" onClick={() => setExpanded(false)} sx={toggleSx}>
-                  Show less
-                </Link>
-              )}
-            </>
-          ) : (
-            <>
-              {groupChips(p.paper_type.slice(0, 1), "periwinkle")}
-              {groupChips(p.discipline.slice(0, 1), "aqua")}
-              <Link component="button" type="button" underline="hover" onClick={() => setExpanded(true)} sx={toggleSx}>
-                Show more
-              </Link>
-            </>
-          )}
-        </Box>
-      )}
-    </Box>
-  );
-}
-
-function ArchiveTagRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap" }}>
-      <Typography sx={{ ...LABEL_FONT, fontSize: "0.65rem", color: "text.secondary" }}>{label}</Typography>
-      {children}
-    </Box>
-  );
-}
