@@ -24,10 +24,10 @@ _TITLE_MAX_CHARS = 4_000  # the title + byline are on page 1 / the abstract, not
 
 EXTRACT_SYSTEM = """You extract the title and author list of an academic paper from its opening \
 text and, when provided, an image of its first page. Return the title text (no venue, no "Title:" \
-prefix, no quotation marks, and do not preserve all-caps styling) and the authors as a list of full \
-names in the order printed (given name first, no affiliations, degrees, or email addresses). Prefer \
-the first-page image over the text when they disagree. Use an empty string / empty list for anything \
-the page does not clearly show — never invent a title or an author."""
+prefix, no quotation marks, and do not preserve all-caps style) and the authors as a list of full \
+names in the order printed (given name first, no affiliations, degrees, or email addresses). \
+Prefer the first-page image over the text when they disagree. Use an empty string / empty list \
+for anything the page does not clearly show — never invent a title or an author."""
 
 
 class PaperMetadata(BaseModel):
