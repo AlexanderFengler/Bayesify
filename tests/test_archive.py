@@ -378,11 +378,21 @@ def test_list_papers_endpoint_filters(monkeypatch) -> None:
     got_tag = client.get("/api/papers", params={"q": "data analysis"}).json()["papers"]
     assert [p["paper_title"] for p in got_tag] == ["Hierarchical DDM"]
 
-    # facet AND-filter
+    # within a facet, selected values combine with OR (identical to AND for a single value)
     got = client.get("/api/papers", params={"discipline": "statistics"}).json()["papers"]
     assert [p["paper_title"] for p in got] == ["A new sampler"]
     got = client.get("/api/papers", params={"software": "Stan"}).json()["papers"]
     assert [p["paper_title"] for p in got] == ["Hierarchical DDM"]
+
+    # OR within a facet: two disciplines returns BOTH papers (was empty under the old AND)
+    two = client.get("/api/papers", params={"discipline": ["neuroscience", "statistics"]})
+    assert {p["paper_title"] for p in two.json()["papers"]} == {"Hierarchical DDM", "A new sampler"}
+
+    # AND across facets still holds (a facet's OR-set intersected with another facet)
+    p1only = client.get("/api/papers", params={"discipline": "neuroscience", "software": "Stan"})
+    assert [p["paper_title"] for p in p1only.json()["papers"]] == ["Hierarchical DDM"]
+    empty = client.get("/api/papers", params={"discipline": "statistics", "software": "Stan"})
+    assert empty.json()["papers"] == []  # p2 (statistics) has no Stan
 
 
 def test_list_papers_fills_missing_array_fields(monkeypatch) -> None:

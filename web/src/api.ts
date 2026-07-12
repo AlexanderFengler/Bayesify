@@ -323,7 +323,8 @@ export async function getCalibration(): Promise<CalibrationReport> {
 // --- Archive (processed papers + tag search) ------------------------------------------------------
 
 // Fetch the archive (from the shared Mongo reports store), optionally filtered. Free text (`q`)
-// matches title/authors; the auto-tag arrays AND-filter server-side. `facets` are the full-archive
+// matches title/authors; auto-tag arrays filter server-side (OR within a facet, AND across facets).
+// `facets` are the full-archive
 // tag vocabularies for the filter chips.
 export async function fetchPapers(filters: ArchiveFilters = {}): Promise<ArchiveResponse> {
   const p = new URLSearchParams();
