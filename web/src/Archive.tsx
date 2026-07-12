@@ -62,7 +62,7 @@ const TAG_CHIP_SX = {
 // store, so a paper analyzed by anyone shows up here.
 export function Archive() {
   const [q, setQ] = useState("");
-  // selected facet values per group (AND-filtered server-side)
+  // selected facet values per group (server-side: OR within a group, AND across groups)
   const [selected, setSelected] = useState<Record<string, string[]>>({
     paper_type: [],
     discipline: [],
@@ -152,7 +152,7 @@ export function Archive() {
       />
 
       {/* facet filter chips — every group is a column: its label on the shared top row, its chips
-          stacked below. Clicking a chip AND-filters the list. */}
+          stacked below. Chips within a group OR together; groups AND across. */}
       <Box
         sx={{
           mt: 2,

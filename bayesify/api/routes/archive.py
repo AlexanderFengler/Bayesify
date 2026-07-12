@@ -58,13 +58,16 @@ async def list_papers(
             hay = " ".join(parts).lower().replace("_", " ").replace("-", " ")
             if needle.replace("_", " ").replace("-", " ") not in hay:
                 return False
-        if any(tag not in (paper.get("paper_type") or []) for tag in paper_type):
+        # Within a facet the selected values combine with OR (a paper matches if it carries ANY of
+        # them); across facets it's AND (each block is an independent early-return). The empty guard
+        # keeps an unselected facet a no-op.
+        if paper_type and not any(tag in (paper.get("paper_type") or []) for tag in paper_type):
             return False
-        if any(tag not in (paper.get("discipline") or []) for tag in discipline):
+        if discipline and not any(tag in (paper.get("discipline") or []) for tag in discipline):
             return False
-        if any(tag not in (paper.get("methods") or []) for tag in method):
+        if method and not any(tag in (paper.get("methods") or []) for tag in method):
             return False
-        if any(tag not in (paper.get("software") or []) for tag in software):
+        if software and not any(tag in (paper.get("software") or []) for tag in software):
             return False
         if mode and paper.get("mode") != mode:
             return False
