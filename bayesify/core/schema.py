@@ -208,6 +208,10 @@ class PaperClass(_Base):
     # out-of-vocab token the classifier emits so one stray word can't fail the whole call, and the
     # after-validator drops "unstated" (a list uses empty, never [unstated]) and de-duplicates.
     methods_used: list[InferenceMethod] = Field(default_factory=list)
+    # Software the paper's own analysis USES, stored as detector ids (e.g. "software.stan").
+    # Full report/archive software chips read this verified list; raw inventory remains available
+    # for local detection mode as "mentioned/detected" evidence.
+    software_used: list[str] = Field(default_factory=list)
 
     @field_validator("methods_used", mode="before")
     @classmethod
@@ -254,6 +258,14 @@ class PaperClass(_Base):
             seen_m.add(m)
             methods.append(m)
         self.methods_used = methods
+        seen_sw: set[str] = set()
+        software: list[str] = []
+        for sw in self.software_used:
+            tag = sw.strip().lower()
+            if tag.startswith("software.") and tag not in seen_sw:
+                seen_sw.add(tag)
+                software.append(tag)
+        self.software_used = software
         return self
 
 

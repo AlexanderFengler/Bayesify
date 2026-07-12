@@ -41,28 +41,52 @@ _SOFTWARE_LABELS: dict[str, str] = {
     "software.hssm": "HSSM",
     "software.turing": "Turing.jl",
     "software.bayesflow": "BayesFlow",
+    "software.sbi": "sbi",
+    "software.neuralestimators": "NeuralEstimators.jl",
+    "software.pyabc": "pyABC",
 }
 
 
-def software_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
-    """Friendly software tags from deterministic detector hits (order-preserving, de-duplicated).
-    Empty when there is no inventory (e.g. the placeholder stub path)."""
-    if inventory is None:
-        return []
+def _software_labels(detector_ids: list[str]) -> list[str]:
     seen = set()
     out = []
+    for detector_id in detector_ids:
+        label = _SOFTWARE_LABELS.get(detector_id)
+        if label is None:
+            continue
+        if label not in seen:
+            seen.add(label)
+            out.append(label)
+    return out
+
+
+def software_from_paper_class(paper_class: PaperClass | None) -> list[str]:
+    """Friendly software tags verified as used by the paper's own analysis."""
+    if paper_class is None:
+        return []
+    return _software_labels(list(paper_class.software_used))
+
+
+def software_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
+    """Friendly software tags from raw deterministic detector hits.
+
+    This is for local detection/inventory views. Full analyses should prefer
+    ``software_from_paper_class`` so baseline or related-work software mentions do not become
+    report chips.
+    """
+    if inventory is None:
+        return []
+    detector_ids: list[str] = []
+    seen = set()
     for fam in inventory.families:
         if fam.family != "software":
             continue
 
         for hit in fam.found:
-            label = _SOFTWARE_LABELS.get(hit.detector_id)
-            if label is None:
-                continue
-            if label not in seen:
-                seen.add(label)
-                out.append(label)
-    return out
+            if hit.detector_id not in seen:
+                seen.add(hit.detector_id)
+                detector_ids.append(hit.detector_id)
+    return _software_labels(detector_ids)
 
 
 class ArchivedPaper(BaseModel):

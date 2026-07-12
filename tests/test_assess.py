@@ -103,6 +103,21 @@ def test_gate_facts_analytic() -> None:
     assert gf.inference_method is InferenceMethod.exact_analytic
 
 
+def test_gate_facts_prefers_corroborated_classifier_method_over_background_detector() -> None:
+    paper_class = PaperClass(
+        labels=[PaperClassLabel.method_development],
+        confidence=0.9,
+        rationale="SBI method",
+        evidence_refs=[0],
+        methods_used=[InferenceMethod.sbi],
+    )
+    ev = [
+        _ev("method.mcmc", EvidenceKind.method_mention, "MCMC variants in related work"),
+        _ev("method.abc", EvidenceKind.method_mention, "ABC-SMC comparison"),
+    ]
+    assert derive_gate_facts(ev, paper_class).inference_method is InferenceMethod.sbi
+
+
 def test_analytic_mention_does_not_override_sampling() -> None:
     # A mixed-method paper: a conjugate prior on one block but NUTS (with R-hat) for the rest. The
     # "conjugate prior" mention must NOT collapse inference to exact_analytic, which would wrongly

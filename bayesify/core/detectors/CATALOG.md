@@ -26,7 +26,12 @@ Catalog version: **0.1.0** (all detectors at this revision).
 | `software.jags` | 0.1.0 | `JAGS` | sensitive | |
 | `software.bugs` | 0.1.0 | `BUGS`, `WinBUGS`, `OpenBUGS` | sensitive | excludes "debugs", "bugs" |
 | `software.hddm` | 0.1.0 | `HDDM` | insensitive | the package is lower-case in code |
+| `software.hssm` | 0.1.0 | `HSSM` | insensitive | |
 | `software.turing` | 0.1.0 | `Turing.jl` | insensitive | requires `.jl` (bare "Turing" too generic) |
+| `software.bayesflow` | 0.1.0 | `BayesFlow` | insensitive | software proper name |
+| `software.sbi` | 0.1.0 | `sbi package/toolbox/library/software/toolkit`, `import sbi`, `sbi.inference` | insensitive | high-precision Python package mentions |
+| `software.neuralestimators` | 0.1.0 | `NeuralEstimators`, `NeuralEstimators.jl` | insensitive | Julia package |
+| `software.pyabc` | 0.1.0 | `pyABC` | insensitive | grounds ABC software-method implication |
 
 ## method — emits `method_mention` (the d-screen relevance floor keys on these)
 
@@ -36,11 +41,12 @@ Without this family a purely analytic/conjugate Bayesian paper — no software, 
 | id | version | pattern intent | case | notes |
 |----|---------|----------------|------|-------|
 | `method.prior` | 0.1.0 | "prior distribution/on/over/for", "(weakly-/non-/un)informative prior" | insensitive | requires a qualifier, not bare "prior" |
-| `method.posterior` | 0.1.0 | "posterior distribution/mean/.../predictive", "the posterior" | insensitive | requires a qualifier or article |
+| `method.posterior` | 0.1.0 | "posterior distribution", "posterior parameter distribution", "posterior mean/.../predictive", "the posterior" | insensitive | requires a qualifier or article |
 | `method.credible_interval` | 0.1.0 | "credible interval", "highest (posterior) density", `HPD(I)`, `HDI(s)` | acronym sensitive | |
 | `method.bayes_factor` | 0.1.0 | "Bayes factor(s)" | insensitive | |
 | `method.mcmc` | 0.1.0 | `MCMC`, "Markov chain Monte Carlo", `NUTS`, "Hamiltonian Monte Carlo", `HMC`, "Gibbs sampl" | acronym sensitive | `NUTS` upper-case avoids "nuts" |
 | `method.variational` | 0.1.0 | "variational inference/Bayes", `ADVI`, `ELBO` | acronym sensitive | |
+| `method.sbi` | 0.1.0 | "simulation-based inference", "amortized Bayesian inference", "neural posterior/likelihood/ratio estimation", `SBI` | acronym sensitive | grounds the `sbi` method chip |
 | `method.analytic` | 0.1.0 | "conjugate prior", "analytic(al) posterior", "closed-form posterior" | insensitive | drives S4 N/A gate facts |
 | `method.smc` | 0.1.0 | "sequential Monte Carlo", `SMC`, "particle filter(s)" | acronym sensitive | grounds the `smc` method chip |
 | `method.abc` | 0.1.0 | "approximate Bayesian computation", `ABC` | acronym sensitive | grounds the `abc` method chip |
@@ -99,8 +105,9 @@ extracted, so "ESS for 4 parameters" stays a mention (precision-first); `op` def
 - **0.1.0** — initial catalog (M3): all six families (software, method [the d-screen relevance
   floor], diagnostic, workflow, sampler, open_science); numeric
   extraction for R-hat / ESS / divergences / Pareto-k / chains / iterations / warmup.
-  Later added `method.smc` / `method.abc` / `method.laplace_inla` so every `InferenceMethod` chip
-  has a detector to ground it (the classifier drops a `methods_used` entry with no corroborating hit).
+  Later added `method.sbi` / `method.smc` / `method.abc` / `method.laplace_inla` plus software
+  detectors for BayesFlow / sbi / NeuralEstimators.jl / pyABC. The classifier corroborates
+  `methods_used` with detector hits, software-method implications, and own-use context.
 
 ## Out of scope (deferred — see c-detectors.md)
 - Asserted-but-not-evidenced flagging → improvement **H6** (v1–v2); policy in `ETHICS.md` (F1) for v0.

@@ -119,13 +119,19 @@ CATALOG: list[Detector] = [
     Detector("software.hssm", SW, "software", _c(r"\bHSSM\b")),
     Detector("software.turing", SW, "software", _c(r"\bTuring\.jl\b")),
     Detector("software.bayesflow", SW, "software", _c(r"\bBayesFlow\b")),
+    Detector("software.sbi", SW, "software",
+             _c(r"\b(?:sbi\s+(?:package|toolbox|library|software|toolkit)|"
+                r"(?:package|toolbox|library|software|toolkit)\s+sbi|"
+                r"from\s+sbi\s+import|import\s+sbi\b|sbi\.inference)\b")),
+    Detector("software.neuralestimators", SW, "software", _c(r"\bNeuralEstimators(?:\.jl)?\b")),
+    Detector("software.pyabc", SW, "software", _c(r"\bpyABC\b")),
     # --- Bayesian method / inference mentions (the d-screen relevance floor keys on these) ---
     Detector("method.prior", ME, "method",
              _c(r"\bprior(?:s)?\s+(?:distribution|on|over|for)\b"
                 r"|\b(?:weakly[- ]|non[- ]|un)?informative prior")),
     Detector("method.posterior", ME, "method",
-             _c(r"\bposterior\s+(?:distribution|mean|median|sample|draw|predictive|probabilit\w+"
-                r"|densit\w+|inference|estimate)|\bthe posterior\b")),
+             _c(r"\bposterior\s+(?:(?:parameter\s+)?distribution|mean|median|sample|draw|"
+                r"predictive|probabilit\w+|densit\w+|inference|estimate)|\bthe posterior\b")),
     Detector("method.credible_interval", ME, "method",
              _c(r"(?i:credible intervals?)|(?i:highest[- ](?:posterior )?density)"
                 r"|\bHPDI?\b|\bHDIs?\b", ci=False)),
@@ -136,7 +142,8 @@ CATALOG: list[Detector] = [
     Detector("method.variational", ME, "method",
              _c(r"(?i:variational (?:inference|bayes))|\bADVI\b|\bELBO\b", ci=False)),
     Detector("method.sbi", ME, "method",
-             _c(r"(?i:simulation[- ]based inference)|\bSBI\b", ci=False)),
+             _c(r"(?i:simulation[- ]based inference|amorti[sz]ed bayesian inference|"
+                r"neural (?:posterior|likelihood|ratio) estimation)|\bSBI\b", ci=False)),
     Detector("method.analytic", ME, "method",
              _c(r"(?i:conjugate prior|analytic(?:al)? posterior|closed[- ]form posterior)", ci=False)),
     Detector("method.smc", ME, "method",

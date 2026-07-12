@@ -372,12 +372,12 @@ const STAT_INFO: Record<"rubric" | "paperType" | "methods" | "software" | "weigh
     ],
   },
   methods: {
-    what: "The Bayesian computation the paper's analysis uses (classifier-detected).",
-    categories: ["MCMC", "Variational inference", "SBI", "SMC", "ABC", "Laplace/INLA", "Analytic"],
+    what: "The inferred Bayesian computation method the paper's main analysis uses.",
+    categories: ["MCMC", "VI", "SBI", "SMC", "ABC", "Laplace/INLA", "Analytic", "etc."],
   },
   software: {
     what: "Named statistical software detected in the paper.",
-    categories: ["Stan", "PyMC", "NumPyro", "BayesFlow", "JAGS", "BUGS"],
+    categories: ["Stan", "PyMC", "NumPyro", "BayesFlow", "JAGS", "BUGS", "etc."],
   },
   weighting: {
     what:

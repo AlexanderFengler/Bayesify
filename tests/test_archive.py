@@ -17,6 +17,7 @@ from bayesify.api.papers_store import (
     ArchivedPaper,
     report_fields,
     software_from_inventory,
+    software_from_paper_class,
 )
 from bayesify.core import config
 from bayesify.core.detectors import EvidenceInventory, InventoryFamily, InventoryHit
@@ -112,6 +113,9 @@ def _inventory() -> EvidenceInventory:
                 found=[
                     _hit("software.stan", "software"),
                     _hit("software.bayesflow", "software"),
+                    _hit("software.sbi", "software"),
+                    _hit("software.neuralestimators", "software"),
+                    _hit("software.pyabc", "software"),
                     _hit("software.unknown", "software"),
                 ],
             ),
@@ -137,10 +141,26 @@ def _inventory() -> EvidenceInventory:
 
 def test_software_from_inventory_maps_and_filters_families() -> None:
     labels = software_from_inventory(_inventory())
-    assert labels == ["Stan", "BayesFlow"]  # software only; unknown ids skipped
+    assert labels == ["Stan", "BayesFlow", "sbi", "NeuralEstimators.jl", "pyABC"]
+    # software only; unknown ids skipped
     # inference-method detectors fire on any mention, so the method family is NOT a facet source
     assert not {"MCMC", "Variational inference", "SBI"} & set(labels)
     assert software_from_inventory(None) == []
+
+
+def test_software_from_paper_class_maps_verified_software_only() -> None:
+    from bayesify.core.schema import PaperClass, PaperClassLabel
+
+    pc = PaperClass(
+        labels=[PaperClassLabel.data_analysis],
+        confidence=0.8,
+        rationale="r",
+        evidence_refs=[0],
+        software_used=["software.bayesflow", "software.pyabc", "method.mcmc", "software.unknown"],
+    )
+
+    assert software_from_paper_class(pc) == ["BayesFlow", "pyABC"]
+    assert software_from_paper_class(None) == []
 
 
 def test_inference_method_tags_maps_smc_and_covers_the_enum() -> None:
@@ -176,12 +196,13 @@ def test_archived_analysis_keeps_methods_and_software_separate() -> None:
         rationale="uses SBI",
         evidence_refs=[0],
         methods_used=[InferenceMethod.sbi],
+        software_used=["software.bayesflow", "software.pyabc"],
     )
 
     archived = archived_from_analysis(job)
 
     assert archived.methods == ["SBI"]
-    assert archived.software == ["Stan", "BayesFlow"]
+    assert archived.software == ["BayesFlow", "pyABC"]
 
 
 # --- report_fields: the $set payload drops empties so a merge preserves ---------------------------

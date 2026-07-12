@@ -36,80 +36,91 @@ reference list for this reason.
 """
 
 
-CLASSIFY_SYSTEM = """You are the paper-type classifier for Bayesify. The paper has already been \
-judged to use Bayesian methodology; now assign its paper-type label set, which drives which workflow \
-steps apply.
+CLASSIFY_SYSTEM = """You are a classifier for a Bayesify tool.
 
-Every gradeable paper has a PRIMARY type — always assign it (an empirical study is data_analysis; a \
-methods paper is method_development; and so on), so `labels` is never empty. Then add further labels \
-only for genuine ADDITIONAL central contributions — never for a peripheral mention, a tool merely \
-used, a motivating example, or an illustration. Most papers carry one or two labels; three is \
-uncommon. Return them in the `labels` list:
-- "model_development": proposes or substantially extends a Bayesian statistical MODEL for a \
-phenomenon — a new likelihood or hierarchical structure, together with the model-specific prior \
-choices that go with it.
-- "method_development": proposes or studies a Bayesian inference PROCEDURE — a sampler, algorithm, \
-variational scheme, diagnostic, workflow step, or validation method — OR a fundamentally new, \
-generally-applicable prior.
-- "software_development": introduces or substantially extends a Bayesian software tool, package, or \
-computational infrastructure. Merely USING existing software (implementing your model in Stan / PyMC \
-/ brms) is NOT software_development.
-- "data_analysis": fits Bayesian model(s) to real observed data to draw substantive domain \
-conclusions of its own. Assign this ONLY when a reported real-data analysis that reaches domain \
-conclusions is a genuine contribution of the paper — NOT for a brief applied example, a motivating \
-illustration, or a peripheral real-data mention in a method/model/software paper. A substantive \
-secondary analysis still counts; a passing demonstration does not.
-- "numerical_analysis": evaluates Bayesian models/methods on simulated data, benchmark data, \
-or controlled numerical experiments.
-- "theoretical_analysis": presents mathematical, theoretical, identifiability, asymptotic, or \
-formal analysis of Bayesian methods/models.
-- "review": a review, opinion, perspective, tutorial, or commentary that DISCUSSES Bayesian/statistical \
-methodology or workflow without carrying out an original analysis of its own that could be graded \
-step by step. Choose this alone when the contribution is discussion/synthesis rather than an \
-applied, theoretical, software, model-development, or method-development contribution — the \
-per-step workflow rubric does not apply to review-only papers.
+Return exact enum tokens with underscores. `labels` contains at least one token.
 
-Boundaries — the common confusions:
-- Applying, fitting, or USING an existing model or method to analyse data — even a hierarchical or \
-custom-coded one, with bespoke priors — is data_analysis, NOT model_/method_/software_development. \
-Reserve the development labels for papers whose contribution IS the new model, method, or software.
-- A new statistical model for a phenomenon (a new likelihood or hierarchical structure, with its \
-model-specific prior choices) is model_development. A new inference procedure — sampler, variational \
-scheme, diagnostic, workflow, or validation method — OR a fundamentally new, generally-applicable \
-prior is method_development. (A different-but-standard prior chosen for a specific model is just part \
-of that model, not a separate contribution.)
+Output fields:
+- labels: one primary paper-type token, plus other optional tokens when they are a central contribution.
+- disciplines: 1-3 lower-case, hyphenated fields, most specific first.
+- methods_used: Bayesian computation methods the paper uses in its main analysis or in reported
+  baseline/comparison runs.
+- software_used: software detector ids the paper uses in its main analysis or in reported
+  baseline/comparison runs.
+- evidence_refs: detector-hit indices that support the selected paper type.
+- rationale: one short sentence per selected label.
+- confidence: calibrated probability in [0,1].
 
-Multi-label examples (each label names a central contribution):
-- A new hierarchical model for a phenomenon, applied to real data: ["model_development", "data_analysis"].
-- A new inference algorithm with simulation benchmarks: ["method_development", "numerical_analysis"].
-- A package with a new algorithm, examples, and data analysis: ["software_development", "method_development", "data_analysis"].
+Paper-type tokens:
+- "data_analysis": fits Bayesian model(s) to real observed data and draws substantive domain conclusions.
+- "model_development": proposes or substantially extends a Bayesian model: new likelihood, hierarchical structure, 
+  latent process, or model-specific prior structure.
+- "method_development": proposes or studies a Bayesian sampler, diagnostic, validation
+  workflow, sampler, variational method, simulation-based method, or a default prior (e.g., R2D2).
+- "software_development": introduces or substantially extends Bayesian software, a package, or
+  a library; not to be used for a mere code implementation.
+- "numerical_analysis": evaluates Bayesian models or methods on simulated data, benchmark data, or
+  controlled computational experiments.
+- "theoretical_analysis": gives mathematical, identifiability, asymptotic, proof-based, or formal
+  analysis of Bayesian models or methods.
+- "review": synthesizes, teaches, comments on, or surveys Bayesian/statistical methodology.
 
-Do not add labels to hedge or to be comprehensive. Beyond the primary type, every returned label must \
-name a genuine additional central contribution, supported by evidence — when unsure about a further \
-label, leave it out. Always return at least the primary type.
+Contribution test:
+1. Choose the primary contribution: what the paper is mainly trying to add.
+2. Add another label when the paper spends real methodological/reporting effort on that contribution.
+3. A real-data section in a methods/model/software paper gets "data_analysis" when it supports
+   substantive domain conclusions; a worked example that demonstrates the method stays with the
+   method/model/software plus "numerical_analysis" labels.
+4. Using Stan, PyMC, brms, HSSM or another existing software to fit a substantive model is
+   usually "data_analysis". Developing the tool/method/model is the development label.
+5. A baseline/comparator counts as used when the paper runs, implements, evaluates, benchmarks, or
+   reports results from it. A literature/background mention does not count.
 
-Also assign `disciplines`: the scientific field(s) the paper belongs to, as a multi-label list \
-(a methodological paper spanning fields carries several). Prefer these terms, but add a more precise \
-one if none fit: psychology, neuroscience, cognitive-science, ecology, biology, medicine, \
-epidemiology, economics, political-science, sociology, education, machine-learning, statistics, \
-physics, astronomy, chemistry, genetics, engineering. Use lower-case, hyphenated terms. A purely \
-methodological/statistical paper with no applied domain may be just ["statistics"] or \
-["machine-learning"].
+Few-shot anchors:
+- New hierarchical disease model, fit to hospital records, domain conclusions:
+  labels ["model_development", "data_analysis"]; methods_used from the fitted inference method.
+- New sampler with simulated benchmarks:
+  labels ["method_development", "numerical_analysis"]; methods_used ["mcmc"] or ["hmc_nuts"] if used.
+- Simulation-based neural inference: simulations train invertible/flow/neural networks for
+  amortized posterior inference across datasets:
+  labels ["method_development", "numerical_analysis"]; methods_used ["sbi"].
+- Neural inverse-problem inference: an invertible/flow/neural network learns a stochastic inverse
+  map from measurements/observations and a forward process/model + a prior to a posterior or distribution 
+  over parameters.
+  labels ["method_development", "numerical_analysis"]; methods_used ["sbi"].
+- ABC-style method: simulations generate synthetic data and parameter draws are retained, weighted,
+  or rejected by distance/tolerance/threshold against observed data:
+  methods_used ["abc"].
+- Package that implements a new Bayesian algorithm and evaluates it on examples:
+  labels ["software_development", "method_development", "numerical_analysis"].
+- Tutorial/review of Bayesian workflow with no original graded analysis:
+  labels ["review"].
 
-Also assign `methods_used`: the Bayesian computation method(s) the paper's OWN analysis actually \
-USES, chosen only from: mcmc, hmc_nuts (Hamiltonian Monte Carlo / NUTS), variational, sbi \
-(simulation-based / neural inference), smc (sequential Monte Carlo / particle filters), abc \
-(approximate Bayesian computation), laplace_inla (Laplace approximation / INLA), exact_analytic \
-(conjugate / closed-form). Include a method ONLY if \
-the paper uses it for its OWN inference — do NOT include methods named merely as alternatives, \
-baselines, related work, or future directions. If none is stated, return an empty list.
+Method tokens for `methods_used`:
+- "mcmc": generic Markov chain Monte Carlo, Gibbs, or Metropolis inference.
+- "hmc_nuts": Hamiltonian Monte Carlo or NUTS.
+- "variational": variational inference, variational Bayes, ADVI, ELBO, EM.
+- "sbi": simulation-based neural inference. Includes amortized Bayesian inference, neural posterior
+  estimation, neural likelihood/ratio estimation, normalizing-flow posterior estimators, and methods
+  where simulations or a forward model train a neural/invertible/flow network to infer posterior,
+  likelihood, ratio, or parameter distributions.
+- "abc": approximate Bayesian computation. Includes ABC-SMC and rejection/tolerance/distance-based
+  simulator matching to observed data.
+- "smc": sequential Monte Carlo or particle filtering used for Bayesian inference.
+- "laplace_inla": Laplace approximation or INLA.
+- "exact_analytic": conjugate or closed-form posterior inference.
 
-You are given paper excerpts and indexed DETECTOR HITS. Rules:
-- evidence_refs MUST cite at least one detector-hit index supporting the selected labels.
-- confidence in [0,1] applies to the selected label set.
-- rationale must state, briefly, why EACH selected label is a central contribution (not merely present).
-- disciplines: 1-3 fields, most specific first; never leave it empty.
-- methods_used: only methods the paper actually uses (never mentioned-but-unused); may be empty.
+Software-method ontology:
+- BayesFlow, sbi, and NeuralEstimators.jl software signal methods_used ["sbi"].
+- pyABC software signals methods_used ["abc"].
+- Stan, PyMC, brms, or bambi software signal an MCMC-family method; use "hmc_nuts" when 
+  HMC/NUTS is stated, otherwise use "mcmc".
+
+Evidence discipline:
+- Cite at least one valid detector-hit index in `evidence_refs`.
+- Use detector hits as anchors and the excerpts as context; method detector hits are mentions, so
+  the excerpts decide whether a method belongs in `methods_used`.
+- Select the literal tokens above; for example use "data_analysis" rather than "data analysis".
 """
 
 

@@ -108,6 +108,10 @@ _SAMPLING_EVIDENCE = frozenset(
     {
         "method.mcmc",
         "method.variational",
+        "method.sbi",
+        "method.smc",
+        "method.abc",
+        "method.laplace_inla",
         "diag.rhat",
         "diag.ess",
         "diag.divergences",
@@ -131,14 +135,12 @@ def derive_gate_facts(evidence: list[Evidence], paper_class: PaperClass) -> Gate
     very paper whose LOO comparison the engine detected. BF / prior / inference come from detectors.
     """
     ids = {e.detector_id for e in evidence}
-    if "method.analytic" in ids and not (ids & _SAMPLING_EVIDENCE):
-        inference = InferenceMethod.exact_analytic
-    elif "method.variational" in ids:
-        inference = InferenceMethod.variational
-    elif "method.mcmc" in ids:
-        inference = InferenceMethod.hmc_nuts if _mentions_nuts(evidence) else InferenceMethod.mcmc
-    else:
-        inference = InferenceMethod.unstated
+    inference = _classifier_inference_method(paper_class)
+    if inference is InferenceMethod.unstated:
+        inference = _detector_inference_method(ids, evidence)
+    elif inference is InferenceMethod.exact_analytic and (ids & _SAMPLING_EVIDENCE):
+        # Hard sampler/approximation evidence beats an analytic label from a mixed-method paper.
+        inference = _detector_inference_method(ids, evidence)
     compared_models = "diag.loo_waic" in ids or "diag.pareto_k" in ids
     return GateFacts(
         inference_method=inference,
@@ -146,6 +148,28 @@ def derive_gate_facts(evidence: list[Evidence], paper_class: PaperClass) -> Gate
         bf_claimed="method.bayes_factor" in ids,
         prior_informativeness=_prior_informativeness(evidence),
     )
+
+
+def _classifier_inference_method(paper_class: PaperClass) -> InferenceMethod:
+    return paper_class.methods_used[0] if paper_class.methods_used else InferenceMethod.unstated
+
+
+def _detector_inference_method(ids: set[str], evidence: list[Evidence]) -> InferenceMethod:
+    if "method.analytic" in ids and not (ids & _SAMPLING_EVIDENCE):
+        return InferenceMethod.exact_analytic
+    if "method.variational" in ids:
+        return InferenceMethod.variational
+    if "method.sbi" in ids:
+        return InferenceMethod.sbi
+    if "method.abc" in ids:
+        return InferenceMethod.abc
+    if "method.smc" in ids:
+        return InferenceMethod.smc
+    if "method.laplace_inla" in ids:
+        return InferenceMethod.laplace_inla
+    if "method.mcmc" in ids:
+        return InferenceMethod.hmc_nuts if _mentions_nuts(evidence) else InferenceMethod.mcmc
+    return InferenceMethod.unstated
 
 
 def _mentions_nuts(evidence: list[Evidence]) -> bool:

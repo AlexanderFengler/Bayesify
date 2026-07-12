@@ -71,10 +71,14 @@ _POSITIVE = [
     ("Response times were modelled with HSSM.", "software.hssm"),
     ("Implemented with Turing.jl in Julia.", "software.turing"),
     ("Amortized inference used BayesFlow.", "software.bayesflow"),
+    ("We used the sbi package for posterior inference.", "software.sbi"),
+    ("We fit the simulator with NeuralEstimators.jl.", "software.neuralestimators"),
+    ("ABC inference was implemented in pyABC.", "software.pyabc"),
     # method
     ("We placed a prior distribution on the slope.", "method.prior"),
     ("We used a weakly-informative prior for sigma.", "method.prior"),
     ("The posterior distribution was summarised by its mean.", "method.posterior"),
+    ("The posterior parameter distribution is multi-modal.", "method.posterior"),
     ("We report 95% credible intervals.", "method.credible_interval"),
     ("The HPD interval excluded zero.", "method.credible_interval"),
     ("We computed a Bayes factor of 12.", "method.bayes_factor"),
@@ -82,6 +86,7 @@ _POSITIVE = [
     ("Sampling used the NUTS algorithm.", "method.mcmc"),
     ("We used variational inference (ADVI).", "method.variational"),
     ("Posteriors were obtained with simulation-based inference (SBI).", "method.sbi"),
+    ("We train a neural posterior estimation model with simulations.", "method.sbi"),
     ("A conjugate prior yields an analytic posterior.", "method.analytic"),
     ("Inference used sequential Monte Carlo (SMC) samplers.", "method.smc"),
     ("We tracked the latent state with a particle filter.", "method.smc"),
@@ -135,6 +140,7 @@ _FALSE_POSITIVES = [
     ("Participants cracked nuts during the task.", "method.mcmc"),
     ("The looser threshold was preferred.", "diag.loo_waic"),
     ("The sbi scores stayed below threshold.", "method.sbi"),  # lowercase, case-sensitive SBI
+    ("The sbi scores stayed below threshold.", "software.sbi"),
     ("We validated with simulation-based calibration.", "method.sbi"),  # SBC != SBI
     (
         "The ABCD study recruited thousands of children.",
