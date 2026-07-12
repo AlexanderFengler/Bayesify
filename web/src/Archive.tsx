@@ -89,9 +89,9 @@ function sortValue(p: ArchivePaper, key: SortKey): number | null {
   }
 }
 
-// Card titles are clamped to two lines so every card header is the same height. This is that block's
-// height — h6 (1.25rem) × the card's 1.25 line-height × 2 lines — reused to reserve a constant header
-// height and to size/center the expand control against both lines (see ArchiveTitle).
+// Approximate height of the two-line clamped title (h6 ≈ 1.25rem × 1.25 line-height × 2 lines) — used
+// only to size the box that vertically centers the expand control against those two lines. The title's
+// own reservation is done in em (see ArchiveTitle) so it's exact; this just needs to be close.
 const TITLE_BLOCK_HEIGHT = "3.125rem";
 
 // The categorical-tag chip style, kept in sync with the report page's meta chips (solid, roomy) so a
@@ -543,8 +543,10 @@ function ArchiveTitle({ p }: { p: ArchivePaper }) {
           minWidth: 0,
           fontWeight: 700,
           lineHeight: 1.25,
-          // always reserve two lines so short titles don't make shorter cards
-          minHeight: TITLE_BLOCK_HEIGHT,
+          // always reserve exactly two lines so short titles don't make shorter cards. In em (2 lines ×
+          // the 1.25 line-height) so it tracks the real rendered line height rather than assuming a
+          // pixel size — a hardcoded rem drifts from the true two-line height and reintroduces the gap.
+          minHeight: "2.5em",
           ...(!expanded && {
             display: "-webkit-box",
             WebkitBoxOrient: "vertical",
