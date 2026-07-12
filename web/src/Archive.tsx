@@ -446,26 +446,41 @@ function ScoreBadge({ p }: { p: ArchivePaper }) {
   const theme = useTheme();
   const q = p.quality_score;
   const band = q != null ? scoreBand(theme, q) : null;
-  // label + number sizes are in container-query units so they scale with the square (see below)
+
+  // The block still stretches to the header row's height (the height the vertical divider spans); we
+  // measure that height and set the width equal to it, so it's a perfect square. Number + label sizes
+  // are then derived from that side (proportions chosen so a three-digit "100" fits within the square).
+  // A CSS-only aspect-ratio can't do this: on a stretched flex item it collapses the width to zero.
+  const ref = useRef<HTMLDivElement>(null);
+  const [side, setSide] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // width is content-driven until we know the height, so read height only and never feed width back
+    const measure = () => setSide((prev) => (Math.abs(prev - el.offsetHeight) > 0.5 ? el.offsetHeight : prev));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const numSize = side ? side * 0.44 : undefined;
+  const labelSize = side ? Math.min(11.5, Math.max(8, side * 0.16)) : undefined;
   const labelSx = {
     ...LABEL_FONT,
-    fontSize: "clamp(0.5rem, 16cqmin, 0.72rem)",
+    ...(labelSize != null && { fontSize: `${labelSize}px` }),
     display: "block",
     lineHeight: 1.2,
     color: "text.secondary",
   } as const;
 
   return (
-    // A perfect square: the block still stretches to the header row's height (the height the vertical
-    // divider spans), and aspect-ratio forces the width to match — so it's always square. `containerType`
-    // fixes that size independent of the content (nothing inside can stretch it) and lets the number and
-    // labels scale in cqmin units, so even a three-digit "100" fits without breaking the square.
     <Box
+      ref={ref}
       sx={{
         flexShrink: 0,
         alignSelf: "stretch",
-        aspectRatio: "1 / 1",
-        containerType: "size",
+        width: side || "auto",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",
@@ -476,7 +491,7 @@ function ScoreBadge({ p }: { p: ArchivePaper }) {
     >
       <Typography
         sx={{
-          fontSize: "44cqmin",
+          fontSize: numSize != null ? `${numSize}px` : "2.5rem",
           fontWeight: 700,
           lineHeight: 1,
           fontVariantNumeric: "tabular-nums",

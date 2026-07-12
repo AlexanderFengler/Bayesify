@@ -1717,6 +1717,14 @@ main.container {
   margin-bottom: 6px;
 }
 
+/* Theme toggle drives a View Transition (see ThemeMode.tsx). Stretch the default crossfade a little so
+   switching between light and dark reads as a gentle fade rather than a hard snap. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.5s;
+  animation-timing-function: ease;
+}
+
 @media (max-width: 640px) {
   .summary {
     grid-template-columns: 1fr 1fr;
