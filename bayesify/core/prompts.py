@@ -45,10 +45,12 @@ methods paper is method_development; and so on), so `labels` is never empty. The
 only for genuine ADDITIONAL central contributions — never for a peripheral mention, a tool merely \
 used, a motivating example, or an illustration. Most papers carry one or two labels; three is \
 uncommon. Return them in the `labels` list:
-- "model_development": proposes or substantially extends a Bayesian statistical MODEL — a likelihood, \
-prior, or hierarchical structure for a phenomenon.
+- "model_development": proposes or substantially extends a Bayesian statistical MODEL for a \
+phenomenon — a new likelihood or hierarchical structure, together with the model-specific prior \
+choices that go with it.
 - "method_development": proposes or studies a Bayesian inference PROCEDURE — a sampler, algorithm, \
-variational scheme, diagnostic, workflow step, or validation method.
+variational scheme, diagnostic, workflow step, or validation method — OR a fundamentally new, \
+generally-applicable prior.
 - "software_development": introduces or substantially extends a Bayesian software tool, package, or \
 computational infrastructure. Merely USING existing software (implementing your model in Stan / PyMC \
 / brms) is NOT software_development.
@@ -71,12 +73,14 @@ Boundaries — the common confusions:
 - Applying, fitting, or USING an existing model or method to analyse data — even a hierarchical or \
 custom-coded one, with bespoke priors — is data_analysis, NOT model_/method_/software_development. \
 Reserve the development labels for papers whose contribution IS the new model, method, or software.
-- A new model component (a likelihood, prior, or hierarchical structure) is model_development; a new \
-inference procedure (sampler, variational scheme, diagnostic, workflow or validation method) is \
-method_development.
+- A new statistical model for a phenomenon (a new likelihood or hierarchical structure, with its \
+model-specific prior choices) is model_development. A new inference procedure — sampler, variational \
+scheme, diagnostic, workflow, or validation method — OR a fundamentally new, generally-applicable \
+prior is method_development. (A different-but-standard prior chosen for a specific model is just part \
+of that model, not a separate contribution.)
 
 Multi-label examples (each label names a central contribution):
-- A new prior for a hierarchical model, applied to real data: ["model_development", "data_analysis"].
+- A new hierarchical model for a phenomenon, applied to real data: ["model_development", "data_analysis"].
 - A new inference algorithm with simulation benchmarks: ["method_development", "numerical_analysis"].
 - A package with a new algorithm, examples, and data analysis: ["software_development", "method_development", "data_analysis"].
 

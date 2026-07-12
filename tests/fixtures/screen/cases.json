@@ -242,7 +242,7 @@
   },
   {
     "expect_labels": [
-      "model_development",
+      "method_development",
       "theoretical_analysis"
     ],
     "expect_relevance": "yes",
@@ -406,7 +406,7 @@
   },
   {
     "expect_labels": [
-      "model_development",
+      "method_development",
       "data_analysis"
     ],
     "expect_relevance": "yes",
