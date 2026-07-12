@@ -140,7 +140,7 @@ function StatusBanner({ rep }: { rep: CalibrationReport }) {
       <Alert severity="warning">
         <AlertTitle>Development-set agreement.</AlertTitle>
         Measured against the gold set the engine is tuned on — not held-out accuracy. Every number is
-        labelled &ldquo;development-set agreement.&rdquo;
+        labeled &ldquo;development-set agreement.&rdquo;
       </Alert>
     );
   }

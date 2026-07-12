@@ -8,7 +8,7 @@ import { MathText } from "./MathText";
 import type { PaperClass } from "./types";
 
 type StepState = "pending" | "running" | "done" | "failed";
-const CIRCLE = 52; // px — node diameter; connectors align to its centre (CIRCLE / 2)
+const CIRCLE = 52; // px — node diameter; connectors align to its center (CIRCLE / 2)
 
 // The gate stop, rendered on this page when the engine decides the paper is out of scope: which
 // verdict it was (relevance gate vs paper-type), the engine's reasons, and the two ways out.
@@ -210,7 +210,7 @@ function StepFlow({
   const stateOf = (stage: string): StepState => stageState[stage] ?? "pending";
 
   // Nodes and connectors are siblings of the same flex line so every circle shares one baseline; the
-  // connector sits at the circle's centre via its margin (NOT nested inside a node, which would push
+  // connector sits at the circle's center via its margin (NOT nested inside a node, which would push
   // that node's circle down and leave the first — connector-less — node sitting higher).
   return (
     <Box
@@ -236,7 +236,7 @@ function StepFlow({
   );
 }
 
-// The line joining two nodes — a sibling of the nodes, offset to line up with the circle's centre
+// The line joining two nodes — a sibling of the nodes, offset to line up with the circle's center
 // ((CIRCLE - thickness) / 2). Horizontal between columns, vertical down the gutter on phones.
 function Connector({ horizontal, filled }: { horizontal: boolean; filled: boolean }) {
   const color = filled ? "primary.main" : "divider";
@@ -278,7 +278,7 @@ function StepNode({ state, label, horizontal }: { state: StepState; label: strin
 }
 
 function NodeCircle({ state }: { state: StepState }) {
-  // common centred box at the fixed circle size
+  // common centered box at the fixed circle size
   const base = {
     position: "relative" as const,
     width: CIRCLE,

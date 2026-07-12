@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 import type { SxProps, Theme } from "@mui/material/styles";
 
 // The main page's type scale, from the hero down. Sizes are negotiated so each tier reads a clear
-// step apart from its neighbours (weight alone doesn't carry the hierarchy):
+// step apart from its neighbors (weight alone doesn't carry the hierarchy):
 //   hero headline 3.5rem → section title 2.25rem → subsection 1.4rem → step label 1.05rem →
 //   body 0.9rem → micro (caps overlines, step ids) ≤0.75rem.
 // SectionHeader renders the section tier; SubsectionTitle the tier below it.

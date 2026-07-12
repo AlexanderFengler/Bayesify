@@ -113,7 +113,7 @@ export function Guide({ id }: { id?: string }) {
       sx={{
         py: { xs: 6, md: 8 },
         // fill the viewport between header and footer, like the hero (100cqh: the scroll area is a
-        // size query container); centre the content when it runs shorter than that
+        // size query container); center the content when it runs shorter than that
         minHeight: "calc(100dvh - 220px)",
         "@supports (min-height: 100cqh)": { minHeight: "100cqh" },
         display: "flex",
@@ -185,13 +185,13 @@ function FlowSection({ title, lead, steps }: { title: string; lead: string; step
 // The flow diagram itself (MUI Stepper). Wide screens draw it horizontally — the numbered nodes and
 // their connectors on one line, label and body text left-aligned beneath each node; narrow screens
 // draw the classic vertical stepper. Every step is `active` (these are diagrams, not wizards), which
-// keeps the numbered nodes in the primary colour.
+// keeps the numbered nodes in the primary color.
 function FlowStepper({ steps }: { steps: FlowStep[] }) {
   const theme = useTheme();
   const horizontal = useMediaQuery(theme.breakpoints.up("md"));
 
   // Shared sizing: 32px numbered nodes (a diagram element, not an inline bullet) and step labels a
-  // clear size step above the body text — the label/body contrast is size + colour, not just weight.
+  // clear size step above the body text — the label/body contrast is size + color, not just weight.
   const labelSx = {
     fontWeight: 700,
     fontSize: "1.05rem",
@@ -211,7 +211,7 @@ function FlowStepper({ steps }: { steps: FlowStep[] }) {
         sx={{
           "& .MuiStepIcon-root": iconSx,
           "& .MuiStepLabel-label": labelSx,
-          // the vertical rail and the content's guide line re-centre under the 32px node (16px)
+          // the vertical rail and the content's guide line re-center under the 32px node (16px)
           "& .MuiStepConnector-root": { ml: "16px" },
           "& .MuiStepContent-root": { ml: "16px" },
         }}
@@ -244,8 +244,8 @@ function FlowStepper({ steps }: { steps: FlowStep[] }) {
           textAlign: "left",
           "&.MuiStepLabel-alternativeLabel": { mt: 1.25 },
         },
-        // re-aim the connectors at the left-aligned nodes (the defaults assume centred icons):
-        // from just after the previous node (icon is 32px wide, centre 16px) to just before this one
+        // re-aim the connectors at the left-aligned nodes (the defaults assume centered icons):
+        // from just after the previous node (icon is 32px wide, center 16px) to just before this one
         "& .MuiStepConnector-root": { top: 16, left: "calc(-100% + 40px)", right: "calc(100% + 8px)" },
       }}
     >

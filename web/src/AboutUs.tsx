@@ -1,10 +1,10 @@
-import { Alert, Box, Button, Container, Link, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Container, Divider, Link, Stack, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 import { sendContact } from "./api";
 import { useColorMode } from "./ThemeMode";
 
-// The organisations behind Bayesify. Add an entry per org — each ships a dark-ink and a white-ink
-// wordmark in web/public so it reads against the aurora in either colour mode. `url` is optional.
+// The organizations behind Bayesify. Add an entry per org — each ships a dark-ink and a white-ink
+// wordmark in web/public so it reads against the aurora in either color mode. `url` is optional.
 type Org = {
   name: string;
   logoDark: string; // dark-ink wordmark — shown in light mode
@@ -33,7 +33,7 @@ const DEVELOPERS: { name: string; url: string }[] = [
 
 // A dedicated "About us" page reached from the footer: the org wordmarks that back the project,
 // laid out as a responsive row of logos (no boxes). Mirrors the landing page's hero layout — a
-// full-height band between header and footer, vertically centred, with two equal columns (the
+// full-height band between header and footer, vertically centered, with two equal columns (the
 // about/team content left, the contact form right) sharing the landing hero's gaps and breakpoints.
 export function AboutUs() {
   const { variant } = useColorMode();
@@ -63,7 +63,7 @@ export function AboutUs() {
                 About us
               </Typography>
               <Typography sx={{ mt: 1.5, color: "text.secondary", maxWidth: 760 }}>
-                Bayesify is built and supported by the organisations below.
+                Bayesify is built and supported by the organizations below.
               </Typography>
             </Box>
 
@@ -133,6 +133,11 @@ export function AboutUs() {
               </Box>
             )}
           </Box>
+
+          {/* Divider splitting the about/team content from the contact form — a full-height rule
+              between the two columns on md+, a horizontal rule between the stacked blocks on mobile. */}
+          <Divider orientation="vertical" flexItem sx={{ display: { xs: "none", md: "block" } }} />
+          <Divider sx={{ display: { xs: "block", md: "none" } }} />
 
           {/* Right column: the contact form, in the landing hero's panel position. */}
           <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>

@@ -199,7 +199,7 @@ function RateRoute() {
   const { ratingPending } = useApp();
   const navigate = useNavigate();
   if (!id) return <Navigate to="/" replace />;
-  // Cancelling or finishing a blind rating returns to the main page (a fresh analysis), not back
+  // Canceling or finishing a blind rating returns to the main page (a fresh analysis), not back
   // into the rating's origin. `pending` holds the page in its loading state while the background
   // detector run (which feeds the rating context) finishes — so the rate flow skips /processing.
   return <Rate paperId={id} pending={ratingPending === id} onExit={() => navigate("/")} />;

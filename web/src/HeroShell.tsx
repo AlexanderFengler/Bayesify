@@ -17,7 +17,7 @@ export function HeroShell({
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        justifyContent: "center", // vertically centre the centerpiece in the page
+        justifyContent: "center", // vertically center the centerpiece in the page
         color: "text.primary",
       }}
     >

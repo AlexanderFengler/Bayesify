@@ -1,7 +1,7 @@
 import { createTheme, type PaletteMode, type Theme } from "@mui/material/styles";
 
 // The app floats every screen over an animated aurora, with frosted-glass panels. Two real modes
-// ship: a LIGHT mode (a soft grey aurora, dark purple text, light glass) and a DARK mode (a deep
+// ship: a LIGHT mode (a soft gray aurora, dark purple text, light glass) and a DARK mode (a deep
 // purple aurora, light text, dark glass). Each mode carries its own signifier hues (success/warning/
 // error/info) — the dark mode's are brighter, for contrast on the dark aurora.
 export type AuroraVariant = "light" | "dark";
@@ -62,7 +62,7 @@ interface Variant {
   divider: string;
   signifier: Signifier;
   // The categorical-tag palette, in two tiers, both kept clear of the signifier hues so a tag is never
-  // mistaken for a status colour. Vivid tier — a stepped cool-spectrum (periwinkle → aqua → violet →
+  // mistaken for a status color. Vivid tier — a stepped cool-spectrum (periwinkle → aqua → violet →
   // magenta) for what a paper IS (type / discipline / methods / software). Muted tier — desaturated
   // cool tones (slate / steel) for how it was GRADED (rubric / weighting). Each is a mid-tone in light
   // mode (white text) and a brighter tone in dark mode (dark text), matching the signifier build.
@@ -80,7 +80,7 @@ interface Variant {
 const SIZE = "180% 180%, 200% 200%, 220% 220%, 210% 210%, 160% 160%";
 
 const VARIANTS: Record<AuroraVariant, Variant> = {
-  // Light — a soft grey aurora between rgb(217,217,217) and rgb(240,240,240); purple ink, light glass.
+  // Light — a soft gray aurora between rgb(217,217,217) and rgb(240,240,240); purple ink, light glass.
   light: {
     mode: "light",
     primary: "#6d28d9",
@@ -112,7 +112,7 @@ const VARIANTS: Record<AuroraVariant, Variant> = {
       size: SIZE,
     },
   },
-  // Dark — a deep purple aurora between rgb(29,2,53) and rgb(48,16,78); light text, dark glass.
+  // Dark — a deep purple aurora between rgb(20,2,36) and rgb(34,10,57); light text, dark glass.
   dark: {
     mode: "dark",
     primary: "#c4b5fd",
@@ -133,13 +133,15 @@ const VARIANTS: Record<AuroraVariant, Variant> = {
       steel: { main: "#8ac2cc", soft: "rgba(76,127,139,0.20)" },
     },
     aurora: {
-      base: "#1d0235",
+      base: "#140224",
       image: [
-        "radial-gradient(40% 48% at 20% 28%, rgba(48,16,78,0.85), transparent 62%)",
-        "radial-gradient(44% 54% at 82% 30%, rgba(29,2,53,0.90), transparent 66%)",
-        "radial-gradient(46% 56% at 60% 82%, rgba(48,16,78,0.78), transparent 60%)",
-        "radial-gradient(52% 62% at 12% 84%, rgba(29,2,53,0.88), transparent 66%)",
-        "linear-gradient(130deg, #1d0235 0%, #260a44 55%, #30104e 100%)",
+        // the lighter-purple pools are dialed back so the field reads as a calm gradient between the
+        // two endpoints rather than bright blotches over the dark base
+        "radial-gradient(40% 48% at 20% 28%, rgba(34,10,57,0.45), transparent 62%)",
+        "radial-gradient(44% 54% at 82% 30%, rgba(20,2,36,0.90), transparent 66%)",
+        "radial-gradient(46% 56% at 60% 82%, rgba(34,10,57,0.42), transparent 60%)",
+        "radial-gradient(52% 62% at 12% 84%, rgba(20,2,36,0.88), transparent 66%)",
+        "linear-gradient(130deg, #140224 0%, #1c0630 55%, #220a39 100%)",
       ].join(", "),
       size: SIZE,
     },
@@ -232,7 +234,7 @@ export function makeTheme(variant: AuroraVariant): Theme {
 }
 
 // Make `theme.tokens` type-safe in sx callbacks and styled(), and register the custom categorical-tag
-// palette colours so `<Chip color="periwinkle" />` (etc.) typechecks.
+// palette colors so `<Chip color="periwinkle" />` (etc.) typechecks.
 declare module "@mui/material/styles" {
   interface Theme {
     tokens: Tokens;

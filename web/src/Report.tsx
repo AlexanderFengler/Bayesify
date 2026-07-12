@@ -66,14 +66,14 @@ function SeverityIcon({ severity }: { severity: string }) {
   return <InfoIcon sx={{ ...sx, color: "info.main" }} />;
 }
 
-// Confidence → a reliability colour (high = green, medium = amber, low = red). Effort → an ease
-// colour (low effort is an easy win = green; high effort is costly = red). Used by the chips below.
+// Confidence → a reliability color (high = green, medium = amber, low = red). Effort → an ease
+// color (low effort is an easy win = green; high effort is costly = red). Used by the chips below.
 type ChipColor = "success" | "warning" | "error";
 const confidenceColor = (c: number): ChipColor => (c >= 0.8 ? "success" : c >= 0.5 ? "warning" : "error");
 const EFFORT_COLOR: Record<string, ChipColor> = { low: "success", medium: "warning", high: "error" };
 const effortColor = (ease: string): ChipColor => EFFORT_COLOR[ease] ?? "warning";
 
-// One place mapping a step status onto a palette colour + label, used by the dots, pills and borders.
+// One place mapping a step status onto a palette color + label, used by the dots, pills and borders.
 type PaletteKey = "success" | "warning" | "error";
 function statusMeta(status: StepStatus): { color: PaletteKey | "disabled"; label: string } {
   switch (status) {
@@ -87,12 +87,12 @@ function statusMeta(status: StepStatus): { color: PaletteKey | "disabled"; label
       return { color: "disabled", label: STATUS_LABEL.not_applicable };
   }
 }
-// resolve a status colour to a concrete CSS colour via the theme (handles the non-palette "disabled")
+// resolve a status color to a concrete CSS color via the theme (handles the non-palette "disabled")
 const statusSx = (color: PaletteKey | "disabled") =>
   color === "disabled" ? "text.disabled" : `${color}.main`;
 
 const STRIP_LEGEND: StepStatus[] = ["adequate", "partial", "missing", "not_applicable"];
-// The signifier (status) main colour, resolved from the theme — used to tint the frosted-glass cells.
+// The signifier (status) main color, resolved from the theme — used to tint the frosted-glass cells.
 function statusMainColor(t: Theme, status: StepStatus): string {
   switch (status) {
     case "adequate":
@@ -328,7 +328,7 @@ export function Report({
 }
 
 // Who produced this result. The clearest "the model actually ran" signal — a real backend
-// (subscription / API) vs the labelled stub that runs when no credentials are configured.
+// (subscription / API) vs the labeled stub that runs when no credentials are configured.
 function BackendBadge({ backend, fromCache }: { backend: string | null; fromCache: boolean }) {
   if (!backend) return null;
   if (backend === "stub") {
@@ -342,7 +342,7 @@ function BackendBadge({ backend, fromCache }: { backend: string | null; fromCach
         : backend === "openai"
           ? "OpenAI API"
           : backend;
-  // A cache replay is labelled distinctly from a fresh live run, so a hit never masquerades as live.
+  // A cache replay is labeled distinctly from a fresh live run, so a hit never masquerades as live.
   if (fromCache) {
     return <span className="backend-badge be-cache">Cached · {name}</span>;
   }
@@ -454,7 +454,7 @@ function MetaChips({
   label: string;
   values: string[];
   info?: StatInfo;
-  // every meta field carries a solid, colour-coded chip from the shared categorical palette (matching
+  // every meta field carries a solid, color-coded chip from the shared categorical palette (matching
   // the Archive): vivid tier for classification, muted slate/steel tier for config (rubric / weighting).
   color?: "periwinkle" | "violet" | "magenta" | "slate" | "steel";
 }) {
@@ -506,7 +506,7 @@ function Legend() {
 }
 
 // The finding-dot legend — explains the icons used inside each step of the full report (the green
-// "Pass" check and the severity dots), in place of the status-colour legend.
+// "Pass" check and the severity dots), in place of the status-color legend.
 function SeverityLegend() {
   const items = [
     { icon: <CheckCircleIcon sx={{ fontSize: 16, color: "success.main" }} />, label: "Pass" },
@@ -688,12 +688,12 @@ function StepGlance({
               overflow: "hidden",
               flexDirection: "column",
               alignItems: "stretch",
-              justifyContent: "flex-start", // override ButtonBase's default centring
+              justifyContent: "flex-start", // override ButtonBase's default centering
               p: 1.25,
               borderRadius: 1, // less round
               backdropFilter: "blur(8px)",
               border: "1px solid",
-              // punchcard: inactive tiles are a frosted tint of the status colour; the active tile
+              // punchcard: inactive tiles are a frosted tint of the status color; the active tile
               // (selected, or under the pointer) is "punched" — a solid status fill with the dot and
               // labels inverted to white for the high-contrast card-flip read.
               bgcolor: (t) =>
@@ -816,7 +816,7 @@ function FullReportDoc({
 }
 
 // Shared diameter for the timeline dot and the title row that sits beside it — keeping them equal is
-// what lets their vertical centres align on the first line.
+// what lets their vertical centers align on the first line.
 const DOT_SIZE = 38;
 
 function FullReportTimelineItem({
@@ -849,7 +849,7 @@ function FullReportTimelineItem({
     <TimelineItem>
       <TimelineSeparator>
         {/* the dot is the step index, tinted by status (reusing the shared status palette). Its size
-            is shared with the title row (DOT_SIZE) so their vertical centres always line up. */}
+            is shared with the title row (DOT_SIZE) so their vertical centers always line up. */}
         <TimelineDot
           sx={{
             m: 0,
@@ -878,7 +878,7 @@ function FullReportTimelineItem({
           ))}
       </TimelineSeparator>
       {/* pt:0 anchors the content's top to the dot's top; the title row is exactly DOT_SIZE tall with
-          its text vertically centred, so the dot centre and the title centre coincide on the first line. */}
+          its text vertically centered, so the dot center and the title center coincide on the first line. */}
       <TimelineContent sx={{ pb: 4, pt: 0 }}>
         {/* header row stays visible; the chevron toggles the body below */}
         <ButtonBase
@@ -972,7 +972,7 @@ function CorrectionBadge({ c }: { c: AppliedCorrection }) {
   );
 }
 
-// The de-carded step detail: an open section with a status-coloured left border (no card box).
+// The de-carded step detail: an open section with a status-colored left border (no card box).
 function StepDetail({
   a,
   stepName,
