@@ -63,6 +63,15 @@ def test_screen_classify_ship_gates() -> None:
             f"  got={rel.label.value}/{got_class}"
         )
 
+    # Over-emission guard (#75): cases flagged `strict_labels` must match their EXACT expected label
+    # set individually — the 0.80 aggregate below would otherwise absorb a spurious extra label.
+    for case, _, cls in rows:
+        if case.get("strict_labels"):
+            got = {label.value for label in cls.labels} if cls else set()
+            assert got == set(case["expect_labels"]), (
+                f"{case['id']}: got {sorted(got)}, expected {sorted(case['expect_labels'])}"
+            )
+
     assert sensitivity >= 0.95, f"relevance sensitivity {sensitivity:.2f} < 0.95"
     assert specificity >= 0.80, f"decoy specificity {specificity:.2f} < 0.80"
     assert class_acc >= 0.80, f"label-set accuracy {class_acc:.2f} < 0.80"
