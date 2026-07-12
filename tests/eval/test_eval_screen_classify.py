@@ -1,9 +1,11 @@
 """Live screen/classify accuracy gates over the labeled fixture set (M4 slice 4).
 
-Makes real, paid cheap-model calls, so it is **opt-in**: it skips unless both ANTHROPIC_API_KEY is
-set and BAYESIFY_RUN_EVAL=1 (the `pixi run eval` task sets the latter). It never runs during
-`pixi run check`. These thresholds gate development only; the release measurement is the validation
-protocol (validation/protocol.md §3, M7) and the numbers here are never quoted publicly.
+Makes real, paid cheap-model calls, so it is **opt-in**: it skips unless BAYESIFY_RUN_EVAL=1 (the
+`pixi run eval` task sets it) and an LLM backend is configured. It runs under whatever backend the
+app uses (agent-sdk / anthropic / openai) via `make_llm_client()`, loading `bayesify.env` for the
+backend + model pins. It never runs during `pixi run check`. These thresholds gate development only;
+the release measurement is the validation protocol (validation/protocol.md §3, M7) and the numbers
+here are never quoted publicly.
 """
 
 from __future__ import annotations
@@ -14,14 +16,22 @@ from pathlib import Path
 
 import pytest
 
+from bayesify.api.env import load_env_file
 from bayesify.core.detectors import run_detectors
 from bayesify.core.pipeline import screen_and_classify
 from bayesify.core.schema import ParsedDoc, RelevanceLabel
-from bayesify.llm import AnthropicClient
+from bayesify.llm import config as llm_config
+from bayesify.llm import make_llm_client
+
+# Only when opted in (BAYESIFY_RUN_EVAL=1) load bayesify.env for the backend + model pins, so the
+# run uses the app's configured backend. Guarded so `pixi run check` never pollutes the test env;
+# existing process env always wins, so CI can still point it at an API backend.
+if os.environ.get("BAYESIFY_RUN_EVAL") == "1":
+    load_env_file()
 
 pytestmark = pytest.mark.skipif(
-    not (os.environ.get("ANTHROPIC_API_KEY") and os.environ.get("BAYESIFY_RUN_EVAL") == "1"),
-    reason="live eval — set ANTHROPIC_API_KEY and run via `pixi run eval`",
+    not (os.environ.get("BAYESIFY_RUN_EVAL") == "1" and llm_config.llm_backend() != "none"),
+    reason="live eval — run via `pixi run eval` with an LLM backend configured (see bayesify.env)",
 )
 
 _CASES = json.loads(
@@ -30,7 +40,7 @@ _CASES = json.loads(
 
 
 def test_screen_classify_ship_gates() -> None:
-    client = AnthropicClient()
+    client = make_llm_client()
     rows = []
     for case in _CASES:
         parsed = ParsedDoc.model_validate(case["parsed"])

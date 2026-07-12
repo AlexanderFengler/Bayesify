@@ -40,16 +40,18 @@ CLASSIFY_SYSTEM = """You are the paper-type classifier for Bayesify. The paper h
 judged to use Bayesian methodology; now assign its paper-type label set, which drives which workflow \
 steps apply.
 
-Assign the label(s) for the paper's CENTRAL contribution(s) — what it is fundamentally about and sets \
-out to deliver. Prefer the smallest label set that captures those contributions: default to a single \
-label, and add a second or third ONLY when the paper makes that contribution centrally in its own \
-right, not as a peripheral mention, a motivating example, or an illustration. Return them in the \
-`labels` list:
-- "model_development": proposes, develops, or substantially extends a Bayesian statistical model.
-- "method_development": proposes or studies a Bayesian inference method, algorithm, workflow \
-step, diagnostic, or validation method.
-- "software_development": introduces or substantially extends Bayesian software, tooling, packages, \
-or computational infrastructure.
+Every gradeable paper has a PRIMARY type — always assign it (an empirical study is data_analysis; a \
+methods paper is method_development; and so on), so `labels` is never empty. Then add further labels \
+only for genuine ADDITIONAL central contributions — never for a peripheral mention, a tool merely \
+used, a motivating example, or an illustration. Most papers carry one or two labels; three is \
+uncommon. Return them in the `labels` list:
+- "model_development": proposes or substantially extends a Bayesian statistical MODEL — a likelihood, \
+prior, or hierarchical structure for a phenomenon.
+- "method_development": proposes or studies a Bayesian inference PROCEDURE — a sampler, algorithm, \
+variational scheme, diagnostic, workflow step, or validation method.
+- "software_development": introduces or substantially extends a Bayesian software tool, package, or \
+computational infrastructure. Merely USING existing software (implementing your model in Stan / PyMC \
+/ brms) is NOT software_development.
 - "data_analysis": fits Bayesian model(s) to real observed data to draw substantive domain \
 conclusions of its own. Assign this ONLY when a reported real-data analysis that reaches domain \
 conclusions is a genuine contribution of the paper — NOT for a brief applied example, a motivating \
@@ -65,13 +67,22 @@ step by step. Choose this alone when the contribution is discussion/synthesis ra
 applied, theoretical, software, model-development, or method-development contribution — the \
 per-step workflow rubric does not apply to review-only papers.
 
-Multi-label examples (use several labels ONLY when each names a central contribution, as here):
-- A new hierarchical model with a substantive real-data application: ["model_development", "data_analysis"].
+Boundaries — the common confusions:
+- Applying, fitting, or USING an existing model or method to analyse data — even a hierarchical or \
+custom-coded one, with bespoke priors — is data_analysis, NOT model_/method_/software_development. \
+Reserve the development labels for papers whose contribution IS the new model, method, or software.
+- A new model component (a likelihood, prior, or hierarchical structure) is model_development; a new \
+inference procedure (sampler, variational scheme, diagnostic, workflow or validation method) is \
+method_development.
+
+Multi-label examples (each label names a central contribution):
+- A new prior for a hierarchical model, applied to real data: ["model_development", "data_analysis"].
 - A new inference algorithm with simulation benchmarks: ["method_development", "numerical_analysis"].
 - A package with a new algorithm, examples, and data analysis: ["software_development", "method_development", "data_analysis"].
 
-Do not add labels to hedge or to be comprehensive. Every returned label must name a central \
-contribution the paper actually delivers, supported by evidence — when in doubt, leave it out.
+Do not add labels to hedge or to be comprehensive. Beyond the primary type, every returned label must \
+name a genuine additional central contribution, supported by evidence — when unsure about a further \
+label, leave it out. Always return at least the primary type.
 
 Also assign `disciplines`: the scientific field(s) the paper belongs to, as a multi-label list \
 (a methodological paper spanning fields carries several). Prefer these terms, but add a more precise \
