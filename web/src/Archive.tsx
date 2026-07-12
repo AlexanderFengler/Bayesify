@@ -179,6 +179,12 @@ export function Archive() {
 
   const pageCount = Math.max(1, Math.ceil(sortedPapers.length / PER_PAGE));
   const pagePapers = sortedPapers.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+  const visibleStart = sortedPapers.length === 0 ? 0 : page * PER_PAGE + 1;
+  const visibleEnd = Math.min((page + 1) * PER_PAGE, sortedPapers.length);
+  const visibleCountLabel =
+    visibleStart === visibleEnd
+      ? `${visibleStart} of ${total}`
+      : `${visibleStart}-${visibleEnd} of ${total}`;
   const goToPage = (next: number) => {
     setSlideDir(next > page ? "left" : "right");
     setPage(next);
@@ -254,7 +260,7 @@ export function Archive() {
 
       <Box sx={{ mt: 2, display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
         <Typography variant="body2" color="text.secondary">
-          {loading ? "Loading…" : `${papers.length} of ${total} paper${total === 1 ? "" : "s"}`}
+          {loading ? "Loading…" : `${visibleCountLabel} paper${total === 1 ? "" : "s"}`}
         </Typography>
         {pageCount > 1 && <Pager page={page} pageCount={pageCount} onGoTo={goToPage} />}
         {activeCount > 0 && (
