@@ -283,6 +283,88 @@
   },
   {
     "expect_labels": [
+      "method_development"
+    ],
+    "expect_relevance": "yes",
+    "id": "meth4",
+    "note": "method paper with a peripheral illustrative real-data run - must NOT also get data_analysis",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We propose a new variational inference algorithm for hierarchical Bayesian models that speeds up posterior estimation.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "We derive the coordinate-ascent ELBO updates and implement the method in PyMC, reporting posterior credible intervals. For illustration only, we include a brief run on one publicly available dataset to show the implementation works end to end; the paper draws no domain conclusions from it - the contribution is the algorithm itself.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      },
+      "title": null
+    },
+    "strict_labels": true
+  },
+  {
+    "expect_labels": [
+      "data_analysis"
+    ],
+    "expect_relevance": "yes",
+    "id": "emp4",
+    "note": "applies a standard model with existing software (Stan) - must NOT get software/model_development",
+    "parsed": {
+      "parser": "fixture",
+      "parser_version": "0",
+      "sections": [
+        {
+          "id": "s01",
+          "kind": "abstract",
+          "page_spans": [],
+          "text": "We fit a Bayesian logistic regression to survey data using Stan to study voting behaviour.",
+          "title": "Abstract"
+        },
+        {
+          "id": "s02",
+          "kind": "body",
+          "page_spans": [],
+          "text": "Using weakly-informative priors, we report posterior odds ratios with 95% credible intervals and check convergence with R-hat and bulk-ESS. The contribution is the empirical finding about voting behaviour; the model and software are standard.",
+          "title": "Methods"
+        }
+      ],
+      "source": {
+        "fetched_at": "2026-01-10T12:00:00",
+        "ids": {
+          "arxiv_id": null,
+          "doi": null,
+          "openalex_id": null
+        },
+        "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "source": "upload",
+        "version_label": "fixture"
+      },
+      "title": null
+    },
+    "strict_labels": true
+  },
+  {
+    "expect_labels": [
       "method_development",
       "numerical_analysis"
     ],

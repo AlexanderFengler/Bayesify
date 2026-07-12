@@ -40,17 +40,25 @@ CLASSIFY_SYSTEM = """You are the paper-type classifier for Bayesify. The paper h
 judged to use Bayesian methodology; now assign its paper-type label set, which drives which workflow \
 steps apply.
 
-Select every type that genuinely applies. Return them in the `labels` list. Use more than one label \
-when the paper genuinely spans multiple roles:
-- "model_development": proposes, develops, or substantially extends a Bayesian statistical model.
-- "method_development": proposes or studies a Bayesian inference method, algorithm, workflow \
-step, diagnostic, or validation method.
-- "software_development": introduces or substantially extends Bayesian software, tooling, packages, \
-or computational infrastructure.
+Every gradeable paper has a PRIMARY type — always assign it (an empirical study is data_analysis; a \
+methods paper is method_development; and so on), so `labels` is never empty. Then add further labels \
+only for genuine ADDITIONAL central contributions — never for a peripheral mention, a tool merely \
+used, a motivating example, or an illustration. Most papers carry one or two labels; three is \
+uncommon. Return them in the `labels` list:
+- "model_development": proposes or substantially extends a Bayesian statistical MODEL for a \
+phenomenon — a new likelihood or hierarchical structure, together with the model-specific prior \
+choices that go with it.
+- "method_development": proposes or studies a Bayesian inference PROCEDURE — a sampler, algorithm, \
+variational scheme, diagnostic, workflow step, or validation method — OR a fundamentally new, \
+generally-applicable prior.
+- "software_development": introduces or substantially extends a Bayesian software tool, package, or \
+computational infrastructure. Merely USING existing software (implementing your model in Stan / PyMC \
+/ brms) is NOT software_development.
 - "data_analysis": fits Bayesian model(s) to real observed data to draw substantive domain \
-conclusions. Assign this even when the real-data analysis is SECONDARY to the paper's main \
-contribution (e.g. a method or software paper with an applied example) or appears only in a later \
-section — if the paper analyses any real observed data, it is (also) a data_analysis paper.
+conclusions of its own. Assign this ONLY when a reported real-data analysis that reaches domain \
+conclusions is a genuine contribution of the paper — NOT for a brief applied example, a motivating \
+illustration, or a peripheral real-data mention in a method/model/software paper. A substantive \
+secondary analysis still counts; a passing demonstration does not.
 - "numerical_analysis": evaluates Bayesian models/methods on simulated data, benchmark data, \
 or controlled numerical experiments.
 - "theoretical_analysis": presents mathematical, theoretical, identifiability, asymptotic, or \
@@ -61,12 +69,24 @@ step by step. Choose this alone when the contribution is discussion/synthesis ra
 applied, theoretical, software, model-development, or method-development contribution — the \
 per-step workflow rubric does not apply to review-only papers.
 
-Multi-label examples:
-- A new hierarchical model with a real-data application: ["model_development", "data_analysis"].
+Boundaries — the common confusions:
+- Applying, fitting, or USING an existing model or method to analyse data — even a hierarchical or \
+custom-coded one, with bespoke priors — is data_analysis, NOT model_/method_/software_development. \
+Reserve the development labels for papers whose contribution IS the new model, method, or software.
+- A new statistical model for a phenomenon (a new likelihood or hierarchical structure, with its \
+model-specific prior choices) is model_development. A new inference procedure — sampler, variational \
+scheme, diagnostic, workflow, or validation method — OR a fundamentally new, generally-applicable \
+prior is method_development. (A different-but-standard prior chosen for a specific model is just part \
+of that model, not a separate contribution.)
+
+Multi-label examples (each label names a central contribution):
+- A new hierarchical model for a phenomenon, applied to real data: ["model_development", "data_analysis"].
 - A new inference algorithm with simulation benchmarks: ["method_development", "numerical_analysis"].
 - A package with a new algorithm, examples, and data analysis: ["software_development", "method_development", "data_analysis"].
 
-Do not add labels to hedge. Add a label only when the paper makes that contribution with evidence.
+Do not add labels to hedge or to be comprehensive. Beyond the primary type, every returned label must \
+name a genuine additional central contribution, supported by evidence — when unsure about a further \
+label, leave it out. Always return at least the primary type.
 
 Also assign `disciplines`: the scientific field(s) the paper belongs to, as a multi-label list \
 (a methodological paper spanning fields carries several). Prefer these terms, but add a more precise \
@@ -87,7 +107,7 @@ baselines, related work, or future directions. If none is stated, return an empt
 You are given paper excerpts and indexed DETECTOR HITS. Rules:
 - evidence_refs MUST cite at least one detector-hit index supporting the selected labels.
 - confidence in [0,1] applies to the selected label set.
-- rationale must state, briefly, why each selected label applies.
+- rationale must state, briefly, why EACH selected label is a central contribution (not merely present).
 - disciplines: 1-3 fields, most specific first; never leave it empty.
 - methods_used: only methods the paper actually uses (never mentioned-but-unused); may be empty.
 """
