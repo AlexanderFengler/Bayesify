@@ -446,15 +446,27 @@ function ScoreBadge({ p }: { p: ArchivePaper }) {
   const theme = useTheme();
   const q = p.quality_score;
   const band = q != null ? scoreBand(theme, q) : null;
-  const labelSx = { ...LABEL_FONT, display: "block", lineHeight: 1.2, color: "text.secondary" } as const;
+  // label + number sizes are in container-query units so they scale with the square (see below)
+  const labelSx = {
+    ...LABEL_FONT,
+    fontSize: "clamp(0.5rem, 16cqmin, 0.72rem)",
+    display: "block",
+    lineHeight: 1.2,
+    color: "text.secondary",
+  } as const;
 
   return (
-    // stretch to the header row's height (the same height the vertical divider spans) and push the
-    // number to the top / labels to the bottom, so the score block reads as tall as that divider
+    // A perfect square: the block still stretches to the header row's height (the height the vertical
+    // divider spans), and aspect-ratio forces the width to match — so it's always square. `containerType`
+    // fixes that size independent of the content (nothing inside can stretch it) and lets the number and
+    // labels scale in cqmin units, so even a three-digit "100" fits without breaking the square.
     <Box
       sx={{
         flexShrink: 0,
         alignSelf: "stretch",
+        aspectRatio: "1 / 1",
+        containerType: "size",
+        overflow: "hidden",
         display: "flex",
         flexDirection: "column",
         alignItems: "flex-end",
@@ -463,7 +475,13 @@ function ScoreBadge({ p }: { p: ArchivePaper }) {
       }}
     >
       <Typography
-        sx={{ fontSize: "3.2rem", fontWeight: 700, lineHeight: 1, color: band ? band.fg : "text.disabled" }}
+        sx={{
+          fontSize: "44cqmin",
+          fontWeight: 700,
+          lineHeight: 1,
+          fontVariantNumeric: "tabular-nums",
+          color: band ? band.fg : "text.disabled",
+        }}
       >
         {q == null ? "—" : Math.round(q * 100)}
       </Typography>
