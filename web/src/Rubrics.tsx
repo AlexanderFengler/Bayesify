@@ -282,7 +282,7 @@ function ComparisonTable({ columns, rows }: { columns: string[]; rows: typeof FE
               {columns.map((c) => (
                 <TableCell key={c} align="center">
                   {f.has[c] ? (
-                    // a solid dot with the mark knocked out in the page-background colour: a green tick
+                    // a solid dot with the mark knocked out in the page-background color: a green tick
                     // for a shipped capability, a blue star for a planned (future-prospect) one
                     <Box
                       sx={{

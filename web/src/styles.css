@@ -35,8 +35,8 @@ body,
   margin: 0;
   height: 100%;
 }
-/* The app is fully MUI now: CssBaseline (dark theme) owns the body background/colour/font. We keep
-   only the resets here. Forcing a light background/ink colour would leak onto raw elements (e.g.
+/* The app is fully MUI now: CssBaseline (dark theme) owns the body background/color/font. We keep
+   only the resets here. Forcing a light background/ink color would leak onto raw elements (e.g.
    <code>) and fight the immersive dark UI, so those declarations are intentionally gone. */
 body {
   line-height: 1.5;
@@ -1715,6 +1715,14 @@ main.container {
   font-size: 13px;
   color: var(--ink-soft);
   margin-bottom: 6px;
+}
+
+/* Theme toggle drives a View Transition (see ThemeMode.tsx). Stretch the default crossfade a little so
+   switching between light and dark reads as a gentle fade rather than a hard snap. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.5s;
+  animation-timing-function: ease;
 }
 
 @media (max-width: 640px) {

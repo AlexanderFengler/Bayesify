@@ -5,6 +5,7 @@ import { SwitchTransition } from "react-transition-group";
 import { fetchRubrics, getPaper, rerun, type RubricSummary, streamProgress, submitPaper } from "./api";
 import { AppContext, type AppState } from "./AppContext";
 import { Aurora } from "./Aurora";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
 import type { PaperState } from "./types";
@@ -324,7 +325,13 @@ function FadingOutlet() {
   return (
     <SwitchTransition mode="out-in">
       <Fade key={key} timeout={200} appear>
-        <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>{outlet}</Box>
+        {/* Page-level error net: because the outlet is keyed + remounted per route, a crash here shows
+            the fallback only inside the content area — the header/footer/aurora stay put — and clears
+            itself when the user navigates elsewhere (fresh boundary). The app-level ErrorBoundary in
+            App.tsx remains the last-resort net for a throw in the chrome itself. */}
+        <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          <ErrorBoundary>{outlet}</ErrorBoundary>
+        </Box>
       </Fade>
     </SwitchTransition>
   );

@@ -74,7 +74,7 @@ const CLASSES: { value: PaperClass; label: string }[] = [
   { value: "review", label: "Review" },
 ];
 
-// The colour a status chip wears — mirrors the report's status palette so the two views read alike.
+// The color a status chip wears — mirrors the report's status palette so the two views read alike.
 const CHIP_COLOR: Record<StepStatus, "success" | "warning" | "error" | "default"> = {
   adequate: "success",
   partial: "warning",

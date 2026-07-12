@@ -16,6 +16,7 @@ import {
 import { alpha } from "@mui/material/styles";
 import { useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
+import { AccentText } from "./AccentText";
 import type { RubricSummary } from "./api";
 import { GoldText } from "./GoldText";
 import { Guide, ReviewerTokenField } from "./Guide";
@@ -87,7 +88,7 @@ export function Landing(p: LandingProps) {
                 {/* always three lines */}
                 Put your
                 <br />
-                Bayesian workflow
+                <AccentText>Bayesian workflow</AccentText>
                 <br />
                 to the test.
               </Typography>
@@ -157,7 +158,7 @@ function BorderBeam() {
           position: "absolute",
           left: "50%",
           top: "50%",
-          // an oversized square centred on the panel, so its conic gradient reaches every corner
+          // an oversized square centered on the panel, so its conic gradient reaches every corner
           // at any rotation angle
           width: "250%",
           aspectRatio: "1 / 1",
@@ -203,7 +204,7 @@ function UploadPanel(
       }}
       elevation={0}
       // The panel's neon edge is alive: a faint primary hairline as the base ring, with a bright
-      // comet (the BorderBeam below) slowly rolling around it. The soft glow stays, dialled down so
+      // comet (the BorderBeam below) slowly rolling around it. The soft glow stays, dialed down so
       // the moving beam reads as the light source.
       sx={{
         position: "relative",

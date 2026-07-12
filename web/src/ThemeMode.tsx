@@ -1,6 +1,7 @@
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
 import { createContext, useContext, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import { type AuroraVariant, makeTheme } from "./theme";
 
 interface ColorMode {
@@ -23,12 +24,20 @@ export function AppThemeProvider({ children }: { children: React.ReactNode }) {
   const ctx = useMemo<ColorMode>(
     () => ({
       variant,
-      toggle: () =>
-        setVariant((v) => {
-          const next: AuroraVariant = v === "light" ? "dark" : "light";
-          localStorage.setItem(KEY, next);
-          return next;
-        }),
+      toggle: () => {
+        const next: AuroraVariant = variant === "light" ? "dark" : "light";
+        localStorage.setItem(KEY, next);
+        // Crossfade the whole page (aurora gradient included, which a CSS transition can't animate) via
+        // the View Transitions API. flushSync makes React apply the new theme synchronously inside the
+        // transition callback so the browser can snapshot the after-state. Unsupported browsers just
+        // switch instantly.
+        const doc = document as Document & { startViewTransition?: (cb: () => void) => void };
+        if (doc.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          doc.startViewTransition(() => flushSync(() => setVariant(next)));
+        } else {
+          setVariant(next);
+        }
+      },
     }),
     [variant],
   );
