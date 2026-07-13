@@ -11,7 +11,7 @@ from bayesify.api.papers_store import (
     inference_method_tags,
     paper_type_tags,
     report_fields,
-    software_from_inventory,
+    software_tags,
 )
 from bayesify.core import config, schema
 from bayesify.core.stub import engine_version
@@ -85,7 +85,7 @@ def archived_from_analysis(job: Job) -> ArchivedPaper:
         paper_type=paper_type_tags(paper_class),
         discipline=discipline_tags(paper_class),
         methods=inference_method_tags(paper_class),
-        software=software_from_inventory(job.inventory),
+        software=software_tags(paper_class, job.inventory),
         result=result.model_dump(mode="json") if result else None,
         inventory=job.inventory.model_dump(mode="json") if job.inventory else None,
         engine_version=engine_version(),

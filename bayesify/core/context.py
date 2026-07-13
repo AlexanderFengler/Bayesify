@@ -1,4 +1,7 @@
-"""Shared LLM context builders for the cheap-model stages (screen + classify).
+"""Shared LLM context builders for cheap-model stages.
+
+Current classifier note: classify consumes ``excerpt_context`` directly and does not receive
+detector ids. ``build_user`` is the screen-gate message.
 
 Both stages show the model the same bounded view (d-screen-classify.md): abstract + body + captions
 (references and supplements excluded — A3), plus a digest of the deterministic detector
@@ -98,7 +101,7 @@ def validate_evidence_refs(refs: list[int], evidence: list[Evidence], *, where: 
 def build_user(
     parsed: ParsedDoc, evidence: list[Evidence], *, max_chars: int = DEFAULT_MAX_CHARS
 ) -> str:
-    """The shared user message: paper excerpts + the indexed detector-hit digest."""
+    """Screen-gate user message: paper excerpts + the indexed detector-hit digest."""
     return (
         "PAPER EXCERPTS (reference list excluded):\n"
         f"{excerpt_context(parsed, max_chars=max_chars)}\n\n"

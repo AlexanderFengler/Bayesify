@@ -12,7 +12,7 @@ from bayesify.api.db.mongo import mongo
 from bayesify.api.papers_store import (
     ArchivedPaper,
     report_fields,
-    software_from_inventory,
+    software_tags,
 )
 from bayesify.api.routes.rubrics import rubric_payload
 from bayesify.api.runtime import api
@@ -185,7 +185,10 @@ async def rate_submit(body: RateSubmit) -> dict:
             paper_type=[label.value for label in body.rating.paper_class_labels],
             methods=(report or {}).get("methods") or [],
             software=(
-                software_from_inventory(job.inventory if job is not None else None)
+                software_tags(
+                    job.result.paper_class if job is not None and job.result else None,
+                    job.inventory if job is not None else None,
+                )
                 or (report or {}).get("software")
                 or []
             ),

@@ -6,7 +6,7 @@ import asyncio
 
 from bayesify.api.db.mongo import mongo
 from bayesify.api.jobs.model import Job
-from bayesify.api.papers_store import inference_method_tags, software_from_inventory
+from bayesify.api.papers_store import inference_method_tags, software_tags
 from bayesify.api.runtime import api
 from bayesify.core import schema as s
 from bayesify.core.detectors import EvidenceInventory
@@ -26,7 +26,7 @@ def job_payload(job: Job) -> dict:
         "paper_year": job.paper_year,
         "paper_class": job.paper_class,
         "methods": inference_method_tags(paper_class),
-        "software": software_from_inventory(job.inventory),
+        "software": software_tags(paper_class, job.inventory),
         "relevance_override": job.relevance_override,
         "result": job.result.model_dump(mode="json") if job.result else None,
         "fix_list": (

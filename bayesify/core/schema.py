@@ -82,8 +82,19 @@ class InferenceMethod(StrEnum):
     smc = "smc"
     abc = "abc"
     laplace_inla = "laplace_inla"
+    em = "em"
     exact_analytic = "exact_analytic"
     unstated = "unstated"
+
+
+class FactAnswer(StrEnum):
+    yes = "yes"
+    no = "no"
+
+
+class FactConfidence(StrEnum):
+    high = "high"
+    low = "low"
 
 
 class PriorInformativeness(StrEnum):
@@ -208,6 +219,10 @@ class PaperClass(_Base):
     # out-of-vocab token the classifier emits so one stray word can't fail the whole call, and the
     # after-validator drops "unstated" (a list uses empty, never [unstated]) and de-duplicates.
     methods_used: list[InferenceMethod] = Field(default_factory=list)
+    # Software the classifier judged to be actually USED in an analysis, experiment, numerical
+    # study, or reported baseline. Detector inventory can still provide a fallback, but this is the
+    # context-aware source that distinguishes use from a mere mention.
+    software_used: list[str] = Field(default_factory=list)
 
     @field_validator("methods_used", mode="before")
     @classmethod
@@ -234,8 +249,8 @@ class PaperClass(_Base):
             raise ValueError("PaperClass.labels must not contain duplicates")
         if not self.rationale.strip():
             raise ValueError("PaperClass.rationale must be non-empty")
-        if not self.evidence_refs:
-            raise ValueError("PaperClass requires >=1 evidence_ref")
+        # The classifier now returns quote-grounded binary facts. Detector evidence_refs are
+        # retained only when a fact quote overlaps a detector span; they are not required.
         # Normalise disciplines to a clean, de-duplicated soft vocabulary (order-preserving).
         seen: set[str] = set()
         normalised: list[str] = []
@@ -254,7 +269,60 @@ class PaperClass(_Base):
             seen_m.add(m)
             methods.append(m)
         self.methods_used = methods
+        seen_s: set[str] = set()
+        software: list[str] = []
+        for s in self.software_used:
+            tag = s.strip()
+            key = tag.lower()
+            if tag and key not in seen_s:
+                seen_s.add(key)
+                software.append(tag)
+        self.software_used = software
         return self
+
+
+class ClassifierFact(_Base):
+    answer: FactAnswer
+    confidence: FactConfidence
+    evidence: str = ""
+
+    @model_validator(mode="after")
+    def _yes_needs_evidence(self) -> ClassifierFact:
+        self.evidence = self.evidence.strip()
+        if self.answer is FactAnswer.yes and not self.evidence:
+            raise ValueError("yes classifier facts require evidence")
+        return self
+
+
+class ClassifierPaperTypeFacts(_Base):
+    develops_new_bayesian_model: ClassifierFact
+    develops_new_bayesian_method: ClassifierFact
+    develops_new_bayesian_software: ClassifierFact
+    uses_bayesian_model_on_real_data_for_domain_conclusions: ClassifierFact
+    runs_numerical_or_simulation_study: ClassifierFact
+    investigates_theoretical_behavior: ClassifierFact
+    is_review_tutorial_or_commentary: ClassifierFact
+
+
+class ClassifierMethodFacts(_Base):
+    uses_mcmc: ClassifierFact
+    # Kept as a backwards-compatible parser field while prompts and callers migrate. Downstream
+    # maps it to the broader MCMC chip and never emits hmc_nuts from the classifier.
+    uses_hmc_or_nuts: ClassifierFact | None = None
+    uses_variational_inference: ClassifierFact
+    uses_sbi: ClassifierFact
+    uses_abc: ClassifierFact
+    uses_smc_or_particle_filter: ClassifierFact
+    uses_laplace_or_inla: ClassifierFact
+    uses_em: ClassifierFact
+    uses_exact_or_analytic_posterior: ClassifierFact
+
+
+class ClassifierFacts(_Base):
+    paper_type: ClassifierPaperTypeFacts
+    methods: ClassifierMethodFacts
+    software: list[str] = Field(default_factory=list)
+    disciplines: list[str] = Field(default_factory=list)
 
 
 class GateFacts(_Base):

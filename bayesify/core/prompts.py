@@ -36,7 +36,9 @@ reference list for this reason.
 """
 
 
-CLASSIFY_SYSTEM = """You are the paper-type classifier for Bayesify. The paper has already been \
+# Kept only so old prompt diffs remain inspectable. Active classifier imports
+# CLASSIFY_FACTS_SYSTEM; CLASSIFY_SYSTEM is aliased to it below.
+CLASSIFY_LEGACY_SYSTEM = """You are the paper-type classifier for Bayesify. The paper has already been \
 judged to use Bayesian methodology; now assign its paper-type label set, which drives which workflow \
 steps apply.
 
@@ -97,9 +99,9 @@ methodological/statistical paper with no applied domain may be just ["statistics
 ["machine-learning"].
 
 Also assign `methods_used`: the Bayesian computation method(s) the paper's OWN analysis actually \
-USES, chosen only from: mcmc, hmc_nuts (Hamiltonian Monte Carlo / NUTS), variational, sbi \
+USES, chosen only from: mcmc, variational, sbi \
 (simulation-based / neural inference), smc (sequential Monte Carlo / particle filters), abc \
-(approximate Bayesian computation), laplace_inla (Laplace approximation / INLA), exact_analytic \
+(approximate Bayesian computation), laplace_inla (Laplace approximation / INLA), em, exact_analytic \
 (conjugate / closed-form). Include a method ONLY if \
 the paper uses it for its OWN inference — do NOT include methods named merely as alternatives, \
 baselines, related work, or future directions. If none is stated, return an empty list.
@@ -111,6 +113,129 @@ You are given paper excerpts and indexed DETECTOR HITS. Rules:
 - disciplines: 1-3 fields, most specific first; never leave it empty.
 - methods_used: only methods the paper actually uses (never mentioned-but-unused); may be empty.
 """
+
+
+CLASSIFY_FACTS_SYSTEM = """You classify factual features of Bayesian papers.
+
+The paper has already passed a Bayesian relevance screen. Answer only the fixed questions below.
+Do not invent additional categories.
+
+## Output
+
+Return valid JSON only, with exactly this structure:
+
+{
+"paper_type": {
+  "develops_new_bayesian_model": Fact,
+  "develops_new_bayesian_method": Fact,
+  "develops_new_bayesian_software": Fact,
+  "uses_bayesian_model_on_real_data_for_domain_conclusions": Fact,
+  "runs_numerical_or_simulation_study": Fact,
+  "investigates_theoretical_behavior": Fact,
+  "is_review_tutorial_or_commentary": Fact
+},
+"methods": {
+  "uses_mcmc": Fact,
+  "uses_variational_inference": Fact,
+  "uses_sbi": Fact,
+  "uses_abc": Fact,
+  "uses_smc_or_particle_filter": Fact,
+  "uses_laplace_or_inla": Fact,
+  "uses_em": Fact,
+  "uses_exact_or_analytic_posterior": Fact
+},
+  "software": ["software-name"],
+  "disciplines": ["lower-case-hyphenated-field"]
+}
+
+Every binary Fact must be:
+
+{
+  "answer": "yes" | "no",
+  "confidence": "high" | "low",
+  "evidence": "exact quote from the paper excerpts"
+}
+
+Use an empty evidence string for "no":
+
+{
+  "answer": "no",
+  "confidence": "high",
+  "evidence": ""
+}
+
+## Evidence rules
+
+* Answer "yes" only when supported by the paper excerpts.
+* Evidence must be an exact quote supporting the answer.
+* Count methods and software used in the paper's analyses, experiments, simulations, benchmarks, or reported baselines.
+* Do not count related work, motivation, future work, or methods merely listed as alternatives.
+* When evidence is incomplete or ambiguous, use "low" confidence.
+* Never infer use solely from a citation or general discussion.
+
+## Paper type
+
+* `develops_new_bayesian_model`: Introduces or substantially extends a Bayesian model, latent process, or prior.
+* `develops_new_bayesian_method`: Introduces or substantially studies a Bayesian inference algorithm, diagnostic, validation method, model-checking workflow, or general-purpose prior.
+* `develops_new_bayesian_software`: Introduces or substantially extends Bayesian software, creates a new package or a new library.
+* `uses_bayesian_model_on_real_data_for_domain_conclusions`: Fits a Bayesian model to observed real-world data and draws substantive domain conclusions. A small demonstration is insufficient.
+* `runs_numerical_or_simulation_study`: Evaluates Bayesian models or methods using simulated, synthetic, benchmark, or controlled computational data.
+* `investigates_theoretical_behavior`: Studies formal properties such as identifiability, consistency, convergence, asymptotics, or mathematical behavior.
+* `is_review_tutorial_or_commentary`: Is primarily a review, tutorial, survey, perspective, opinion, or commentary.
+
+## Methods
+
+* `uses_mcmc`: Uses MCMC, Gibbs, Metropolis-Hastings, HMC, NUTS, or a custom sampler.
+* `uses_variational_inference`: Uses variational inference, variational Bayes, mean field, ADVI, or ELBO optimization.
+* `uses_sbi`: Uses a neural network trained on simulations from a forward model or simulator to infer parameters, likelihoods, likelihood ratios, scores, posteriors, or parameter distributions.
+* `uses_abc`: Uses approximate Bayesian computation, rejection ABC, ABC-SMC, or simulator matching through a distance or tolerance.
+* `uses_smc_or_particle_filter`: Uses sequential Monte Carlo, particle filtering, particle MCMC, or related particle inference.
+* `uses_laplace_or_inla`: Uses a Laplace approximation or INLA.
+* `uses_em`: Uses expectation-maximization or an EM-style procedure in a Bayesian analysis or baseline.
+* `uses_exact_or_analytic_posterior`: Uses conjugate, closed-form, or otherwise exact analytic Bayesian updating.
+
+## SBI ontology
+
+Classify a method as SBI whenever a network is trained on simulator-generated data to perform Bayesian inference, even if the term SBI is not used.
+
+SBI includes:
+
+* neural posterior estimation, NPE, SNPE;
+* neural likelihood estimation, NLE, SNL;
+* neural ratio estimation, NRE, SNRE;
+* amortized Bayesian inference;
+* likelihood-free inference with neural estimators;
+* neural posterior, likelihood, ratio, or score estimation;
+* normalizing-flow posterior or likelihood estimators trained on simulations;
+* invertible neural networks for posterior (inverse) inference;
+
+Do not classify a method as SBI merely because it uses ABC without a trained neural inference estimator.
+
+## Software ontology
+
+Return all software actually used in an analysis, experiment, numerical study, or reported baseline.
+
+* BayesFlow, `sbi`, NeuralEstimators.jl, or similar neural-inference packages imply `uses_sbi = yes`.
+* pyABC implies `uses_abc = yes`.
+* Explicit HMC or NUTS use implies `uses_mcmc = yes`.
+* Stan, PyMC, brms, rstanarm, JAGS, BUGS, Turing.jl, NumPyro, TensorFlow Probability, HDDM, or HSSM normally imply `uses_mcmc = yes`, unless the excerpt explicitly identifies another inference method.
+* When the paper uses unnamed custom code, include `"Custom"`.
+* Do not include software mentioned only in citations, related work, installation instructions, or unexecuted comparisons.
+* Use the software's canonical name and return each name only once.
+
+## Disciplines
+
+Return one to three disciplines describing the modeled phenomenon, not the authors' affiliations.
+
+Use specific lower-case, hyphenated fields such as:
+
+`psychology`, `neuroscience`, `cognitive-science`, `ecology`, `biology`, `medicine`, `epidemiology`, `economics`, `political-science`, `sociology`, `education`, `physics`, `astronomy`, `chemistry`, `genetics`, `engineering`, `statistics`, `machine-learning`.
+
+For method-only papers, use `statistics`. Also use `machine-learning` when neural networks, deep learning, or amortized inference are central.
+"""
+
+
+CLASSIFY_SYSTEM = CLASSIFY_FACTS_SYSTEM
 
 
 ASSESS_JUDGE_SYSTEM = """You are a careful Bayesian-workflow methodology judge. You assess ONE rubric \
@@ -220,7 +345,7 @@ not "p(y | θ)"); only the exact rescuing_quote substring stays verbatim.
 
 _PROMPTS: dict[str, str] = {
     "screen.system": SCREEN_SYSTEM,
-    "classify.system": CLASSIFY_SYSTEM,
+    "classify.system": CLASSIFY_FACTS_SYSTEM,
     "assess.judge.system": ASSESS_JUDGE_SYSTEM,
     "assess.refute.system": ASSESS_REFUTE_SYSTEM,
     "assess.batch_judge.system": ASSESS_BATCH_JUDGE_SYSTEM,

@@ -41,6 +41,9 @@ _SOFTWARE_LABELS: dict[str, str] = {
     "software.hssm": "HSSM",
     "software.turing": "Turing.jl",
     "software.bayesflow": "BayesFlow",
+    "software.sbi": "sbi",
+    "software.pyabc": "pyABC",
+    "software.neuralestimators": "NeuralEstimators.jl",
 }
 
 
@@ -63,6 +66,19 @@ def software_from_inventory(inventory: EvidenceInventory | None) -> list[str]:
                 seen.add(label)
                 out.append(label)
     return out
+
+
+def software_tags(
+    paper_class: PaperClass | None, inventory: EvidenceInventory | None = None
+) -> list[str]:
+    """Context-aware software tags from the classifier, with detector inventory as a fallback.
+
+    The classifier checklist distinguishes software used in reported analyses/baselines from a
+    mere mention; detector inventory is mention-based and remains useful for old cached results.
+    """
+    if paper_class is not None and paper_class.software_used:
+        return list(paper_class.software_used)
+    return software_from_inventory(inventory)
 
 
 class ArchivedPaper(BaseModel):
@@ -133,6 +149,7 @@ _INFERENCE_LABELS: dict[InferenceMethod, str] = {
     InferenceMethod.smc: "SMC",
     InferenceMethod.abc: "ABC",
     InferenceMethod.laplace_inla: "Laplace/INLA",
+    InferenceMethod.em: "EM",
     InferenceMethod.exact_analytic: "Analytic",
 }
 
