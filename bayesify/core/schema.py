@@ -298,7 +298,7 @@ class ClassifierPaperTypeFacts(_Base):
     develops_new_bayesian_model: ClassifierFact
     develops_new_bayesian_method: ClassifierFact
     develops_new_bayesian_software: ClassifierFact
-    uses_bayesian_model_on_real_data_for_domain_conclusions: ClassifierFact
+    uses_bayesian_model_on_real_data: ClassifierFact
     runs_numerical_or_simulation_study: ClassifierFact
     investigates_theoretical_behavior: ClassifierFact
     is_review_tutorial_or_commentary: ClassifierFact
@@ -306,9 +306,6 @@ class ClassifierPaperTypeFacts(_Base):
 
 class ClassifierMethodFacts(_Base):
     uses_mcmc: ClassifierFact
-    # Kept as a backwards-compatible parser field while prompts and callers migrate. Downstream
-    # maps it to the broader MCMC chip and never emits hmc_nuts from the classifier.
-    uses_hmc_or_nuts: ClassifierFact | None = None
     uses_variational_inference: ClassifierFact
     uses_sbi: ClassifierFact
     uses_abc: ClassifierFact

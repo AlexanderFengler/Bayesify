@@ -44,6 +44,8 @@ _SOFTWARE_LABELS: dict[str, str] = {
     "software.sbi": "sbi",
     "software.pyabc": "pyABC",
     "software.neuralestimators": "NeuralEstimators.jl",
+    "software.blackjax": "BlackJAX",
+    "software.pyro": "Pyro",
 }
 
 

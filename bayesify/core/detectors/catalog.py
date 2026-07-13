@@ -119,6 +119,8 @@ CATALOG: list[Detector] = [
     Detector("software.hssm", SW, "software", _c(r"\bHSSM\b")),
     Detector("software.turing", SW, "software", _c(r"\bTuring\.jl\b")),
     Detector("software.bayesflow", SW, "software", _c(r"\bBayesFlow\b")),
+    Detector("software.blackjax", SW, "software", _c(r"\bBlackJAX\b")),
+    Detector("software.pyro", SW, "software", _c(r"\bPyro\b")),
     # --- Bayesian method / inference mentions (the d-screen relevance floor keys on these) ---
     Detector("method.prior", ME, "method",
              _c(r"\bprior(?:s)?\s+(?:distribution|on|over|for)\b"

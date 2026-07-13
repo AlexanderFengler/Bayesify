@@ -10,7 +10,8 @@ import logging
 import re
 from typing import TypeVar
 
-from bayesify.core.context import excerpt_context, validate_evidence_refs
+from bayesify.core import config
+from bayesify.core.context import assessment_context, validate_evidence_refs
 from bayesify.core.prompts import CLASSIFY_FACTS_SYSTEM
 from bayesify.core.schema import (
     ClassifierFact,
@@ -30,16 +31,12 @@ from bayesify.llm import config as llm_config
 _log = logging.getLogger("bayesify.core.classify")
 _T = TypeVar("_T")
 
-# Wider than the screen gate's DEFAULT_MAX_CHARS (12k): the paper type / disciplines can depend on
-# content in a later section (e.g. a secondary real-data analysis) that a 12k prefix cut would drop.
-CLASSIFY_MAX_CHARS = 30_000
-
 _LABEL_FACTS: tuple[tuple[str, PaperClassLabel], ...] = (
     ("develops_new_bayesian_model", PaperClassLabel.model_development),
     ("develops_new_bayesian_method", PaperClassLabel.method_development),
     ("develops_new_bayesian_software", PaperClassLabel.software_development),
     (
-        "uses_bayesian_model_on_real_data_for_domain_conclusions",
+        "uses_bayesian_model_on_real_data",
         PaperClassLabel.data_analysis,
     ),
     ("runs_numerical_or_simulation_study", PaperClassLabel.numerical_analysis),
@@ -47,9 +44,66 @@ _LABEL_FACTS: tuple[tuple[str, PaperClassLabel], ...] = (
     ("is_review_tutorial_or_commentary", PaperClassLabel.review),
 )
 
+_PRIMARY_LABEL_PRIORITY: tuple[PaperClassLabel, ...] = (
+    PaperClassLabel.method_development,
+    PaperClassLabel.model_development,
+    PaperClassLabel.software_development,
+    PaperClassLabel.data_analysis,
+    PaperClassLabel.numerical_analysis,
+    PaperClassLabel.theoretical_analysis,
+    PaperClassLabel.review,
+)
+
+_MAX_PAPER_TYPE_LABELS = 4
+
+_SECONDARY_LABEL_PRIORITY: dict[PaperClassLabel, tuple[PaperClassLabel, ...]] = {
+    PaperClassLabel.method_development: (
+        PaperClassLabel.model_development,
+        PaperClassLabel.software_development,
+        PaperClassLabel.numerical_analysis,
+        PaperClassLabel.theoretical_analysis,
+        PaperClassLabel.data_analysis,
+    ),
+    PaperClassLabel.model_development: (
+        PaperClassLabel.data_analysis,
+        PaperClassLabel.numerical_analysis,
+        PaperClassLabel.theoretical_analysis,
+        PaperClassLabel.method_development,
+        PaperClassLabel.software_development,
+    ),
+    PaperClassLabel.software_development: (
+        PaperClassLabel.method_development,
+        PaperClassLabel.numerical_analysis,
+        PaperClassLabel.data_analysis,
+        PaperClassLabel.model_development,
+        PaperClassLabel.theoretical_analysis,
+    ),
+    PaperClassLabel.data_analysis: (
+        PaperClassLabel.model_development,
+        PaperClassLabel.method_development,
+        PaperClassLabel.theoretical_analysis,
+        PaperClassLabel.numerical_analysis,
+        PaperClassLabel.software_development,
+    ),
+    PaperClassLabel.numerical_analysis: (
+        PaperClassLabel.method_development,
+        PaperClassLabel.model_development,
+        PaperClassLabel.software_development,
+        PaperClassLabel.theoretical_analysis,
+        PaperClassLabel.data_analysis,
+    ),
+    PaperClassLabel.theoretical_analysis: (
+        PaperClassLabel.method_development,
+        PaperClassLabel.model_development,
+        PaperClassLabel.numerical_analysis,
+        PaperClassLabel.software_development,
+        PaperClassLabel.data_analysis,
+    ),
+    PaperClassLabel.review: (),
+}
+
 _METHOD_FACTS: tuple[tuple[str, InferenceMethod], ...] = (
     ("uses_mcmc", InferenceMethod.mcmc),
-    ("uses_hmc_or_nuts", InferenceMethod.mcmc),
     ("uses_variational_inference", InferenceMethod.variational),
     ("uses_sbi", InferenceMethod.sbi),
     ("uses_abc", InferenceMethod.abc),
@@ -65,6 +119,12 @@ _SOFTWARE_CANONICAL: dict[str, str] = {
     "neuralestimators": "NeuralEstimators.jl",
     "neuralestimatorsjl": "NeuralEstimators.jl",
     "pyabc": "pyABC",
+    "blackjax": "BlackJAX",
+    "pyro": "Pyro",
+    "pyroppl": "Pyro",
+    "mcp": "mcp",
+    "scikitlearn": "scikit-learn",
+    "sklearn": "scikit-learn",
     "stan": "Stan",
     "pystan": "PyStan",
     "cmdstan": "CmdStan",
@@ -73,6 +133,7 @@ _SOFTWARE_CANONICAL: dict[str, str] = {
     "pymc": "PyMC",
     "pymc3": "PyMC",
     "pymc4": "PyMC",
+    "bambi": "Bambi",
     "brms": "brms",
     "rstanarm": "rstanarm",
     "jags": "JAGS",
@@ -89,6 +150,45 @@ _SOFTWARE_CANONICAL: dict[str, str] = {
     "custom": "Custom",
     "customcode": "Custom",
     "customimplementation": "Custom",
+    "custompython": "Custom (Python)",
+    "customr": "Custom (R)",
+    "customjulia": "Custom (Julia)",
+    "custommatlab": "Custom (MATLAB)",
+}
+
+_CUSTOM_LANGUAGE_KEYS: dict[str, str] = {
+    "python": "Python",
+    "r": "R",
+    "rlanguage": "R",
+    "julia": "Julia",
+    "matlab": "MATLAB",
+    "cpp": "C++",
+    "cplusplus": "C++",
+    "c": "C",
+    "javascript": "JavaScript",
+    "typescript": "TypeScript",
+}
+
+_NON_INFERENCE_SOFTWARE_KEYS = {
+    "r",
+    "rproject",
+    "rlanguage",
+    "rstudio",
+    "python",
+    "julia",
+    "matlab",
+    "octave",
+    "c",
+    "cpp",
+    "cplusplus",
+    "csharp",
+    "java",
+    "javascript",
+    "typescript",
+    "bash",
+    "shell",
+    "unix",
+    "linux",
 }
 
 _SBI_SOFTWARE = {"bayesflow", "sbi", "neuralestimators", "neuralestimatorsjl"}
@@ -102,6 +202,7 @@ _MCMC_SOFTWARE = {
     "pymc",
     "pymc3",
     "pymc4",
+    "bambi",
     "brms",
     "rstanarm",
     "jags",
@@ -115,6 +216,7 @@ _MCMC_SOFTWARE = {
     "tfp",
     "hddm",
     "hssm",
+    "blackjax",
 }
 
 _METHOD_DETECTOR_IDS: dict[InferenceMethod, frozenset[str]] = {
@@ -131,7 +233,8 @@ _METHOD_DETECTOR_IDS: dict[InferenceMethod, frozenset[str]] = {
 _METHOD_QUOTE_PATTERNS: dict[InferenceMethod, re.Pattern[str]] = {
     InferenceMethod.mcmc: re.compile(
         r"\b(mcmc|markov chain monte carlo|nuts|hamiltonian monte carlo|hmc|gibbs|"
-        r"metropolis|stan|pymc|brms|rstanarm|jags|bugs|turing|numpyro|hddm|hssm)\b",
+        r"metropolis|stan|pymc|bambi|brms|rstanarm|jags|bugs|turing|numpyro|blackjax|"
+        r"hddm|hssm)\b",
         re.I,
     ),
     InferenceMethod.variational: re.compile(
@@ -160,6 +263,62 @@ _METHOD_QUOTE_PATTERNS: dict[InferenceMethod, re.Pattern[str]] = {
     ),
 }
 
+_INN_CONTEXT_RE = re.compile(r"\b(invertible neural networks?|inns?)\b", re.I)
+_POSTERIOR_CONTEXT_RE = re.compile(
+    r"\bposterior (?:parameter )?distribution\b|\bparameter distribution\b|"
+    r"\bdistribution over parameter space\b|\bfull distribution over parameter space\b",
+    re.I,
+)
+_INVERSE_CONTEXT_RE = re.compile(r"\binverse problems?\b|\binverse pass\b", re.I)
+_SIMULATOR_TRAINING_RE = re.compile(
+    r"\b(train(?:ed|ing)?|learn(?:ed|ing)?)\b.{0,160}"
+    r"\b(simulat\w*|synthetic|forward model|forward process|simulator)\b|"
+    r"\b(simulat\w*|synthetic|forward model|forward process|simulator)\b.{0,160}"
+    r"\b(train(?:ed|ing)?|learn(?:ed|ing)?)\b",
+    re.I | re.S,
+)
+_NEURAL_INFERENCE_CONTEXT_RE = re.compile(
+    r"\b(neural posterior|neural likelihood|neural ratio|neural score|normalizing flow|"
+    r"amortized bayesian|likelihood-free inference)\b",
+    re.I,
+)
+
+_LABEL_QUOTE_PATTERNS: dict[PaperClassLabel, re.Pattern[str]] = {
+    PaperClassLabel.model_development: re.compile(
+        r"\b(new|novel|propos|introduc|develop|extend).{0,80}\b(model|prior|likelihood|latent)\b"
+        r"|\b(model|prior|likelihood|latent).{0,80}\b(new|novel|propos|introduc|develop|extend)\b",
+        re.I,
+    ),
+    PaperClassLabel.method_development: re.compile(
+        r"\b(new|novel|propos|introduc|develop|extend).{0,80}\b(method|algorithm|"
+        r"procedure|workflow|diagnostic|framework|inference)\b"
+        r"|\b(method|algorithm|procedure|workflow|diagnostic|framework|inference).{0,80}"
+        r"\b(new|novel|propos|introduc|develop|extend)\b",
+        re.I,
+    ),
+    PaperClassLabel.software_development: re.compile(
+        r"\b(software|package|library|toolbox|tool|implementation|bayesflow)\b", re.I
+    ),
+    PaperClassLabel.data_analysis: re.compile(
+        r"\b(real|empirical|observed|experimental|field|survey|clinical)\b.{0,80}"
+        r"\b(data|dataset|application|case study)\b"
+        r"|\b(data|dataset).{0,80}\b(real|empirical|observed|experimental|field|clinical)\b",
+        re.I,
+    ),
+    PaperClassLabel.numerical_analysis: re.compile(
+        r"\b(simulat\w*|simulation study|simulated data|synthetic|benchmark|numerical "
+        r"experiment|toy example|toy model)\b",
+        re.I,
+    ),
+    PaperClassLabel.theoretical_analysis: re.compile(
+        r"\b(theorem|proposition|lemma|corollary|proof)\b", re.I
+    ),
+    PaperClassLabel.review: re.compile(r"\b(review|survey|tutorial|perspective|commentary)\b", re.I),
+}
+
+_THEORY_STATEMENT_RE = re.compile(r"\b(theorem|proposition|lemma|corollary)\b", re.I)
+_THEORY_PROOF_RE = re.compile(r"\bproof\b", re.I)
+
 
 def classify(
     parsed: ParsedDoc,
@@ -170,7 +329,7 @@ def classify(
 ) -> tuple[PaperClass, CostLedgerEntry]:
     """Classify the paper type from checklist facts."""
     model = model or llm_config.classify_model()
-    context = excerpt_context(parsed, max_chars=CLASSIFY_MAX_CHARS)
+    context = assessment_context(parsed, max_chars=config.classify_context_chars())
     user = _classify_user(context)
     response = call_with_policy(
         client,
@@ -190,13 +349,13 @@ def classify(
 
 
 def _classify_user(context: str) -> str:
-    return f"PAPER EXCERPTS (reference list excluded):\n{context}"
+    return f"PAPER CONTEXT (references excluded; supplements included when parsed):\n{context}"
 
 
 def _paper_class_from_facts(
     facts: ClassifierFacts, context: str, evidence: list[Evidence]
 ) -> PaperClass:
-    labels = _labels_from_facts(facts)
+    labels = _labels_from_facts(facts, context)
     software = _canonical_software(facts.software)
     methods = _methods_from_facts(facts, context, evidence, software)
 
@@ -212,14 +371,66 @@ def _paper_class_from_facts(
     )
 
 
-def _labels_from_facts(facts: ClassifierFacts) -> list[PaperClassLabel]:
-    labels: list[PaperClassLabel] = []
+def _labels_from_facts(facts: ClassifierFacts, context: str) -> list[PaperClassLabel]:
+    candidates: list[PaperClassLabel] = []
     for attr, label in _LABEL_FACTS:
-        if _yes(getattr(facts.paper_type, attr)):
-            labels.append(label)
+        fact = getattr(facts.paper_type, attr)
+        if _label_fact_survives(label, fact, context):
+            candidates.append(label)
+    labels = _prioritize_labels(candidates)
     if not labels:
-        _log.warning("classifier checklist returned no yes paper-type facts; using data_analysis")
+        _log.warning(
+            "classifier checklist returned no high-confidence paper-type facts; using data_analysis"
+        )
         labels.append(PaperClassLabel.data_analysis)
+    return labels
+
+
+def _label_fact_survives(
+    label: PaperClassLabel, fact: ClassifierFact, context: str
+) -> bool:
+    if not _yes(fact):
+        return False
+    if fact.confidence is not FactConfidence.high:
+        _log.warning("low-confidence classifier paper-type fact dropped: %s", label.value)
+        return False
+    if not _quote_in_text(fact.evidence, context) and not _label_quote_hit(label, fact.evidence):
+        _log.warning(
+            "classifier paper-type evidence lacked excerpt match or label cue (dropped): %s",
+            label.value,
+        )
+        return False
+    if label is PaperClassLabel.theoretical_analysis and not _has_proof_structure(
+        context, fact.evidence
+    ):
+        _log.warning(
+            "theoretical_analysis without theorem/proposition plus proof structure (dropped)"
+        )
+        return False
+    return True
+
+
+def _prioritize_labels(candidates: list[PaperClassLabel]) -> list[PaperClassLabel]:
+    candidates = _dedupe_ordered(candidates)
+    substantive = [label for label in candidates if label is not PaperClassLabel.review]
+    if substantive:
+        candidates = substantive
+    elif PaperClassLabel.review in candidates:
+        return [PaperClassLabel.review]
+
+    primary = _first_by_priority(candidates, _PRIMARY_LABEL_PRIORITY)
+    if primary is None:
+        return []
+    labels = [primary]
+    remaining = [label for label in candidates if label is not primary]
+    for label in _SECONDARY_LABEL_PRIORITY[primary]:
+        if label in remaining:
+            labels.append(label)
+            if len(labels) >= _MAX_PAPER_TYPE_LABELS:
+                break
+    dropped = [label.value for label in candidates if label not in labels]
+    if dropped:
+        _log.warning("extra classifier paper-type labels dropped by priority: %s", dropped)
     return labels
 
 
@@ -232,6 +443,7 @@ def _methods_from_facts(
     methods: list[InferenceMethod] = []
     ontology_methods = _software_implied_methods(software)
     ontology_method_set = set(ontology_methods)
+    context_methods = _context_implied_methods(context)
     for attr, method in _METHOD_FACTS:
         fact = getattr(facts.methods, attr, None)
         if fact is not None and _method_fact_survives(
@@ -239,6 +451,8 @@ def _methods_from_facts(
         ):
             _append_unique(methods, method)
     for method in ontology_methods:
+        _append_unique(methods, method)
+    for method in context_methods:
         _append_unique(methods, method)
     return methods
 
@@ -258,19 +472,44 @@ def _method_fact_survives(
             method.value,
         )
         return False
-    if fact.confidence is FactConfidence.high:
-        return True
     if method in ontology_methods:
         return True
     if _fact_detector_refs(fact, evidence, method=method):
         return True
     if _method_quote_hit(method, fact.evidence):
         return True
+    if fact.confidence is FactConfidence.high:
+        _log.warning(
+            "high-confidence classifier method fact without method cue (dropped): %s",
+            method.value,
+        )
+        return False
     _log.warning(
-        "low-confidence classifier method without deterministic support (dropped): %s",
+        "low-confidence classifier method fact without deterministic support (dropped): %s",
         method.value,
     )
     return False
+
+
+def _context_implied_methods(context: str) -> list[InferenceMethod]:
+    methods: list[InferenceMethod] = []
+    if _sbi_context_hit(context):
+        _log.warning("context ontology implied SBI")
+        methods.append(InferenceMethod.sbi)
+    return methods
+
+
+def _sbi_context_hit(context: str) -> bool:
+    inn_posterior_inverse = (
+        _INN_CONTEXT_RE.search(context) is not None
+        and _POSTERIOR_CONTEXT_RE.search(context) is not None
+        and _INVERSE_CONTEXT_RE.search(context) is not None
+    )
+    neural_sim_training = (
+        _NEURAL_INFERENCE_CONTEXT_RE.search(context) is not None
+        and _SIMULATOR_TRAINING_RE.search(context) is not None
+    )
+    return inn_posterior_inverse or neural_sim_training
 
 
 def _disciplines_from_facts(
@@ -343,13 +582,40 @@ def _yes(fact: ClassifierFact) -> bool:
 
 def _canonical_software(raw: list[str]) -> list[str]:
     out: list[str] = []
+    custom_languages: list[str] = []
     for item in raw:
         name = item.strip()
         if not name:
             continue
-        canonical = _SOFTWARE_CANONICAL.get(_software_key(name), name)
+        key = _software_key(name)
+        if key in _CUSTOM_LANGUAGE_KEYS:
+            _append_unique(custom_languages, _CUSTOM_LANGUAGE_KEYS[key])
+            _log.warning("programming language kept only as Custom qualifier: %s", name)
+            continue
+        if key in _NON_INFERENCE_SOFTWARE_KEYS:
+            _log.warning("programming language/general environment dropped from software: %s", name)
+            continue
+        canonical = _SOFTWARE_CANONICAL.get(key, name)
         _append_unique_ci(out, canonical)
-    return out
+    out = _qualify_custom_software(out, custom_languages)
+    return out or ["Custom"]
+
+
+def _qualify_custom_software(software: list[str], languages: list[str]) -> list[str]:
+    if not languages:
+        return software
+    qualified = f"Custom ({languages[0]})"
+    out: list[str] = []
+    replaced = False
+    for item in software:
+        if _software_key(item) == "custom":
+            _append_unique_ci(out, qualified)
+            replaced = True
+        else:
+            _append_unique_ci(out, item)
+    if replaced:
+        return out
+    return software
 
 
 def _software_implied_methods(software: list[str]) -> list[InferenceMethod]:
@@ -389,22 +655,89 @@ def _method_quote_hit(method: InferenceMethod, quote: str) -> bool:
     return pattern.search(quote) is not None if pattern is not None else False
 
 
+def _label_quote_hit(label: PaperClassLabel, quote: str) -> bool:
+    pattern = _LABEL_QUOTE_PATTERNS.get(label)
+    return pattern.search(quote) is not None if pattern is not None else False
+
+
+def _has_proof_structure(context: str, quote: str) -> bool:
+    search_text = f"{quote}\n{context}"
+    return _THEORY_STATEMENT_RE.search(search_text) is not None and (
+        _THEORY_PROOF_RE.search(search_text) is not None
+    )
+
+
+def _first_by_priority(
+    candidates: list[PaperClassLabel],
+    priority: tuple[PaperClassLabel, ...],
+) -> PaperClassLabel | None:
+    candidate_set = set(candidates)
+    for label in priority:
+        if label in candidate_set:
+            return label
+    return None
+
+
 def _software_key(name: str) -> str:
     return re.sub(r"[^a-z0-9]", "", name.lower())
 
 
 def _quote_in_text(quote: str, text: str) -> bool:
-    norm_quote = _norm_space(quote)
-    return bool(norm_quote and norm_quote in _norm_space(text))
+    norm_quote = _norm_match_text(quote)
+    norm_text = _norm_match_text(text)
+    if not norm_quote:
+        return False
+    if norm_quote in norm_text:
+        return True
+    words = _content_words(norm_quote)
+    if len(words) < 6:
+        return False
+    present = sum(1 for word in set(words) if word in norm_text)
+    return present / len(set(words)) >= 0.8
 
 
 def _norm_space(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _norm_match_text(text: str) -> str:
+    text = text.lower()
+    text = text.replace("“", '"').replace("”", '"').replace("’", "'")
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return _norm_space(text)
+
+
+def _content_words(text: str) -> list[str]:
+    stop = {
+        "that",
+        "this",
+        "with",
+        "from",
+        "into",
+        "have",
+        "been",
+        "were",
+        "using",
+        "used",
+        "paper",
+        "study",
+        "method",
+        "model",
+        "data",
+    }
+    return [word for word in text.split() if len(word) >= 4 and word not in stop]
+
+
 def _append_unique(items: list[_T], item: _T) -> None:
     if item not in items:
         items.append(item)
+
+
+def _dedupe_ordered(items: list[_T]) -> list[_T]:
+    out: list[_T] = []
+    for item in items:
+        _append_unique(out, item)
+    return out
 
 
 def _append_unique_ci(items: list[str], item: str) -> None:

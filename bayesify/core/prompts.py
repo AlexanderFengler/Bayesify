@@ -35,86 +35,6 @@ reference list for this reason.
 "partial" — wrongly discarding a Bayesian paper is the worse error.
 """
 
-
-# Kept only so old prompt diffs remain inspectable. Active classifier imports
-# CLASSIFY_FACTS_SYSTEM; CLASSIFY_SYSTEM is aliased to it below.
-CLASSIFY_LEGACY_SYSTEM = """You are the paper-type classifier for Bayesify. The paper has already been \
-judged to use Bayesian methodology; now assign its paper-type label set, which drives which workflow \
-steps apply.
-
-Every gradeable paper has a PRIMARY type — always assign it (an empirical study is data_analysis; a \
-methods paper is method_development; and so on), so `labels` is never empty. Then add further labels \
-only for genuine ADDITIONAL central contributions — never for a peripheral mention, a tool merely \
-used, a motivating example, or an illustration. Most papers carry one or two labels; three is \
-uncommon. Return them in the `labels` list:
-- "model_development": proposes or substantially extends a Bayesian statistical MODEL for a \
-phenomenon — a new likelihood or hierarchical structure, together with the model-specific prior \
-choices that go with it.
-- "method_development": proposes or studies a Bayesian inference PROCEDURE — a sampler, algorithm, \
-variational scheme, diagnostic, workflow step, or validation method — OR a fundamentally new, \
-generally-applicable prior.
-- "software_development": introduces or substantially extends a Bayesian software tool, package, or \
-computational infrastructure. Merely USING existing software (implementing your model in Stan / PyMC \
-/ brms) is NOT software_development.
-- "data_analysis": fits Bayesian model(s) to real observed data to draw substantive domain \
-conclusions of its own. Assign this ONLY when a reported real-data analysis that reaches domain \
-conclusions is a genuine contribution of the paper — NOT for a brief applied example, a motivating \
-illustration, or a peripheral real-data mention in a method/model/software paper. A substantive \
-secondary analysis still counts; a passing demonstration does not.
-- "numerical_analysis": evaluates Bayesian models/methods on simulated data, benchmark data, \
-or controlled numerical experiments.
-- "theoretical_analysis": presents mathematical, theoretical, identifiability, asymptotic, or \
-formal analysis of Bayesian methods/models.
-- "review": a review, opinion, perspective, tutorial, or commentary that DISCUSSES Bayesian/statistical \
-methodology or workflow without carrying out an original analysis of its own that could be graded \
-step by step. Choose this alone when the contribution is discussion/synthesis rather than an \
-applied, theoretical, software, model-development, or method-development contribution — the \
-per-step workflow rubric does not apply to review-only papers.
-
-Boundaries — the common confusions:
-- Applying, fitting, or USING an existing model or method to analyse data — even a hierarchical or \
-custom-coded one, with bespoke priors — is data_analysis, NOT model_/method_/software_development. \
-Reserve the development labels for papers whose contribution IS the new model, method, or software.
-- A new statistical model for a phenomenon (a new likelihood or hierarchical structure, with its \
-model-specific prior choices) is model_development. A new inference procedure — sampler, variational \
-scheme, diagnostic, workflow, or validation method — OR a fundamentally new, generally-applicable \
-prior is method_development. (A different-but-standard prior chosen for a specific model is just part \
-of that model, not a separate contribution.)
-
-Multi-label examples (each label names a central contribution):
-- A new hierarchical model for a phenomenon, applied to real data: ["model_development", "data_analysis"].
-- A new inference algorithm with simulation benchmarks: ["method_development", "numerical_analysis"].
-- A package with a new algorithm, examples, and data analysis: ["software_development", "method_development", "data_analysis"].
-
-Do not add labels to hedge or to be comprehensive. Beyond the primary type, every returned label must \
-name a genuine additional central contribution, supported by evidence — when unsure about a further \
-label, leave it out. Always return at least the primary type.
-
-Also assign `disciplines`: the scientific field(s) the paper belongs to, as a multi-label list \
-(a methodological paper spanning fields carries several). Prefer these terms, but add a more precise \
-one if none fit: psychology, neuroscience, cognitive-science, ecology, biology, medicine, \
-epidemiology, economics, political-science, sociology, education, machine-learning, statistics, \
-physics, astronomy, chemistry, genetics, engineering. Use lower-case, hyphenated terms. A purely \
-methodological/statistical paper with no applied domain may be just ["statistics"] or \
-["machine-learning"].
-
-Also assign `methods_used`: the Bayesian computation method(s) the paper's OWN analysis actually \
-USES, chosen only from: mcmc, variational, sbi \
-(simulation-based / neural inference), smc (sequential Monte Carlo / particle filters), abc \
-(approximate Bayesian computation), laplace_inla (Laplace approximation / INLA), em, exact_analytic \
-(conjugate / closed-form). Include a method ONLY if \
-the paper uses it for its OWN inference — do NOT include methods named merely as alternatives, \
-baselines, related work, or future directions. If none is stated, return an empty list.
-
-You are given paper excerpts and indexed DETECTOR HITS. Rules:
-- evidence_refs MUST cite at least one detector-hit index supporting the selected labels.
-- confidence in [0,1] applies to the selected label set.
-- rationale must state, briefly, why EACH selected label is a central contribution (not merely present).
-- disciplines: 1-3 fields, most specific first; never leave it empty.
-- methods_used: only methods the paper actually uses (never mentioned-but-unused); may be empty.
-"""
-
-
 CLASSIFY_FACTS_SYSTEM = """You classify factual features of Bayesian papers.
 
 The paper has already passed a Bayesian relevance screen. Answer only the fixed questions below.
@@ -129,7 +49,7 @@ Return valid JSON only, with exactly this structure:
   "develops_new_bayesian_model": Fact,
   "develops_new_bayesian_method": Fact,
   "develops_new_bayesian_software": Fact,
-  "uses_bayesian_model_on_real_data_for_domain_conclusions": Fact,
+  "uses_bayesian_model_on_real_data": Fact,
   "runs_numerical_or_simulation_study": Fact,
   "investigates_theoretical_behavior": Fact,
   "is_review_tutorial_or_commentary": Fact
@@ -168,6 +88,8 @@ Use an empty evidence string for "no":
 
 * Answer "yes" only when supported by the paper excerpts.
 * Evidence must be an exact quote supporting the answer.
+* For paper type, use "high" confidence only when the fact is a central contribution of the paper.
+* Most papers have one or two paper-type "yes" answers. Three or four are valid when every selected type is a central contribution, such as a new model, a new method, simulation validation, and a real-data analysis. Use "low" confidence for secondary examples, demonstrations, or ambiguous contributions.
 * Count methods and software used in the paper's analyses, experiments, simulations, benchmarks, or reported baselines.
 * Do not count related work, motivation, future work, or methods merely listed as alternatives.
 * When evidence is incomplete or ambiguous, use "low" confidence.
@@ -175,13 +97,13 @@ Use an empty evidence string for "no":
 
 ## Paper type
 
-* `develops_new_bayesian_model`: Introduces or substantially extends a Bayesian model, latent process, or prior.
-* `develops_new_bayesian_method`: Introduces or substantially studies a Bayesian inference algorithm, diagnostic, validation method, model-checking workflow, or general-purpose prior.
-* `develops_new_bayesian_software`: Introduces or substantially extends Bayesian software, creates a new package or a new library.
-* `uses_bayesian_model_on_real_data_for_domain_conclusions`: Fits a Bayesian model to observed real-world data and draws substantive domain conclusions. A small demonstration is insufficient.
-* `runs_numerical_or_simulation_study`: Evaluates Bayesian models or methods using simulated, synthetic, benchmark, or controlled computational data.
-* `investigates_theoretical_behavior`: Studies formal properties such as identifiability, consistency, convergence, asymptotics, or mathematical behavior.
-* `is_review_tutorial_or_commentary`: Is primarily a review, tutorial, survey, perspective, opinion, or commentary.
+* `develops_new_bayesian_model`: The central contribution is a new or substantially extended Bayesian model, latent process, likelihood, or prior.
+* `develops_new_bayesian_method`: The central contribution is a new or substantially studied Bayesian inference algorithm, diagnostic, validation method, model-checking workflow, or general-purpose prior.
+* `develops_new_bayesian_software`: The central contribution is a Bayesian software package, library, or computational infrastructure. Implementation details alone are not enough.
+* `uses_bayesian_model_on_real_data`: The paper centrally fits a Bayesian model to observed real-world data and draws substantive domain conclusions. A demonstration or motivating example is low confidence.
+* `runs_numerical_or_simulation_study`: The paper centrally evaluates Bayesian models or methods using simulations, simulated data, synthetic data, benchmark data, numerical experiments, or fitting the model/method to simulator-generated data.
+* `investigates_theoretical_behavior`: The paper contains formal theorem/proposition/lemma-style analysis with proofs. Informal discussion of properties, intuition, or limitations is low confidence.
+* `is_review_tutorial_or_commentary`: The paper is primarily a review, tutorial, survey, perspective, opinion, or commentary. Use this as the only high-confidence paper type when there is no original model, method, software, data, numerical, or theoretical contribution.
 
 ## Methods
 
@@ -204,10 +126,10 @@ SBI includes:
 * neural likelihood estimation, NLE, SNL;
 * neural ratio estimation, NRE, SNRE;
 * amortized Bayesian inference;
-* likelihood-free inference with neural estimators;
+* likelihood-free inference with neural networks / deep learning;
 * neural posterior, likelihood, ratio, or score estimation;
 * normalizing-flow posterior or likelihood estimators trained on simulations;
-* invertible neural networks for posterior (inverse) inference;
+* invertible neural networks for inverse problems when they infer posterior distributions, parameter distributions, or distributions over parameter space;
 
 Do not classify a method as SBI merely because it uses ABC without a trained neural inference estimator.
 
@@ -218,8 +140,13 @@ Return all software actually used in an analysis, experiment, numerical study, o
 * BayesFlow, `sbi`, NeuralEstimators.jl, or similar neural-inference packages imply `uses_sbi = yes`.
 * pyABC implies `uses_abc = yes`.
 * Explicit HMC or NUTS use implies `uses_mcmc = yes`.
-* Stan, PyMC, brms, rstanarm, JAGS, BUGS, Turing.jl, NumPyro, TensorFlow Probability, HDDM, or HSSM normally imply `uses_mcmc = yes`, unless the excerpt explicitly identifies another inference method.
-* When the paper uses unnamed custom code, include `"Custom"`.
+* Stan, PyMC, Bambi, brms, rstanarm, JAGS, BUGS, Turing.jl, NumPyro, BlackJAX, TensorFlow Probability, HDDM, or HSSM normally imply `uses_mcmc = yes`, unless the excerpt explicitly identifies another inference method.
+* Packages/libraries used in model fitting, simulation, posterior estimation, or reported baselines count as software, including `mcp` and scikit-learn when used in the analysis.
+* Pyro is software. It implies the method named in context, such as MCMC/NUTS/HMC or variational inference/SVI.
+* If the excerpt says a sampler, model, experiment, or analysis used settings or defaults in a named package such as BlackJAX or Pyro, return that package as software used.
+* Include `"Custom"` only when the excerpts explicitly say the analysis used custom code or a custom implementation. If a language is named for that custom code, return it only as a qualifier, e.g. `"Custom (Python)"` or `"Custom (R)"`.
+* Return packages/libraries/frameworks, not programming languages or general environments. Exclude standalone `R`, Python, Julia, MATLAB, RStudio, operating systems, shells, and generic language/runtime mentions.
+* If no named package/library/framework is specified for the analysis, return `"Custom"` so the software list is never empty.
 * Do not include software mentioned only in citations, related work, installation instructions, or unexecuted comparisons.
 * Use the software's canonical name and return each name only once.
 

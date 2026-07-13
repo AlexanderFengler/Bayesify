@@ -1,12 +1,13 @@
 """Shared LLM context builders for cheap-model stages.
 
-Current classifier note: classify consumes ``excerpt_context`` directly and does not receive
-detector ids. ``build_user`` is the screen-gate message.
+The screen gate uses ``build_user``: paper excerpts plus indexed detector hits it can cite through
+``evidence_refs``. The checklist classifier consumes ``assessment_context`` directly: wider
+non-reference paper text, no detector ids.
 
-Both stages show the model the same bounded view (d-screen-classify.md): abstract + body + captions
+The screen excerpt shows the bounded view (d-screen-classify.md): abstract + body + captions
 (references and supplements excluded — A3), plus a digest of the deterministic detector
 ``Evidence[]`` with stable indices the model must cite via ``evidence_refs``. Centralised here so
-the two stages stay byte-identical in what they show and so the token budget lives in one place.
+the screen grounding rules and token budget live in one place.
 """
 
 from __future__ import annotations

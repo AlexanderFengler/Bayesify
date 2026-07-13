@@ -27,6 +27,8 @@ Catalog version: **0.1.0** (all detectors at this revision).
 | `software.bugs` | 0.1.0 | `BUGS`, `WinBUGS`, `OpenBUGS` | sensitive | excludes "debugs", "bugs" |
 | `software.hddm` | 0.1.0 | `HDDM` | insensitive | the package is lower-case in code |
 | `software.turing` | 0.1.0 | `Turing.jl` | insensitive | requires `.jl` (bare "Turing" too generic) |
+| `software.blackjax` | 0.1.0 | `BlackJAX` | insensitive | JAX samplers, often NUTS/HMC |
+| `software.pyro` | 0.1.0 | `Pyro` | insensitive | PyTorch probabilistic programming library |
 
 ## method — emits `method_mention` (the d-screen relevance floor keys on these)
 
