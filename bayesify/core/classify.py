@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import TypeVar
 
 from bayesify.core import config
 from bayesify.core.context import assessment_context, validate_evidence_refs
@@ -29,7 +28,6 @@ from bayesify.llm import LLMClient, call_with_policy, ledger_entry
 from bayesify.llm import config as llm_config
 
 _log = logging.getLogger("bayesify.core.classify")
-_T = TypeVar("_T")
 
 _LABEL_FACTS: tuple[tuple[str, PaperClassLabel], ...] = (
     ("develops_new_bayesian_model", PaperClassLabel.model_development),
@@ -256,7 +254,10 @@ _METHOD_QUOTE_PATTERNS: dict[InferenceMethod, re.Pattern[str]] = {
         re.I,
     ),
     InferenceMethod.laplace_inla: re.compile(r"\b(laplace approximation|inla)\b", re.I),
-    InferenceMethod.em: re.compile(r"\b(expectation[- ]maximization|em algorithm|em-style)\b", re.I),
+    InferenceMethod.em: re.compile(
+        r"\b(expectation[- ]maximization|em algorithm|em-style)\b",
+        re.I,
+    ),
     InferenceMethod.exact_analytic: re.compile(
         r"\b(conjugate|closed[- ]form|analytic posterior|exact posterior|analytic updating)\b",
         re.I,
@@ -313,7 +314,10 @@ _LABEL_QUOTE_PATTERNS: dict[PaperClassLabel, re.Pattern[str]] = {
     PaperClassLabel.theoretical_analysis: re.compile(
         r"\b(theorem|proposition|lemma|corollary|proof)\b", re.I
     ),
-    PaperClassLabel.review: re.compile(r"\b(review|survey|tutorial|perspective|commentary)\b", re.I),
+    PaperClassLabel.review: re.compile(
+        r"\b(review|survey|tutorial|perspective|commentary)\b",
+        re.I,
+    ),
 }
 
 _THEORY_STATEMENT_RE = re.compile(r"\b(theorem|proposition|lemma|corollary)\b", re.I)
@@ -728,13 +732,13 @@ def _content_words(text: str) -> list[str]:
     return [word for word in text.split() if len(word) >= 4 and word not in stop]
 
 
-def _append_unique(items: list[_T], item: _T) -> None:
+def _append_unique[T](items: list[T], item: T) -> None:
     if item not in items:
         items.append(item)
 
 
-def _dedupe_ordered(items: list[_T]) -> list[_T]:
-    out: list[_T] = []
+def _dedupe_ordered[T](items: list[T]) -> list[T]:
+    out: list[T] = []
     for item in items:
         _append_unique(out, item)
     return out
