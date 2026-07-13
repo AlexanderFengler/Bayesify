@@ -94,6 +94,12 @@ function sortValue(p: ArchivePaper, key: SortKey): number | null {
 // own reservation is done in em (see ArchiveTitle) so it's exact; this just needs to be close.
 const TITLE_BLOCK_HEIGHT = "3.125rem";
 
+// The score block in the card header is a fixed narrow width with a constant font size (see
+// ScoreBadge) — wide enough for a three-digit "100" and the "Bayesify" label. Fixing the width (rather
+// than deriving it from the header height as a square) keeps the number the same size whether the title
+// is collapsed or expanded; only the block's height changes.
+const SCORE_BLOCK_WIDTH = 70;
+
 // The categorical-tag chip style, kept in sync with the report page's meta chips (solid, roomy) so a
 // tag looks the same on both pages. Color + filled/outlined variant are set per chip by the caller.
 const TAG_CHIP_SX = {
@@ -436,45 +442,31 @@ function EmptyState({ hasArchive }: { hasArchive: boolean }) {
   );
 }
 
-// Quality bands for the score medallion — reuse the app's signifier hues (the same green/amber/red
-// language the report uses for step status), so a card's color reads as "how well did it do".
-function scoreBand(theme: Theme, q: number): { fg: string; soft: string } {
+// Quality bands for the score number — the app's green/amber/red signifier language ("how well did it
+// do"). Light mode reuses the shared step-status tokens; dark mode uses brighter, more saturated
+// variants so the big number pops against the dark purple aurora rather than sitting on the token hues
+// tuned for smaller step chips.
+function scoreColor(theme: Theme, q: number): string {
   const t = theme.tokens;
-  if (q >= 0.6) return { fg: t.green, soft: t.greenSoft };
-  if (q >= 0.4) return { fg: t.amber, soft: t.amberSoft };
-  return { fg: t.red, soft: t.redSoft };
+  const dark = theme.palette.mode === "dark";
+  if (q >= 0.6) return dark ? "#5ff58a" : t.green;
+  if (q >= 0.4) return dark ? "#fcd34d" : t.amber;
+  return dark ? "#ff8a8a" : t.red;
 }
 
 // The score in the card header: a two-line "Bayesify / Score" label, right-aligned against the big
 // band-colored number to its right (which spans both label lines). Falls back to a neutral "—" for
-// papers without a quality score (e.g. Human ratings that were never graded).
+// papers without a quality score (e.g. Human ratings that were never graded). The block is a fixed
+// narrow width (SCORE_BLOCK_WIDTH) with a constant font size; it stretches to the header row's height,
+// so expanding the title only makes it taller (pushing the label to the bottom) — the number never
+// scales up with the title.
 function ScoreBadge({ p }: { p: ArchivePaper }) {
   const theme = useTheme();
   const q = p.quality_score;
-  const band = q != null ? scoreBand(theme, q) : null;
+  const color = q != null ? scoreColor(theme, q) : null;
 
-  // The block still stretches to the header row's height (the height the vertical divider spans); we
-  // measure that height and set the width equal to it, so it's a perfect square. Number + label sizes
-  // are then derived from that side (proportions chosen so a three-digit "100" fits within the square).
-  // A CSS-only aspect-ratio can't do this: on a stretched flex item it collapses the width to zero.
-  const ref = useRef<HTMLDivElement>(null);
-  const [side, setSide] = useState(0);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    // width is content-driven until we know the height, so read height only and never feed width back
-    const measure = () => setSide((prev) => (Math.abs(prev - el.offsetHeight) > 0.5 ? el.offsetHeight : prev));
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  const numSize = side ? side * 0.44 : undefined;
-  const labelSize = side ? Math.min(11.5, Math.max(8, side * 0.16)) : undefined;
   const labelSx = {
     ...LABEL_FONT,
-    ...(labelSize != null && { fontSize: `${labelSize}px` }),
     display: "block",
     lineHeight: 1.2,
     color: "text.secondary",
@@ -482,26 +474,29 @@ function ScoreBadge({ p }: { p: ArchivePaper }) {
 
   return (
     <Box
-      ref={ref}
       sx={{
         flexShrink: 0,
         alignSelf: "stretch",
-        width: side || "auto",
-        overflow: "hidden",
+        width: SCORE_BLOCK_WIDTH,
+        // a little breathing room between the divider and the score block, on top of the header gap
+        ml: { md: 0.5 },
         display: "flex",
         flexDirection: "column",
         alignItems: "flex-end",
-        justifyContent: "space-between",
+        // anchor the number + label to the top so they hold their position when the title expands and
+        // the block grows taller; the extra height opens up as empty space below the label
+        justifyContent: "flex-start",
+        gap: 1,
         textAlign: "right",
       }}
     >
       <Typography
         sx={{
-          fontSize: numSize != null ? `${numSize}px` : "2.5rem",
+          fontSize: "2.25rem",
           fontWeight: 700,
           lineHeight: 1,
           fontVariantNumeric: "tabular-nums",
-          color: band ? band.fg : "text.disabled",
+          color: color ?? "text.disabled",
         }}
       >
         {q == null ? "—" : Math.round(q * 100)}
@@ -547,7 +542,7 @@ function ArchiveTitle({ p }: { p: ArchivePaper }) {
         sx={{
           flex: 1,
           minWidth: 0,
-          fontWeight: 700,
+          fontWeight: 600,
           lineHeight: 1.25,
           // always reserve exactly two lines so short titles don't make shorter cards. In em (2 lines ×
           // the 1.25 line-height) so it tracks the real rendered line height rather than assuming a
