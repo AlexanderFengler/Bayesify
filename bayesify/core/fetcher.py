@@ -86,32 +86,34 @@ class Fetcher:
     # --- providers --------------------------------------------------------------------------------
 
     def _fetch_arxiv(self, parsed: ParsedIdentifier) -> FetchedSource:
-        response = self._get(self.ARXIV_API, params={"id_list": parsed.value, "max_results": 1})
+        try:
+            response = self._get(self.ARXIV_API, params={"id_list": parsed.value, "max_results": 1})
+        except FetchFailedError:
+            return self._fetch_arxiv_pdf_without_metadata(parsed)
         if response.status_code >= 400:
-            raise FetchFailedError(
-                f"{response.status_code} from arXiv API",
-                user_message="arXiv returned an error while looking up the paper.",
+            return self._fetch_arxiv_pdf_without_metadata(
+                parsed, reason=f"{response.status_code} from arXiv API"
             )
         try:
             root = ET.fromstring(response.text)
         except ParseError as exc:
             content_type = response.headers.get("content-type", "unknown")
             preview = response.text[:200].replace("\n", " ").replace("\r", " ")
-            raise FetchFailedError(
-                "non-XML response from arXiv API; "
-                f"content-type={content_type}; preview={preview!r}",
-                user_message=(
-                    "arXiv did not return metadata for this request. Try uploading the PDF, or "
-                    "try the arXiv URL again later."
+            return self._fetch_arxiv_pdf_without_metadata(
+                parsed,
+                reason=(
+                    "non-XML response from arXiv API; "
+                    f"content-type={content_type}; preview={preview!r}"
                 ),
-            ) from exc
+                cause=exc,
+            )
         if root.tag != "{http://www.w3.org/2005/Atom}feed":
             preview = response.text[:200].replace("\n", " ").replace("\r", " ")
-            raise FetchFailedError(
-                f"unexpected response from arXiv API; root={root.tag!r}; preview={preview!r}",
-                user_message=(
-                    "arXiv did not return metadata for this request. Try uploading the PDF, or "
-                    "try the arXiv URL again later."
+            return self._fetch_arxiv_pdf_without_metadata(
+                parsed,
+                reason=(
+                    "unexpected response from arXiv API; "
+                    f"root={root.tag!r}; preview={preview!r}"
                 ),
             )
         entry = root.find("atom:entry", _ARXIV_NS)
@@ -140,6 +142,33 @@ class Fetcher:
             title=title,
             authors=authors,
             year=year,
+        )
+
+    def _fetch_arxiv_pdf_without_metadata(
+        self,
+        parsed: ParsedIdentifier,
+        *,
+        reason: str = "arXiv API metadata lookup failed",
+        cause: Exception | None = None,
+    ) -> FetchedSource:
+        version = parsed.version_hint or ""
+        try:
+            data = self._download(f"{self.ARXIV_PDF}/{parsed.value}{version}")
+        except (FetchFailedError, IdNotFoundError, NotAPdfError) as exc:
+            raise FetchFailedError(
+                f"{reason}; direct PDF fallback failed: {exc}",
+                user_message=(
+                    "arXiv returned an error while looking up the paper, and the direct PDF "
+                    "fallback did not work. Try uploading the PDF, or try the arXiv URL again "
+                    "later."
+                ),
+            ) from (cause or exc)
+        return self._store(
+            data,
+            ids=s.PaperIds(arxiv_id=parsed.value),
+            version_label=f"arXiv {version or 'latest'}",
+            source="arxiv",
+            license=None,
         )
 
     def _fetch_doi_or_openalex(self, parsed: ParsedIdentifier) -> FetchedSource:

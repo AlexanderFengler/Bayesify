@@ -127,8 +127,9 @@ def test_arxiv_non_xml_response_is_fetch_error(tmp_path: Path) -> None:
     fetcher = Fetcher(httpx.Client(transport=httpx.MockTransport(handler)), BlobStore(tmp_path))
     with pytest.raises(FetchFailedError) as exc:
         fetcher.fetch(parse_input("2011.01808"))
-    assert "unexpected response from arXiv API" in str(exc.value)
-    assert "arXiv did not return metadata" in exc.value.user_message
+    assert "non-XML response from arXiv API" in str(exc.value)
+    assert "direct PDF fallback failed" in str(exc.value)
+    assert "direct PDF fallback did not work" in exc.value.user_message
 
 
 def test_arxiv_http_error_is_fetch_error(tmp_path: Path) -> None:
@@ -141,6 +142,25 @@ def test_arxiv_http_error_is_fetch_error(tmp_path: Path) -> None:
     with pytest.raises(FetchFailedError) as exc:
         fetcher.fetch(parse_input("2011.01808"))
     assert "503 from arXiv API" in str(exc.value)
+    assert "direct PDF fallback failed" in str(exc.value)
+
+
+def test_arxiv_api_error_falls_back_to_direct_pdf(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        if "/api/query" in url:
+            return httpx.Response(503, text="temporarily unavailable")
+        if "arxiv.org/pdf/" in url:
+            return httpx.Response(200, content=PDF)
+        return httpx.Response(404)
+
+    fetcher = Fetcher(httpx.Client(transport=httpx.MockTransport(handler)), BlobStore(tmp_path))
+    fs = fetcher.fetch(parse_input("2003.06281"))
+
+    assert fs.source_doc.source == "arxiv"
+    assert fs.source_doc.ids.arxiv_id == "2003.06281"
+    assert fs.source_doc.version_label == "arXiv latest"
+    assert fetcher._blobs.exists(fs.source_doc.sha256)
 
 
 def test_doi_resolved_via_openalex(fetcher: Fetcher) -> None:
