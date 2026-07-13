@@ -360,7 +360,14 @@ def _paper_class_from_facts(
     facts: ClassifierFacts, context: str, evidence: list[Evidence]
 ) -> PaperClass:
     labels = _labels_from_facts(facts, context)
-    software = _canonical_software(facts.software)
+    # Review-only / theoretical-only papers run no analysis, so an empty software list is honest
+    # there; every computational label keeps the never-empty rule (no Bayesian analysis without
+    # software).
+    non_computational = set(labels) <= {
+        PaperClassLabel.review,
+        PaperClassLabel.theoretical_analysis,
+    }
+    software = _canonical_software(facts.software, allow_empty=non_computational)
     methods = _methods_from_facts(facts, context, evidence, software)
 
     disciplines = _disciplines_from_facts(facts, labels, methods)
@@ -584,7 +591,7 @@ def _yes(fact: ClassifierFact) -> bool:
     return fact.answer is FactAnswer.yes
 
 
-def _canonical_software(raw: list[str]) -> list[str]:
+def _canonical_software(raw: list[str], *, allow_empty: bool = False) -> list[str]:
     out: list[str] = []
     custom_languages: list[str] = []
     for item in raw:
@@ -602,6 +609,8 @@ def _canonical_software(raw: list[str]) -> list[str]:
         canonical = _SOFTWARE_CANONICAL.get(key, name)
         _append_unique_ci(out, canonical)
     out = _qualify_custom_software(out, custom_languages)
+    if not out and allow_empty:
+        return []  # review/theoretical-only papers run no analysis; never fabricate "Custom"
     return out or ["Custom"]
 
 
