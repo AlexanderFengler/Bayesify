@@ -1149,10 +1149,10 @@ def test_local_upload_rejects_non_pdf(tmp_path, monkeypatch) -> None:
 def _full_fake(
     relevance: str = "yes", judge_status: str = "adequate", paper_class: str = "data_analysis"
 ):
-    """A schema-aware fake for the whole full pipeline: Relevance for screen, PaperClass for
-    classify, StepJudgment / BatchAssessJudgments for assess judge calls, RefuterVerdict /
-    BatchRefuterVerdicts for refuters (per-step vs batch strategy). Records the schema name of
-    every call so tests can assert what ran."""
+    """A schema-aware fake for the whole full pipeline: Relevance for screen, ClassifierFacts for
+    the checklist classifier, StepJudgment / BatchAssessJudgments for assess judge calls,
+    RefuterVerdict / BatchRefuterVerdicts for refuters (per-step vs batch strategy). Records the
+    schema name of every call so tests can assert what ran."""
     import re
 
     from bayesify.core.assess import RefuterVerdict, StepJudgment
@@ -1163,8 +1163,41 @@ def _full_fake(
         BatchStepJudgment,
     )
     from bayesify.core.extract import PaperMetadata
-    from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+    from bayesify.core.schema import (
+        ClassifierFacts,
+        ClassifierMethodFacts,
+        ClassifierPaperTypeFacts,
+        Relevance,
+        RelevanceLabel,
+    )
     from bayesify.llm import LLMResponse
+
+    # One high-confidence checklist "yes" whose quote carries the label's cue words, so the
+    # deterministic mapper yields exactly [paper_class] regardless of the fixture text; Stan in the
+    # software list keeps methods realistic via the ontology (Stan -> mcmc).
+    _CUES = {
+        "model_development": ("develops_new_bayesian_model", "we propose a new hierarchical model"),
+        "method_development": (
+            "develops_new_bayesian_method",
+            "we introduce a new inference method",
+        ),
+        "software_development": ("develops_new_bayesian_software", "we release a software package"),
+        "data_analysis": ("uses_bayesian_model_on_real_data", "we fit the model to real data"),
+        "numerical_analysis": ("runs_numerical_or_simulation_study", "we run a simulation study"),
+        "theoretical_analysis": (
+            "investigates_theoretical_behavior",
+            "we state a theorem and give a proof",
+        ),
+        "review": ("is_review_tutorial_or_commentary", "a review of Bayesian workflow practice"),
+    }
+
+    def _classifier_facts() -> ClassifierFacts:
+        field, quote = _CUES[paper_class]
+        no = {"answer": "no", "confidence": "low", "evidence": ""}
+        pt = {name: dict(no) for name in ClassifierPaperTypeFacts.model_fields}
+        pt[field] = {"answer": "yes", "confidence": "high", "evidence": quote}
+        me = {name: dict(no) for name in ClassifierMethodFacts.model_fields}
+        return ClassifierFacts(paper_type=pt, methods=me, software=["Stan"], disciplines=[])
 
     class _F:
         def __init__(self) -> None:
@@ -1180,13 +1213,8 @@ def _full_fake(
                     rationale="b",
                     evidence_refs=refs,
                 )
-            elif schema.__name__ == "PaperClass":
-                p = PaperClass(
-                    labels=[PaperClassLabel(paper_class)],
-                    confidence=0.8,
-                    rationale="r",
-                    evidence_refs=[0],
-                )
+            elif schema.__name__ == "ClassifierFacts":
+                p = _classifier_facts()
             elif schema.__name__ == "PaperMetadata":
                 p = PaperMetadata(title="Extracted Title")
             elif schema.__name__ == "StepJudgment":
@@ -1303,7 +1331,7 @@ def test_rerun_escape_hatch_grades_a_short_circuited_paper(tmp_path, monkeypatch
     assert r.paper_class is not None  # classify ran even though the gate had said 'no'
     assert len(r.step_assessments) == 10  # fully graded, not short-circuited
     assert r.coverage is not None and r.quality_score is not None
-    assert "Relevance" in fake.calls and "PaperClass" in fake.calls  # screen + forced classify
+    assert "Relevance" in fake.calls and "ClassifierFacts" in fake.calls  # screen + forced classify
 
 
 def test_grading_under_gelman_uses_the_gelman_rubric(tmp_path, monkeypatch) -> None:

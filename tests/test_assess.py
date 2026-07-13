@@ -92,7 +92,9 @@ def test_gate_facts_from_evidence() -> None:
         _ev("method.bayes_factor", EvidenceKind.method_mention, "Bayes factor of 12"),
     ]
     gf = derive_gate_facts(ev, _EMPIRICAL)
-    assert gf.inference_method is InferenceMethod.hmc_nuts
+    # The checklist redesign collapses NUTS/HMC into generic mcmc (no quote sniffing, no
+    # hmc_nuts checklist fact); the gates only need sampling-vs-analytic.
+    assert gf.inference_method is InferenceMethod.mcmc
     assert gf.prior_informativeness is PriorInformativeness.weakly_informative
     assert gf.bf_claimed is True
 
@@ -113,7 +115,7 @@ def test_analytic_mention_does_not_override_sampling() -> None:
         _ev("diag.rhat", EvidenceKind.diagnostic_value, "all R-hat < 1.01"),
     ]
     gf = derive_gate_facts(ev, _EMPIRICAL)
-    assert gf.inference_method is InferenceMethod.hmc_nuts  # sampling wins, not analytic
+    assert gf.inference_method is InferenceMethod.mcmc  # sampling wins, not analytic
     s4 = next(s for s in _RUBRIC.steps if s.id == "S4")  # and S4 stays applicable (not gated N/A)
     assert step_applicability(s4, PaperClassLabel.data_analysis, gf).applicable
 

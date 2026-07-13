@@ -17,7 +17,9 @@ from bayesify.core import classify as C
 from bayesify.core import screen as S
 from bayesify.core.detectors import run_detectors
 from bayesify.core.schema import (
-    PaperClass,
+    ClassifierFacts,
+    ClassifierMethodFacts,
+    ClassifierPaperTypeFacts,
     PaperClassLabel,
     ParsedDoc,
     Relevance,
@@ -78,6 +80,33 @@ def test_screen_preserves_correct_label(case: dict) -> None:
     assert entry.stage == "screen"
 
 
+# One high-confidence "yes" per expected label whose quote carries that label's cue words, so the
+# deterministic mapper keeps it regardless of the fixture text (theoretical also satisfies the
+# theorem+proof structure check via its quote).
+_LABEL_FACT_CUES: dict[str, tuple[str, str]] = {
+    "model_development": ("develops_new_bayesian_model", "we propose a new hierarchical model"),
+    "method_development": ("develops_new_bayesian_method", "we introduce a new inference method"),
+    "software_development": ("develops_new_bayesian_software", "we release a software package"),
+    "data_analysis": ("uses_bayesian_model_on_real_data", "we fit the model to real data"),
+    "numerical_analysis": ("runs_numerical_or_simulation_study", "we run a simulation study"),
+    "theoretical_analysis": (
+        "investigates_theoretical_behavior",
+        "we state a theorem and give a proof",
+    ),
+    "review": ("is_review_tutorial_or_commentary", "a review of Bayesian workflow practice"),
+}
+
+
+def _facts_for(expect_labels: list[str]) -> ClassifierFacts:
+    no = {"answer": "no", "confidence": "low", "evidence": ""}
+    pt = {name: dict(no) for name in ClassifierPaperTypeFacts.model_fields}
+    for label in expect_labels:
+        field, quote = _LABEL_FACT_CUES[label]
+        pt[field] = {"answer": "yes", "confidence": "high", "evidence": quote}
+    me = {name: dict(no) for name in ClassifierMethodFacts.model_fields}
+    return ClassifierFacts(paper_type=pt, methods=me, software=[], disciplines=[])
+
+
 @pytest.mark.parametrize(
     "case",
     [c for c in _CASES if c["expect_labels"]],
@@ -86,12 +115,8 @@ def test_screen_preserves_correct_label(case: dict) -> None:
 def test_classify_returns_expected_class(case: dict) -> None:
     parsed = _parsed(case)
     evidence = run_detectors(parsed)
-    labels = [PaperClassLabel(label) for label in case["expect_labels"]]
-    canned = PaperClass(
-        labels=labels,
-        confidence=0.8,
-        rationale="fixture",
-        evidence_refs=[0],
-    )
+    labels = {PaperClassLabel(label) for label in case["expect_labels"]}
+    canned = _facts_for(case["expect_labels"])
     cls, _ = C.classify(parsed, evidence, client=FakeLLMClient(canned))
-    assert cls.labels == labels
+    # the mapper owns the label ORDER (primary/secondary priority); the SET must survive intact
+    assert set(cls.labels) == labels

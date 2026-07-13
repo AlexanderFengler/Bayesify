@@ -167,12 +167,32 @@ def _fake_batch(name: str, user: str, status: str = "adequate"):
     )
 
 
+def _classifier_facts():
+    """Checklist facts mapping deterministically to [data_analysis]; the quote carries the label's
+    cue words so it survives without matching the fixture text, and Stan implies mcmc."""
+    from bayesify.core.schema import (
+        ClassifierFacts,
+        ClassifierMethodFacts,
+        ClassifierPaperTypeFacts,
+    )
+
+    no = {"answer": "no", "confidence": "low", "evidence": ""}
+    pt = {name: dict(no) for name in ClassifierPaperTypeFacts.model_fields}
+    pt["uses_bayesian_model_on_real_data"] = {
+        "answer": "yes",
+        "confidence": "high",
+        "evidence": "we fit the model to real data",
+    }
+    me = {name: dict(no) for name in ClassifierMethodFacts.model_fields}
+    return ClassifierFacts(paper_type=pt, methods=me, software=["Stan"], disciplines=[])
+
+
 class _FakeLLM:
     """Schema-aware fake driving the full grade path, no real LLM (mirrors test_api._full_fake)."""
 
     def complete(self, *, model, system, user, schema, max_tokens=1024, image=None):
         from bayesify.core.assess import RefuterVerdict, StepJudgment
-        from bayesify.core.schema import PaperClass, PaperClassLabel, Relevance, RelevanceLabel
+        from bayesify.core.schema import Relevance, RelevanceLabel
         from bayesify.llm import LLMResponse
 
         name = schema.__name__
@@ -180,13 +200,8 @@ class _FakeLLM:
             p = Relevance(
                 label=RelevanceLabel.yes, confidence=0.9, rationale="ok", evidence_refs=[0]
             )
-        elif name == "PaperClass":
-            p = PaperClass(
-                labels=[PaperClassLabel.data_analysis],
-                confidence=0.8,
-                rationale="r",
-                evidence_refs=[0],
-            )
+        elif name == "ClassifierFacts":
+            p = _classifier_facts()
         elif name == "StepJudgment":
             p = StepJudgment(status="adequate", confidence=0.9)
         elif name in ("BatchAssessJudgments", "BatchRefuterVerdicts"):
@@ -237,17 +252,13 @@ class _NoGateLLM:
 
     def complete(self, *, model, system, user, schema, max_tokens=1024, image=None):
         from bayesify.core.assess import RefuterVerdict, StepJudgment
-        from bayesify.core.schema import PaperClass, PaperClassLabel
         from bayesify.llm import LLMResponse
 
         name = schema.__name__
         if name == "Relevance":
             p = Relevance(label=RelevanceLabel.no, confidence=0.9, rationale="looks frequentist")
-        elif name == "PaperClass":
-            p = PaperClass(
-                labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="r",
-                evidence_refs=[0],
-            )
+        elif name == "ClassifierFacts":
+            p = _classifier_facts()
         elif name == "StepJudgment":
             p = StepJudgment(status="adequate", confidence=0.9)
         elif name in ("BatchAssessJudgments", "BatchRefuterVerdicts"):
