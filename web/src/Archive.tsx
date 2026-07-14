@@ -328,13 +328,7 @@ export function Archive() {
       ) : papers.length === 0 ? (
         <EmptyState hasArchive={total > 0} />
       ) : (
-        // Clip the page-swipe horizontally: the grid animates in from translateX(±32px), which would
-        // otherwise bleed past the right edge (the scroll area's overflow-x resolves to auto) and flash
-        // a horizontal scrollbar on a page change. `clip` on x keeps y visible so card shadows still
-        // show; the small px/-mx gives those shadows clearance before the clip edge.
-        <Box sx={{ mx: -1.5, px: 1.5, overflowX: "clip" }}>
-          <PaperGrid papers={pagePapers} twoCol={twoCol} page={page} slideDir={slideDir} />
-        </Box>
+        <PaperGrid papers={pagePapers} twoCol={twoCol} page={page} slideDir={slideDir} />
       )}
     </Container>
   );
@@ -408,7 +402,10 @@ function PaperGrid({
       sx={{
         mt: 3,
         display: "grid",
-        gridTemplateColumns: twoCol ? "1fr 1fr" : "1fr",
+        // minmax(0, 1fr), not 1fr: a plain 1fr track has min-width:auto, so a card whose content has a
+        // wide min-content (a long unbreakable title word or byline — which varies page to page) blows
+        // the track past the viewport and the card bleeds off the right. minmax(0,…) lets it shrink.
+        gridTemplateColumns: twoCol ? "minmax(0, 1fr) minmax(0, 1fr)" : "minmax(0, 1fr)",
         gap: 2,
         alignItems: "start",
         animation: `${slideDir === "left" ? "archiveSwipeInRight" : "archiveSwipeInLeft"} .28s ease`,
@@ -423,7 +420,7 @@ function PaperGrid({
       }}
     >
       {cols.map((col, ci) => (
-        <Box key={ci} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box key={ci} sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
           {col.map((p) => (
             <ArchiveCard key={p.key} p={p} />
           ))}
