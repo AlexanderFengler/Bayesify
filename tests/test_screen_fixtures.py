@@ -82,16 +82,16 @@ def test_screen_preserves_correct_label(case: dict) -> None:
 
 # One high-confidence "yes" per expected label whose quote carries that label's cue words, so the
 # deterministic mapper keeps it regardless of the fixture text (theoretical also satisfies the
-# theorem+proof structure check via its quote).
+# derivation/asymptotic structure check via its quote).
 _LABEL_FACT_CUES: dict[str, tuple[str, str]] = {
     "model_development": ("develops_new_bayesian_model", "we propose a new hierarchical model"),
-    "method_development": ("develops_new_bayesian_method", "we introduce a new inference method"),
+    "method_development": ("develops_new_bayesian_method", "we introduce a new sampler"),
     "software_development": ("develops_new_bayesian_software", "we release a software package"),
     "data_analysis": ("uses_bayesian_model_on_real_data", "we fit the model to real data"),
     "numerical_analysis": ("runs_numerical_or_simulation_study", "we run a simulation study"),
     "theoretical_analysis": (
         "investigates_theoretical_behavior",
-        "we state a theorem and give a proof",
+        "we derive posterior contraction properties",
     ),
     "review": ("is_review_tutorial_or_commentary", "a review of Bayesian workflow practice"),
 }

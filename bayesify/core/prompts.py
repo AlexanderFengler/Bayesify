@@ -31,6 +31,9 @@ justify the label (at least one).
 did not find (priors/posteriors, Bayesian software, MCMC/VI, diagnostics, workflow signals).
 - A bibliography mention of "Bayes" is not evidence the paper is Bayesian; excerpts exclude the \
 reference list for this reason.
+- A paper whose central contribution is a Bayesian sampler, inference algorithm, diagnostic, \
+validation workflow, or fundamentally new/general-purpose prior is "yes" even if it is evaluated \
+only with simulations, synthetic benchmarks, or no real data.
 - confidence is your calibrated probability in [0,1]. When unsure between "no" and "partial", prefer \
 "partial" — wrongly discarding a Bayesian paper is the worse error.
 """
@@ -97,12 +100,12 @@ Use an empty evidence string for "no":
 
 ## Paper type
 
-* `develops_new_bayesian_model`: The central contribution is a new or substantially extended Bayesian model, latent process, likelihood, or prior.
-* `develops_new_bayesian_method`: The central contribution is a new or substantially studied Bayesian inference algorithm, diagnostic, validation method, model-checking workflow, or general-purpose prior.
+* `develops_new_bayesian_model`: The central contribution is a new or substantially extended Bayesian model, latent process, likelihood, or model-specific prior.
+* `develops_new_bayesian_method`: The central contribution is a new or substantially studied Bayesian inference algorithm, sampler, diagnostic, validation method, model-checking workflow, or fundamentally new/general-purpose prior.
 * `develops_new_bayesian_software`: The central contribution is a Bayesian software package, library, or computational infrastructure. Implementation details alone are not enough.
 * `uses_bayesian_model_on_real_data`: The paper centrally fits a Bayesian model to observed real-world data and draws substantive domain conclusions. A demonstration or motivating example is low confidence.
 * `runs_numerical_or_simulation_study`: The paper centrally evaluates Bayesian models or methods using simulations, simulated data, synthetic data, benchmark data, numerical experiments, or fitting the model/method to simulator-generated data.
-* `investigates_theoretical_behavior`: The paper contains formal theorem/proposition/lemma-style analysis with proofs. Informal discussion of properties, intuition, or limitations is low confidence.
+* `investigates_theoretical_behavior`: The paper contains formal theorem/proposition/lemma/corollary-style analysis, proofs, derivations, or asymptotic analysis of Bayesian properties such as posterior contraction, consistency, convergence, or rates. Informal discussion of properties, intuition, or limitations is low confidence.
 * `is_review_tutorial_or_commentary`: The paper is primarily a review, tutorial, survey, perspective, opinion, or commentary. Use this as the only high-confidence paper type when there is no original model, method, software, data, numerical, or theoretical contribution.
 
 ## Methods

@@ -105,6 +105,19 @@ def test_classify_supports_multi_label_papers() -> None:
     assert cls.labels == [PaperClassLabel.model_development, PaperClassLabel.data_analysis]
 
 
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "we introduce a new sampler",
+        "we propose a fundamentally new generally applicable prior",
+    ],
+)
+def test_method_development_accepts_sampler_and_general_prior_cues(quote: str) -> None:
+    facts = _facts(paper_type={"develops_new_bayesian_method": _yes(quote)})
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.method_development]
+
+
 def test_low_confidence_paper_type_fact_is_dropped() -> None:
     facts = _facts(
         paper_type={
@@ -133,20 +146,39 @@ def test_no_surviving_facts_falls_back_to_data_analysis() -> None:
     assert cls.labels == [PaperClassLabel.data_analysis]
 
 
-def test_theoretical_analysis_requires_proof_structure() -> None:
-    # theorem-style quote but no proof anywhere -> dropped (falls back to data_analysis)
-    no_proof = _facts(
-        paper_type={"investigates_theoretical_behavior": _yes("Theorem 1 establishes consistency")}
+def test_theoretical_analysis_requires_formal_or_derivation_structure() -> None:
+    # theoretical-sounding but informal property discussion -> dropped (falls back to data_analysis)
+    no_structure = _facts(
+        paper_type={"investigates_theoretical_behavior": _yes("informal discussion of consistency")}
     )
-    cls, _ = C.classify(_parsed("We study the estimator."), [_ev()], client=FakeLLMClient(no_proof))
+    parsed = _parsed("We give an informal discussion of consistency and intuition.")
+    cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(no_structure))
     assert PaperClassLabel.theoretical_analysis not in cls.labels
 
-    # theorem + proof in the paper -> kept
-    with_proof = _facts(
-        paper_type={"investigates_theoretical_behavior": _yes("Theorem 1 establishes consistency")}
+    # formal result marker is enough; some papers omit literal "Proof" in extracted context
+    formal = _facts(
+        paper_type={
+            "investigates_theoretical_behavior": _yes("Proposition 1 establishes consistency")
+        }
     )
-    parsed = _parsed("Theorem 1 establishes consistency. Proof. See the appendix.")
-    cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(with_proof))
+    parsed = _parsed("Proposition 1 establishes consistency.")
+    cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(formal))
+    assert cls.labels == [PaperClassLabel.theoretical_analysis]
+
+    # derivation/asymptotic language also counts as theory, even without theorem/proof markers
+    derivation = _facts(
+        paper_type={
+            "investigates_theoretical_behavior": _yes(
+                "derive properties of the resulting posterior distribution and study posterior "
+                "contraction"
+            )
+        }
+    )
+    parsed = _parsed(
+        "We derive properties of the resulting posterior distribution and study posterior "
+        "contraction."
+    )
+    cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(derivation))
     assert cls.labels == [PaperClassLabel.theoretical_analysis]
 
 

@@ -292,8 +292,8 @@ _LABEL_QUOTE_PATTERNS: dict[PaperClassLabel, re.Pattern[str]] = {
     ),
     PaperClassLabel.method_development: re.compile(
         r"\b(new|novel|propos|introduc|develop|extend).{0,80}\b(method|algorithm|"
-        r"procedure|workflow|diagnostic|framework|inference)\b"
-        r"|\b(method|algorithm|procedure|workflow|diagnostic|framework|inference).{0,80}"
+        r"sampler|prior|procedure|workflow|diagnostic|framework|inference)\b"
+        r"|\b(method|algorithm|sampler|prior|procedure|workflow|diagnostic|framework|inference).{0,80}"
         r"\b(new|novel|propos|introduc|develop|extend)\b",
         re.I,
     ),
@@ -312,7 +312,9 @@ _LABEL_QUOTE_PATTERNS: dict[PaperClassLabel, re.Pattern[str]] = {
         re.I,
     ),
     PaperClassLabel.theoretical_analysis: re.compile(
-        r"\b(theorem|proposition|lemma|corollary|proof)\b", re.I
+        r"\b(theorem|proposition|lemma|corollary|proof|derivation|derivations|"
+        r"posterior contraction|asymptotic|asymptotics|consistency|convergence rate)\b",
+        re.I,
     ),
     PaperClassLabel.review: re.compile(
         r"\b(review|survey|tutorial|perspective|commentary)\b",
@@ -320,8 +322,18 @@ _LABEL_QUOTE_PATTERNS: dict[PaperClassLabel, re.Pattern[str]] = {
     ),
 }
 
-_THEORY_STATEMENT_RE = re.compile(r"\b(theorem|proposition|lemma|corollary)\b", re.I)
-_THEORY_PROOF_RE = re.compile(r"\bproof\b", re.I)
+_THEORY_FORMAL_RE = re.compile(r"\b(theorem|proposition|lemma|corollary|proof)\b", re.I)
+_THEORY_DERIVATION_RE = re.compile(
+    r"\b(derive[sd]?|deriving|derivation|derivations|asymptotic|asymptotics|"
+    r"asymptotically|establish(?:es|ed|ing)?|show(?:s|ed|ing)?)\b",
+    re.I,
+)
+_THEORY_PROPERTY_RE = re.compile(
+    r"\b(properties|posterior contraction|contraction rates?|posterior consistency|"
+    r"consistency|convergence rates?|asymptotic normality|asymptotic distribution|"
+    r"minimax rates?|identifiability|identification)\b",
+    re.I,
+)
 
 
 def classify(
@@ -411,11 +423,11 @@ def _label_fact_survives(
             label.value,
         )
         return False
-    if label is PaperClassLabel.theoretical_analysis and not _has_proof_structure(
+    if label is PaperClassLabel.theoretical_analysis and not _has_theory_structure(
         context, fact.evidence
     ):
         _log.warning(
-            "theoretical_analysis without theorem/proposition plus proof structure (dropped)"
+            "theoretical_analysis without formal or derivation/asymptotic structure (dropped)"
         )
         return False
     return True
@@ -673,11 +685,14 @@ def _label_quote_hit(label: PaperClassLabel, quote: str) -> bool:
     return pattern.search(quote) is not None if pattern is not None else False
 
 
-def _has_proof_structure(context: str, quote: str) -> bool:
+def _has_theory_structure(context: str, quote: str) -> bool:
     search_text = f"{quote}\n{context}"
-    return _THEORY_STATEMENT_RE.search(search_text) is not None and (
-        _THEORY_PROOF_RE.search(search_text) is not None
+    formal_result = _THEORY_FORMAL_RE.search(search_text) is not None
+    derivation_result = (
+        _THEORY_DERIVATION_RE.search(search_text) is not None
+        and _THEORY_PROPERTY_RE.search(search_text) is not None
     )
+    return formal_result or derivation_result
 
 
 def _first_by_priority(
