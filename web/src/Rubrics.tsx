@@ -105,7 +105,7 @@ export function Rubrics({ id }: { id?: string }) {
   }, []);
 
   return (
-    <Container id={id} maxWidth="xl" sx={{ py: { xs: 6, md: 8 } }}>
+    <Container id={id} maxWidth="xl" sx={{ py: { xs: 6, md: 8 }, px: { xs: 2.5, sm: 4, md: 5 } }}>
       <SectionHeader
         title="The rubrics"
         leadMaxWidth={1440}
@@ -244,11 +244,21 @@ function RubricColumn({ rubric }: { rubric: Rubric }) {
 function ComparisonTable({ columns, rows }: { columns: string[]; rows: typeof FEATURES }) {
   return (
     // No surrounding box — the table sits directly on the aurora. A strong header rule, hairline row
-    // separators and a soft row hover do the structural work the border used to.
+    // separators and a soft row hover do the structural work the border used to. overflowX stays as a
+    // safety net, but the compact mobile padding below is tuned so all columns fit a phone without it.
     <TableContainer sx={{ overflowX: "auto" }}>
       <Table
         sx={{
-          "& th, & td": { borderBottom: "1px solid", borderColor: "divider", py: 1.5 },
+          // Trim the cell gutters hard on phones: the rubric columns only frame a 24px mark, so the
+          // default 16px side padding is what pushed the third (Synthesis) column off-screen. Tighter
+          // side padding + a touch more vertical room lets Capability + all three rubrics fit at 375px.
+          "& th, & td": {
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            py: 1.5,
+            px: { xs: 0.75, sm: 2 },
+          },
+          "& th:first-of-type, & td:first-of-type": { pl: 0 },
           "& tbody tr:last-of-type td": { borderBottom: 0 },
           "& tbody tr": { transition: "background-color 120ms" },
           "& tbody tr:hover": { bgcolor: "action.hover" },
@@ -269,7 +279,11 @@ function ComparisonTable({ columns, rows }: { columns: string[]; rows: typeof FE
               Capability
             </TableCell>
             {columns.map((c) => (
-              <TableCell key={c} align="center" sx={{ width: 132 }}>
+              <TableCell
+                key={c}
+                align="center"
+                sx={{ width: { xs: 64, sm: 132 }, fontSize: { xs: "0.85rem", sm: "inherit" } }}
+              >
                 {SHORT_LABEL[c] ?? c}
               </TableCell>
             ))}

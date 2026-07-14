@@ -31,10 +31,12 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
+  Paper,
   Slide,
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import { alpha, type Theme } from "@mui/material/styles";
 import { useState } from "react";
@@ -123,6 +125,9 @@ export function Report({
 }) {
   const r = paper.result!;
   const navigate = useNavigate();
+  // Small screens swap the horizontal "Steps at a glance" strip (which would scroll sideways) for a
+  // vertical accordion — each step a collapsible row that opens its own detail inline.
+  const compact = useMediaQuery((t: Theme) => t.breakpoints.down("md"));
   // Records of expert disagreements made this session (step_id -> corrected status). Purely a UI
   // indicator; the engine output is never mutated (A5).
   const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
@@ -281,39 +286,59 @@ export function Report({
                         </Typography>
                         <Legend />
                       </Box>
-                      <StepGlance
-                        steps={r.step_assessments}
-                        stepNames={stepNames}
-                        selected={selected}
-                        showTitles
-                        onSelect={toggleSelected}
-                      />
-                      <Collapse in={!!selectedStep} timeout={300}>
-                        <Box sx={{ mt: 3 }}>
-                          {selectedStep && (
-                            <StepDetail
-                              a={selectedStep}
-                              stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
-                              why={stepWhy[selectedStep.step_id]}
-                              weight={weightById.get(selectedStep.step_id)}
-                              correction={correctionByStep.get(selectedStep.step_id)}
-                              fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
-                              overridden={overrides[selectedStep.step_id]}
-                              onOverride={async (status, rationale) => {
-                                await recordOverride(
-                                  paper.paper_id,
-                                  selectedStep.step_id,
-                                  status,
-                                  rationale,
-                                  selectedStep.status,
-                                  r.rubric_profile,
-                                );
-                                setOverrides((prev) => ({ ...prev, [selectedStep.step_id]: status }));
-                              }}
-                            />
-                          )}
-                        </Box>
-                      </Collapse>
+                      {compact ? (
+                        <StepAccordion
+                          steps={r.step_assessments}
+                          stepNames={stepNames}
+                          stepWhy={stepWhy}
+                          weightById={weightById}
+                          correctionByStep={correctionByStep}
+                          fixList={paper.fix_list ?? []}
+                          overrides={overrides}
+                          selected={selected}
+                          onSelect={toggleSelected}
+                          onOverride={async (stepId, status, rationale, fromStatus) => {
+                            await recordOverride(paper.paper_id, stepId, status, rationale, fromStatus, r.rubric_profile);
+                            setOverrides((prev) => ({ ...prev, [stepId]: status }));
+                          }}
+                        />
+                      ) : (
+                        <>
+                          <StepGlance
+                            steps={r.step_assessments}
+                            stepNames={stepNames}
+                            selected={selected}
+                            showTitles
+                            onSelect={toggleSelected}
+                          />
+                          <Collapse in={!!selectedStep} timeout={300}>
+                            <Box sx={{ mt: 3 }}>
+                              {selectedStep && (
+                                <StepDetail
+                                  a={selectedStep}
+                                  stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
+                                  why={stepWhy[selectedStep.step_id]}
+                                  weight={weightById.get(selectedStep.step_id)}
+                                  correction={correctionByStep.get(selectedStep.step_id)}
+                                  fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
+                                  overridden={overrides[selectedStep.step_id]}
+                                  onOverride={async (status, rationale) => {
+                                    await recordOverride(
+                                      paper.paper_id,
+                                      selectedStep.step_id,
+                                      status,
+                                      rationale,
+                                      selectedStep.status,
+                                      r.rubric_profile,
+                                    );
+                                    setOverrides((prev) => ({ ...prev, [selectedStep.step_id]: status }));
+                                  }}
+                                />
+                              )}
+                            </Box>
+                          </Collapse>
+                        </>
+                      )}
                     </>
                   )}
                 </Box>
@@ -739,6 +764,91 @@ function StepGlance({
               </Typography>
             </Box>
           </ButtonBase>
+        );
+      })}
+    </Box>
+  );
+}
+
+// The small-screen alternative to StepGlance: a vertical stack of steps, each a collapsible accordion
+// row. The header (status dot, step id, name, chevron) toggles that step's detail — chips, "why", and
+// the shared StepBody — open inline beneath it. Single-open (driven by the same `selected` state), so
+// opening one closes another, and the status-colored left border mirrors the report's palette.
+function StepAccordion({
+  steps,
+  stepNames,
+  stepWhy,
+  weightById,
+  correctionByStep,
+  fixList,
+  overrides,
+  selected,
+  onSelect,
+  onOverride,
+}: {
+  steps: StepAssessment[];
+  stepNames: Record<string, string>;
+  stepWhy: Record<string, string>;
+  weightById: Map<string, number>;
+  correctionByStep: Map<string, AppliedCorrection>;
+  fixList: FixItem[];
+  overrides: Record<string, StepStatus>;
+  selected: string | null;
+  onSelect: (id: string) => void;
+  onOverride: (stepId: string, status: StepStatus, rationale: string, fromStatus: StepStatus) => Promise<void>;
+}) {
+  return (
+    <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+      {steps.map((a) => {
+        const isOpen = a.step_id === selected;
+        const meta = statusMeta(a.status);
+        const why = stepWhy[a.step_id];
+        return (
+          <Paper
+            key={a.step_id}
+            variant="outlined"
+            sx={{
+              borderRadius: 1,
+              borderLeft: "3px solid",
+              borderLeftColor: statusSx(meta.color),
+              overflow: "hidden",
+            }}
+          >
+            <ButtonBase
+              onClick={() => onSelect(a.step_id)}
+              aria-expanded={isOpen}
+              sx={{ width: "100%", p: 1.5, gap: 1, justifyContent: "space-between", alignItems: "center", textAlign: "left" }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+                <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: statusSx(meta.color), flexShrink: 0 }} />
+                <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 700, color: "text.disabled", flexShrink: 0 }}>
+                  {a.step_id}
+                </Box>
+                <Typography component="span" sx={{ fontWeight: 600, fontSize: "0.95rem", minWidth: 0 }}>
+                  {stepNames[a.step_id] ?? a.step_id}
+                </Typography>
+              </Box>
+              <ExpandMoreIcon
+                sx={{ flexShrink: 0, color: "text.secondary", transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+              />
+            </ButtonBase>
+            <Collapse in={isOpen}>
+              <Box sx={{ px: 1.5, pb: 2, pt: 0.5 }}>
+                <StepChips a={a} weight={weightById.get(a.step_id)} correction={correctionByStep.get(a.step_id)} />
+                {why && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: "italic" }}>
+                    <MathText>{why}</MathText>
+                  </Typography>
+                )}
+                <StepBody
+                  a={a}
+                  fixes={fixList.filter((f) => f.step_id === a.step_id)}
+                  overridden={overrides[a.step_id]}
+                  onOverride={(status, rationale) => onOverride(a.step_id, status, rationale, a.status)}
+                />
+              </Box>
+            </Collapse>
+          </Paper>
         );
       })}
     </Box>

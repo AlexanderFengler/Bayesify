@@ -328,7 +328,13 @@ export function Archive() {
       ) : papers.length === 0 ? (
         <EmptyState hasArchive={total > 0} />
       ) : (
-        <PaperGrid papers={pagePapers} twoCol={twoCol} page={page} slideDir={slideDir} />
+        // Clip the page-swipe horizontally: the grid animates in from translateX(±32px), which would
+        // otherwise bleed past the right edge (the scroll area's overflow-x resolves to auto) and flash
+        // a horizontal scrollbar on a page change. `clip` on x keeps y visible so card shadows still
+        // show; the small px/-mx gives those shadows clearance before the clip edge.
+        <Box sx={{ mx: -1.5, px: 1.5, overflowX: "clip" }}>
+          <PaperGrid papers={pagePapers} twoCol={twoCol} page={page} slideDir={slideDir} />
+        </Box>
       )}
     </Container>
   );
