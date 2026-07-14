@@ -431,7 +431,7 @@ const STAT_INFO: Record<"rubric" | "paperType" | "methods" | "software" | "weigh
   },
   software: {
     what: "Named statistical software detected in the paper.",
-    categories: ["Stan", "PyMC", "Bambi", "NumPyro", "BlackJAX", "Pyro", "BayesFlow", "pyABC", "JAGS", "BUGS", "etc."],
+    categories: ["Stan", "PyMC", "Bambi", "BlackJAX", "Pyro", "BayesFlow", "sbi", "pyABC", "JAGS", "HSSM", "etc."],
   },
   weighting: {
     what:
