@@ -121,7 +121,11 @@ const VARIANTS: Record<AuroraVariant, Variant> = {
     glass: "rgba(40,16,72,0.55)",
     glassBorder: "rgba(255,255,255,0.12)",
     lineStrong: "rgba(255,255,255,0.22)",
-    text: { primary: "rgba(255,255,255,0.92)", secondary: "rgba(255,255,255,0.66)", disabled: "rgba(255,255,255,0.40)" },
+    text: {
+      primary: "rgba(255,255,255,0.92)",
+      secondary: "rgba(255,255,255,0.66)",
+      disabled: "rgba(255,255,255,0.40)",
+    },
     divider: "rgba(255,255,255,0.14)",
     signifier: DARK_SIGNIFIER,
     chip: {

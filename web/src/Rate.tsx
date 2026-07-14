@@ -152,9 +152,7 @@ export function Rate({
     setStep(id, { cited: cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i] });
   };
   const togglePaperClass = (value: PaperClass) => {
-    setPaperClasses((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
-    );
+    setPaperClasses((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
   };
 
   function build(): RatingInput | { error: string } {
@@ -197,8 +195,7 @@ export function Rate({
       });
     }
     const missingSteps = ctx!.rubric.steps.filter((s) => !draft(s.id).status).map((s) => s.id);
-    if (missingSteps.length)
-      return { error: `Rate every step before saving. Missing: ${missingSteps.join(", ")}.` };
+    if (missingSteps.length) return { error: `Rate every step before saving. Missing: ${missingSteps.join(", ")}.` };
     return {
       ...base,
       relevance_label: relevance,
@@ -266,8 +263,8 @@ export function Rate({
         <Paper variant="outlined" sx={{ p: { xs: 3, md: 4 }, borderRadius: 3, textAlign: "center" }}>
           <Chip color="success" label="Rating recorded" sx={{ mb: 2, fontWeight: 600 }} />
           <Typography sx={{ maxWidth: 520, mx: "auto", color: "text.secondary" }}>
-            Your blind rating of <strong>{ctx.source_label}</strong> was saved. Two-to-three blind
-            ratings plus an adjudicated consensus assemble into the gold record (at adjudication).
+            Your blind rating of <strong>{ctx.source_label}</strong> was saved. Two-to-three blind ratings plus an
+            adjudicated consensus assemble into the gold record (at adjudication).
           </Typography>
           <Button variant="contained" disableElevation onClick={onExit} sx={{ mt: 3 }}>
             Done
@@ -298,8 +295,8 @@ export function Rate({
       </Box>
 
       <Alert severity="info" icon={<VisibilityOffIcon />} sx={{ mt: 2.5 }}>
-        You are rating <strong>blind</strong> — the engine&rsquo;s verdict is hidden. Judge each step
-        from the paper and the detected evidence only; nothing here is pre-filled.
+        You are rating <strong>blind</strong> — the engine&rsquo;s verdict is hidden. Judge each step from the paper and
+        the detected evidence only; nothing here is pre-filled.
       </Alert>
 
       <Paper
@@ -486,8 +483,7 @@ export function Rate({
 
       {relevance === "no" && (
         <Alert severity="info" sx={{ mt: 2.5 }}>
-          Marked not a Bayesian-workflow paper — there are no steps to rate. Submit to record the
-          gate decision.
+          Marked not a Bayesian-workflow paper — there are no steps to rate. Submit to record the gate decision.
         </Alert>
       )}
 
@@ -567,11 +563,7 @@ export function Rate({
                         onChange={(e) => setStep(s.id, { rationale: e.target.value })}
                       />
                       {(d.status === "adequate" || d.status === "partial") && (
-                        <EvidenceCite
-                          spans={ctx.evidence}
-                          cited={d.cited}
-                          onToggle={(i) => toggleCite(s.id, i)}
-                        />
+                        <EvidenceCite spans={ctx.evidence} cited={d.cited} onToggle={(i) => toggleCite(s.id, i)} />
                       )}
                       {d.status === "missing" && (
                         <TextField
@@ -657,12 +649,7 @@ function EvidenceCite({
           key={i}
           sx={{ display: "flex", alignItems: "flex-start", m: 0, mt: 0.5 }}
           control={
-            <Checkbox
-              size="small"
-              checked={cited.includes(i)}
-              onChange={() => onToggle(i)}
-              sx={{ py: 0, mr: 0.5 }}
-            />
+            <Checkbox size="small" checked={cited.includes(i)} onChange={() => onToggle(i)} sx={{ py: 0, mr: 0.5 }} />
           }
           label={
             <Typography variant="body2">

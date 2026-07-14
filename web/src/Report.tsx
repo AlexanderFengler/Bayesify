@@ -89,8 +89,7 @@ function statusMeta(status: StepStatus): { color: PaletteKey | "disabled"; label
   }
 }
 // resolve a status color to a concrete CSS color via the theme (handles the non-palette "disabled")
-const statusSx = (color: PaletteKey | "disabled") =>
-  color === "disabled" ? "text.disabled" : `${color}.main`;
+const statusSx = (color: PaletteKey | "disabled") => (color === "disabled" ? "text.disabled" : `${color}.main`);
 
 const STRIP_LEGEND: StepStatus[] = ["adequate", "partial", "missing", "not_applicable"];
 // The signifier (status) main color, resolved from the theme — used to tint the frosted-glass cells.
@@ -200,7 +199,12 @@ export function Report({
           <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 3, mt: 2, flexWrap: "wrap" }}>
             <MetaChips label="rubric" values={[r.rubric_profile]} info={STAT_INFO.rubric} color="slate" />
             {r.paper_class && (
-              <MetaChips label="paper type" values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))} info={STAT_INFO.paperType} color="periwinkle" />
+              <MetaChips
+                label="paper type"
+                values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))}
+                info={STAT_INFO.paperType}
+                color="periwinkle"
+              />
             )}
             {(paper.methods ?? []).length > 0 && (
               <MetaChips label="methods" values={paper.methods ?? []} info={STAT_INFO.methods} color="violet" />
@@ -209,7 +213,12 @@ export function Report({
               <MetaChips label="software" values={paper.software ?? []} info={STAT_INFO.software} color="magenta" />
             )}
             {r.profile && (
-              <MetaChips label="weighting" values={[anyReduced ? "weighted" : "uniform"]} info={STAT_INFO.weighting} color="steel" />
+              <MetaChips
+                label="weighting"
+                values={[anyReduced ? "weighted" : "uniform"]}
+                info={STAT_INFO.weighting}
+                color="steel"
+              />
             )}
           </Box>
 
@@ -220,9 +229,17 @@ export function Report({
           <Box sx={{ mt: 2.5, display: "flex", flexDirection: "column", gap: 2.5 }}>
             {r.relevance.overridden && (
               <Collapse in={!expanded} timeout={300}>
-                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: "warning.light", color: "text.primary", fontSize: "0.875rem" }}>
-                  Graded on request. The relevance gate did not classify this as a Bayesian paper; you
-                  asked for a full assessment anyway, so treat coverage and quality as provisional.
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    bgcolor: "warning.light",
+                    color: "text.primary",
+                    fontSize: "0.875rem",
+                  }}
+                >
+                  Graded on request. The relevance gate did not classify this as a Bayesian paper; you asked for a full
+                  assessment anyway, so treat coverage and quality as provisional.
                 </Box>
               </Collapse>
             )}
@@ -309,7 +326,15 @@ export function Report({
                     />
                   ) : (
                     <>
-                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 2,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         <Typography variant="overline" color="text.secondary">
                           Steps at a glance
                         </Typography>
@@ -327,7 +352,14 @@ export function Report({
                           selected={selected}
                           onSelect={toggleSelected}
                           onOverride={async (stepId, status, rationale, fromStatus) => {
-                            await recordOverride(paper.paper_id, stepId, status, rationale, fromStatus, r.rubric_profile);
+                            await recordOverride(
+                              paper.paper_id,
+                              stepId,
+                              status,
+                              rationale,
+                              fromStatus,
+                              r.rubric_profile,
+                            );
                             setOverrides((prev) => ({ ...prev, [stepId]: status }));
                           }}
                         />
@@ -434,8 +466,7 @@ const STAT_INFO: Record<"rubric" | "paperType" | "methods" | "software" | "weigh
     categories: ["Stan", "PyMC", "Bambi", "BlackJAX", "Pyro", "BayesFlow", "sbi", "pyABC", "JAGS", "HSSM", "etc."],
   },
   weighting: {
-    what:
-      "How the Bayesify Score weights each step for this paper type. Each step carries a weight (its relevance to this paper type, 0–1, shown on its card); the score is their weighted mean over applicable steps. Multi-label papers take the max weight per step. Coverage is unweighted.",
+    what: "How the Bayesify Score weights each step for this paper type. Each step carries a weight (its relevance to this paper type, 0–1, shown on its card); the score is their weighted mean over applicable steps. Multi-label papers take the max weight per step. Coverage is unweighted.",
     categories: ["weighted", "uniform"],
   },
 };
@@ -478,7 +509,15 @@ function InfoTooltip({ info, children }: { info: StatInfo; children: React.React
           </Typography>
           <Divider sx={{ my: 1.25 }} />
           <Typography
-            sx={{ fontSize: "0.6rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary", display: "block", mb: 0.75 }}
+            sx={{
+              fontSize: "0.6rem",
+              fontWeight: 700,
+              letterSpacing: "0.09em",
+              textTransform: "uppercase",
+              color: "text.secondary",
+              display: "block",
+              mb: 0.75,
+            }}
           >
             Categories
           </Typography>
@@ -516,14 +555,26 @@ function MetaChips({
     <Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.75 }}>
         <Typography
-          sx={{ fontSize: "0.65rem", fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "text.secondary" }}
+          sx={{
+            fontSize: "0.65rem",
+            fontWeight: 700,
+            letterSpacing: "0.09em",
+            textTransform: "uppercase",
+            color: "text.secondary",
+          }}
         >
           {label}
         </Typography>
         {info && (
           <InfoTooltip info={info}>
             <InfoOutlinedIcon
-              sx={{ fontSize: 15, color: "text.disabled", cursor: "help", transition: "color 120ms", "&:hover": { color: "primary.main" } }}
+              sx={{
+                fontSize: 15,
+                color: "text.disabled",
+                cursor: "help",
+                transition: "color 120ms",
+                "&:hover": { color: "primary.main" },
+              }}
             />
           </InfoTooltip>
         )}
@@ -607,11 +658,15 @@ function ScoreMetrics({
       <Box sx={{ display: "flex", gap: { xs: 3, md: 4 } }}>
         <Box>
           <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.5 }}>
-            <Typography sx={{ fontSize: { xs: "2.75rem", md: "3.75rem" }, fontWeight: 700, lineHeight: 1, color: "primary.main" }}>
+            <Typography
+              sx={{ fontSize: { xs: "2.75rem", md: "3.75rem" }, fontWeight: 700, lineHeight: 1, color: "primary.main" }}
+            >
               {coverageText}
             </Typography>
             {cov && (
-              <Typography sx={{ fontSize: "1.15rem", color: "text.secondary", fontWeight: 600 }}>/ {cov.applicable}</Typography>
+              <Typography sx={{ fontSize: "1.15rem", color: "text.secondary", fontWeight: 600 }}>
+                / {cov.applicable}
+              </Typography>
             )}
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75, lineHeight: 1.25 }}>
@@ -639,8 +694,8 @@ function ScoreMetrics({
           )}
           {nCorrections > 0 && baseQuality != null && quality != null && (
             <Typography variant="caption" sx={{ mt: 0.75, display: "block", color: "secondary.main", fontWeight: 600 }}>
-              engine {Math.round(baseQuality * 100)} → {Math.round(quality * 100)} · {nCorrections}{" "}
-              expert correction{nCorrections > 1 ? "s" : ""}
+              engine {Math.round(baseQuality * 100)} → {Math.round(quality * 100)} · {nCorrections} expert correction
+              {nCorrections > 1 ? "s" : ""}
             </Typography>
           )}
         </Box>
@@ -653,7 +708,6 @@ function ScoreMetrics({
     </Box>
   );
 }
-
 
 function Downloads({ paperId }: { paperId: string }) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -750,10 +804,8 @@ function StepGlance({
               // punchcard: inactive tiles are a frosted tint of the status color; the active tile
               // (selected, or under the pointer) is "punched" — a solid status fill with the dot and
               // labels inverted to white for the high-contrast card-flip read.
-              bgcolor: (t) =>
-                isSel ? statusMainColor(t, a.status) : alpha(statusMainColor(t, a.status), 0.16),
-              borderColor: (t) =>
-                isSel ? statusMainColor(t, a.status) : alpha(statusMainColor(t, a.status), 0.4),
+              bgcolor: (t) => (isSel ? statusMainColor(t, a.status) : alpha(statusMainColor(t, a.status), 0.16)),
+              borderColor: (t) => (isSel ? statusMainColor(t, a.status) : alpha(statusMainColor(t, a.status), 0.4)),
               color: isSel ? "common.white" : "text.primary",
               transition: "background-color 140ms ease, border-color 140ms ease, color 140ms ease",
               "& .step-dot": {
@@ -771,7 +823,9 @@ function StepGlance({
             }}
           >
             {/* top: step number, with its status indicator as a circle dot */}
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.75, width: "100%" }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.75, width: "100%" }}
+            >
               <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 13, fontWeight: 700 }}>
                 {a.step_id}
               </Box>
@@ -788,7 +842,9 @@ function StepGlance({
               }}
             >
               <Box className="step-rule" sx={{ borderTop: "1px solid", borderColor: "divider", my: 1 }} />
-              <Typography sx={{ fontSize: "0.9rem", fontWeight: 600, lineHeight: 1.25, textAlign: "left", color: "inherit" }}>
+              <Typography
+                sx={{ fontSize: "0.9rem", fontWeight: 600, lineHeight: 1.25, textAlign: "left", color: "inherit" }}
+              >
                 {stepNames[a.step_id] ?? a.step_id}
               </Typography>
             </Box>
@@ -874,16 +930,32 @@ function StepAccordion({
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
                 <Box className="acc-dot" sx={{ width: 10, height: 10, borderRadius: "50%", flexShrink: 0 }} />
-                <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 700, flexShrink: 0, color: "inherit" }}>
+                <Box
+                  component="span"
+                  sx={{
+                    fontFamily: (t) => t.tokens.mono,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                    color: "inherit",
+                  }}
+                >
                   {a.step_id}
                 </Box>
-                <Typography component="span" sx={{ fontWeight: 600, fontSize: "0.95rem", minWidth: 0, color: "inherit" }}>
+                <Typography
+                  component="span"
+                  sx={{ fontWeight: 600, fontSize: "0.95rem", minWidth: 0, color: "inherit" }}
+                >
                   {stepNames[a.step_id] ?? a.step_id}
                 </Typography>
               </Box>
               <ExpandMoreIcon
                 className="acc-chevron"
-                sx={{ flexShrink: 0, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 150ms, color 140ms" }}
+                sx={{
+                  flexShrink: 0,
+                  transform: isOpen ? "rotate(180deg)" : "none",
+                  transition: "transform 150ms, color 140ms",
+                }}
               />
             </ButtonBase>
             <Collapse in={isOpen}>
@@ -968,9 +1040,7 @@ function FullReportDoc({
             isLast={i === steps.length - 1}
             // a skipped step dashes the connectors on BOTH sides of it: dash this item's connector
             // when this step or the next one is not-applicable.
-            dashedConnector={
-              a.status === "not_applicable" || steps[i + 1]?.status === "not_applicable"
-            }
+            dashedConnector={a.status === "not_applicable" || steps[i + 1]?.status === "not_applicable"}
             overridden={overrides[a.step_id]}
             onOverride={(status, rationale) => onOverride(a.step_id, status, rationale, a.status)}
           />
@@ -1065,7 +1135,12 @@ function FullReportTimelineItem({
             {stepName}
           </Typography>
           <ExpandMoreIcon
-            sx={{ flex: "0 0 auto", color: "text.secondary", transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+            sx={{
+              flex: "0 0 auto",
+              color: "text.secondary",
+              transform: open ? "rotate(180deg)" : "none",
+              transition: "transform 150ms",
+            }}
           />
         </ButtonBase>
         <Box sx={{ mt: 1 }}>
@@ -1305,7 +1380,9 @@ function DisclosureToggle({ open, onClick, label }: { open: boolean; onClick: ()
       sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, fontWeight: 600, fontSize: "0.875rem" }}
     >
       {label}
-      <ExpandMoreIcon sx={{ fontSize: 18, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }} />
+      <ExpandMoreIcon
+        sx={{ fontSize: 18, transform: open ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+      />
     </Link>
   );
 }
@@ -1341,9 +1418,7 @@ function StepDisclosures({
   const [showDisagree, setShowDisagree] = useState(false);
 
   const spans = evidence.filter((e) => e.kind !== "absence_search").map((e) => e.span);
-  const sorted = [...suggestions].sort(
-    (a, b) => (SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9),
-  );
+  const sorted = [...suggestions].sort((a, b) => (SEV_RANK[a.severity] ?? 9) - (SEV_RANK[b.severity] ?? 9));
   const impact = new Map(fixes.map((f) => [f.text, f.coverage_delta]));
   const hasAdversarial = !!adversarial?.challenged;
 
@@ -1359,10 +1434,18 @@ function StepDisclosures({
           />
         )}
         {spans.length > 0 && (
-          <DisclosureToggle open={showEvidence} onClick={() => setShowEvidence((o) => !o)} label={`In the paper (${spans.length})`} />
+          <DisclosureToggle
+            open={showEvidence}
+            onClick={() => setShowEvidence((o) => !o)}
+            label={`In the paper (${spans.length})`}
+          />
         )}
         {standards.length > 0 && (
-          <DisclosureToggle open={showStandards} onClick={() => setShowStandards((o) => !o)} label={`Standards applied (${standards.length})`} />
+          <DisclosureToggle
+            open={showStandards}
+            onClick={() => setShowStandards((o) => !o)}
+            label={`Standards applied (${standards.length})`}
+          />
         )}
         {hasAdversarial && (
           <DisclosureToggle open={showAdversarial} onClick={() => setShowAdversarial((o) => !o)} label="Refutation" />
@@ -1376,7 +1459,13 @@ function StepDisclosures({
             </Typography>
           ) : (
             <Box sx={{ ml: "auto" }}>
-              <Link component="button" type="button" underline="hover" onClick={() => setShowDisagree((o) => !o)} sx={{ fontSize: "0.875rem", fontWeight: 600 }}>
+              <Link
+                component="button"
+                type="button"
+                underline="hover"
+                onClick={() => setShowDisagree((o) => !o)}
+                sx={{ fontSize: "0.875rem", fontWeight: 600 }}
+              >
                 Add comments
               </Link>
             </Box>
@@ -1406,7 +1495,10 @@ function StepDisclosures({
                 <FormatQuoteIcon sx={{ fontSize: 16, color: "text.disabled", flex: "0 0 auto", mt: "2px" }} />
                 <span>
                   <MathText>{s.quote}</MathText>
-                  <Box component="span" sx={{ display: "block", color: "text.secondary", fontSize: "0.75rem", mt: 0.25 }}>
+                  <Box
+                    component="span"
+                    sx={{ display: "block", color: "text.secondary", fontSize: "0.75rem", mt: 0.25 }}
+                  >
                     §{s.section_id}
                     {s.page != null && `, p.${s.page}`}
                   </Box>
@@ -1418,12 +1510,19 @@ function StepDisclosures({
       </Collapse>
 
       <Collapse in={showStandards}>
-        <Box component="ul" sx={{ mt: 1.5, mb: 0, p: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 1 }}>
+        <Box
+          component="ul"
+          sx={{ mt: 1.5, mb: 0, p: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 1 }}
+        >
           {standards.map((s, i) => {
             const url = standardUrl(s);
             const text = cleanCitation(s.citation);
             return (
-              <Box component="li" key={`${s.source_id}-${s.locator ?? "standard"}-${i}`} sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}>
+              <Box
+                component="li"
+                key={`${s.source_id}-${s.locator ?? "standard"}-${i}`}
+                sx={{ display: "flex", alignItems: "flex-start", gap: 1.25 }}
+              >
                 <Box
                   aria-hidden="true"
                   sx={{
@@ -1431,22 +1530,46 @@ function StepDisclosures({
                     height: 7,
                     borderRadius: "50%",
                     bgcolor: s.verified ? "success.main" : "text.disabled",
-                    boxShadow: (t) => `0 0 0 3px ${alpha(s.verified ? t.palette.success.main : t.palette.text.disabled, 0.12)}`,
+                    boxShadow: (t) =>
+                      `0 0 0 3px ${alpha(s.verified ? t.palette.success.main : t.palette.text.disabled, 0.12)}`,
                     flex: "0 0 auto",
                     mt: "0.58rem",
                   }}
                 />
-                <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, flex: 1, minWidth: 0, flexWrap: "wrap" }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ flex: "1 1 28rem", minWidth: 0, lineHeight: 1.55 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 1,
+                    flex: 1,
+                    minWidth: 0,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ flex: "1 1 28rem", minWidth: 0, lineHeight: 1.55 }}
+                  >
                     {url ? (
-                      <Link href={url} target="_blank" rel="noreferrer" underline="hover" sx={{ fontWeight: 600, color: "inherit" }}>
+                      <Link
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        underline="hover"
+                        sx={{ fontWeight: 600, color: "inherit" }}
+                      >
                         <MathText>{text}</MathText>
                       </Link>
                     ) : (
                       <MathText>{text}</MathText>
                     )}
                     {s.locator && (
-                      <Box component="span" sx={{ color: "text.disabled" }}> · {s.locator}</Box>
+                      <Box component="span" sx={{ color: "text.disabled" }}>
+                        {" "}
+                        · {s.locator}
+                      </Box>
                     )}
                   </Typography>
                   {s.verified ? (
@@ -1480,7 +1603,13 @@ function StepDisclosures({
   );
 }
 
-function SuggestionRow({ sug, impact }: { sug: Pick<Suggestion, "severity" | "text" | "how_to" | "ease">; impact?: string }) {
+function SuggestionRow({
+  sug,
+  impact,
+}: {
+  sug: Pick<Suggestion, "severity" | "text" | "how_to" | "ease">;
+  impact?: string;
+}) {
   return (
     <Box>
       {/* the effort chip sits on its own line; the severity reads as a status dot beside the text */}
@@ -1635,14 +1764,14 @@ function NotApplicable({
             <Typography sx={{ mt: 1 }}>
               {isReview ? (
                 <>
-                  This reads as a review / opinion / perspective piece <em>about</em> the Bayesian
-                  workflow. The per-step rubric grades papers that <strong>apply</strong> a workflow to
-                  data, so it doesn&rsquo;t directly apply — <strong>nothing was graded</strong>.
+                  This reads as a review / opinion / perspective piece <em>about</em> the Bayesian workflow. The
+                  per-step rubric grades papers that <strong>apply</strong> a workflow to data, so it doesn&rsquo;t
+                  directly apply — <strong>nothing was graded</strong>.
                 </>
               ) : (
                 <>
-                  The relevance gate found no Bayesian statistical methodology to assess, so no per-step
-                  report was produced — <strong>nothing was graded</strong>.
+                  The relevance gate found no Bayesian statistical methodology to assess, so no per-step report was
+                  produced — <strong>nothing was graded</strong>.
                 </>
               )}
             </Typography>
@@ -1703,22 +1832,25 @@ function ProvenanceFooter({ r }: { r: ScoredResult }) {
     if (!byStage.has(e.stage)) byStage.set(e.stage, new Set());
     byStage.get(e.stage)!.add(e.model);
   }
-  const modelsByStage = Array.from(
-    byStage,
-    ([stage, models]) => `${stage}: ${Array.from(models).join(", ")}`,
-  );
+  const modelsByStage = Array.from(byStage, ([stage, models]) => `${stage}: ${Array.from(models).join(", ")}`);
 
   return (
     <Box component="footer" sx={{ bgcolor: "background.paper", borderTop: 1, borderColor: "divider" }}>
       <Container maxWidth="lg" sx={{ py: 2 }}>
         <Box
           sx={{
-            display: "flex", gap: 2, flexWrap: "wrap", alignItems: "baseline",
-            color: "text.secondary", fontSize: "0.8rem",
+            display: "flex",
+            gap: 2,
+            flexWrap: "wrap",
+            alignItems: "baseline",
+            color: "text.secondary",
+            fontSize: "0.8rem",
           }}
         >
           <span>app engine version {engineParts.pkg ?? r.engine_version}</span>
-          <span>rubric {r.rubric_version} · {r.rubric_profile}</span>
+          <span>
+            rubric {r.rubric_version} · {r.rubric_profile}
+          </span>
           {modelsByStage.length > 0 && <span>models — {modelsByStage.join(" · ")}</span>}
           <span>est. cost ${r.cost_ledger.total_cost_usd.toFixed(3)}</span>
           <ButtonBase
@@ -1731,8 +1863,11 @@ function ProvenanceFooter({ r }: { r: ScoredResult }) {
         <Collapse in={showDetails}>
           <Box
             sx={{
-              mt: 0.5, color: "text.disabled", fontSize: "0.72rem",
-              fontFamily: "monospace", wordBreak: "break-all",
+              mt: 0.5,
+              color: "text.disabled",
+              fontSize: "0.72rem",
+              fontFamily: "monospace",
+              wordBreak: "break-all",
             }}
           >
             prompts={engineParts.prompts} · detectors={engineParts.detectors}

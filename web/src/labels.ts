@@ -14,5 +14,4 @@ export const METHOD_LABELS: Record<string, string> = {
   exact_analytic: "Analytic",
 };
 
-export const methodChips = (methodsUsed?: string[]): string[] =>
-  (methodsUsed ?? []).map((m) => METHOD_LABELS[m] ?? m);
+export const methodChips = (methodsUsed?: string[]): string[] => (methodsUsed ?? []).map((m) => METHOD_LABELS[m] ?? m);

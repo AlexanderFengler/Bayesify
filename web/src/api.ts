@@ -67,11 +67,7 @@ export async function submitPaper(input: SubmitInput): Promise<SubmitResult> {
     paper_id: string;
     archive_hit?: boolean;
     session_hit?: boolean;
-  }>(
-    "/api/papers",
-    { method: "POST", body: form },
-    { detail: true, error: "upload failed" },
-  );
+  }>("/api/papers", { method: "POST", body: form }, { detail: true, error: "upload failed" });
   return {
     paperId: body.paper_id,
     archiveHit: body.archive_hit === true,
@@ -167,15 +163,10 @@ export interface RateContext {
 }
 
 // Load the BLIND rating context (rubric + detector evidence only — never the engine's ScoredResult).
-export async function fetchRateContext(
-  paperId: string,
-  profile = "synthesis",
-): Promise<RateContext> {
-  return fetchJson<RateContext>(
-    `/api/rate/context/${paperId}?profile=${encodeURIComponent(profile)}`,
-    undefined,
-    { error: "could not load rating context" },
-  );
+export async function fetchRateContext(paperId: string, profile = "synthesis"): Promise<RateContext> {
+  return fetchJson<RateContext>(`/api/rate/context/${paperId}?profile=${encodeURIComponent(profile)}`, undefined, {
+    error: "could not load rating context",
+  });
 }
 
 // The Rating a blind rater builds (mirrors bayesify.core.validation.human_report.Rating).
@@ -349,11 +340,7 @@ export interface ProgressEvent {
 }
 
 // Subscribe to the SSE progress stream, with a polling fallback. Returns a close() handle.
-export function streamProgress(
-  paperId: string,
-  onEvent: (e: ProgressEvent) => void,
-  onDone: () => void,
-): () => void {
+export function streamProgress(paperId: string, onEvent: (e: ProgressEvent) => void, onDone: () => void): () => void {
   let finished = false;
   let pollTimer: number | undefined;
   const es = new EventSource(`/api/papers/${paperId}/events`);

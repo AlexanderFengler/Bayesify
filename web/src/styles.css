@@ -155,7 +155,9 @@ main.container {
   padding: 38px 20px;
   text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
 }
 .dropzone:hover,
 .dropzone.dragging {
@@ -407,7 +409,9 @@ main.container {
   height: 12px;
   border-radius: 50%;
   background: var(--line-strong);
-  transition: background 0.2s, transform 0.2s;
+  transition:
+    background 0.2s,
+    transform 0.2s;
 }
 .step.running .step-dot {
   background: var(--accent);

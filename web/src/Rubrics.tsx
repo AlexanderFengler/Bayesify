@@ -51,7 +51,11 @@ const TITLE: Record<string, { line1: string; line2: React.ReactNode; url?: strin
     ),
   },
   gelman: { line1: "Bayesian Workflow", line2: "Gelman et al. (2020)", url: "https://arxiv.org/abs/2011.01808" },
-  schad: { line1: "Principled Bayesian Workflow", line2: "Schad et al. (2021)", url: "https://arxiv.org/abs/1904.12765" },
+  schad: {
+    line1: "Principled Bayesian Workflow",
+    line2: "Schad et al. (2021)",
+    url: "https://arxiv.org/abs/1904.12765",
+  },
 };
 
 // The curated feature matrix: which workflow capabilities each rubric covers. Derived from the three
@@ -95,11 +99,7 @@ export function Rubrics({ id }: { id?: string }) {
     fetchRubrics()
       .then((list) => Promise.all(list.map((r) => fetchRubric(r.id))))
       .then((loaded) =>
-        setRubrics(
-          [...loaded].sort(
-            (a, b) => rubricRank(a.rubric_profile) - rubricRank(b.rubric_profile),
-          ),
-        ),
+        setRubrics([...loaded].sort((a, b) => rubricRank(a.rubric_profile) - rubricRank(b.rubric_profile))),
       )
       .catch(() => setRubrics([]));
   }, []);
@@ -111,9 +111,9 @@ export function Rubrics({ id }: { id?: string }) {
         leadMaxWidth={1440}
         lead={
           <>
-            Bayesify grades against one of three rubrics. Each decomposes the Bayesian workflow into
-            distinct steps. While some workflows are iterative, Bayesify&rsquo;s step-by-step decomposition
-            represents the linearized sequence for one cycle. Pick the one whose lens fits your paper or try them all.
+            Bayesify grades against one of three rubrics. Each decomposes the Bayesian workflow into distinct steps.
+            While some workflows are iterative, Bayesify&rsquo;s step-by-step decomposition represents the linearized
+            sequence for one cycle. Pick the one whose lens fits your paper or try them all.
           </>
         }
       />
@@ -157,7 +157,8 @@ export function Rubrics({ id }: { id?: string }) {
 
           <SubsectionTitle sx={{ mt: { xs: 5, md: 7 } }}>On the roadmap</SubsectionTitle>
           <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: "0.95rem", lineHeight: 1.6 }}>
-            Capabilities planned for the Synthesis rubric: amortized workflow, Bayes factor workflow, and hierarchical modeling. Stay tuned!
+            Capabilities planned for the Synthesis rubric: amortized workflow, Bayes factor workflow, and hierarchical
+            modeling. Stay tuned!
           </Typography>
         </>
       )}
@@ -196,7 +197,9 @@ function RubricColumn({ rubric }: { rubric: Rubric }) {
             {title?.line1 ?? rubric.label}
           </Typography>
           {title && (
-            <Typography sx={{ fontWeight: 400, fontSize: "0.95rem", color: "text.secondary", lineHeight: 1.25, mt: 0.25 }}>
+            <Typography
+              sx={{ fontWeight: 400, fontSize: "0.95rem", color: "text.secondary", lineHeight: 1.25, mt: 0.25 }}
+            >
               {title.url ? (
                 <Link href={title.url} target="_blank" rel="noreferrer" underline="hover" color="inherit">
                   {title.line2}
@@ -219,15 +222,18 @@ function RubricColumn({ rubric }: { rubric: Rubric }) {
       <Divider sx={{ my: 2 }} />
 
       {/* steps outline grows to fill, so the three columns stay equal height */}
-      <Box
-        component="ol"
-        sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 1 }}
-      >
+      <Box component="ol" sx={{ listStyle: "none", p: 0, m: 0, display: "flex", flexDirection: "column", gap: 1 }}>
         {rubric.steps.map((s) => (
           <Box component="li" key={s.id} sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
             <Typography
               component="span"
-              sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 600, color: "text.disabled", flexShrink: 0 }}
+              sx={{
+                fontFamily: (t) => t.tokens.mono,
+                fontSize: 12,
+                fontWeight: 600,
+                color: "text.disabled",
+                flexShrink: 0,
+              }}
             >
               {s.id}
             </Typography>

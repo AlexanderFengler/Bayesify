@@ -31,7 +31,7 @@ const WORKING_WORDS = [
   "Triple-checking",
   "Recognizing",
   "Evaluating",
-  "Rubricking"
+  "Rubricking",
 ];
 
 // A typewriter that types a word, holds, deletes, then moves to the next — looping forever.
@@ -94,7 +94,12 @@ export function Analyzing({
       <Box sx={{ maxWidth: 760, mx: "auto", textAlign: "left" }}>
         <Typography
           variant="h3"
-          sx={{ fontWeight: 700, letterSpacing: "-0.02em", fontSize: { xs: "1.75rem", md: "2.25rem" }, minHeight: "1.3em" }}
+          sx={{
+            fontWeight: 700,
+            letterSpacing: "-0.02em",
+            fontSize: { xs: "1.75rem", md: "2.25rem" },
+            minHeight: "1.3em",
+          }}
         >
           {gate ? (
             "Out of scope."
@@ -117,11 +122,7 @@ export function Analyzing({
             </>
           )}
         </Typography>
-        {source && (
-          <Typography sx={{ mt: 1, color: "text.secondary", wordBreak: "break-word" }}>
-            {source}
-          </Typography>
-        )}
+        {source && <Typography sx={{ mt: 1, color: "text.secondary", wordBreak: "break-word" }}>{source}</Typography>}
         {byline && (
           <Typography variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
             {byline}
@@ -242,9 +243,29 @@ function Connector({ horizontal, filled }: { horizontal: boolean; filled: boolea
   const color = filled ? "primary.main" : "divider";
   const offset = `${(CIRCLE - 3) / 2}px`;
   return horizontal ? (
-    <Box sx={{ flex: 1, height: 3, mt: offset, mx: 0.5, bgcolor: color, borderRadius: 2, transition: "background-color 200ms" }} />
+    <Box
+      sx={{
+        flex: 1,
+        height: 3,
+        mt: offset,
+        mx: 0.5,
+        bgcolor: color,
+        borderRadius: 2,
+        transition: "background-color 200ms",
+      }}
+    />
   ) : (
-    <Box sx={{ width: 3, height: 28, ml: offset, my: 0.5, bgcolor: color, borderRadius: 2, transition: "background-color 200ms" }} />
+    <Box
+      sx={{
+        width: 3,
+        height: 28,
+        ml: offset,
+        my: 0.5,
+        bgcolor: color,
+        borderRadius: 2,
+        transition: "background-color 200ms",
+      }}
+    />
   );
 }
 
@@ -309,7 +330,13 @@ function NodeCircle({ state }: { state: StepState }) {
     return (
       <Box sx={{ ...base }}>
         {/* faint full ring as a track, with the spinner on top */}
-        <CircularProgress size={CIRCLE} thickness={3.5} sx={{ color: "divider", position: "absolute" }} variant="determinate" value={100} />
+        <CircularProgress
+          size={CIRCLE}
+          thickness={3.5}
+          sx={{ color: "divider", position: "absolute" }}
+          variant="determinate"
+          value={100}
+        />
         <CircularProgress size={CIRCLE} thickness={3.5} sx={{ color: "primary.main" }} />
       </Box>
     );

@@ -94,10 +94,7 @@ export function Layout() {
       setArchiveHit(null);
       return;
     }
-    const timer = window.setTimeout(
-      () => navigate(`/paper/${archiveHit}`, { replace: true }),
-      2000,
-    );
+    const timer = window.setTimeout(() => navigate(`/paper/${archiveHit}`, { replace: true }), 2000);
     return () => window.clearTimeout(timer);
   }, [archiveHit, navigate, pathname]);
 
@@ -120,13 +117,17 @@ export function Layout() {
             // (once) so the Analyzing screen shows the real paper, not the filename.
             if (e.stage === "parse" && e.state === "done" && !metaFetched) {
               metaFetched = true;
-              getPaper(paperId).then(setPaper).catch(() => {});
+              getPaper(paperId)
+                .then(setPaper)
+                .catch(() => {});
             }
             // Classify done (only for papers that pass the gates) → pull the classification in once so
             // the Analyzing screen reveals the paper type / methods while assess + score still run.
             if (e.stage === "classify" && e.state === "done" && !classFetched) {
               classFetched = true;
-              getPaper(paperId).then(setPaper).catch(() => {});
+              getPaper(paperId)
+                .then(setPaper)
+                .catch(() => {});
             }
           }
         },
@@ -299,7 +300,14 @@ export function Layout() {
             landing hero uses it to fill the first screenful precisely) */}
         <Box
           ref={scrollRef}
-          sx={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", containerType: "size" }}
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            containerType: "size",
+          }}
         >
           <FadingOutlet />
         </Box>
@@ -319,9 +327,7 @@ function FadingOutlet() {
   const outlet = useOutlet();
   // Group /paper/:id and /paper/:id/full under one key so navigating between the summary and the full
   // report does NOT trigger a page cross-fade — that morph is animated inside the (persistent) Report.
-  const key = pathname.startsWith("/paper/")
-    ? "/" + pathname.split("/").slice(1, 3).join("/")
-    : pathname;
+  const key = pathname.startsWith("/paper/") ? "/" + pathname.split("/").slice(1, 3).join("/") : pathname;
   return (
     <SwitchTransition mode="out-in">
       <Fade key={key} timeout={200} appear>

@@ -32,8 +32,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
           }
         >
           <AlertTitle>Something went wrong</AlertTitle>
-          The page hit an unexpected error. Reloading usually fixes it; if it keeps happening, please
-          let us know via the{" "}
+          The page hit an unexpected error. Reloading usually fixes it; if it keeps happening, please let us know via
+          the{" "}
           <Link
             component={RouterLink}
             to="/about"

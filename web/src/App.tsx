@@ -85,8 +85,7 @@ function ArchiveRoute() {
 }
 
 function ProcessingRoute() {
-  const { running, archiveHit, error, stageState, file, identifier, mode, reset, paper, rerunPaper } =
-    useApp();
+  const { running, archiveHit, error, stageState, file, identifier, mode, reset, paper, rerunPaper } = useApp();
   const navigate = useNavigate();
   if (error) return <ErrorPage error={error} onRetry={reset} />;
   if (archiveHit) return <ArchiveRedirect />;
@@ -121,8 +120,7 @@ function ProcessingRoute() {
       ? {
           isReview: r.not_applicable_reason === "not_an_application",
           rationale:
-            (r.not_applicable_reason === "not_an_application" && r.paper_class?.rationale) ||
-            r.relevance.rationale,
+            (r.not_applicable_reason === "not_an_application" && r.paper_class?.rationale) || r.relevance.rationale,
           confidence:
             r.not_applicable_reason === "not_an_application" && r.paper_class
               ? r.paper_class.confidence

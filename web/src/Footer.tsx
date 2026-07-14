@@ -10,10 +10,7 @@ const APP_VERSION = "0.1.1";
 export function Footer() {
   const navigate = useNavigate();
   return (
-    <Box
-      component="footer"
-      sx={{ color: "text.secondary", borderTop: 1, borderColor: "divider" }}
-    >
+    <Box component="footer" sx={{ color: "text.secondary", borderTop: 1, borderColor: "divider" }}>
       <Container maxWidth={false}>
         <Box
           sx={{
