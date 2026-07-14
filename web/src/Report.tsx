@@ -261,15 +261,17 @@ export function Report({
                     display: "flex",
                     alignItems: "center",
                     gap: 1.5,
-                    flexWrap: "wrap",
                     pr: { md: 0.25 },
                     // full width on its own row when stacked; sized to content (one line) when inline
                     width: { xs: "100%", md: "max-content" },
                     whiteSpace: { md: "nowrap" },
+                    // stacked: the two buttons split the row so together they span the same width as the
+                    // full-width "Read full report" above; inline: natural width, side by side
+                    "& > .MuiButton-root": { flex: { xs: 1, md: "0 0 auto" } },
                   }}
                 >
                   <Downloads paperId={paper.paper_id} />
-                  <Button variant="outlined" onClick={onReset} sx={{ flexShrink: 0 }}>
+                  <Button variant="outlined" onClick={onReset}>
                     Analyze another
                   </Button>
                 </Box>
@@ -885,7 +887,8 @@ function StepAccordion({
               />
             </ButtonBase>
             <Collapse in={isOpen}>
-              <Box sx={{ px: 1.5, pb: 2, pt: 0.5 }}>
+              {/* symmetric top/bottom padding around the expanded content */}
+              <Box sx={{ px: 1.5, py: 2 }}>
                 <StepChips a={a} weight={weightById.get(a.step_id)} correction={correctionByStep.get(a.step_id)} />
                 {why && (
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: "italic" }}>
