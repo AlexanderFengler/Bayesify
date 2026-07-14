@@ -31,7 +31,6 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
-  Paper,
   Slide,
   TextField,
   Tooltip,
@@ -227,7 +226,17 @@ export function Report({
                 </Box>
               </Collapse>
             )}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+            {/* On narrow screens this stacks: the primary button spans the full width and the secondary
+                actions (download + analyze another) sit on the row beneath it; inline on wider screens. */}
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", md: "row" },
+                alignItems: { xs: "stretch", md: "center" },
+                gap: 1.5,
+                flexWrap: { md: "wrap" },
+              }}
+            >
               {/* one button, two jobs: forward into the full report, or back to the summary */}
               <Button
                 variant="contained"
@@ -235,12 +244,30 @@ export function Report({
                 startIcon={expanded ? <ArrowBackIcon /> : undefined}
                 endIcon={expanded ? undefined : <ArrowForwardIcon />}
                 onClick={() => navigate(expanded ? base : `${base}/full`)}
+                sx={{ width: { xs: "100%", md: "auto" }, flexShrink: 0 }}
               >
                 {expanded ? "Back to summary" : "Read full report"}
               </Button>
-              <Collapse in={!expanded} timeout={300} orientation="horizontal">
-                {/* width:max-content + nowrap keep these on one line as the collapse squeezes the width */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pr: 0.25, width: "max-content", whiteSpace: "nowrap" }}>
+              {/* collapses vertically when stacked (height) and horizontally when inline (width) so the
+                  secondary actions tuck away in the full-report view either way */}
+              <Collapse
+                in={!expanded}
+                timeout={300}
+                orientation={compact ? "vertical" : "horizontal"}
+                sx={{ width: { xs: "100%", md: "auto" } }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    flexWrap: "wrap",
+                    pr: { md: 0.25 },
+                    // full width on its own row when stacked; sized to content (one line) when inline
+                    width: { xs: "100%", md: "max-content" },
+                    whiteSpace: { md: "nowrap" },
+                  }}
+                >
                   <Downloads paperId={paper.paper_id} />
                   <Button variant="outlined" onClick={onReset} sx={{ flexShrink: 0 }}>
                     Analyze another
@@ -801,35 +828,60 @@ function StepAccordion({
     <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
       {steps.map((a) => {
         const isOpen = a.step_id === selected;
-        const meta = statusMeta(a.status);
         const why = stepWhy[a.step_id];
+        // Match the wide-screen StepGlance tiles exactly: a frosted tint of the status color, punching
+        // to a solid status fill (white content) on hover — and on open, the "selected" punched state.
         return (
-          <Paper
+          <Box
             key={a.step_id}
-            variant="outlined"
-            sx={{
+            sx={(t) => ({
               borderRadius: 1,
-              borderLeft: "3px solid",
-              borderLeftColor: statusSx(meta.color),
               overflow: "hidden",
-            }}
+              backdropFilter: "blur(8px)",
+              border: "1px solid",
+              borderColor: isOpen ? statusMainColor(t, a.status) : alpha(statusMainColor(t, a.status), 0.4),
+              bgcolor: alpha(statusMainColor(t, a.status), 0.16),
+              transition: "border-color 140ms ease",
+              "&:hover": { borderColor: statusMainColor(t, a.status) },
+            })}
           >
             <ButtonBase
               onClick={() => onSelect(a.step_id)}
               aria-expanded={isOpen}
-              sx={{ width: "100%", p: 1.5, gap: 1, justifyContent: "space-between", alignItems: "center", textAlign: "left" }}
+              focusRipple
+              sx={(t) => ({
+                width: "100%",
+                p: 1.5,
+                gap: 1,
+                justifyContent: "space-between",
+                alignItems: "center",
+                textAlign: "left",
+                // inactive: transparent (the tint on the wrapper shows through); open/hover: solid punch
+                color: isOpen ? "common.white" : "text.primary",
+                bgcolor: isOpen ? statusMainColor(t, a.status) : "transparent",
+                transition: "background-color 140ms ease, color 140ms ease",
+                "& .acc-dot": {
+                  bgcolor: isOpen ? t.palette.common.white : statusMainColor(t, a.status),
+                  transition: "background-color 140ms ease",
+                },
+                "& .acc-chevron": { color: isOpen ? "common.white" : "text.secondary" },
+                "&:hover": { bgcolor: statusMainColor(t, a.status), color: "common.white" },
+                "&:hover .acc-dot": { bgcolor: t.palette.common.white },
+                "&:hover .acc-chevron": { color: "common.white" },
+              })}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-                <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: statusSx(meta.color), flexShrink: 0 }} />
-                <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 700, color: "text.disabled", flexShrink: 0 }}>
+                <Box className="acc-dot" sx={{ width: 10, height: 10, borderRadius: "50%", flexShrink: 0 }} />
+                <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 700, flexShrink: 0, color: "inherit" }}>
                   {a.step_id}
                 </Box>
-                <Typography component="span" sx={{ fontWeight: 600, fontSize: "0.95rem", minWidth: 0 }}>
+                <Typography component="span" sx={{ fontWeight: 600, fontSize: "0.95rem", minWidth: 0, color: "inherit" }}>
                   {stepNames[a.step_id] ?? a.step_id}
                 </Typography>
               </Box>
               <ExpandMoreIcon
-                sx={{ flexShrink: 0, color: "text.secondary", transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 150ms" }}
+                className="acc-chevron"
+                sx={{ flexShrink: 0, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 150ms, color 140ms" }}
               />
             </ButtonBase>
             <Collapse in={isOpen}>
@@ -848,7 +900,7 @@ function StepAccordion({
                 />
               </Box>
             </Collapse>
-          </Paper>
+          </Box>
         );
       })}
     </Box>

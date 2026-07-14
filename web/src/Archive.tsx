@@ -207,7 +207,11 @@ export function Archive() {
     setSelected({ paper_type: [], discipline: [], methods: [], software: [] });
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
+    // overflowX clip contains the page-swipe: the grid animates in from translateX(±32px), which would
+    // otherwise briefly extend past the right edge on a page change. Cards already fit the column
+    // (minmax(0,1fr) below), so this only bounds that transient — it never clips a resting card. `clip`
+    // (not hidden) leaves the y-axis visible, so nothing interferes with the page's vertical scroll.
+    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 }, overflowX: "clip" }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
