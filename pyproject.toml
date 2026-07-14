@@ -161,11 +161,11 @@ test = "pytest -q"
 lint = "ruff check bayesify tests"
 fmt = "ruff format bayesify tests"
 imports = "lint-imports"
-# The one gate (local + CI). setup-web/web-lint/web-format/web-build extend it over the frontend:
-# web-lint (ESLint) + web-format (Prettier --check) enforce the frontend tooling, and web-build runs
-# `tsc -b && vite build`, so a lint error, a formatting drift, a type error, or a broken build fails
-# the check, not the next deploy.
-check = { depends-on = ["lint", "imports", "test", "setup-web", "web-lint", "web-format", "web-build"] }
+# The one gate (local + CI). setup-web/web-lint/web-format/web-test/web-build extend it over the
+# frontend: web-lint (ESLint) + web-format (Prettier --check) enforce the frontend tooling, web-test
+# runs the Vitest suite, and web-build runs `tsc -b && vite build`, so a lint error, a formatting
+# drift, a failing test, a type error, or a broken build fails the check, not the next deploy.
+check = { depends-on = ["lint", "imports", "test", "setup-web", "web-lint", "web-format", "web-test", "web-build"] }
 test-parse = "pytest tests/test_parse.py -v"  # run with: pixi run -e parse test-parse
 # Live screen/classify accuracy gates over the labeled fixture set. Needs ANTHROPIC_API_KEY and makes
 # real (paid) cheap-model calls; opt-in via this task's env so it never fires during `pixi run check`.
@@ -192,3 +192,5 @@ web-typecheck = { cmd = "npm run typecheck", cwd = "web" }
 # (which carries the eslint/prettier binaries) is guaranteed present before they run.
 web-lint = { cmd = "npm run lint", cwd = "web", depends-on = ["setup-web"] }
 web-format = { cmd = "npm run format:check", cwd = "web", depends-on = ["setup-web"] }
+# Vitest suite (part of `check`). `npm test` == `vitest run` (single pass, not watch).
+web-test = { cmd = "npm test", cwd = "web", depends-on = ["setup-web"] }
