@@ -14,6 +14,8 @@ export function AccentText({ children }: { children: React.ReactNode }) {
         // mirrored stops (…→aqua→periwinkle→violet) so the loop wraps without a colour seam
         const stops = [violet.main, periwinkle.main, aqua.main, periwinkle.main, violet.main].join(", ");
         return {
+          // never break mid-phrase — the hero headline sizes itself (cqi) so this always fits one line
+          whiteSpace: "nowrap",
           backgroundImage: `linear-gradient(100deg, ${stops})`,
           backgroundSize: "200% 100%",
           WebkitBackgroundClip: "text",

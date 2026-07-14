@@ -2,6 +2,7 @@ import {
   Box,
   Button,
   Container,
+  Divider,
   Paper,
   Step,
   StepContent,
@@ -112,6 +113,8 @@ export function Guide({ id }: { id?: string }) {
       maxWidth="xl"
       sx={{
         py: { xs: 6, md: 8 },
+        // match the header's gutters so the section aligns with the wordmark as the screen narrows
+        px: { xs: 2.5, sm: 4, md: 5 },
         // fill the viewport between header and footer, like the hero (100cqh: the scroll area is a
         // size query container); center the content when it runs shorter than that
         minHeight: "calc(100dvh - 220px)",
@@ -134,16 +137,25 @@ export function Guide({ id }: { id?: string }) {
         }
       />
 
-      {/* the two flows, stacked, each drawn as a stepper diagram */}
+      {/* the two flows, stacked, each drawn as a stepper diagram. On small screens each title breaks
+          at a deliberate point ("Analyze a paper" / "using our AI agent") instead of wrapping anywhere */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 5, md: 8 } }}>
         <FlowSection
-          title="Analyze a paper using our AI agent"
-          lead=""
+          title={
+            <>
+              Analyze a paper
+              <SmallScreenBreak /> using our AI agent
+            </>
+          }
           steps={GET_RATED_STEPS}
         />
         <FlowSection
-          title="Rate a paper as a human expert"
-          lead=""
+          title={
+            <>
+              Rate a paper
+              <SmallScreenBreak /> as a human expert
+            </>
+          }
           steps={RATE_BLIND_STEPS}
         />
       </Box>
@@ -153,7 +165,21 @@ export function Guide({ id }: { id?: string }) {
   );
 }
 
-function FlowSection({ title, lead, steps }: { title: string; lead: string; steps: FlowStep[] }) {
+// A line break that only applies on small screens (below `sm`): the flow titles break at a chosen
+// word there and stay on one line once there's room. A `<br>` toggled via display — none removes it.
+function SmallScreenBreak() {
+  return <Box component="br" sx={{ display: { xs: "block", sm: "none" } }} />;
+}
+
+function FlowSection({
+  title,
+  lead,
+  steps,
+}: {
+  title: React.ReactNode;
+  lead?: React.ReactNode;
+  steps: FlowStep[];
+}) {
   return (
     // Each rating method is a card with the same responsive lift as the rubric columns: it
     // brightens, lifts, and casts a primary-tinted glow on hover.
@@ -172,9 +198,13 @@ function FlowSection({ title, lead, steps }: { title: string; lead: string; step
     >
       <SubsectionTitle>{title}</SubsectionTitle>
       {/* subsection captions run full width, one size step under the section lead (0.95 vs 1.05) */}
-      <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: "0.95rem", lineHeight: 1.6 }}>
-        {lead}
-      </Typography>
+      {lead ? (
+        <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: "0.95rem", lineHeight: 1.6 }}>
+          {lead}
+        </Typography>
+      ) : null}
+      {/* rule separating the flow's title from its steps */}
+      <Divider sx={{ mt: 2 }} />
       <Box sx={{ mt: 3 }}>
         <FlowStepper steps={steps} />
       </Box>

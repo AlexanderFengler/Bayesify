@@ -63,7 +63,9 @@ export function Landing(p: LandingProps) {
           justifyContent: "center",
         }}
       >
-        <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
+        {/* px matches the header's Container gutters so the content edges never sit inside the
+            header's — the pitch and upload panel stay aligned with the wordmark as the screen narrows */}
+        <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 }, px: { xs: 2.5, sm: 4, md: 5 } }}>
           {/* two columns: pitch | upload panel */}
           <Box
             sx={{
@@ -75,14 +77,18 @@ export function Landing(p: LandingProps) {
           >
             {/* pitch column — title and caption span the whole column, so both share the exact
                 width of the upload panel across the gap */}
-            <Box sx={{ flex: "1 1 0", minWidth: 0 }}>
+            {/* inline-size container so the headline can size against THIS column's width (cqi),
+                not the viewport — the font shrinks with the column so the accent line always fits */}
+            <Box sx={{ flex: "1 1 0", minWidth: 0, containerType: "inline-size" }}>
               <Typography
                 variant="h2"
                 sx={{
                   fontWeight: 700,
                   lineHeight: 1.08,
                   letterSpacing: "-0.02em",
-                  fontSize: { xs: "2rem", sm: "2.75rem", md: "3.5rem" },
+                  // fluid to the column width, capped at the design's 3.5rem: the size drops before
+                  // "Bayesian workflow" (the widest line, kept unbreakable in AccentText) would wrap
+                  fontSize: "clamp(1.6rem, 9cqi, 3.5rem)",
                 }}
               >
                 {/* always three lines */}
@@ -126,7 +132,7 @@ export function Landing(p: LandingProps) {
 
       {/* reviewer plumbing lives at the very bottom of the page, out of the pitch's way */}
       <Divider />
-      <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 } }}>
+      <Container maxWidth="xl" sx={{ py: { xs: 4, md: 6 }, px: { xs: 2.5, sm: 4, md: 5 } }}>
         <ReviewerTokenField />
       </Container>
     </Box>
@@ -320,9 +326,11 @@ function UploadPanel(
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", sm: "row" },
+          // stack once the panel is narrow (below the two-column hero) and let the controls fill the
+          // panel width; side-by-side, right-aligned once there's room
+          flexDirection: { xs: "column", md: "row" },
           gap: 2,
-          alignItems: { xs: "stretch", sm: "center" },
+          alignItems: { xs: "stretch", md: "center" },
           justifyContent: "space-between",
           mt: 2.5,
         }}
@@ -335,6 +343,8 @@ function UploadPanel(
           value={intent}
           onChange={(_, v) => v && setIntent(v)}
           aria-label="who assesses the paper"
+          // full panel width when stacked, each option sharing it evenly; natural width in the row
+          sx={{ width: { xs: "100%", md: "auto" }, "& .MuiToggleButton-root": { flex: { xs: 1, md: "none" } } }}
         >
           <ToggleButton value="ai" sx={{ px: 2 }}>
             AI Agent
@@ -344,12 +354,21 @@ function UploadPanel(
           </ToggleButton>
         </ToggleButtonGroup>
 
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", justifyContent: "flex-end" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+            alignItems: "center",
+            justifyContent: "flex-end",
+            width: { xs: "100%", md: "auto" },
+          }}
+        >
           <Button
             type="submit"
             variant="contained"
             disableElevation
             disabled={!p.canStart}
+            sx={{ width: { xs: "100%", md: "auto" } }}
             title={
               intent === "human"
                 ? "Rate this paper yourself against the rubric, blind to the engine's verdict"

@@ -207,7 +207,11 @@ export function Archive() {
     setSelected({ paper_type: [], discipline: [], methods: [], software: [] });
 
   return (
-    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 } }}>
+    // overflowX clip contains the page-swipe: the grid animates in from translateX(±32px), which would
+    // otherwise briefly extend past the right edge on a page change. Cards already fit the column
+    // (minmax(0,1fr) below), so this only bounds that transient — it never clips a resting card. `clip`
+    // (not hidden) leaves the y-axis visible, so nothing interferes with the page's vertical scroll.
+    <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 }, overflowX: "clip" }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
@@ -402,7 +406,10 @@ function PaperGrid({
       sx={{
         mt: 3,
         display: "grid",
-        gridTemplateColumns: twoCol ? "1fr 1fr" : "1fr",
+        // minmax(0, 1fr), not 1fr: a plain 1fr track has min-width:auto, so a card whose content has a
+        // wide min-content (a long unbreakable title word or byline — which varies page to page) blows
+        // the track past the viewport and the card bleeds off the right. minmax(0,…) lets it shrink.
+        gridTemplateColumns: twoCol ? "minmax(0, 1fr) minmax(0, 1fr)" : "minmax(0, 1fr)",
         gap: 2,
         alignItems: "start",
         animation: `${slideDir === "left" ? "archiveSwipeInRight" : "archiveSwipeInLeft"} .28s ease`,
@@ -417,7 +424,7 @@ function PaperGrid({
       }}
     >
       {cols.map((col, ci) => (
-        <Box key={ci} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box key={ci} sx={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
           {col.map((p) => (
             <ArchiveCard key={p.key} p={p} />
           ))}

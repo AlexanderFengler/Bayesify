@@ -35,6 +35,7 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
 import { alpha, type Theme } from "@mui/material/styles";
 import { useState } from "react";
@@ -123,6 +124,9 @@ export function Report({
 }) {
   const r = paper.result!;
   const navigate = useNavigate();
+  // Small screens swap the horizontal "Steps at a glance" strip (which would scroll sideways) for a
+  // vertical accordion — each step a collapsible row that opens its own detail inline.
+  const compact = useMediaQuery((t: Theme) => t.breakpoints.down("md"));
   // Records of expert disagreements made this session (step_id -> corrected status). Purely a UI
   // indicator; the engine output is never mutated (A5).
   const [overrides, setOverrides] = useState<Record<string, StepStatus>>({});
@@ -222,7 +226,17 @@ export function Report({
                 </Box>
               </Collapse>
             )}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+            {/* On narrow screens this stacks: the primary button spans the full width and the secondary
+                actions (download + analyze another) sit on the row beneath it; inline on wider screens. */}
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: { xs: "column", md: "row" },
+                alignItems: { xs: "stretch", md: "center" },
+                gap: 1.5,
+                flexWrap: { md: "wrap" },
+              }}
+            >
               {/* one button, two jobs: forward into the full report, or back to the summary */}
               <Button
                 variant="contained"
@@ -230,14 +244,34 @@ export function Report({
                 startIcon={expanded ? <ArrowBackIcon /> : undefined}
                 endIcon={expanded ? undefined : <ArrowForwardIcon />}
                 onClick={() => navigate(expanded ? base : `${base}/full`)}
+                sx={{ width: { xs: "100%", md: "auto" }, flexShrink: 0 }}
               >
                 {expanded ? "Back to summary" : "Read full report"}
               </Button>
-              <Collapse in={!expanded} timeout={300} orientation="horizontal">
-                {/* width:max-content + nowrap keep these on one line as the collapse squeezes the width */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pr: 0.25, width: "max-content", whiteSpace: "nowrap" }}>
+              {/* collapses vertically when stacked (height) and horizontally when inline (width) so the
+                  secondary actions tuck away in the full-report view either way */}
+              <Collapse
+                in={!expanded}
+                timeout={300}
+                orientation={compact ? "vertical" : "horizontal"}
+                sx={{ width: { xs: "100%", md: "auto" } }}
+              >
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    pr: { md: 0.25 },
+                    // full width on its own row when stacked; sized to content (one line) when inline
+                    width: { xs: "100%", md: "max-content" },
+                    whiteSpace: { md: "nowrap" },
+                    // stacked: the two buttons split the row so together they span the same width as the
+                    // full-width "Read full report" above; inline: natural width, side by side
+                    "& > .MuiButton-root": { flex: { xs: 1, md: "0 0 auto" } },
+                  }}
+                >
                   <Downloads paperId={paper.paper_id} />
-                  <Button variant="outlined" onClick={onReset} sx={{ flexShrink: 0 }}>
+                  <Button variant="outlined" onClick={onReset}>
                     Analyze another
                   </Button>
                 </Box>
@@ -281,39 +315,59 @@ export function Report({
                         </Typography>
                         <Legend />
                       </Box>
-                      <StepGlance
-                        steps={r.step_assessments}
-                        stepNames={stepNames}
-                        selected={selected}
-                        showTitles
-                        onSelect={toggleSelected}
-                      />
-                      <Collapse in={!!selectedStep} timeout={300}>
-                        <Box sx={{ mt: 3 }}>
-                          {selectedStep && (
-                            <StepDetail
-                              a={selectedStep}
-                              stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
-                              why={stepWhy[selectedStep.step_id]}
-                              weight={weightById.get(selectedStep.step_id)}
-                              correction={correctionByStep.get(selectedStep.step_id)}
-                              fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
-                              overridden={overrides[selectedStep.step_id]}
-                              onOverride={async (status, rationale) => {
-                                await recordOverride(
-                                  paper.paper_id,
-                                  selectedStep.step_id,
-                                  status,
-                                  rationale,
-                                  selectedStep.status,
-                                  r.rubric_profile,
-                                );
-                                setOverrides((prev) => ({ ...prev, [selectedStep.step_id]: status }));
-                              }}
-                            />
-                          )}
-                        </Box>
-                      </Collapse>
+                      {compact ? (
+                        <StepAccordion
+                          steps={r.step_assessments}
+                          stepNames={stepNames}
+                          stepWhy={stepWhy}
+                          weightById={weightById}
+                          correctionByStep={correctionByStep}
+                          fixList={paper.fix_list ?? []}
+                          overrides={overrides}
+                          selected={selected}
+                          onSelect={toggleSelected}
+                          onOverride={async (stepId, status, rationale, fromStatus) => {
+                            await recordOverride(paper.paper_id, stepId, status, rationale, fromStatus, r.rubric_profile);
+                            setOverrides((prev) => ({ ...prev, [stepId]: status }));
+                          }}
+                        />
+                      ) : (
+                        <>
+                          <StepGlance
+                            steps={r.step_assessments}
+                            stepNames={stepNames}
+                            selected={selected}
+                            showTitles
+                            onSelect={toggleSelected}
+                          />
+                          <Collapse in={!!selectedStep} timeout={300}>
+                            <Box sx={{ mt: 3 }}>
+                              {selectedStep && (
+                                <StepDetail
+                                  a={selectedStep}
+                                  stepName={stepNames[selectedStep.step_id] ?? selectedStep.step_id}
+                                  why={stepWhy[selectedStep.step_id]}
+                                  weight={weightById.get(selectedStep.step_id)}
+                                  correction={correctionByStep.get(selectedStep.step_id)}
+                                  fixes={(paper.fix_list ?? []).filter((f) => f.step_id === selectedStep.step_id)}
+                                  overridden={overrides[selectedStep.step_id]}
+                                  onOverride={async (status, rationale) => {
+                                    await recordOverride(
+                                      paper.paper_id,
+                                      selectedStep.step_id,
+                                      status,
+                                      rationale,
+                                      selectedStep.status,
+                                      r.rubric_profile,
+                                    );
+                                    setOverrides((prev) => ({ ...prev, [selectedStep.step_id]: status }));
+                                  }}
+                                />
+                              )}
+                            </Box>
+                          </Collapse>
+                        </>
+                      )}
                     </>
                   )}
                 </Box>
@@ -739,6 +793,117 @@ function StepGlance({
               </Typography>
             </Box>
           </ButtonBase>
+        );
+      })}
+    </Box>
+  );
+}
+
+// The small-screen alternative to StepGlance: a vertical stack of steps, each a collapsible accordion
+// row. The header (status dot, step id, name, chevron) toggles that step's detail — chips, "why", and
+// the shared StepBody — open inline beneath it. Single-open (driven by the same `selected` state), so
+// opening one closes another, and the status-colored left border mirrors the report's palette.
+function StepAccordion({
+  steps,
+  stepNames,
+  stepWhy,
+  weightById,
+  correctionByStep,
+  fixList,
+  overrides,
+  selected,
+  onSelect,
+  onOverride,
+}: {
+  steps: StepAssessment[];
+  stepNames: Record<string, string>;
+  stepWhy: Record<string, string>;
+  weightById: Map<string, number>;
+  correctionByStep: Map<string, AppliedCorrection>;
+  fixList: FixItem[];
+  overrides: Record<string, StepStatus>;
+  selected: string | null;
+  onSelect: (id: string) => void;
+  onOverride: (stepId: string, status: StepStatus, rationale: string, fromStatus: StepStatus) => Promise<void>;
+}) {
+  return (
+    <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+      {steps.map((a) => {
+        const isOpen = a.step_id === selected;
+        const why = stepWhy[a.step_id];
+        // Match the wide-screen StepGlance tiles exactly: a frosted tint of the status color, punching
+        // to a solid status fill (white content) on hover — and on open, the "selected" punched state.
+        return (
+          <Box
+            key={a.step_id}
+            sx={(t) => ({
+              borderRadius: 1,
+              overflow: "hidden",
+              backdropFilter: "blur(8px)",
+              border: "1px solid",
+              borderColor: isOpen ? statusMainColor(t, a.status) : alpha(statusMainColor(t, a.status), 0.4),
+              bgcolor: alpha(statusMainColor(t, a.status), 0.16),
+              transition: "border-color 140ms ease",
+              "&:hover": { borderColor: statusMainColor(t, a.status) },
+            })}
+          >
+            <ButtonBase
+              onClick={() => onSelect(a.step_id)}
+              aria-expanded={isOpen}
+              focusRipple
+              sx={(t) => ({
+                width: "100%",
+                p: 1.5,
+                gap: 1,
+                justifyContent: "space-between",
+                alignItems: "center",
+                textAlign: "left",
+                // inactive: transparent (the tint on the wrapper shows through); open/hover: solid punch
+                color: isOpen ? "common.white" : "text.primary",
+                bgcolor: isOpen ? statusMainColor(t, a.status) : "transparent",
+                transition: "background-color 140ms ease, color 140ms ease",
+                "& .acc-dot": {
+                  bgcolor: isOpen ? t.palette.common.white : statusMainColor(t, a.status),
+                  transition: "background-color 140ms ease",
+                },
+                "& .acc-chevron": { color: isOpen ? "common.white" : "text.secondary" },
+                "&:hover": { bgcolor: statusMainColor(t, a.status), color: "common.white" },
+                "&:hover .acc-dot": { bgcolor: t.palette.common.white },
+                "&:hover .acc-chevron": { color: "common.white" },
+              })}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+                <Box className="acc-dot" sx={{ width: 10, height: 10, borderRadius: "50%", flexShrink: 0 }} />
+                <Box component="span" sx={{ fontFamily: (t) => t.tokens.mono, fontSize: 12, fontWeight: 700, flexShrink: 0, color: "inherit" }}>
+                  {a.step_id}
+                </Box>
+                <Typography component="span" sx={{ fontWeight: 600, fontSize: "0.95rem", minWidth: 0, color: "inherit" }}>
+                  {stepNames[a.step_id] ?? a.step_id}
+                </Typography>
+              </Box>
+              <ExpandMoreIcon
+                className="acc-chevron"
+                sx={{ flexShrink: 0, transform: isOpen ? "rotate(180deg)" : "none", transition: "transform 150ms, color 140ms" }}
+              />
+            </ButtonBase>
+            <Collapse in={isOpen}>
+              {/* symmetric top/bottom padding around the expanded content */}
+              <Box sx={{ px: 1.5, py: 2 }}>
+                <StepChips a={a} weight={weightById.get(a.step_id)} correction={correctionByStep.get(a.step_id)} />
+                {why && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontStyle: "italic" }}>
+                    <MathText>{why}</MathText>
+                  </Typography>
+                )}
+                <StepBody
+                  a={a}
+                  fixes={fixList.filter((f) => f.step_id === a.step_id)}
+                  overridden={overrides[a.step_id]}
+                  onOverride={(status, rationale) => onOverride(a.step_id, status, rationale, a.status)}
+                />
+              </Box>
+            </Collapse>
+          </Box>
         );
       })}
     </Box>
