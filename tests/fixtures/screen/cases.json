@@ -279,7 +279,8 @@
         "version_label": "fixture"
       },
       "title": null
-    }
+    },
+    "strict_labels": true
   },
   {
     "expect_labels": [
@@ -420,14 +421,14 @@
           "id": "s01",
           "kind": "abstract",
           "page_spans": [],
-          "text": "We develop a new prior for spatial models and apply it to real census data.",
+          "text": "We propose a prior on model fit, measured by a Bayesian coefficient of determination R2.",
           "title": "Abstract"
         },
         {
           "id": "s02",
           "kind": "body",
           "page_spans": [],
-          "text": "Using PyMC we fit the model; posterior predictive checks and 95% credible intervals are reported for the census application.",
+          "text": "We place a beta prior on R2 and derive the induced prior on the global variance parameter for generalized linear mixed models. Using PyMC we fit the resulting model to real census data; posterior predictive checks and 95% credible intervals are reported for the census application.",
           "title": "Methods"
         }
       ],
@@ -443,7 +444,8 @@
         "version_label": "fixture"
       },
       "title": null
-    }
+    },
+    "strict_labels": true
   },
   {
     "expect_labels": [],

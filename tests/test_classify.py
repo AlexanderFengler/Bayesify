@@ -118,6 +118,65 @@ def test_method_development_accepts_sampler_and_general_prior_cues(quote: str) -
     assert cls.labels == [PaperClassLabel.method_development]
 
 
+def test_prior_method_conflict_drops_prior_only_model_overemit() -> None:
+    text = (
+        "We propose a prior on model fit, measured by a Bayesian coefficient of determination R2. "
+        "We place a beta prior on R2 and derive the induced prior on the global variance parameter "
+        "for generalized linear mixed models. Using PyMC we fit the resulting model to real census "
+        "data."
+    )
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_model": _yes("prior on model fit"),
+            "develops_new_bayesian_method": _yes(
+                "beta prior on R2 and derive the induced prior"
+            ),
+            "uses_bayesian_model_on_real_data": _yes("real census data"),
+        },
+        software=["PyMC"],
+    )
+    cls, _ = C.classify(_parsed(text), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.method_development, PaperClassLabel.data_analysis]
+
+
+def test_prior_theory_conflict_drops_prior_only_model_overemit() -> None:
+    text = (
+        "We propose a new weakly-informative prior for hierarchical variance parameters. "
+        "We derive properties of the resulting posterior distribution and study posterior "
+        "contraction."
+    )
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_model": _yes(
+                "new weakly-informative prior for hierarchical variance parameters"
+            ),
+            "develops_new_bayesian_method": _yes(
+                "new weakly-informative prior for hierarchical variance parameters"
+            ),
+            "investigates_theoretical_behavior": _yes(
+                "derive properties of the resulting posterior distribution and study posterior "
+                "contraction"
+            ),
+        }
+    )
+    cls, _ = C.classify(_parsed(text), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [
+        PaperClassLabel.method_development,
+        PaperClassLabel.theoretical_analysis,
+    ]
+
+
+def test_prior_conflict_keeps_independent_model_contribution() -> None:
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_model": _yes("we propose a new hierarchical model"),
+            "develops_new_bayesian_method": _yes("we introduce a new sampler"),
+        }
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.method_development, PaperClassLabel.model_development]
+
+
 def test_low_confidence_paper_type_fact_is_dropped() -> None:
     facts = _facts(
         paper_type={

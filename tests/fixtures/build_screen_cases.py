@@ -37,7 +37,7 @@ def _doc(abstract: str, body: str, references: str | None = None) -> ParsedDoc:
     return ParsedDoc(source=src, sections=secs, parser="fixture", parser_version="0")
 
 
-# (id, abstract, body, references, expect_relevance, expect_labels, note)
+# (id, abstract, body, references, expect_relevance, expect_labels, note[, strict_labels])
 _CASES = [
     # Relevant: data analysis.
     (
@@ -111,6 +111,33 @@ _CASES = [
         "yes",
         ["method_development", "theoretical_analysis"],
         "analytic methodological - method family only",
+        True,
+    ),
+    (
+        "meth4",
+        "We propose a new variational inference algorithm for hierarchical Bayesian models that "
+        "speeds up posterior estimation.",
+        "We derive the coordinate-ascent ELBO updates and implement the method in PyMC, reporting "
+        "posterior credible intervals. For illustration only, we include a brief run on one "
+        "publicly available dataset to show the implementation works end to end; the paper draws "
+        "no domain conclusions from it - the contribution is the algorithm itself.",
+        None,
+        "yes",
+        ["method_development"],
+        "method paper with a peripheral illustrative real-data run - must NOT also get data_analysis",
+        True,
+    ),
+    (
+        "emp4",
+        "We fit a Bayesian logistic regression to survey data using Stan to study voting behaviour.",
+        "Using weakly-informative priors, we report posterior odds ratios with 95% credible "
+        "intervals and check convergence with R-hat and bulk-ESS. The contribution is the "
+        "empirical finding about voting behaviour; the model and software are standard.",
+        None,
+        "yes",
+        ["data_analysis"],
+        "applies a standard model with existing software (Stan) - must NOT get software/model_development",
+        True,
     ),
     (
         "meth2",
@@ -124,13 +151,16 @@ _CASES = [
     ),
     (
         "meth3",
-        "We develop a new prior for spatial models and apply it to real census data.",
-        "Using PyMC we fit the model; posterior predictive checks and 95% credible intervals are "
-        "reported for the census application.",
+        "We propose a prior on model fit, measured by a Bayesian coefficient of determination R2.",
+        "We place a beta prior on R2 and derive the induced prior on the global variance parameter "
+        "for generalized linear mixed models. Using PyMC we fit the resulting model to real census "
+        "data; posterior predictive checks and 95% credible intervals are reported for the "
+        "census application.",
         None,
         "yes",
         ["method_development", "data_analysis"],
         "mixed: method contribution + real-data application",
+        True,
     ),
     # Partial / borderline.
     (
@@ -204,16 +234,18 @@ _CASES = [
 
 def main() -> None:
     out = []
-    for cid, abstract, body, refs, rel, labels, note in _CASES:
-        out.append(
-            {
-                "id": cid,
-                "parsed": _doc(abstract, body, refs).model_dump(mode="json"),
-                "expect_relevance": rel,
-                "expect_labels": labels,
-                "note": note,
-            }
-        )
+    for case in _CASES:
+        cid, abstract, body, refs, rel, labels, note, *rest = case
+        item = {
+            "id": cid,
+            "parsed": _doc(abstract, body, refs).model_dump(mode="json"),
+            "expect_relevance": rel,
+            "expect_labels": labels,
+            "note": note,
+        }
+        if rest and rest[0]:
+            item["strict_labels"] = True
+        out.append(item)
     _OUT.parent.mkdir(parents=True, exist_ok=True)
     _OUT.write_text(json.dumps(out, indent=2, sort_keys=True) + "\n")
     rel = sum(1 for c in out if c["expect_relevance"] == "yes")

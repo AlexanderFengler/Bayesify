@@ -100,8 +100,8 @@ Use an empty evidence string for "no":
 
 ## Paper type
 
-* `develops_new_bayesian_model`: The central contribution is a new or substantially extended Bayesian model, latent process, likelihood, or model-specific prior.
-* `develops_new_bayesian_method`: The central contribution is a new or substantially studied Bayesian inference algorithm, sampler, diagnostic, validation method, model-checking workflow, or fundamentally new/general-purpose prior.
+* `develops_new_bayesian_model`: The central contribution is a new or substantially extended probabilistic or generative model, latent stochastic process, simulator, likelihood, or joint dependence structure. A new prior counts here only if it is model-specific.
+* `develops_new_bayesian_method`: The central contribution is a new or substantially studied inference algorithm, sampler, diagnostic, validation or model-checking procedure, prior family, elicitation method, or general-purpose/default regularizing prior.
 * `develops_new_bayesian_software`: The central contribution is a Bayesian software package, library, or computational infrastructure. Implementation details alone are not enough.
 * `uses_bayesian_model_on_real_data`: The paper centrally fits a Bayesian model to observed real-world data and draws substantive domain conclusions. A demonstration or motivating example is low confidence.
 * `runs_numerical_or_simulation_study`: The paper centrally evaluates Bayesian models or methods using simulations, simulated data, synthetic data, benchmark data, numerical experiments, or fitting the model/method to simulator-generated data.
@@ -111,7 +111,7 @@ Use an empty evidence string for "no":
 ## Methods
 
 * `uses_mcmc`: Uses MCMC, Gibbs, Metropolis-Hastings, HMC, NUTS, or a custom sampler.
-* `uses_variational_inference`: Uses variational inference, variational Bayes, mean field, ADVI, or ELBO optimization.
+* `uses_variational_inference`: Uses variational inference (VI), variational Bayes, mean field, ADVI, or ELBO optimization.
 * `uses_sbi`: Uses a neural network trained on simulations from a forward model or simulator to infer parameters, likelihoods, likelihood ratios, scores, posteriors, or parameter distributions.
 * `uses_abc`: Uses approximate Bayesian computation, rejection ABC, ABC-SMC, or simulator matching through a distance or tolerance.
 * `uses_smc_or_particle_filter`: Uses sequential Monte Carlo, particle filtering, particle MCMC, or related particle inference.
@@ -132,7 +132,7 @@ SBI includes:
 * likelihood-free inference with neural networks / deep learning;
 * neural posterior, likelihood, ratio, or score estimation;
 * normalizing-flow posterior or likelihood estimators trained on simulations;
-* invertible neural networks for inverse problems when they infer posterior distributions, parameter distributions, or distributions over parameter space;
+* invertible neural networks for inverse problems when they infer posterior distributions;
 
 Do not classify a method as SBI merely because it uses ABC without a trained neural inference estimator.
 
@@ -197,6 +197,7 @@ or paraphrase from the paper — e.g. write "the weights are drawn from $\\mathc
 "the weights are drawn from N(0, 1)", and $p(y \\mid \\theta)$, not "p(y | θ)". Only the exact \
 substrings you place in the evidence `quote` field stay verbatim.
 """
+
 
 ASSESS_REFUTE_SYSTEM = """You are an adversarial verifier. A first-pass judge flagged this rubric step \
 as "missing" or "partial". Your single job is to find evidence that the step WAS in fact done — argue \

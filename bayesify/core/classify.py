@@ -334,6 +334,29 @@ _THEORY_PROPERTY_RE = re.compile(
     r"minimax rates?|identifiability|identification)\b",
     re.I,
 )
+_GENERAL_PRIOR_METHOD_RE = re.compile(
+    r"\b(prior famil(?:y|ies)|elicitation|general[- ]purpose prior|default regularizing prior|"
+    r"regularizing prior|weakly[- ]informative prior|prior on model fit|"
+    r"bayesian coefficient of determination|coefficient of determination|r2|r\^2|"
+    r"beta prior|induced prior|global variance parameter|variance parameters?|"
+    r"posterior contraction)\b",
+    re.I,
+)
+_MODEL_SPECIFIC_PRIOR_RE = re.compile(
+    r"\bmodel[- ]specific prior\b|\bprior for (?:the )?(?:[a-z0-9-]+\s+){0,4}"
+    r"(?:model|models|likelihood|latent process)\b",
+    re.I,
+)
+_INDEPENDENT_MODEL_DEVELOPMENT_RE = re.compile(
+    r"\b(new|novel|propos\w*|introduc\w*|develop\w*|extend\w*)\b"
+    r"(?!.{0,60}\bprior\b).{0,100}\b(probabilistic model|generative model|"
+    r"hierarchical model|latent(?: stochastic)? process|simulator|likelihood|"
+    r"joint dependence structure)\b"
+    r"|\b(probabilistic model|generative model|hierarchical model|"
+    r"latent(?: stochastic)? process|simulator|likelihood|joint dependence structure)\b"
+    r".{0,100}\b(new|novel|propos\w*|introduc\w*|develop\w*|extend\w*)\b",
+    re.I,
+)
 
 
 def classify(
@@ -400,6 +423,7 @@ def _labels_from_facts(facts: ClassifierFacts, context: str) -> list[PaperClassL
         fact = getattr(facts.paper_type, attr)
         if _label_fact_survives(label, fact, context):
             candidates.append(label)
+    candidates = _resolve_prior_label_conflicts(candidates, facts, context)
     labels = _prioritize_labels(candidates)
     if not labels:
         _log.warning(
@@ -431,6 +455,38 @@ def _label_fact_survives(
         )
         return False
     return True
+
+
+def _resolve_prior_label_conflicts(
+    candidates: list[PaperClassLabel], facts: ClassifierFacts, context: str
+) -> list[PaperClassLabel]:
+    """A prior can be a model component or a methodological contribution.
+
+    When the LLM emits both model_development and method_development, require independent
+    non-prior model evidence before keeping model_development. This preserves genuine model+method
+    papers while suppressing the common over-emission where "new prior" alone is treated as both.
+    """
+    if (
+        PaperClassLabel.model_development not in candidates
+        or PaperClassLabel.method_development not in candidates
+    ):
+        return candidates
+
+    model_fact = facts.paper_type.develops_new_bayesian_model
+    method_fact = facts.paper_type.develops_new_bayesian_method
+    model_text = model_fact.evidence
+    search_text = f"{method_fact.evidence}\n{model_text}\n{context}"
+    if (
+        _GENERAL_PRIOR_METHOD_RE.search(search_text) is None
+        or _has_independent_model_development(model_text)
+        or _MODEL_SPECIFIC_PRIOR_RE.search(model_text) is not None
+    ):
+        return candidates
+
+    _log.warning(
+        "model_development dropped: prior-method paper had no independent model-development cue"
+    )
+    return [label for label in candidates if label is not PaperClassLabel.model_development]
 
 
 def _prioritize_labels(candidates: list[PaperClassLabel]) -> list[PaperClassLabel]:
@@ -693,6 +749,10 @@ def _has_theory_structure(context: str, quote: str) -> bool:
         and _THEORY_PROPERTY_RE.search(search_text) is not None
     )
     return formal_result or derivation_result
+
+
+def _has_independent_model_development(text: str) -> bool:
+    return _INDEPENDENT_MODEL_DEVELOPMENT_RE.search(text) is not None
 
 
 def _first_by_priority(
