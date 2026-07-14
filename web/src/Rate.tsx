@@ -51,9 +51,12 @@ const EMPTY: StepDraft = { status: "", confidence: 0.8, rationale: "", cited: []
 
 const INFERENCE = [
   { value: "mcmc", label: "MCMC" },
-  { value: "hmc_nuts", label: "HMC / NUTS" },
   { value: "variational", label: "Variational" },
   { value: "sbi", label: "SBI" },
+  { value: "abc", label: "ABC" },
+  { value: "smc", label: "SMC" },
+  { value: "laplace_inla", label: "Laplace / INLA" },
+  { value: "em", label: "EM" },
   { value: "exact_analytic", label: "Exact / analytic" },
   { value: "unstated", label: "Unstated" },
 ];

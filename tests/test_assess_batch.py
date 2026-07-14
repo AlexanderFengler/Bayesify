@@ -86,6 +86,27 @@ def test_batch_strategy_grades_with_four_llm_calls(monkeypatch) -> None:
         rationale="The paper fits a model to real data.",
         evidence_refs=[0],
     )
+    # The wire format the classify stage now receives: checklist facts that the deterministic
+    # mapper turns into the same [data_analysis] PaperClass (Stan implies mcmc via the ontology).
+    from bayesify.core.schema import (
+        ClassifierFacts,
+        ClassifierMethodFacts,
+        ClassifierPaperTypeFacts,
+    )
+
+    no = {"answer": "no", "confidence": "low", "evidence": ""}
+    pt = {name: dict(no) for name in ClassifierPaperTypeFacts.model_fields}
+    pt["uses_bayesian_model_on_real_data"] = {
+        "answer": "yes",
+        "confidence": "high",
+        "evidence": "we fit the model to real data",
+    }
+    classifier_facts = ClassifierFacts(
+        paper_type=pt,
+        methods={name: dict(no) for name in ClassifierMethodFacts.model_fields},
+        software=["Stan"],
+        disciplines=[],
+    )
     gate_facts = derive_gate_facts(evidence, paper_class)
     applicable_ids = [
         step.id
@@ -110,7 +131,7 @@ def test_batch_strategy_grades_with_four_llm_calls(monkeypatch) -> None:
     refutations = BatchRefuterVerdicts.model_validate(
         {"verdicts": [{"step_id": first_applicable, "refuted": False, "notes": "Still absent."}]}
     )
-    client = FakeLLMClient(relevance, paper_class, judgments, refutations)
+    client = FakeLLMClient(relevance, classifier_facts, judgments, refutations)
 
     result = grade_parsed(
         parsed,
@@ -125,7 +146,7 @@ def test_batch_strategy_grades_with_four_llm_calls(monkeypatch) -> None:
     assert result.step_assessments
     assert [c["schema"] for c in client.calls] == [
         "Relevance",
-        "PaperClass",
+        "ClassifierFacts",
         "BatchAssessJudgments",
         "BatchRefuterVerdicts",
     ]

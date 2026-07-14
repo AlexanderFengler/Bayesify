@@ -41,3 +41,11 @@ def assess_context_chars() -> int:
         return max(1_000, int(os.environ.get("BAYESIFY_ASSESS_CONTEXT_CHARS", "500000")))
     except ValueError:
         return 500_000
+
+
+def classify_context_chars() -> int:
+    """Character budget for classifier-stage paper context."""
+    try:
+        return max(30_000, int(os.environ.get("BAYESIFY_CLASSIFY_CONTEXT_CHARS", "200000")))
+    except ValueError:
+        return 200_000

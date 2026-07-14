@@ -18,7 +18,8 @@
     "evidence_refs": [
       0
     ],
-    "methods_used": []
+    "methods_used": [],
+    "software_used": []
   },
   "gate_facts": {
     "inference_method": "hmc_nuts",
@@ -108,7 +109,7 @@
     {
       "step_id": "S6",
       "applicable": false,
-      "applicability_reason": "Only one model entertained and no Bayes factor reported.",
+      "applicability_reason": "Only one model entertained and no comparison metric (BF, posterior model probability, or LOO/WAIC) reported.",
       "status": "not_applicable",
       "confidence": 0.9,
       "evidence": [],
@@ -306,7 +307,7 @@
   ],
   "not_applicable_reason": null,
   "engine_version": "pkg=0.1.0;fixture",
-  "rubric_version": "0.3-draft",
+  "rubric_version": "0.4-draft",
   "rubric_profile": "synthesis",
   "cost_ledger": {
     "entries": [

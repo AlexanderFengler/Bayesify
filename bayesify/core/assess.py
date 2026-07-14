@@ -102,8 +102,8 @@ _RANK = {StepStatus.missing: 0, StepStatus.partial: 1, StepStatus.adequate: 2}
 _NEGATIVE = (StepStatus.missing, StepStatus.partial)
 
 # Detectors that imply the posterior was sampled or approximated, not closed-form. They override a
-# stray "conjugate prior"/"analytic posterior" mention so a mixed-method paper (conjugate block +
-# NUTS elsewhere) is not misread as exact_analytic, which would wrongly gate S4 (R-hat/ESS) N/A.
+# stray "conjugate prior"/"analytic posterior" mention so a mixed-method paper is not misread as
+# exact_analytic, which would wrongly gate S4 (R-hat/ESS) N/A.
 _SAMPLING_EVIDENCE = frozenset(
     {
         "method.mcmc",
@@ -131,12 +131,15 @@ def derive_gate_facts(evidence: list[Evidence], paper_class: PaperClass) -> Gate
     very paper whose LOO comparison the engine detected. BF / prior / inference come from detectors.
     """
     ids = {e.detector_id for e in evidence}
-    if "method.analytic" in ids and not (ids & _SAMPLING_EVIDENCE):
+    classifier_inference = _inference_from_paper_class(paper_class)
+    if classifier_inference is not InferenceMethod.unstated:
+        inference = classifier_inference
+    elif "method.analytic" in ids and not (ids & _SAMPLING_EVIDENCE):
         inference = InferenceMethod.exact_analytic
     elif "method.variational" in ids:
         inference = InferenceMethod.variational
     elif "method.mcmc" in ids:
-        inference = InferenceMethod.hmc_nuts if _mentions_nuts(evidence) else InferenceMethod.mcmc
+        inference = InferenceMethod.mcmc
     else:
         inference = InferenceMethod.unstated
     compared_models = "diag.loo_waic" in ids or "diag.pareto_k" in ids
@@ -148,9 +151,24 @@ def derive_gate_facts(evidence: list[Evidence], paper_class: PaperClass) -> Gate
     )
 
 
-def _mentions_nuts(evidence: list[Evidence]) -> bool:
-    text = " ".join(e.span.quote.lower() for e in evidence if e.detector_id == "method.mcmc")
-    return "nuts" in text or "hmc" in text or "hamiltonian" in text
+def _inference_from_paper_class(paper_class: PaperClass) -> InferenceMethod:
+    # Prefer context-aware classifier answers over mention-based detectors. Keep this order aligned
+    # with the older detector precedence for applicability gates that expect a single method.
+    for method in (
+        InferenceMethod.exact_analytic,
+        InferenceMethod.variational,
+        InferenceMethod.mcmc,
+        InferenceMethod.sbi,
+        InferenceMethod.abc,
+        InferenceMethod.smc,
+        InferenceMethod.laplace_inla,
+        InferenceMethod.em,
+    ):
+        if method in paper_class.methods_used:
+            return method
+    if InferenceMethod.hmc_nuts in paper_class.methods_used:
+        return InferenceMethod.mcmc
+    return InferenceMethod.unstated
 
 
 def _prior_informativeness(evidence: list[Evidence]) -> PriorInformativeness:

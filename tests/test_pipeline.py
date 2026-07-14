@@ -9,7 +9,6 @@ from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
     EvidenceSpan,
-    PaperClass,
     PaperClassLabel,
     ParsedDoc,
     Relevance,
@@ -51,17 +50,32 @@ def test_no_short_circuits_and_skips_classify() -> None:
     assert len(client.calls) == 1  # classify never called
 
 
+def _classifier_facts():
+    """Checklist facts mapping deterministically to [data_analysis] (the cue quote survives
+    without matching the fixture text)."""
+    from bayesify.core.schema import (
+        ClassifierFacts,
+        ClassifierMethodFacts,
+        ClassifierPaperTypeFacts,
+    )
+
+    no = {"answer": "no", "confidence": "low", "evidence": ""}
+    pt = {name: dict(no) for name in ClassifierPaperTypeFacts.model_fields}
+    pt["uses_bayesian_model_on_real_data"] = {
+        "answer": "yes",
+        "confidence": "high",
+        "evidence": "we fit the model to real data",
+    }
+    me = {name: dict(no) for name in ClassifierMethodFacts.model_fields}
+    return ClassifierFacts(paper_type=pt, methods=me, software=[], disciplines=[])
+
+
 def test_relevant_runs_both_stages() -> None:
     client = FakeLLMClient(
         Relevance(
             label=RelevanceLabel.yes, confidence=0.9, rationale="Bayesian", evidence_refs=[0]
         ),
-        PaperClass(
-            labels=[PaperClassLabel.data_analysis],
-            confidence=0.8,
-            rationale="real data",
-            evidence_refs=[0],
-        ),
+        _classifier_facts(),
     )
     rel, cls, costs = screen_and_classify(_parsed(), [_ev()], client=client)
 

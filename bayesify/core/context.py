@@ -1,9 +1,13 @@
-"""Shared LLM context builders for the cheap-model stages (screen + classify).
+"""Shared LLM context builders for cheap-model stages.
 
-Both stages show the model the same bounded view (d-screen-classify.md): abstract + body + captions
+The screen gate uses ``build_user``: paper excerpts plus indexed detector hits it can cite through
+``evidence_refs``. The checklist classifier consumes ``assessment_context`` directly: wider
+non-reference paper text, no detector ids.
+
+The screen excerpt shows the bounded view (d-screen-classify.md): abstract + body + captions
 (references and supplements excluded — A3), plus a digest of the deterministic detector
 ``Evidence[]`` with stable indices the model must cite via ``evidence_refs``. Centralised here so
-the two stages stay byte-identical in what they show and so the token budget lives in one place.
+the screen grounding rules and token budget live in one place.
 """
 
 from __future__ import annotations
@@ -98,7 +102,7 @@ def validate_evidence_refs(refs: list[int], evidence: list[Evidence], *, where: 
 def build_user(
     parsed: ParsedDoc, evidence: list[Evidence], *, max_chars: int = DEFAULT_MAX_CHARS
 ) -> str:
-    """The shared user message: paper excerpts + the indexed detector-hit digest."""
+    """Screen-gate user message: paper excerpts + the indexed detector-hit digest."""
     return (
         "PAPER EXCERPTS (reference list excluded):\n"
         f"{excerpt_context(parsed, max_chars=max_chars)}\n\n"

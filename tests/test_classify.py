@@ -1,4 +1,5 @@
-"""Paper-type classifier (M4 slice 3), driven by the fake LLM client (no network)."""
+"""Paper-type classifier — the checklist contract: the fake LLM returns ``ClassifierFacts`` and the
+deterministic mapper (labels / methods / software ontology) owns the final ``PaperClass``."""
 
 from __future__ import annotations
 
@@ -8,9 +9,13 @@ import pytest
 
 from bayesify.core import classify as C
 from bayesify.core.schema import (
+    ClassifierFacts,
+    ClassifierMethodFacts,
+    ClassifierPaperTypeFacts,
     Evidence,
     EvidenceKind,
     EvidenceSpan,
+    InferenceMethod,
     PaperClass,
     PaperClassLabel,
     ParsedDoc,
@@ -39,42 +44,214 @@ def _ev() -> Evidence:
     )
 
 
-def _method_ev(detector_id: str) -> Evidence:
-    return Evidence(
-        detector_id=detector_id,
-        detector_version="0.1.0",
-        kind=EvidenceKind.method_mention,
-        span=EvidenceSpan(section_id="s01", page=1, quote="m"),
+_NO = {"answer": "no", "confidence": "low", "evidence": ""}
+
+
+def _facts(
+    paper_type: dict[str, dict] | None = None,
+    methods: dict[str, dict] | None = None,
+    software: list[str] | None = None,
+    disciplines: list[str] | None = None,
+) -> ClassifierFacts:
+    """An all-'no' checklist with targeted overrides — the wire format classify now expects."""
+    pt = {name: dict(_NO) for name in ClassifierPaperTypeFacts.model_fields}
+    pt.update(paper_type or {})
+    me = {name: dict(_NO) for name in ClassifierMethodFacts.model_fields}
+    me.update(methods or {})
+    return ClassifierFacts(
+        paper_type=pt, methods=me, software=software or [], disciplines=disciplines or []
     )
 
 
-def test_classify_returns_paperclass_and_meters_cost() -> None:
-    canned = PaperClass(
-        labels=[PaperClassLabel.data_analysis],
-        confidence=0.85,
-        rationale="fits real data",
-        evidence_refs=[0],
+def _yes(evidence: str, confidence: str = "high") -> dict:
+    return {"answer": "yes", "confidence": confidence, "evidence": evidence}
+
+
+# --- fact -> label mapping ------------------------------------------------------------------------
+
+
+def test_classify_maps_checklist_facts_and_meters_cost() -> None:
+    parsed = _parsed("We fit a Bayesian model to real reaction-time data in Stan.")
+    facts = _facts(
+        paper_type={
+            "uses_bayesian_model_on_real_data": _yes(
+                "fit a Bayesian model to real reaction-time data in Stan"
+            )
+        },
+        software=["Stan"],
+        disciplines=["neuroscience"],
     )
-    client = FakeLLMClient(canned)
-    cls, entry = C.classify(_parsed("We fit a model to real RT data."), [_ev()], client=client)
+    client = FakeLLMClient(facts)
+    cls, entry = C.classify(parsed, [_ev()], client=client)
 
     assert cls.labels == [PaperClassLabel.data_analysis]
+    assert cls.methods_used == [InferenceMethod.mcmc]  # Stan implies MCMC via the ontology
+    assert cls.software_used == ["Stan"]
+    assert cls.disciplines == ["neuroscience"]
+    assert cls.evidence_refs == [0]  # the fact quote overlaps the detector span ("in Stan")
     assert entry.stage == "classify" and entry.model == llm_config.classify_model()
-    assert client.calls[0]["schema"] == "PaperClass"
-    assert "DETECTOR HITS" in client.calls[0]["user"]
+    assert client.calls[0]["schema"] == "ClassifierFacts"
 
 
-def test_classify_supports_multi_label_paper_types() -> None:
-    canned = PaperClass(
-        labels=[PaperClassLabel.method_development, PaperClassLabel.data_analysis],
-        confidence=0.7,
-        rationale="new prior + a real-data application section",
-        evidence_refs=[0],
+def test_classify_supports_multi_label_papers() -> None:
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_model": _yes("we propose a new hierarchical model"),
+            "uses_bayesian_model_on_real_data": _yes("applied to real census data"),
+        }
     )
-    cls, _ = C.classify(
-        _parsed("We propose a new prior and apply it."), [_ev()], client=FakeLLMClient(canned)
+    cls, _ = C.classify(_parsed("irrelevant"), [_ev()], client=FakeLLMClient(facts))
+    # both quotes carry their label cue; model_development is primary, data_analysis secondary
+    assert cls.labels == [PaperClassLabel.model_development, PaperClassLabel.data_analysis]
+
+
+@pytest.mark.parametrize(
+    "quote",
+    [
+        "we introduce a new sampler",
+        "we propose a fundamentally new generally applicable prior",
+    ],
+)
+def test_method_development_accepts_sampler_and_general_prior_cues(quote: str) -> None:
+    facts = _facts(paper_type={"develops_new_bayesian_method": _yes(quote)})
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.method_development]
+
+
+def test_low_confidence_paper_type_fact_is_dropped() -> None:
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_model": _yes("we propose a new hierarchical model"),
+            "uses_bayesian_model_on_real_data": _yes("applied to real data", confidence="low"),
+        }
     )
-    assert cls.labels == [PaperClassLabel.method_development, PaperClassLabel.data_analysis]
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.model_development]
+
+
+def test_unverifiable_quote_without_label_cue_is_dropped() -> None:
+    facts = _facts(
+        paper_type={
+            # neither in the excerpt nor carrying a model_development cue -> dropped
+            "develops_new_bayesian_model": _yes("the weather was nice that day"),
+            "uses_bayesian_model_on_real_data": _yes("we analyse real data"),
+        }
+    )
+    cls, _ = C.classify(_parsed("something else entirely"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.data_analysis]
+
+
+def test_no_surviving_facts_falls_back_to_data_analysis() -> None:
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(_facts()))
+    assert cls.labels == [PaperClassLabel.data_analysis]
+
+
+def test_theoretical_analysis_requires_formal_or_derivation_structure() -> None:
+    # theoretical-sounding but informal property discussion -> dropped (falls back to data_analysis)
+    no_structure = _facts(
+        paper_type={"investigates_theoretical_behavior": _yes("informal discussion of consistency")}
+    )
+    parsed = _parsed("We give an informal discussion of consistency and intuition.")
+    cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(no_structure))
+    assert PaperClassLabel.theoretical_analysis not in cls.labels
+
+    # formal result marker is enough; some papers omit literal "Proof" in extracted context
+    formal = _facts(
+        paper_type={
+            "investigates_theoretical_behavior": _yes("Proposition 1 establishes consistency")
+        }
+    )
+    parsed = _parsed("Proposition 1 establishes consistency.")
+    cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(formal))
+    assert cls.labels == [PaperClassLabel.theoretical_analysis]
+
+    # derivation/asymptotic language also counts as theory, even without theorem/proof markers
+    derivation = _facts(
+        paper_type={
+            "investigates_theoretical_behavior": _yes(
+                "derive properties of the resulting posterior distribution and study posterior "
+                "contraction"
+            )
+        }
+    )
+    parsed = _parsed(
+        "We derive properties of the resulting posterior distribution and study posterior "
+        "contraction."
+    )
+    cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(derivation))
+    assert cls.labels == [PaperClassLabel.theoretical_analysis]
+
+
+# --- software rules -------------------------------------------------------------------------------
+
+
+def test_review_only_paper_may_have_empty_software() -> None:
+    facts = _facts(
+        paper_type={"is_review_tutorial_or_commentary": _yes("a review of Bayesian workflow")}
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.review]
+    assert cls.software_used == []  # no fabricated "Custom" on a paper that runs nothing
+
+
+def test_theoretical_only_paper_may_have_empty_software() -> None:
+    facts = _facts(
+        paper_type={"investigates_theoretical_behavior": _yes("Theorem 1 establishes consistency")}
+    )
+    parsed = _parsed("Theorem 1 establishes consistency. Proof. See the appendix.")
+    cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.theoretical_analysis]
+    assert cls.software_used == []
+
+
+def test_computational_paper_without_named_software_gets_custom() -> None:
+    facts = _facts(paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")})
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.software_used == ["Custom"]  # computational labels keep the never-empty rule
+
+
+def test_software_canonicalization_and_language_qualifier() -> None:
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        software=["pymc3", "python", "custom", "R "],
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    # pymc3 canonicalizes; bare languages drop out of the list but qualify Custom
+    assert cls.software_used == ["PyMC", "Custom (Python)"]
+
+
+# --- fact -> method mapping -----------------------------------------------------------------------
+
+
+def test_method_fact_requires_its_quote_in_the_excerpts() -> None:
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        methods={"uses_sbi": _yes("simulation-based inference approach")},
+    )
+    # quote absent from the paper -> dropped
+    cls, _ = C.classify(_parsed("nothing of the sort here"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.methods_used == []
+
+    # quote present in the paper (and carrying the SBI cue) -> kept
+    facts2 = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        methods={"uses_sbi": _yes("simulation-based inference approach")},
+    )
+    parsed = _parsed("We take a simulation-based inference approach to estimation.")
+    cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(facts2))
+    assert cls.methods_used == [InferenceMethod.sbi]
+
+
+def test_software_ontology_implies_methods() -> None:
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        software=["BayesFlow"],
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert InferenceMethod.sbi in cls.methods_used  # BayesFlow -> SBI, no method fact needed
+
+
+# --- transport + schema invariants (unchanged) ----------------------------------------------------
 
 
 def test_classify_fails_closed() -> None:
@@ -83,87 +260,11 @@ def test_classify_fails_closed() -> None:
         C.classify(_parsed("text"), [_ev()], client=client)
 
 
-def test_classify_rejects_out_of_range_evidence_ref() -> None:
-    # Only one detector hit (index 0) was shown; a ref to index 3 is a hallucinated citation.
-    canned = PaperClass(
-        labels=[PaperClassLabel.data_analysis],
-        confidence=0.85,
-        rationale="fits real data",
-        evidence_refs=[3],
-    )
-    with pytest.raises(ValueError, match="evidence_refs"):
-        C.classify(_parsed("We fit a model."), [_ev()], client=FakeLLMClient(canned))
-
-
-def test_classify_keeps_methods_grounded_by_a_detector_hit() -> None:
-    from bayesify.core.schema import InferenceMethod
-
-    canned = PaperClass(
-        labels=[PaperClassLabel.data_analysis],
-        confidence=0.8,
-        rationale="fits real data",
-        evidence_refs=[0],
-        methods_used=[InferenceMethod.hmc_nuts, InferenceMethod.sbi, InferenceMethod.smc],
-    )
-    # hmc_nuts grounds on method.mcmc, sbi on method.sbi, smc on method.smc — all present, so all
-    # three survive.
-    evidence = [
-        _ev(),
-        _method_ev("method.mcmc"),
-        _method_ev("method.sbi"),
-        _method_ev("method.smc"),
-    ]
-    cls, _ = C.classify(
-        _parsed("We fit with NUTS, SBI, SMC."), evidence, client=FakeLLMClient(canned)
-    )
-    assert cls.methods_used == [InferenceMethod.hmc_nuts, InferenceMethod.sbi, InferenceMethod.smc]
-
-
-def test_classify_drops_methods_with_no_detector_hit(caplog) -> None:
-    import logging
-
-    from bayesify.core.schema import InferenceMethod
-
-    canned = PaperClass(
-        labels=[PaperClassLabel.data_analysis],
-        confidence=0.8,
-        rationale="r",
-        evidence_refs=[0],
-        methods_used=[InferenceMethod.mcmc, InferenceMethod.smc],
-    )
-    # Only method.mcmc fired; the hallucinated smc has no corroborating detector hit -> dropped.
-    evidence = [_ev(), _method_ev("method.mcmc")]
-    with caplog.at_level(logging.WARNING, logger="bayesify.core.classify"):
-        cls, _ = C.classify(_parsed("mcmc yes, smc no"), evidence, client=FakeLLMClient(canned))
-    assert cls.methods_used == [InferenceMethod.mcmc]
-    assert any("smc" in r.getMessage() for r in caplog.records)
-
-
-def test_classify_skips_method_grounding_without_evidence() -> None:
-    from bayesify.core.schema import InferenceMethod
-
-    canned = PaperClass(
-        labels=[PaperClassLabel.data_analysis],
-        confidence=0.8,
-        rationale="r",
-        evidence_refs=[0],
-        methods_used=[InferenceMethod.smc],
-    )
-    # The forced-rerun escape hatch grades without grounding (evidence == []): methods pass through.
-    cls, _ = C.classify(_parsed("x"), [], client=FakeLLMClient(canned))
-    assert cls.methods_used == [InferenceMethod.smc]
-
-
 def test_paperclass_methods_used_drops_unknown_unstated_and_dupes() -> None:
     # A stray/hallucinated method token is filtered (mode="before"), not a hard failure; "unstated"
     # and duplicates are dropped by the after-validator, so one bad word never fails the whole call.
-    from bayesify.core.schema import InferenceMethod
-
     pc = PaperClass(
-        labels=[PaperClassLabel.data_analysis],
-        confidence=0.8,
-        rationale="r",
-        evidence_refs=[0],
+        labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="r", evidence_refs=[0],
         methods_used=["mcmc", "nuts", "mcmc", "unstated"],  # "nuts" not in vocab; dup + unstated
     )
     assert pc.methods_used == [InferenceMethod.mcmc]
@@ -173,15 +274,10 @@ def test_paperclass_methods_used_logs_dropped(caplog) -> None:
     # Out-of-vocab tokens are dropped (not fatal) AND logged, so an untracked method surfaces.
     import logging
 
-    from bayesify.core.schema import InferenceMethod
-
     with caplog.at_level(logging.WARNING, logger="bayesify.core.schema"):
         pc = PaperClass(
-            labels=[PaperClassLabel.data_analysis],
-            confidence=0.8,
-            rationale="r",
-            evidence_refs=[0],
-            methods_used=["mcmc", "particle_filter"],
+            labels=[PaperClassLabel.data_analysis], confidence=0.8, rationale="r",
+            evidence_refs=[0], methods_used=["mcmc", "particle_filter"],
         )
     assert pc.methods_used == [InferenceMethod.mcmc]
     assert any("particle_filter" in r.getMessage() for r in caplog.records)
