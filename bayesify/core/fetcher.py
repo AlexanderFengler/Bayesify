@@ -226,8 +226,8 @@ class Fetcher:
                 f"PubMed id not found: {parsed.value}",
                 user_message=f"No PubMed record found for {parsed.value}.",
             )
-        pmid = record.get("pmid") or None
-        pmcid = record.get("pmcid") or None
+        pmid = str(record["pmid"]) if record.get("pmid") else None  # NCBI returns pmid as an int
+        pmcid = str(record["pmcid"]) if record.get("pmcid") else None
         # 1) With a DOI, resolve through the full OA chain (OpenAlex/Unpaywall/Crossref) — Unpaywall
         #    already indexes PMC-hosted copies — then stamp on the learned PubMed ids.
         if doi_id := _as_doi_id(record.get("doi")):

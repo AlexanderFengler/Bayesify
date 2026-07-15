@@ -101,7 +101,7 @@ def _handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"message": {"title": ["Locked Paper"]}})
     if "idconv" in url:  # NCBI ID Converter: PMID/PMCID -> DOI (+ sibling ids)
         if "14699080" in url:  # a PMID that carries a DOI with an OA copy
-            record = {"pmid": "14699080", "pmcid": "PMC1193645", "doi": "10.1038/withpdf"}
+            record = {"pmid": 14699080, "pmcid": "PMC1193645", "doi": "10.1038/withpdf"}  # int pmid
         elif "PMC7777777" in url:  # a PMCID with no DOI but an OA full text
             record = {"pmcid": "PMC7777777"}
         elif "PMC0000000" in url:  # an id the converter rejects
