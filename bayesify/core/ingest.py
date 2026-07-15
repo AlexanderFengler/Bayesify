@@ -28,13 +28,19 @@ _ARXIV_URL = re.compile(r"arxiv\.org/(?:abs|pdf)/([^\s?]+?)(?:\.pdf)?$", re.IGNO
 _DOI_BARE = re.compile(r"^(?:doi:)?(10\.\d{4,9}/\S+)$", re.IGNORECASE)
 _DOI_URL = re.compile(r"doi\.org/(10\.\d{4,9}/\S+)$", re.IGNORECASE)
 _OPENALEX = re.compile(r"^(?:https?://openalex\.org/)?(W\d+)$", re.IGNORECASE)
+# PubMed: a bare PMCID is unambiguous (the ``PMC`` prefix); a bare PMID would collide with any stray
+# integer, so it needs an explicit ``PMID:`` marker or a pubmed.ncbi URL.
+_PMCID = re.compile(r"^(?:pmcid:\s*)?(PMC\d+)$", re.IGNORECASE)
+_PMID = re.compile(r"^pmid:\s*(\d+)$", re.IGNORECASE)
+_PMC_URL = re.compile(r"ncbi\.nlm\.nih\.gov/(?:pmc/articles|articles)/(PMC\d+)", re.IGNORECASE)
+_PMID_URL = re.compile(r"pubmed\.ncbi\.nlm\.nih\.gov/(\d+)", re.IGNORECASE)
 _URL = re.compile(r"^https?://", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
 class ParsedIdentifier:
-    kind: str  # "arxiv" | "doi" | "openalex" | "url"
-    value: str  # normalized
+    kind: str  # "arxiv" | "doi" | "openalex" | "pubmed" | "url"
+    value: str  # normalized (for "pubmed": a bare PMID, or an uppercase "PMC…" PMCID)
     version_hint: str | None = None  # e.g. "v2" for an explicitly-versioned arXiv id
 
 
@@ -63,11 +69,15 @@ def parse_input(raw: str) -> ParsedIdentifier:
         return ParsedIdentifier("doi", m.group(1).lower())
     if m := _OPENALEX.match(v):
         return ParsedIdentifier("openalex", m.group(1).upper())
+    if m := (_PMC_URL.search(v) or _PMCID.match(v)):
+        return ParsedIdentifier("pubmed", m.group(1).upper())  # canonical "PMC…"
+    if m := (_PMID_URL.search(v) or _PMID.match(v)):
+        return ParsedIdentifier("pubmed", m.group(1))  # bare PMID digits
     if _URL.match(v):
         return ParsedIdentifier("url", v)
     raise UnrecognizedInputError(
         f"unrecognized input: {raw!r}",
-        user_message="That doesn't look like an arXiv ID, DOI, OpenAlex ID, or URL.",
+        user_message="That doesn't look like an arXiv ID, DOI, OpenAlex ID, PMID/PMCID, or URL.",
     )
 
 
@@ -79,6 +89,10 @@ def to_paper_ids(parsed: ParsedIdentifier) -> s.PaperIds:
         return s.PaperIds(doi=parsed.value)
     if parsed.kind == "openalex":
         return s.PaperIds(openalex_id=parsed.value)
+    if parsed.kind == "pubmed":
+        if parsed.value.upper().startswith("PMC"):
+            return s.PaperIds(pmcid=parsed.value)
+        return s.PaperIds(pmid=parsed.value)
     return s.PaperIds()
 
 

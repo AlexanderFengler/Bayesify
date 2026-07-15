@@ -130,13 +130,15 @@ class PaperIds(_Base):
     doi: str | None = None
     arxiv_id: str | None = None
     openalex_id: str | None = None
+    pmid: str | None = None  # PubMed ID (bare digits)
+    pmcid: str | None = None  # PubMed Central ID (e.g. "PMC1234567")
 
 
 class SourceDoc(_Base):
     sha256: str
     ids: PaperIds = Field(default_factory=PaperIds)
     version_label: str  # e.g. "arXiv v2", "publisher VoR (Unpaywall)", "uploaded PDF"
-    source: str  # upload | arxiv | openalex | unpaywall | crossref | url (+ resolved URL)
+    source: str  # upload | arxiv | openalex | unpaywall | crossref | pubmed | url (+ resolved URL)
     fetched_at: datetime
 
 

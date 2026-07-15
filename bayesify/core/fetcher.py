@@ -6,6 +6,15 @@ Built on top of ``ingest.parse_input``; the resolution chain follows ``02-mvp/a-
 2. **OpenAlex** then **Unpaywall** for DOIs / OpenAlex IDs — best OA location + its license.
 3. **Crossref** metadata as last resort, so a no-OA result still names the paper.
 
+A **PMID / PMCID** is mapped to its DOI via NCBI's ID Converter and resolved through step 2 (with
+the PubMed ids stamped on); a DOI-less PMCID falls back to Europe PMC's full-text PDF.
+
+A pasted **URL** is fetched directly if it is already a PDF; otherwise it is treated as a
+publisher/preprint landing page and its Highwire ``citation_*`` meta tags are mined for a
+``citation_pdf_url`` (fetched directly) or a ``citation_doi`` (re-dispatched through step 2). One
+publisher-agnostic path covers eLife, PsyArXiv/OSF, ScienceDirect, PMC, PLOS, … with no per-host
+code.
+
 Web-framework-free (stdlib + httpx + pydantic): Phase 3's acquisition step imports this unchanged.
 The ``httpx.Client`` is **injected**, so tests run against a ``MockTransport`` with no live network,
 and Phase-3 batch can pass a rate-limited/polite client.
@@ -21,6 +30,8 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from html.parser import HTMLParser
+from urllib.parse import urljoin
 from xml.etree.ElementTree import ParseError
 
 import httpx
@@ -32,8 +43,9 @@ from bayesify.core.errors import (
     IdNotFoundError,
     NoOpenAccessError,
     NotAPdfError,
+    UnrecognizedInputError,
 )
-from bayesify.core.ingest import ParsedIdentifier
+from bayesify.core.ingest import ParsedIdentifier, parse_input
 from bayesify.core.titles import normalize_paper_title
 
 _ARXIV_NS = {"atom": "http://www.w3.org/2005/Atom", "arxiv": "http://arxiv.org/schemas/atom"}
@@ -58,6 +70,8 @@ class Fetcher:
     OPENALEX_WORKS = "https://api.openalex.org/works"
     UNPAYWALL = "https://api.unpaywall.org/v2"
     CROSSREF = "https://api.crossref.org/works"
+    NCBI_IDCONV = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
+    EUROPEPMC = "https://www.ebi.ac.uk/europepmc/webservices/rest"
 
     def __init__(
         self,
@@ -79,6 +93,8 @@ class Fetcher:
             return self._fetch_arxiv(parsed)
         if parsed.kind in ("doi", "openalex"):
             return self._fetch_doi_or_openalex(parsed)
+        if parsed.kind == "pubmed":
+            return self._fetch_pubmed(parsed)
         if parsed.kind == "url":
             return self._fetch_direct_url(parsed.value)
         raise FetchFailedError(f"cannot fetch identifier kind {parsed.kind!r}")
@@ -199,10 +215,99 @@ class Fetcher:
             ),
         )
 
+    def _fetch_pubmed(self, parsed: ParsedIdentifier) -> FetchedSource:
+        # NCBI's ID Converter maps a PMID/PMCID to its DOI (and the sibling id) in a single call.
+        params = {"ids": parsed.value, "format": "json", "tool": "bayesify"}
+        if self._email:  # NCBI asks for a contact email for politeness; reuse the Unpaywall one
+            params["email"] = self._email
+        record = _pubmed_record(self._get_json(self.NCBI_IDCONV, params=params, not_found_is=None))
+        if not record or record.get("status") == "error":
+            raise IdNotFoundError(
+                f"PubMed id not found: {parsed.value}",
+                user_message=f"No PubMed record found for {parsed.value}.",
+            )
+        pmid = record.get("pmid") or None
+        pmcid = record.get("pmcid") or None
+        # 1) With a DOI, resolve through the full OA chain (OpenAlex/Unpaywall/Crossref) — Unpaywall
+        #    already indexes PMC-hosted copies — then stamp on the learned PubMed ids.
+        if doi_id := _as_doi_id(record.get("doi")):
+            fetched = self._fetch_doi_or_openalex(doi_id)
+            fetched.source_doc.ids.pmid = pmid
+            fetched.source_doc.ids.pmcid = pmcid
+            return fetched
+        # 2) No DOI, but an OA PMC copy may still exist — Europe PMC serves its full text directly.
+        if pmcid:
+            try:
+                data = self._download(f"{self.EUROPEPMC}/{pmcid}/fullTextPDF")
+            except (NotAPdfError, IdNotFoundError, FetchFailedError):
+                data = None
+            if data is not None:
+                return self._store(
+                    data,
+                    ids=s.PaperIds(pmid=pmid, pmcid=pmcid),
+                    version_label=f"PMC full text ({pmcid})",
+                    source="pubmed",
+                    license=None,
+                )
+        raise NoOpenAccessError(
+            f"no open-access PDF for {parsed.value}",
+            user_message=(
+                f"No open-access PDF found for {parsed.value}. Upload the PDF to analyze it."
+            ),
+        )
+
     def _fetch_direct_url(self, url: str) -> FetchedSource:
-        data = self._download(url)
-        return self._store(
-            data, ids=s.PaperIds(), version_label="fetched URL", source="url", license=None
+        r = self._get(url)
+        if r.status_code == 404:
+            raise IdNotFoundError(f"404: {url}", user_message="That page could not be found.")
+        if r.status_code >= 400:
+            raise FetchFailedError(
+                f"{r.status_code}: {url}", user_message="Could not fetch that URL."
+            )
+        if r.content[:5] == b"%PDF-":
+            return self._store(
+                r.content, ids=s.PaperIds(), version_label="fetched URL", source="url", license=None
+            )
+        # Not a direct PDF: treat it as a publisher/preprint landing page and mine the Highwire
+        # ``citation_*`` meta tags that eLife, PsyArXiv/OSF, ScienceDirect, PMC, PLOS, Springer, …
+        # all embed for Google Scholar. One mechanism, no per-publisher code or API keys.
+        return self._resolve_landing_page(r)
+
+    def _resolve_landing_page(self, response: httpx.Response) -> FetchedSource:
+        meta = _extract_citation_meta(response.text)
+        doi_id = _as_doi_id(meta.get("citation_doi"))
+        title = _clean_title(meta.get("citation_title"))
+        authors = list(meta.get("citation_author") or [])
+        year = _year_prefix(meta.get("citation_date") or meta.get("citation_publication_date"))
+        # 1) A ``citation_pdf_url`` is the publisher's own PDF — try it directly (resolving relative
+        #    links against the landing page). If it's paywalled (HTML/error), fall back to the DOI.
+        pdf_url = meta.get("citation_pdf_url")
+        if pdf_url:
+            try:
+                data = self._download(urljoin(str(response.url), pdf_url))
+            except (NotAPdfError, IdNotFoundError, FetchFailedError):
+                data = None
+            if data is not None:
+                return self._store(
+                    data,
+                    ids=s.PaperIds(doi=doi_id.value if doi_id else None),
+                    version_label="publisher PDF (landing page)",
+                    source="url",
+                    license=None,
+                    title=title,
+                    authors=authors,
+                    year=year,
+                )
+        # 2) Re-dispatch the discovered DOI through the OA chain (OpenAlex/Unpaywall may hold a
+        #    free copy even when the publisher's own PDF is locked).
+        if doi_id:
+            return self._fetch_doi_or_openalex(doi_id)
+        raise NotAPdfError(
+            f"not a PDF and no citation metadata at {response.url}",
+            user_message=(
+                "That page isn't a PDF and doesn't advertise one we can fetch. "
+                "Try the direct PDF link, or the paper's DOI."
+            ),
         )
 
     def _crossref_title(self, doi: str) -> str | None:
@@ -285,10 +390,65 @@ def _clean_title(title: str | None) -> str | None:
     return normalize_paper_title(title)
 
 
+class _CitationMetaParser(HTMLParser):
+    """Collect Highwire ``citation_*`` ``<meta>`` tags from a landing page (stdlib, no lxml).
+
+    ``citation_author`` repeats once per author (order preserved); every other key keeps its first
+    value. Attribute order is irrelevant — we read whichever of ``name``/``property`` is present.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.meta: dict[str, object] = {}
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "meta":
+            return
+        a = {k.lower(): v for k, v in attrs}
+        name = (a.get("name") or a.get("property") or "").strip().lower()
+        content = (a.get("content") or "").strip()
+        if not name.startswith("citation_") or not content:
+            return
+        if name == "citation_author":
+            authors = self.meta.setdefault("citation_author", [])
+            if isinstance(authors, list):
+                authors.append(content)
+        else:
+            self.meta.setdefault(name, content)
+
+
+def _extract_citation_meta(html_text: str) -> dict[str, object]:
+    """Parse a landing page's ``citation_*`` meta tags; never raises on malformed markup."""
+    parser = _CitationMetaParser()
+    try:
+        parser.feed(html_text)
+    except Exception:  # a broken page just yields whatever tags we parsed before the error
+        pass
+    return parser.meta
+
+
+def _as_doi_id(raw: object) -> ParsedIdentifier | None:
+    """Normalize an untrusted DOI string (a meta tag, a provider record) through ingest — the
+    authoritative parser — to a ``doi`` ``ParsedIdentifier``, or None if it isn't a valid DOI."""
+    if not isinstance(raw, str) or not raw.strip():
+        return None
+    try:
+        parsed = parse_input(raw)
+    except UnrecognizedInputError:
+        return None
+    return parsed if parsed.kind == "doi" else None
+
+
 def _year_prefix(date: str | None) -> int | None:
     """The leading 4-digit year of an ISO-ish date string (``2020-11-03T...``), else None."""
     head = (date or "")[:4]
     return int(head) if head.isdigit() else None
+
+
+def _pubmed_record(resp: dict | None) -> dict:
+    """The first record from an NCBI ID-Converter response (``{"records": [...]}``), or ``{}``."""
+    records = (resp or {}).get("records") or []
+    return records[0] if records else {}
 
 
 def _openalex_authors(resp: dict) -> list[str]:
