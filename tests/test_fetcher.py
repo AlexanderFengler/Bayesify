@@ -99,6 +99,12 @@ def _handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=UW_WITH if "nopdf" in url else {"best_oa_location": None})
     if "api.crossref.org/works/" in url:
         return httpx.Response(200, json={"message": {"title": ["Locked Paper"]}})
+    if "api.crossref.org/works" in url:  # PII search: match on alternative-id, not the top hit
+        items = [
+            {"DOI": "10.1000/wrong", "alternative-id": ["S9999999999999999"]},
+            {"DOI": "10.1038/withpdf", "alternative-id": ["S2213158221000012"]},
+        ]
+        return httpx.Response(200, json={"message": {"items": items if "S2213" in url else []}})
     if "idconv" in url:  # NCBI ID Converter: PMID/PMCID -> DOI (+ sibling ids)
         if "14699080" in url:  # a PMID that carries a DOI with an OA copy
             record = {"pmid": 14699080, "pmcid": "PMC1193645", "doi": "10.1038/withpdf"}  # int pmid
@@ -111,6 +117,12 @@ def _handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"records": [record]})
     if "europepmc" in url and "PMC7777777" in url:
         return httpx.Response(200, content=PDF)
+    if "osf.io/download/bfsgr" in url:  # OSF/PsyArXiv download endpoint serves the PDF by GUID
+        return httpx.Response(200, content=PDF)
+    if "osf.io/download/" in url:  # unknown GUID
+        return httpx.Response(404, json={"message": "Not found"})
+    if "blocked.example.org" in url:  # a publisher that bot-blocks server-side fetches
+        return httpx.Response(403, text="<html>Access Denied</html>")
     if "oa.example.org" in url or "repo.example.org" in url:
         return httpx.Response(200, content=PDF)
     if "elsevier.example.org/locked.pdf" in url:  # a "PDF" link that's really a paywall page
@@ -273,3 +285,36 @@ def test_pubmed_pmcid_without_doi_falls_back_to_europepmc(fetcher: Fetcher) -> N
 def test_pubmed_unknown_id_raises(fetcher: Fetcher) -> None:
     with pytest.raises(IdNotFoundError):
         fetcher.fetch(parse_input("PMC0000000"))
+
+
+def test_osf_preprint_url_downloads_pdf_by_guid(fetcher: Fetcher) -> None:
+    # OSF's SPA has no citation meta; resolve the versioned GUID via the download endpoint.
+    fs = fetcher.fetch(parse_input("https://osf.io/preprints/psyarxiv/bfsgr_v1"))
+    assert fs.source_doc.source == "osf"
+    assert fs.source_doc.version_label == "OSF preprint (bfsgr_v1)"
+    assert fetcher._blobs.exists(fs.source_doc.sha256)
+
+
+def test_osf_unknown_guid_raises(fetcher: Fetcher) -> None:
+    with pytest.raises(IdNotFoundError):
+        fetcher.fetch(parse_input("https://osf.io/zzzzz/"))
+
+
+def test_bot_blocked_publisher_suggests_doi(fetcher: Fetcher) -> None:
+    with pytest.raises(FetchFailedError) as exc:
+        fetcher.fetch(parse_input("https://blocked.example.org/article/1"))
+    assert "Try the article's DOI" in exc.value.user_message
+
+
+def test_elsevier_pii_url_resolves_via_crossref_to_oa_copy(fetcher: Fetcher) -> None:
+    # ScienceDirect bot-blocks its page; identify the paper by PII -> CrossRef DOI -> OA chain.
+    fs = fetcher.fetch(
+        parse_input("https://www.sciencedirect.com/science/article/pii/S2213158221000012?via%3Dihub")
+    )
+    assert fs.source_doc.source == "openalex"  # a copy fetched from a non-blocked host
+    assert fs.source_doc.ids.doi == "10.1038/withpdf"  # matched on alternative-id, not the top hit
+
+
+def test_elsevier_pii_not_in_crossref_raises(fetcher: Fetcher) -> None:
+    with pytest.raises(IdNotFoundError):
+        fetcher.fetch(parse_input("https://www.sciencedirect.com/science/article/pii/S0000000000000000"))

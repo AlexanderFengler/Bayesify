@@ -9,11 +9,13 @@ Built on top of ``ingest.parse_input``; the resolution chain follows ``02-mvp/a-
 A **PMID / PMCID** is mapped to its DOI via NCBI's ID Converter and resolved through step 2 (with
 the PubMed ids stamped on); a DOI-less PMCID falls back to Europe PMC's full-text PDF.
 
-A pasted **URL** is fetched directly if it is already a PDF; otherwise it is treated as a
-publisher/preprint landing page and its Highwire ``citation_*`` meta tags are mined for a
-``citation_pdf_url`` (fetched directly) or a ``citation_doi`` (re-dispatched through step 2). One
-publisher-agnostic path covers eLife, PsyArXiv/OSF, ScienceDirect, PMC, PLOS, … with no per-host
-code.
+An **OSF GUID** (PsyArXiv/SocArXiv/… — a JS-rendered SPA with no server-side meta tags) is fetched
+from the OSF download endpoint. A pasted **URL** is fetched directly if it is already a PDF;
+otherwise it is treated as a server-rendered landing page and its Highwire ``citation_*`` meta tags
+are mined for a ``citation_pdf_url`` (fetched directly) or a ``citation_doi`` (re-dispatched through
+step 2) — covering unprotected OA publishers like PLOS. Bot-protected publishers block server-side
+fetches; a ScienceDirect PII is resolved to its DOI via CrossRef (then step 2 finds an OA copy
+hosted elsewhere), and other blocked pages fall back to a "paste the DOI" message.
 
 Web-framework-free (stdlib + httpx + pydantic): Phase 3's acquisition step imports this unchanged.
 The ``httpx.Client`` is **injected**, so tests run against a ``MockTransport`` with no live network,
@@ -72,6 +74,7 @@ class Fetcher:
     CROSSREF = "https://api.crossref.org/works"
     NCBI_IDCONV = "https://www.ncbi.nlm.nih.gov/pmc/utils/idconv/v1.0/"
     EUROPEPMC = "https://www.ebi.ac.uk/europepmc/webservices/rest"
+    OSF_DOWNLOAD = "https://osf.io/download"
 
     def __init__(
         self,
@@ -95,6 +98,10 @@ class Fetcher:
             return self._fetch_doi_or_openalex(parsed)
         if parsed.kind == "pubmed":
             return self._fetch_pubmed(parsed)
+        if parsed.kind == "osf":
+            return self._fetch_osf(parsed)
+        if parsed.kind == "pii":
+            return self._fetch_pii(parsed)
         if parsed.kind == "url":
             return self._fetch_direct_url(parsed.value)
         raise FetchFailedError(f"cannot fetch identifier kind {parsed.kind!r}")
@@ -256,10 +263,49 @@ class Fetcher:
             ),
         )
 
+    def _fetch_pii(self, parsed: ParsedIdentifier) -> FetchedSource:
+        # A publisher PII can't be fetched from the bot-blocked page, but CrossRef indexes it as an
+        # ``alternative-id`` — resolve it to a DOI and re-dispatch through the OA chain to find a
+        # copy hosted elsewhere (``_doi_for_pii`` verifies the match, not just the top search hit).
+        params = {"query": parsed.value, "rows": 5}
+        if self._email:  # CrossRef's polite pool asks for a contact address
+            params["mailto"] = self._email
+        resp = self._get_json(self.CROSSREF, params=params, not_found_is=None)
+        doi_id = _as_doi_id(_doi_for_pii(resp, parsed.value))
+        if not doi_id:
+            raise IdNotFoundError(
+                f"no DOI found for PII {parsed.value}",
+                user_message=(
+                    f"Could not identify the article for {parsed.value}. "
+                    "Paste its DOI instead, or upload the PDF."
+                ),
+            )
+        return self._fetch_doi_or_openalex(doi_id)
+
+    def _fetch_osf(self, parsed: ParsedIdentifier) -> FetchedSource:
+        # OSF's SPA has no server-side citation tags, but its download endpoint serves the preprint
+        # PDF directly by GUID (a bad GUID 404s, caught by ``_download``).
+        data = self._download(f"{self.OSF_DOWNLOAD}/{parsed.value}/")
+        return self._store(
+            data,
+            ids=s.PaperIds(),
+            version_label=f"OSF preprint ({parsed.value})",
+            source="osf",
+            license=None,
+        )
+
     def _fetch_direct_url(self, url: str) -> FetchedSource:
         r = self._get(url)
         if r.status_code == 404:
             raise IdNotFoundError(f"404: {url}", user_message="That page could not be found.")
+        if r.status_code in (401, 403, 406, 451):  # publisher bot-block (e.g. ScienceDirect, eLife)
+            raise FetchFailedError(
+                f"{r.status_code}: {url}",
+                user_message=(
+                    "This publisher blocks automated fetching. "
+                    "Try the article's DOI instead, or upload the PDF."
+                ),
+            )
         if r.status_code >= 400:
             raise FetchFailedError(
                 f"{r.status_code}: {url}", user_message="Could not fetch that URL."
@@ -449,6 +495,16 @@ def _pubmed_record(resp: dict | None) -> dict:
     """The first record from an NCBI ID-Converter response (``{"records": [...]}``), or ``{}``."""
     records = (resp or {}).get("records") or []
     return records[0] if records else {}
+
+
+def _doi_for_pii(resp: dict | None, pii: str) -> str | None:
+    """The DOI of the CrossRef work that lists ``pii`` in its ``alternative-id`` (verified, not the
+    top hit), or None. Elsevier deposits the PII there, so this pairs the URL to the right paper."""
+    items = ((resp or {}).get("message") or {}).get("items") or []
+    for item in items:
+        if pii.upper() in {a.upper() for a in item.get("alternative-id") or []}:
+            return item.get("DOI")
+    return None
 
 
 def _openalex_authors(resp: dict) -> list[str]:

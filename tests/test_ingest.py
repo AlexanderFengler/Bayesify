@@ -30,6 +30,13 @@ from bayesify.core.ingest import ingest_upload, parse_input, to_paper_ids
         ("https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1193645/", "pubmed", "PMC1193645", None),
         ("PMID: 14699080", "pubmed", "14699080", None),
         ("https://pubmed.ncbi.nlm.nih.gov/14699080/", "pubmed", "14699080", None),
+        ("https://osf.io/preprints/psyarxiv/bfsgr_v1", "osf", "bfsgr_v1", None),
+        ("https://osf.io/preprints/psyarxiv/bfsgr", "osf", "bfsgr", None),
+        ("https://osf.io/bfsgr/", "osf", "bfsgr", None),
+        ("https://www.sciencedirect.com/science/article/pii/S2213158221000012?via%3Dihub",
+         "pii", "S2213158221000012", None),
+        ("https://linkinghub.elsevier.com/retrieve/pii/S2213158221000012",
+         "pii", "S2213158221000012", None),
         ("https://example.com/paper.pdf", "url", "https://example.com/paper.pdf", None),
     ],
 )

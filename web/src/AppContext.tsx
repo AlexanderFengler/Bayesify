@@ -29,6 +29,9 @@ export interface AppState {
   paper: PaperState | null;
   setPaper: (p: PaperState | null) => void;
   error: string | null;
+  // A fetch-stage failure (couldn't acquire the PDF for a pasted identifier). Surfaced back on the
+  // landing form so the user can try another identifier or upload the PDF, rather than a dead-end page.
+  fetchError: string | null;
 
   // actions (each navigates as needed)
   start: (intent?: "analyze" | "rate") => void;

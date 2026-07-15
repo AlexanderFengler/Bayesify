@@ -138,7 +138,7 @@ class SourceDoc(_Base):
     sha256: str
     ids: PaperIds = Field(default_factory=PaperIds)
     version_label: str  # e.g. "arXiv v2", "publisher VoR (Unpaywall)", "uploaded PDF"
-    source: str  # upload | arxiv | openalex | unpaywall | crossref | pubmed | url (+ resolved URL)
+    source: str  # upload | arxiv | openalex | unpaywall | crossref | pubmed | osf | url
     fetched_at: datetime
 
 
