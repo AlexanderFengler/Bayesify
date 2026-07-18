@@ -227,7 +227,14 @@ export function Report({
             {/* the score block; on phone portrait the meta-chip toggle sits to the RIGHT of it (the
                 chevron is xs-only, so on sm+ this is just the score, right-aligned as before). */}
             <Box
-              sx={{ flex: { md: 1 }, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1 }}
+              sx={{
+                flex: { md: 1 },
+                minWidth: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                gap: 1,
+              }}
             >
               <ScoreMetrics r={r} baseQuality={paper.base_quality} nCorrections={corrections.length} />
               {/* a bordered circular chevron (matching the Archive card's title toggle) that opens the
@@ -256,7 +263,7 @@ export function Report({
 
           {/* meta chips — full width, below the title/score row (always under the numbers); persist
               across both views. sm+ shows them inline; on phone portrait they're collapsed behind the
-              "Paper details" toggle beside the score. */}
+              chevron toggle beside the score. */}
           <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 3, mt: 2, flexWrap: "wrap" }}>{metaChips}</Box>
           <Collapse in={metaOpen} sx={{ display: { xs: "block", sm: "none" } }}>
             <Box sx={{ display: "flex", gap: 3, mt: 2, flexWrap: "wrap" }}>{metaChips}</Box>
