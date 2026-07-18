@@ -1,4 +1,5 @@
 import { Box, Container, Link, Typography } from "@mui/material";
+import type { SxProps, Theme } from "@mui/material/styles";
 import { useNavigate } from "react-router-dom";
 
 // Current app version, surfaced as the footer's alpha-stage marker. Keep in step with package.json.
@@ -15,10 +16,10 @@ export function Footer() {
         <Box
           sx={{
             display: "flex",
-            flexDirection: { xs: "column", sm: "row" },
+            flexDirection: "row",
             gap: 2,
-            justifyContent: { xs: "flex-start", sm: "space-between" },
-            alignItems: { xs: "flex-start", sm: "center" },
+            justifyContent: "space-between",
+            alignItems: "center",
             py: 3,
           }}
         >
@@ -27,8 +28,11 @@ export function Footer() {
           </Typography>
           <Box sx={{ display: "flex", gap: 3 }}>
             {/* How-it-works and Rubrics are sections of the main page now (still addressable at
-                /#how-it-works and /#rubrics) — the footer only carries the standalone pages */}
-            <FooterLink onClick={() => navigate("/")}>Home</FooterLink>
+                /#how-it-works and /#rubrics) — the footer only carries the standalone pages. On phone
+                portrait "Home" is dropped so the bar stays on one line. */}
+            <FooterLink onClick={() => navigate("/")} sx={{ display: { xs: "none", sm: "inline" } }}>
+              Home
+            </FooterLink>
             <FooterLink onClick={() => navigate("/archive")}>Archive</FooterLink>
             <FooterLink onClick={() => navigate("/about")}>About us</FooterLink>
           </Box>
@@ -38,14 +42,22 @@ export function Footer() {
   );
 }
 
-function FooterLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+function FooterLink({
+  onClick,
+  children,
+  sx,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+  sx?: SxProps<Theme>;
+}) {
   return (
     <Link
       component="button"
       type="button"
       underline="hover"
       onClick={onClick}
-      sx={{ color: "inherit", fontSize: "0.875rem", "&:hover": { color: "text.primary" } }}
+      sx={{ color: "inherit", fontSize: "0.875rem", "&:hover": { color: "text.primary" }, ...sx }}
     >
       {children}
     </Link>

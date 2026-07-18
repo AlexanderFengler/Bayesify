@@ -27,6 +27,7 @@ import {
   Collapse,
   Container,
   Divider,
+  IconButton,
   Link,
   ListItemIcon,
   Menu,
@@ -132,6 +133,10 @@ export function Report({
   // which step's detail is expanded inline under "Steps at a glance"; null = none open (just chips)
   const [selected, setSelected] = useState<string | null>(null);
   const toggleSelected = (id: string) => setSelected((cur) => (cur === id ? null : id));
+  // On phone portrait the meta chip row (rubric / paper type / methods / …) would push the report
+  // down, so it's collapsed by default there and opened via the toggle next to the score; sm+ always
+  // shows it. Only affects xs.
+  const [metaOpen, setMetaOpen] = useState(false);
 
   const rubric = useRubric(r.rubric_profile); // the rubric this paper was graded against
   const stepNames = useStepNames(r.rubric_profile);
@@ -156,6 +161,36 @@ export function Report({
   // per-step "corrected" badge + the engine→corrected score delta.
   const corrections = paper.applied_corrections ?? [];
   const correctionByStep = new Map(corrections.map((c) => [c.step_id, c] as const));
+
+  // The meta chip set, rendered once and placed in two spots: an always-on row on sm+ and a
+  // collapsible copy on xs (the toggle beside the score opens it).
+  const metaChips = (
+    <>
+      <MetaChips label="rubric" values={[r.rubric_profile]} info={STAT_INFO.rubric} color="slate" />
+      {r.paper_class && (
+        <MetaChips
+          label="paper type"
+          values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))}
+          info={STAT_INFO.paperType}
+          color="periwinkle"
+        />
+      )}
+      {(paper.methods ?? []).length > 0 && (
+        <MetaChips label="methods" values={paper.methods ?? []} info={STAT_INFO.methods} color="violet" />
+      )}
+      {(paper.software ?? []).length > 0 && (
+        <MetaChips label="software" values={paper.software ?? []} info={STAT_INFO.software} color="magenta" />
+      )}
+      {r.profile && (
+        <MetaChips
+          label="weighting"
+          values={[anyReduced ? "weighted" : "uniform"]}
+          info={STAT_INFO.weighting}
+          color="steel"
+        />
+      )}
+    </>
+  );
 
   return (
     <>
@@ -189,38 +224,43 @@ export function Report({
                 </Typography>
               )}
             </Box>
-            <Box sx={{ flex: { md: 1 }, minWidth: 0 }}>
+            {/* the score block; on phone portrait the meta-chip toggle sits to the RIGHT of it (the
+                chevron is xs-only, so on sm+ this is just the score, right-aligned as before). */}
+            <Box
+              sx={{ flex: { md: 1 }, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1 }}
+            >
               <ScoreMetrics r={r} baseQuality={paper.base_quality} nCorrections={corrections.length} />
+              {/* a bordered circular chevron (matching the Archive card's title toggle) that opens the
+                  collapsed meta chip row below */}
+              <IconButton
+                size="small"
+                onClick={() => setMetaOpen((o) => !o)}
+                aria-expanded={metaOpen}
+                aria-label={metaOpen ? "Hide paper details" : "Show paper details"}
+                sx={{
+                  display: { xs: "inline-flex", sm: "none" },
+                  flexShrink: 0,
+                  border: 1,
+                  borderColor: "divider",
+                  color: "text.secondary",
+                  "&:hover": { borderColor: "primary.main", color: "primary.main" },
+                }}
+              >
+                <ExpandMoreIcon
+                  fontSize="small"
+                  sx={{ transition: "transform .2s ease", transform: metaOpen ? "rotate(180deg)" : "none" }}
+                />
+              </IconButton>
             </Box>
           </Box>
 
           {/* meta chips — full width, below the title/score row (always under the numbers); persist
-              across both views; hidden on the narrowest screens */}
-          <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 3, mt: 2, flexWrap: "wrap" }}>
-            <MetaChips label="rubric" values={[r.rubric_profile]} info={STAT_INFO.rubric} color="slate" />
-            {r.paper_class && (
-              <MetaChips
-                label="paper type"
-                values={r.paper_class.labels.map((l) => l.replace(/_/g, " "))}
-                info={STAT_INFO.paperType}
-                color="periwinkle"
-              />
-            )}
-            {(paper.methods ?? []).length > 0 && (
-              <MetaChips label="methods" values={paper.methods ?? []} info={STAT_INFO.methods} color="violet" />
-            )}
-            {(paper.software ?? []).length > 0 && (
-              <MetaChips label="software" values={paper.software ?? []} info={STAT_INFO.software} color="magenta" />
-            )}
-            {r.profile && (
-              <MetaChips
-                label="weighting"
-                values={[anyReduced ? "weighted" : "uniform"]}
-                info={STAT_INFO.weighting}
-                color="steel"
-              />
-            )}
-          </Box>
+              across both views. sm+ shows them inline; on phone portrait they're collapsed behind the
+              "Paper details" toggle beside the score. */}
+          <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 3, mt: 2, flexWrap: "wrap" }}>{metaChips}</Box>
+          <Collapse in={metaOpen} sx={{ display: { xs: "block", sm: "none" } }}>
+            <Box sx={{ display: "flex", gap: 3, mt: 2, flexWrap: "wrap" }}>{metaChips}</Box>
+          </Collapse>
 
           <Divider sx={{ mt: 2.5 }} />
 
