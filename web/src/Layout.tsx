@@ -1,5 +1,5 @@
-import { Box, Fade } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Box, CircularProgress, Fade } from "@mui/material";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useOutlet } from "react-router-dom";
 import { SwitchTransition } from "react-transition-group";
 import { fetchRubrics, getPaper, rerun, type RubricSummary, streamProgress, submitPaper } from "./api";
@@ -96,10 +96,7 @@ export function Layout() {
       setArchiveHit(null);
       return;
     }
-    const timer = window.setTimeout(
-      () => navigate(`/paper/${archiveHit}`, { replace: true }),
-      2000,
-    );
+    const timer = window.setTimeout(() => navigate(`/paper/${archiveHit}`, { replace: true }), 2000);
     return () => window.clearTimeout(timer);
   }, [archiveHit, navigate, pathname]);
 
@@ -122,13 +119,17 @@ export function Layout() {
             // (once) so the Analyzing screen shows the real paper, not the filename.
             if (e.stage === "parse" && e.state === "done" && !metaFetched) {
               metaFetched = true;
-              getPaper(paperId).then(setPaper).catch(() => {});
+              getPaper(paperId)
+                .then(setPaper)
+                .catch(() => {});
             }
             // Classify done (only for papers that pass the gates) → pull the classification in once so
             // the Analyzing screen reveals the paper type / methods while assess + score still run.
             if (e.stage === "classify" && e.state === "done" && !classFetched) {
               classFetched = true;
-              getPaper(paperId).then(setPaper).catch(() => {});
+              getPaper(paperId)
+                .then(setPaper)
+                .catch(() => {});
             }
           }
         },
@@ -315,7 +316,14 @@ export function Layout() {
             landing hero uses it to fill the first screenful precisely) */}
         <Box
           ref={scrollRef}
-          sx={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", containerType: "size" }}
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            display: "flex",
+            flexDirection: "column",
+            containerType: "size",
+          }}
         >
           <FadingOutlet />
         </Box>
@@ -335,9 +343,7 @@ function FadingOutlet() {
   const outlet = useOutlet();
   // Group /paper/:id and /paper/:id/full under one key so navigating between the summary and the full
   // report does NOT trigger a page cross-fade — that morph is animated inside the (persistent) Report.
-  const key = pathname.startsWith("/paper/")
-    ? "/" + pathname.split("/").slice(1, 3).join("/")
-    : pathname;
+  const key = pathname.startsWith("/paper/") ? "/" + pathname.split("/").slice(1, 3).join("/") : pathname;
   return (
     <SwitchTransition mode="out-in">
       <Fade key={key} timeout={200} appear>
@@ -346,9 +352,28 @@ function FadingOutlet() {
             itself when the user navigates elsewhere (fresh boundary). The app-level ErrorBoundary in
             App.tsx remains the last-resort net for a throw in the chrome itself. */}
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-          <ErrorBoundary>{outlet}</ErrorBoundary>
+          <ErrorBoundary>
+            {/* Suspense catches the pending chunk of a lazily-loaded route (code splitting in
+                App.tsx). It sits inside the ErrorBoundary so a failed chunk fetch surfaces as the
+                page-level error net, not a blank screen. */}
+            <Suspense fallback={<PageFallback />}>{outlet}</Suspense>
+          </ErrorBoundary>
         </Box>
       </Fade>
     </SwitchTransition>
+  );
+}
+
+// Shown in the routed content area while a lazily-loaded route chunk is fetched. Confined to the
+// outlet (like the ErrorBoundary above), so the header/footer/aurora stay put during the fetch.
+function PageFallback() {
+  return (
+    <Box
+      role="status"
+      aria-live="polite"
+      sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}
+    >
+      <CircularProgress size={22} aria-label="Loading page" />
+    </Box>
   );
 }

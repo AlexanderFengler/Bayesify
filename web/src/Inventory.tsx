@@ -134,9 +134,9 @@ function SummaryColumn({
       </Box>
 
       <Typography variant="body2" color="text.secondary">
-        This is a <strong>detection inventory</strong>, not a graded assessment. Detectors find signals
-        and show exactly where; they don&rsquo;t judge whether a practice was done <em>well</em> — that&rsquo;s
-        the full (LLM) report&rsquo;s job. Absences mean <em>not detected</em>, never &ldquo;not done.&rdquo;
+        This is a <strong>detection inventory</strong>, not a graded assessment. Detectors find signals and show exactly
+        where; they don&rsquo;t judge whether a practice was done <em>well</em> — that&rsquo;s the full (LLM)
+        report&rsquo;s job. Absences mean <em>not detected</em>, never &ldquo;not done.&rdquo;
       </Typography>
 
       <WhereLooked inv={inv} />
@@ -170,7 +170,11 @@ function FamilySection({ f }: { f: InventoryFamily }) {
 
       {f.not_detected.length > 0 && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", mt: 1.5 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: "0.04em" }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ textTransform: "uppercase", letterSpacing: "0.04em" }}
+          >
             not detected
           </Typography>
           {f.not_detected.map((id) => (
@@ -191,7 +195,11 @@ function Hit({ h }: { h: InventoryHit }) {
           {shortId(h.detector_id)}
         </Typography>
         {v && (
-          <Typography component="span" variant="caption" sx={{ color: "primary.main", fontFamily: (t) => t.tokens.mono }}>
+          <Typography
+            component="span"
+            variant="caption"
+            sx={{ color: "primary.main", fontFamily: (t) => t.tokens.mono }}
+          >
             {v}
           </Typography>
         )}
@@ -211,15 +219,7 @@ function Hit({ h }: { h: InventoryHit }) {
 }
 
 // The local-mode "nothing detected / not run" notice, given the same full-bleed treatment.
-export function LocalNotice({
-  notice,
-  source,
-  onReset,
-}: {
-  notice: string;
-  source: string;
-  onReset: () => void;
-}) {
+export function LocalNotice({ notice, source, onReset }: { notice: string; source: string; onReset: () => void }) {
   return (
     <Container maxWidth="md" sx={{ py: { xs: 4, md: 6 } }}>
       <Chip size="small" variant="outlined" label="No analysis run yet" sx={{ mb: 1.5 }} />

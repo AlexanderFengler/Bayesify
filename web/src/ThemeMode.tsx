@@ -1,15 +1,9 @@
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
-import { createContext, useContext, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { type AuroraVariant, makeTheme } from "./theme";
-
-interface ColorMode {
-  variant: AuroraVariant;
-  toggle: () => void;
-}
-const ColorModeContext = createContext<ColorMode>({ variant: "dark", toggle: () => {} });
-export const useColorMode = () => useContext(ColorModeContext);
+import { type ColorMode, ColorModeContext } from "./useColorMode";
 
 const KEY = "bayesify.aurora"; // persisted aurora variant
 

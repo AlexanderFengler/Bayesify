@@ -1,7 +1,7 @@
 import { Alert, Box, Button, Container, Divider, Link, Stack, TextField, Typography } from "@mui/material";
 import { useState } from "react";
 import { sendContact } from "./api";
-import { useColorMode } from "./ThemeMode";
+import { useColorMode } from "./useColorMode";
 
 // The organizations behind Bayesify. Add an entry per org — each ships a dark-ink and a white-ink
 // wordmark in web/public so it reads against the aurora in either color mode. `url` is optional.
@@ -104,7 +104,15 @@ export function AboutUs() {
                 </Typography>
                 <Box
                   component="ul"
-                  sx={{ listStyle: "none", p: 0, m: 0, mt: 1.5, display: "flex", flexWrap: "wrap", gap: { xs: 1, md: 2 } }}
+                  sx={{
+                    listStyle: "none",
+                    p: 0,
+                    m: 0,
+                    mt: 1.5,
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: { xs: 1, md: 2 },
+                  }}
                 >
                   {DEVELOPERS.map((dev, i) => (
                     <Typography

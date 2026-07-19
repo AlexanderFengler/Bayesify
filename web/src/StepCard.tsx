@@ -75,13 +75,7 @@ export function StepCardShell({
 
 // The "In the paper" evidence panel over verbatim spans — collapsed by default (it's supporting
 // detail, not the headline). Renders nothing when empty.
-export function EvidenceBlock({
-  spans,
-  label = "In the paper",
-}: {
-  spans: EvidenceSpan[];
-  label?: string;
-}) {
+export function EvidenceBlock({ spans, label = "In the paper" }: { spans: EvidenceSpan[]; label?: string }) {
   const [open, setOpen] = useState(false);
   if (spans.length === 0) return null;
   return (
@@ -122,7 +116,11 @@ export function EvidenceBlock({
             >
               <FormatQuoteIcon sx={{ fontSize: 14, mr: 0.5, opacity: 0.5, verticalAlign: "middle" }} />
               <MathText>{s.quote}</MathText>
-              <Typography component="cite" variant="caption" sx={{ display: "block", mt: 0.25, color: "text.disabled", fontStyle: "normal" }}>
+              <Typography
+                component="cite"
+                variant="caption"
+                sx={{ display: "block", mt: 0.25, color: "text.disabled", fontStyle: "normal" }}
+              >
                 §{s.section_id}
                 {s.page != null && `, p.${s.page}`}
               </Typography>

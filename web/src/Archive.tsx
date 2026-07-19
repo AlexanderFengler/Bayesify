@@ -83,9 +83,7 @@ function sortValue(p: ArchivePaper, key: SortKey): number | null {
     case "score":
       return p.quality_score;
     case "coverage":
-      return p.coverage_present != null && p.coverage_applicable
-        ? p.coverage_present / p.coverage_applicable
-        : null;
+      return p.coverage_present != null && p.coverage_applicable ? p.coverage_present / p.coverage_applicable : null;
   }
 }
 
@@ -188,9 +186,7 @@ export function Archive() {
   const visibleStart = sortedPapers.length === 0 ? 0 : page * PER_PAGE + 1;
   const visibleEnd = Math.min((page + 1) * PER_PAGE, sortedPapers.length);
   const visibleCountLabel =
-    visibleStart === visibleEnd
-      ? `${visibleStart} of ${total}`
-      : `${visibleStart}-${visibleEnd} of ${total}`;
+    visibleStart === visibleEnd ? `${visibleStart} of ${total}` : `${visibleStart}-${visibleEnd} of ${total}`;
   const goToPage = (next: number) => {
     setSlideDir(next > page ? "left" : "right");
     setPage(next);
@@ -203,8 +199,7 @@ export function Archive() {
     });
 
   const activeCount = Object.values(selected).reduce((n, a) => n + a.length, 0);
-  const clearAll = () =>
-    setSelected({ paper_type: [], discipline: [], methods: [], software: [] });
+  const clearAll = () => setSelected({ paper_type: [], discipline: [], methods: [], software: [] });
 
   return (
     // overflowX clip contains the page-swipe: the grid animates in from translateX(±32px), which would
@@ -212,14 +207,16 @@ export function Archive() {
     // (minmax(0,1fr) below), so this only bounds that transient — it never clips a resting card. `clip`
     // (not hidden) leaves the y-axis visible, so nothing interferes with the page's vertical scroll.
     <Container maxWidth="xl" sx={{ py: { xs: 3, md: 5 }, overflowX: "clip" }}>
-      <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+      <Box
+        sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}
+      >
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Archive
           </Typography>
           <Typography color="text.secondary" sx={{ mt: 1, maxWidth: 1440 }}>
-            Every paper run through Bayesify, tagged automatically by paper type, discipline, and the
-            inference methods used, and software detected. Search the text or filter by tags.
+            Every paper run through Bayesify, tagged automatically by paper type, discipline, and the inference methods
+            used, and software detected. Search the text or filter by tags.
           </Typography>
         </Box>
       </Box>
@@ -397,9 +394,7 @@ function PaperGrid({
   page: number;
   slideDir: "left" | "right";
 }) {
-  const cols = twoCol
-    ? [papers.filter((_, i) => i % 2 === 0), papers.filter((_, i) => i % 2 === 1)]
-    : [papers];
+  const cols = twoCol ? [papers.filter((_, i) => i % 2 === 0), papers.filter((_, i) => i % 2 === 1)] : [papers];
   return (
     <Box
       key={page}
@@ -644,7 +639,7 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
         <Divider orientation="vertical" flexItem />
         <ScoreBadge p={p} />
       </Box>
-      <Divider sx={{my: 1.5}} />
+      <Divider sx={{ my: 1.5 }} />
       <Box sx={{ mt: 1, display: "flex", gap: 0.75, flexWrap: "wrap", alignItems: "center" }}>
         <Chip
           label={p.mode === "full" ? "AI" : "Human"}
@@ -691,7 +686,6 @@ function ArchiveCard({ p }: { p: ArchivePaper }) {
           </Link>
         )}
       </Box>
-
     </Paper>
   );
 }
@@ -764,7 +758,15 @@ function ClampChips({
       <Box
         ref={mirrorRef}
         aria-hidden
-        sx={{ ...clusterSx, position: "absolute", top: 0, left: 0, right: 0, visibility: "hidden", pointerEvents: "none" }}
+        sx={{
+          ...clusterSx,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          visibility: "hidden",
+          pointerEvents: "none",
+        }}
       >
         {chips}
       </Box>
@@ -831,4 +833,3 @@ function FacetChips({
     </Box>
   );
 }
-
