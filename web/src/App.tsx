@@ -1,4 +1,4 @@
-import { Alert, AlertTitle, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Container, Typography } from "@mui/material";
 import { lazy, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { getPaper } from "./api";
@@ -76,6 +76,7 @@ function LandingRoute() {
       setDragging={app.setDragging}
       fileInput={app.fileInput}
       onStart={app.start}
+      fetchError={app.fetchError}
     />
   );
 }
@@ -235,20 +236,38 @@ function LoadingPage({ label }: { label: string }) {
   );
 }
 
+// A solid magenta card (not glass) so the error reads clearly over either aurora; white text keeps it
+// legible on the #ec008c fill, and the retry action sits full-width at the bottom rather than inline.
 function ErrorPage({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 } }}>
-      <Alert
-        severity="error"
-        action={
-          <Button color="inherit" size="small" onClick={onRetry}>
-            Try again
-          </Button>
-        }
+      <Box
+        sx={{
+          bgcolor: "#ec008c",
+          color: "#fff",
+          borderRadius: 2,
+          p: { xs: 2.5, md: 3 },
+          boxShadow: "0 10px 30px rgba(236,0,140,0.35)",
+        }}
       >
-        <AlertTitle>Something went wrong</AlertTitle>
-        {error}
-      </Alert>
+        <Typography variant="h6" component="h2" sx={{ fontWeight: 700, mb: 1 }}>
+          Something went wrong
+        </Typography>
+        <Typography sx={{ color: "rgba(255,255,255,0.96)", lineHeight: 1.5 }}>{error}</Typography>
+        <Button
+          fullWidth
+          onClick={onRetry}
+          sx={{
+            mt: 3,
+            bgcolor: "#fff",
+            color: "#ec008c",
+            fontWeight: 700,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.88)" },
+          }}
+        >
+          Try again
+        </Button>
+      </Box>
     </Container>
   );
 }

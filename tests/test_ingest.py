@@ -24,6 +24,19 @@ from bayesify.core.ingest import ingest_upload, parse_input, to_paper_ids
         ("https://doi.org/10.1214/20-BA1221", "doi", "10.1214/20-ba1221", None),
         ("W2099012345", "openalex", "W2099012345", None),
         ("https://openalex.org/w2099012345", "openalex", "W2099012345", None),  # uppercased
+        ("PMC1193645", "pubmed", "PMC1193645", None),
+        ("pmc1193645", "pubmed", "PMC1193645", None),  # uppercased
+        ("PMCID: PMC1193645", "pubmed", "PMC1193645", None),
+        ("https://www.ncbi.nlm.nih.gov/pmc/articles/PMC1193645/", "pubmed", "PMC1193645", None),
+        ("PMID: 14699080", "pubmed", "14699080", None),
+        ("https://pubmed.ncbi.nlm.nih.gov/14699080/", "pubmed", "14699080", None),
+        ("https://osf.io/preprints/psyarxiv/bfsgr_v1", "osf", "bfsgr_v1", None),
+        ("https://osf.io/preprints/psyarxiv/bfsgr", "osf", "bfsgr", None),
+        ("https://osf.io/bfsgr/", "osf", "bfsgr", None),
+        ("https://www.sciencedirect.com/science/article/pii/S2213158221000012?via%3Dihub",
+         "pii", "S2213158221000012", None),
+        ("https://linkinghub.elsevier.com/retrieve/pii/S2213158221000012",
+         "pii", "S2213158221000012", None),
         ("https://example.com/paper.pdf", "url", "https://example.com/paper.pdf", None),
     ],
 )
@@ -32,8 +45,9 @@ def test_parse_input_classifies_and_normalizes(raw, kind, value, version) -> Non
     assert (p.kind, p.value, p.version_hint) == (kind, value, version)
 
 
-@pytest.mark.parametrize("raw", ["", "   ", "not an id", "hello world", "42"])
+@pytest.mark.parametrize("raw", ["", "   ", "not an id", "hello world", "42", "14699080"])
 def test_parse_input_rejects_garbage(raw) -> None:
+    # A bare integer is ambiguous — a PMID needs an explicit "PMID:" marker or a pubmed URL.
     with pytest.raises(UnrecognizedInputError):
         parse_input(raw)
 
@@ -42,6 +56,8 @@ def test_to_paper_ids_maps_each_kind() -> None:
     assert to_paper_ids(parse_input("2011.01808")).arxiv_id == "2011.01808"
     assert to_paper_ids(parse_input("10.1038/x")).doi == "10.1038/x"
     assert to_paper_ids(parse_input("W123")).openalex_id == "W123"
+    assert to_paper_ids(parse_input("PMC1193645")).pmcid == "PMC1193645"
+    assert to_paper_ids(parse_input("PMID: 14699080")).pmid == "14699080"
     # a bare URL carries no canonical id yet
     ids = to_paper_ids(parse_input("https://example.com/x.pdf"))
     assert ids.arxiv_id is None and ids.doi is None and ids.openalex_id is None

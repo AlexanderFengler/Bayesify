@@ -28,13 +28,33 @@ _ARXIV_URL = re.compile(r"arxiv\.org/(?:abs|pdf)/([^\s?]+?)(?:\.pdf)?$", re.IGNO
 _DOI_BARE = re.compile(r"^(?:doi:)?(10\.\d{4,9}/\S+)$", re.IGNORECASE)
 _DOI_URL = re.compile(r"doi\.org/(10\.\d{4,9}/\S+)$", re.IGNORECASE)
 _OPENALEX = re.compile(r"^(?:https?://openalex\.org/)?(W\d+)$", re.IGNORECASE)
+# PubMed: a bare PMCID is unambiguous (the ``PMC`` prefix); a bare PMID would collide with any stray
+# integer, so it needs an explicit ``PMID:`` marker or a pubmed.ncbi URL.
+_PMCID = re.compile(r"^(?:pmcid:\s*)?(PMC\d+)$", re.IGNORECASE)
+_PMID = re.compile(r"^pmid:\s*(\d+)$", re.IGNORECASE)
+_PMC_URL = re.compile(r"ncbi\.nlm\.nih\.gov/(?:pmc/articles|articles)/(PMC\d+)", re.IGNORECASE)
+_PMID_URL = re.compile(r"pubmed\.ncbi\.nlm\.nih\.gov/(\d+)", re.IGNORECASE)
+# OSF (and the preprint servers it hosts: PsyArXiv, SocArXiv, …) is a JS-rendered SPA, so its
+# landing pages carry no server-side citation tags — but a 5-char GUID (optionally ``_v\d`` version)
+# resolves to a PDF via the download endpoint. Match the ``/preprints/<provider>/<guid>`` and bare
+# ``osf.io/<guid>`` forms; the 5-char width keeps path words like ``preprints`` from matching.
+_OSF_PREPRINT = re.compile(r"osf\.io/preprints/[^/?#]+/([a-z0-9]{5}(?:_v\d+)?)", re.IGNORECASE)
+_OSF_GUID = re.compile(r"osf\.io/([a-z0-9]{5}(?:_v\d+)?)/?(?:[?#]|$)", re.IGNORECASE)
+# Elsevier bot-blocks its landing pages, but the PII in a ScienceDirect/linkinghub URL is indexed by
+# CrossRef as an ``alternative-id`` — so we capture it and later resolve it to a DOI to find a copy
+# hosted elsewhere, rather than scraping the (blocked) page.
+_ELSEVIER_PII = re.compile(
+    r"(?:sciencedirect\.com/science/article/(?:abs/)?pii|linkinghub\.elsevier\.com/retrieve/pii)"
+    r"/([A-Z0-9]+)",
+    re.IGNORECASE,
+)
 _URL = re.compile(r"^https?://", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
 class ParsedIdentifier:
-    kind: str  # "arxiv" | "doi" | "openalex" | "url"
-    value: str  # normalized
+    kind: str  # "arxiv" | "doi" | "openalex" | "pubmed" | "osf" | "pii" | "url"
+    value: str  # normalized (pubmed: PMID/"PMC…"; osf: lowercase GUID; pii: uppercase Elsevier PII)
     version_hint: str | None = None  # e.g. "v2" for an explicitly-versioned arXiv id
 
 
@@ -63,11 +83,19 @@ def parse_input(raw: str) -> ParsedIdentifier:
         return ParsedIdentifier("doi", m.group(1).lower())
     if m := _OPENALEX.match(v):
         return ParsedIdentifier("openalex", m.group(1).upper())
+    if m := (_PMC_URL.search(v) or _PMCID.match(v)):
+        return ParsedIdentifier("pubmed", m.group(1).upper())  # canonical "PMC…"
+    if m := (_PMID_URL.search(v) or _PMID.match(v)):
+        return ParsedIdentifier("pubmed", m.group(1))  # bare PMID digits
+    if m := (_OSF_PREPRINT.search(v) or _OSF_GUID.search(v)):
+        return ParsedIdentifier("osf", m.group(1).lower())
+    if m := _ELSEVIER_PII.search(v):
+        return ParsedIdentifier("pii", m.group(1).upper())
     if _URL.match(v):
         return ParsedIdentifier("url", v)
     raise UnrecognizedInputError(
         f"unrecognized input: {raw!r}",
-        user_message="That doesn't look like an arXiv ID, DOI, OpenAlex ID, or URL.",
+        user_message="That doesn't look like an arXiv ID, DOI, OpenAlex ID, PMID/PMCID, or URL.",
     )
 
 
@@ -79,6 +107,10 @@ def to_paper_ids(parsed: ParsedIdentifier) -> s.PaperIds:
         return s.PaperIds(doi=parsed.value)
     if parsed.kind == "openalex":
         return s.PaperIds(openalex_id=parsed.value)
+    if parsed.kind == "pubmed":
+        if parsed.value.upper().startswith("PMC"):
+            return s.PaperIds(pmcid=parsed.value)
+        return s.PaperIds(pmid=parsed.value)
     return s.PaperIds()
 
 

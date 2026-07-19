@@ -60,6 +60,7 @@ export function Layout() {
   const [archiveHit, setArchiveHit] = useState<string | null>(null);
   const [paper, setPaper] = useState<PaperState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   // The paper id whose blind-rating pipeline is still running. The rate flow jumps straight to the
   // rating page (no /processing flash) and waits there until this clears — the rating context needs
   // the detector inventory, which isn't ready until the run finishes.
@@ -79,6 +80,7 @@ export function Layout() {
     setStageState({});
     setPaper(null);
     setError(null);
+    setFetchError(null);
     setRunning(false);
     setArchiveHit(null);
     setRatingPending(null);
@@ -136,6 +138,17 @@ export function Layout() {
           setPaper(result);
           setRatingPending(null); // the inventory is ready now — the rating page can load its context
           if (result.status === "failed") {
+            // A fetch-stage failure (no OA PDF, bot-blocked, unresolved id) is recoverable from the
+            // landing form: bounce back there — keeping the pasted identifier — with an inline fetch
+            // error, instead of the dead-end error page reserved for mid-analysis failures.
+            if (result.stage === "fetch") {
+              setStageState({});
+              setPaper(null);
+              setRunning(false);
+              setFetchError(result.error ?? "Could not fetch a PDF for this identifier.");
+              navigate("/", { replace: true });
+              return;
+            }
             setError(result.error ?? "assessment failed");
           }
           // Another worker may complete the same paper between the submission check and this job's
@@ -181,6 +194,7 @@ export function Layout() {
       const runMode = intent === "rate" ? "local" : mode;
       setStageState({});
       setError(null);
+      setFetchError(null);
       setArchiveHit(null);
       setRunning(true);
       // Analyze shows the /processing screen; rate skips it — once we have an id we jump straight to
@@ -252,6 +266,7 @@ export function Layout() {
       paper,
       setPaper,
       error,
+      fetchError,
       start,
       rerunPaper,
       reset,
@@ -270,6 +285,7 @@ export function Layout() {
       stageState,
       paper,
       error,
+      fetchError,
       start,
       rerunPaper,
       reset,

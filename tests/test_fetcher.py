@@ -58,6 +58,28 @@ UW_WITH = {
     }
 }
 
+# A publisher landing page whose Highwire meta tags advertise a directly-fetchable PDF (relative
+# href, to exercise urljoin) plus a DOI, title, authors, and date.
+ELIFE_LANDING = """<html><head>
+  <meta name="citation_title" content="A Landing Page Paper">
+  <meta name="citation_author" content="Jane Roe">
+  <meta name="citation_author" content="John Doe">
+  <meta name="citation_date" content="2022/05/01">
+  <meta name="citation_doi" content="10.7554/eLife.00001">
+  <meta name="citation_pdf_url" content="/paper.pdf">
+</head><body>eLife article</body></html>"""
+# A landing page that advertises only a DOI — resolution must re-dispatch through the OA chain.
+DOIONLY_LANDING = (
+    '<html><head><meta name="citation_doi" content="https://doi.org/10.1038/withpdf">'
+    "</head><body>preprint</body></html>"
+)
+# A landing page whose own PDF is paywalled (returns HTML) but whose DOI has a green-OA copy.
+LOCKED_PDF_LANDING = (
+    '<html><head><meta name="citation_pdf_url" content="https://elsevier.example.org/locked.pdf">'
+    '<meta name="citation_doi" content="10.1038/nopdf"></head><body>ScienceDirect</body></html>'
+)
+NOMETA_LANDING = "<html><head><title>Nothing here</title></head><body>no meta</body></html>"
+
 
 def _handler(request: httpx.Request) -> httpx.Response:
     url = str(request.url)
@@ -77,8 +99,44 @@ def _handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=UW_WITH if "nopdf" in url else {"best_oa_location": None})
     if "api.crossref.org/works/" in url:
         return httpx.Response(200, json={"message": {"title": ["Locked Paper"]}})
+    if "api.crossref.org/works" in url:  # PII search: match on alternative-id, not the top hit
+        items = [
+            {"DOI": "10.1000/wrong", "alternative-id": ["S9999999999999999"]},
+            {"DOI": "10.1038/withpdf", "alternative-id": ["S2213158221000012"]},
+        ]
+        return httpx.Response(200, json={"message": {"items": items if "S2213" in url else []}})
+    if "idconv" in url:  # NCBI ID Converter: PMID/PMCID -> DOI (+ sibling ids)
+        if "14699080" in url:  # a PMID that carries a DOI with an OA copy
+            record = {"pmid": 14699080, "pmcid": "PMC1193645", "doi": "10.1038/withpdf"}  # int pmid
+        elif "PMC7777777" in url:  # a PMCID with no DOI but an OA full text
+            record = {"pmcid": "PMC7777777"}
+        elif "PMC0000000" in url:  # an id the converter rejects
+            record = {"pmcid": "PMC0000000", "status": "error", "errmsg": "invalid article id"}
+        else:
+            return httpx.Response(200, json={"records": []})
+        return httpx.Response(200, json={"records": [record]})
+    if "europepmc" in url and "PMC7777777" in url:
+        return httpx.Response(200, content=PDF)
+    if "osf.io/download/bfsgr" in url:  # OSF/PsyArXiv download endpoint serves the PDF by GUID
+        return httpx.Response(200, content=PDF)
+    if "osf.io/download/" in url:  # unknown GUID
+        return httpx.Response(404, json={"message": "Not found"})
+    if "blocked.example.org" in url:  # a publisher that bot-blocks server-side fetches
+        return httpx.Response(403, text="<html>Access Denied</html>")
     if "oa.example.org" in url or "repo.example.org" in url:
         return httpx.Response(200, content=PDF)
+    if "elsevier.example.org/locked.pdf" in url:  # a "PDF" link that's really a paywall page
+        return httpx.Response(200, content=b"<html>paywall</html>")
+    if "elife.example.org/paper.pdf" in url:
+        return httpx.Response(200, content=PDF)
+    if "elife.example.org/landing" in url:
+        return httpx.Response(200, text=ELIFE_LANDING, headers={"content-type": "text/html"})
+    if "psyarxiv.example.org/landing" in url:
+        return httpx.Response(200, text=DOIONLY_LANDING, headers={"content-type": "text/html"})
+    if "sciencedirect.example.org/landing" in url:
+        return httpx.Response(200, text=LOCKED_PDF_LANDING, headers={"content-type": "text/html"})
+    if "nometa.example.org/landing" in url:
+        return httpx.Response(200, text=NOMETA_LANDING, headers={"content-type": "text/html"})
     if "paywall.example.org" in url:
         return httpx.Response(200, content=b"<html>paywall</html>")
     return httpx.Response(404)
@@ -174,3 +232,89 @@ def test_direct_pdf_url(fetcher: Fetcher) -> None:
     fs = fetcher.fetch(parse_input("https://oa.example.org/direct.pdf"))
     assert fs.source_doc.source == "url"
     assert fetcher._blobs.exists(fs.source_doc.sha256)
+
+
+def test_landing_page_citation_pdf_url_is_fetched(fetcher: Fetcher) -> None:
+    # An eLife-style landing page: mine citation_pdf_url (relative, urljoin-resolved) + metadata.
+    fs = fetcher.fetch(parse_input("https://elife.example.org/landing/00001"))
+    assert fs.source_doc.source == "url"
+    assert fs.source_doc.version_label == "publisher PDF (landing page)"
+    assert fs.source_doc.ids.doi == "10.7554/elife.00001"  # normalized (lowercased) from the tag
+    assert fs.title == "A Landing Page Paper"
+    assert fs.authors == ["Jane Roe", "John Doe"] and fs.year == 2022
+    assert fetcher._blobs.exists(fs.source_doc.sha256)
+
+
+def test_landing_page_doi_only_redispatches_to_oa_chain(fetcher: Fetcher) -> None:
+    # No citation_pdf_url — the discovered DOI must flow through OpenAlex.
+    fs = fetcher.fetch(parse_input("https://psyarxiv.example.org/landing/xyz"))
+    assert fs.source_doc.source == "openalex"
+    assert fs.source_doc.ids.doi == "10.1038/withpdf"
+    assert fs.license == "cc-by"
+
+
+def test_landing_page_locked_pdf_falls_back_to_doi(fetcher: Fetcher) -> None:
+    # citation_pdf_url is a paywall page; fall through to the DOI's green-OA copy (Unpaywall).
+    fs = fetcher.fetch(parse_input("https://sciencedirect.example.org/landing/pii"))
+    assert fs.source_doc.source == "unpaywall"
+    assert "acceptedVersion" in fs.source_doc.version_label
+
+
+def test_landing_page_without_citation_meta_raises(fetcher: Fetcher) -> None:
+    with pytest.raises(NotAPdfError):
+        fetcher.fetch(parse_input("https://nometa.example.org/landing"))
+
+
+def test_pubmed_pmid_resolves_via_doi_and_stamps_ids(fetcher: Fetcher) -> None:
+    # PMID -> DOI (NCBI ID Converter) -> OA chain, with the learned PubMed ids stamped on.
+    fs = fetcher.fetch(parse_input("PMID: 14699080"))
+    assert fs.source_doc.source == "openalex"
+    assert fs.source_doc.ids.doi == "10.1038/withpdf"
+    assert fs.source_doc.ids.pmid == "14699080"
+    assert fs.source_doc.ids.pmcid == "PMC1193645"
+
+
+def test_pubmed_pmcid_without_doi_falls_back_to_europepmc(fetcher: Fetcher) -> None:
+    fs = fetcher.fetch(parse_input("PMC7777777"))
+    assert fs.source_doc.source == "pubmed"
+    assert fs.source_doc.ids.pmcid == "PMC7777777"
+    assert "PMC full text" in fs.source_doc.version_label
+    assert fetcher._blobs.exists(fs.source_doc.sha256)
+
+
+def test_pubmed_unknown_id_raises(fetcher: Fetcher) -> None:
+    with pytest.raises(IdNotFoundError):
+        fetcher.fetch(parse_input("PMC0000000"))
+
+
+def test_osf_preprint_url_downloads_pdf_by_guid(fetcher: Fetcher) -> None:
+    # OSF's SPA has no citation meta; resolve the versioned GUID via the download endpoint.
+    fs = fetcher.fetch(parse_input("https://osf.io/preprints/psyarxiv/bfsgr_v1"))
+    assert fs.source_doc.source == "osf"
+    assert fs.source_doc.version_label == "OSF preprint (bfsgr_v1)"
+    assert fetcher._blobs.exists(fs.source_doc.sha256)
+
+
+def test_osf_unknown_guid_raises(fetcher: Fetcher) -> None:
+    with pytest.raises(IdNotFoundError):
+        fetcher.fetch(parse_input("https://osf.io/zzzzz/"))
+
+
+def test_bot_blocked_publisher_suggests_doi(fetcher: Fetcher) -> None:
+    with pytest.raises(FetchFailedError) as exc:
+        fetcher.fetch(parse_input("https://blocked.example.org/article/1"))
+    assert "Try the article's DOI" in exc.value.user_message
+
+
+def test_elsevier_pii_url_resolves_via_crossref_to_oa_copy(fetcher: Fetcher) -> None:
+    # ScienceDirect bot-blocks its page; identify the paper by PII -> CrossRef DOI -> OA chain.
+    fs = fetcher.fetch(
+        parse_input("https://www.sciencedirect.com/science/article/pii/S2213158221000012?via%3Dihub")
+    )
+    assert fs.source_doc.source == "openalex"  # a copy fetched from a non-blocked host
+    assert fs.source_doc.ids.doi == "10.1038/withpdf"  # matched on alternative-id, not the top hit
+
+
+def test_elsevier_pii_not_in_crossref_raises(fetcher: Fetcher) -> None:
+    with pytest.raises(IdNotFoundError):
+        fetcher.fetch(parse_input("https://www.sciencedirect.com/science/article/pii/S0000000000000000"))
