@@ -82,6 +82,16 @@ def test_screen_classify_ship_gates() -> None:
                 f"{case['id']}: got {sorted(got)}, expected {sorted(case['expect_labels'])}"
             )
 
+    # Software over-labeling guard: cases with `expect_software` must match the EXACT set — the
+    # grounded software channel (quote-verified, own-workflow scope) must neither pad nor drop.
+    for case, _, cls in rows:
+        if case.get("expect_software") is not None and cls is not None:
+            got_sw = set(cls.software_used)
+            assert got_sw == set(case["expect_software"]), (
+                f"{case['id']}: software {sorted(got_sw)}, "
+                f"expected {sorted(case['expect_software'])}"
+            )
+
     assert sensitivity >= 0.95, f"relevance sensitivity {sensitivity:.2f} < 0.95"
     assert specificity >= 0.80, f"decoy specificity {specificity:.2f} < 0.80"
     assert class_acc >= 0.80, f"label-set accuracy {class_acc:.2f} < 0.80"

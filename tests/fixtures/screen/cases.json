@@ -4,6 +4,9 @@
       "data_analysis"
     ],
     "expect_relevance": "yes",
+    "expect_software": [
+      "Stan"
+    ],
     "id": "emp1",
     "note": "clear empirical Bayesian fit",
     "parsed": {
@@ -328,6 +331,9 @@
       "data_analysis"
     ],
     "expect_relevance": "yes",
+    "expect_software": [
+      "Stan"
+    ],
     "id": "emp4",
     "note": "applies a standard model with existing software (Stan) - must NOT get software/model_development",
     "parsed": {

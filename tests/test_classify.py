@@ -50,7 +50,7 @@ _NO = {"answer": "no", "confidence": "low", "evidence": ""}
 def _facts(
     paper_type: dict[str, dict] | None = None,
     methods: dict[str, dict] | None = None,
-    software: list[str] | None = None,
+    software: list[dict] | None = None,
     disciplines: list[str] | None = None,
 ) -> ClassifierFacts:
     """An all-'no' checklist with targeted overrides — the wire format classify now expects."""
@@ -67,6 +67,11 @@ def _yes(evidence: str, confidence: str = "high") -> dict:
     return {"answer": "yes", "confidence": confidence, "evidence": evidence}
 
 
+def _sw(name: str, evidence: str = "", confidence: str = "high") -> dict:
+    """A software claim in the checklist wire format (grounded like every other fact)."""
+    return {"name": name, "confidence": confidence, "evidence": evidence}
+
+
 # --- fact -> label mapping ------------------------------------------------------------------------
 
 
@@ -78,7 +83,7 @@ def test_classify_maps_checklist_facts_and_meters_cost() -> None:
                 "fit a Bayesian model to real reaction-time data in Stan"
             )
         },
-        software=["Stan"],
+        software=[_sw("Stan", "real reaction-time data in Stan")],
         disciplines=["neuroscience"],
     )
     client = FakeLLMClient(facts)
@@ -133,7 +138,7 @@ def test_prior_method_conflict_drops_prior_only_model_overemit() -> None:
             ),
             "uses_bayesian_model_on_real_data": _yes("real census data"),
         },
-        software=["PyMC"],
+        software=[_sw("PyMC", "Using PyMC we fit the resulting model")],
     )
     cls, _ = C.classify(_parsed(text), [_ev()], client=FakeLLMClient(facts))
     assert cls.labels == [PaperClassLabel.method_development, PaperClassLabel.data_analysis]
@@ -270,11 +275,17 @@ def test_computational_paper_without_named_software_gets_custom() -> None:
 
 
 def test_software_canonicalization_and_language_qualifier() -> None:
+    text = "We analyse real data. We implemented the model in PyMC3 with custom code in Python."
     facts = _facts(
         paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
-        software=["pymc3", "python", "custom", "R "],
+        software=[
+            _sw("pymc3", "implemented the model in PyMC3"),
+            _sw("python"),  # bare language: no quote needed, only ever a Custom qualifier
+            _sw("custom", "custom code in Python"),
+            _sw("R "),
+        ],
     )
-    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    cls, _ = C.classify(_parsed(text), [_ev()], client=FakeLLMClient(facts))
     # pymc3 canonicalizes; bare languages drop out of the list but qualify Custom
     assert cls.software_used == ["PyMC", "Custom (Python)"]
 
@@ -302,12 +313,54 @@ def test_method_fact_requires_its_quote_in_the_excerpts() -> None:
 
 
 def test_software_ontology_implies_methods() -> None:
+    text = "We analyse real data. Amortized inference used BayesFlow throughout."
     facts = _facts(
         paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
-        software=["BayesFlow"],
+        software=[_sw("BayesFlow", "Amortized inference used BayesFlow")],
     )
-    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    cls, _ = C.classify(_parsed(text), [_ev()], client=FakeLLMClient(facts))
     assert InferenceMethod.sbi in cls.methods_used  # BayesFlow -> SBI, no method fact needed
+
+
+def test_low_confidence_software_is_dropped_and_implies_no_method() -> None:
+    # The model's own "perfunctory baseline / unclear it was executed" signal: listed but low.
+    text = "We analyse real data. We compare briefly against results reported for Stan."
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        software=[_sw("Stan", "compare briefly against results reported for Stan", "low")],
+    )
+    cls, _ = C.classify(_parsed(text), [_ev()], client=FakeLLMClient(facts))
+    assert cls.software_used == ["Custom"]  # computational fallback, not the baseline package
+    assert cls.methods_used == []  # and no phantom mcmc via the software->method ontology
+
+
+def test_software_with_unverifiable_quote_is_dropped() -> None:
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        software=[_sw("Stan", "we ran everything in Stan")],  # quote not in the excerpts
+    )
+    cls, _ = C.classify(_parsed("We analyse real data."), [_ev()], client=FakeLLMClient(facts))
+    assert cls.software_used == ["Custom"]
+
+
+def test_software_quote_must_name_the_package() -> None:
+    text = "We analyse real data. We fit the model with MCMC sampling."
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        software=[_sw("Stan", "We fit the model with MCMC sampling.")],  # real quote, wrong name
+    )
+    cls, _ = C.classify(_parsed(text), [_ev()], client=FakeLLMClient(facts))
+    assert cls.software_used == ["Custom"]
+
+
+def test_general_purpose_tooling_is_dropped_even_when_grounded() -> None:
+    text = "We analyse real data. Preprocessing used scikit-learn pipelines."
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        software=[_sw("scikit-learn", "Preprocessing used scikit-learn pipelines")],
+    )
+    cls, _ = C.classify(_parsed(text), [_ev()], client=FakeLLMClient(facts))
+    assert cls.software_used == ["Custom"]  # out of scope: not the Bayesian analysis workflow
 
 
 # --- transport + schema invariants (unchanged) ----------------------------------------------------
