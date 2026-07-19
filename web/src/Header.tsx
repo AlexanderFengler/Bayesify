@@ -2,7 +2,7 @@
 import LightModeOutlinedIcon from "@mui/icons-material/LightModeOutlined";
 import { AppBar, Box, Container, IconButton, Toolbar } from "@mui/material";
 import { Link as RouterLink } from "react-router-dom";
-import { useColorMode } from "./ThemeMode";
+import { useColorMode } from "./useColorMode";
 
 // The brand wordmark (an SVG lockup that already contains the "Bayesify" text), a link to the home
 // route. Two ink variants ship in web/public: the dark-ink logo for light mode, the white-ink logo
@@ -42,12 +42,7 @@ export function Header() {
         <Toolbar disableGutters sx={{ justifyContent: "space-between", py: 2.5, minHeight: { xs: 76, md: 88 } }}>
           <Wordmark />
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-            <IconButton
-              onClick={toggle}
-              size="small"
-              aria-label="toggle dark mode"
-              sx={{ color: "inherit" }}
-            >
+            <IconButton onClick={toggle} size="small" aria-label="toggle dark mode" sx={{ color: "inherit" }}>
               {variant === "light" ? (
                 <DarkModeOutlinedIcon fontSize="small" />
               ) : (
@@ -60,4 +55,3 @@ export function Header() {
     </AppBar>
   );
 }
-

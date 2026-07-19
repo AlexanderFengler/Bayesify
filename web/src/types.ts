@@ -233,13 +233,5 @@ export interface PaperState {
   error: string | null;
 }
 
-export const STAGES = [
-  "ingest",
-  "parse",
-  "detect",
-  "screen",
-  "classify",
-  "assess",
-  "score",
-] as const;
+export const STAGES = ["ingest", "parse", "detect", "screen", "classify", "assess", "score"] as const;
 export type Stage = (typeof STAGES)[number];

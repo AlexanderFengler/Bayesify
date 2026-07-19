@@ -58,8 +58,7 @@ function pushMacros(out: Segment[], value: string): void {
 // still want that typeset. The anchor is a Unicode *math* character (Greek letters, operators like
 // ∫ ∑ ∝ ∼ ≤ ∈ →, ± × ÷ ·) — these essentially never occur in ordinary English report prose, so
 // keying on them keeps false positives near zero.
-const UNICODE_MATH =
-  /[Ͱ-Ͽἀ-῿℀-⅏←-⇿∀-⋿⟀-⟯⦀-⧿±×÷·°]/;
+const UNICODE_MATH = /[Ͱ-Ͽἀ-῿℀-⅏←-⇿∀-⋿⟀-⟯⦀-⧿±×÷·°]/;
 
 // Classify one whitespace-delimited token when growing a bare-math fragment:
 //  - "strong"    contains a Unicode math char — the only thing that can anchor a fragment.

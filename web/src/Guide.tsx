@@ -28,8 +28,8 @@ const GET_RATED_STEPS: FlowStep[] = [
     head: "Add the paper",
     body: (
       <>
-        Drop a PDF, or paste an identifier (arXiv ID, DOI, OpenAlex ID, or URL) and Bayesify 
-        will try to fetch the open-access copy.
+        Drop a PDF, or paste an identifier (arXiv ID, DOI, OpenAlex ID, or URL) and Bayesify will try to fetch the
+        open-access copy.
       </>
     ),
   },
@@ -37,8 +37,8 @@ const GET_RATED_STEPS: FlowStep[] = [
     head: "Select a rubric",
     body: (
       <>
-        There is no standard Bayesian workflow. Select among existing <em>rubrics</em> embodying
-        different workflow philosophies.
+        There is no standard Bayesian workflow. Select among existing <em>rubrics</em> embodying different workflow
+        philosophies.
       </>
     ),
   },
@@ -46,8 +46,8 @@ const GET_RATED_STEPS: FlowStep[] = [
     head: "Click Analyze",
     body: (
       <>
-        The paper goes through our multi-stage pipeline and you get a step-by-step coverage report with
-        suggestions and adversarial checks.
+        The paper goes through our multi-stage pipeline and you get a step-by-step coverage report with suggestions and
+        adversarial checks.
       </>
     ),
   },
@@ -58,10 +58,7 @@ const GET_RATED_STEPS: FlowStep[] = [
   {
     head: "Edge cases",
     body: (
-      <>
-        If the paper isn&rsquo;t about Bayesian methodology, the rubric doesn&rsquo;t apply 
-        and nothing is graded.
-      </>
+      <>If the paper isn&rsquo;t about Bayesian methodology, the rubric doesn&rsquo;t apply and nothing is graded.</>
     ),
   },
 ];
@@ -78,26 +75,18 @@ const RATE_BLIND_STEPS: FlowStep[] = [
   },
   {
     head: "See the rubric & evidence",
-    body: (
-      <>
-        The steps to grade and the raw detected spans (what our parsers extracted).
-      </>
-    ),
+    body: <>The steps to grade and the raw detected spans (what our parsers extracted).</>,
   },
   {
     head: "Judge each step",
-    body: (
-      <>
-        Mark whether it applies, its status, your confidence, a
-        short rationale, and the relevant quotes.
-      </>
-    ),
+    body: <>Mark whether it applies, its status, your confidence, a short rationale, and the relevant quotes.</>,
   },
   {
     head: "Submit",
     body: (
       <>
-        Your rating is stored durably and anonymously. Expert ratings will eventually drive the calibration of our engine.
+        Your rating is stored durably and anonymously. Expert ratings will eventually drive the calibration of our
+        engine.
       </>
     ),
   },
@@ -128,11 +117,10 @@ export function Guide({ id }: { id?: string }) {
         title="How it works"
         lead={
           <>
-            Bayesify checks how well a paper follows a <strong>Bayesian workflow</strong> (e.g.,
-            model specification, priors, predictive checks, convergence diagnostics, reporting) against a rubric 
-            of community best practices, with every finding grounded in the paper and judged against the rubric. 
-            Scores are <strong>formative, not a verdict</strong>.
-            There are two ways to use the tool.
+            Bayesify checks how well a paper follows a <strong>Bayesian workflow</strong> (e.g., model specification,
+            priors, predictive checks, convergence diagnostics, reporting) against a rubric of community best practices,
+            with every finding grounded in the paper and judged against the rubric. Scores are{" "}
+            <strong>formative, not a verdict</strong>. There are two ways to use the tool.
           </>
         }
       />
@@ -171,15 +159,7 @@ function SmallScreenBreak() {
   return <Box component="br" sx={{ display: { xs: "block", sm: "none" } }} />;
 }
 
-function FlowSection({
-  title,
-  lead,
-  steps,
-}: {
-  title: React.ReactNode;
-  lead?: React.ReactNode;
-  steps: FlowStep[];
-}) {
+function FlowSection({ title, lead, steps }: { title: React.ReactNode; lead?: React.ReactNode; steps: FlowStep[] }) {
   return (
     // Each rating method is a card with the same responsive lift as the rubric columns: it
     // brightens, lifts, and casts a primary-tinted glow on hover.
@@ -321,20 +301,19 @@ function PrivacySection() {
       <Box component="ul" sx={{ display: "grid", gap: 1.5, m: 0, mt: 1.5, p: 0, listStyle: "none" }}>
         <Box component="li" sx={itemSx}>
           <strong>Your paper is not saved.</strong> To make its per-step judgments, Bayesify sends the{" "}
-          <strong>extracted text</strong> of your document to the configured LLM provider. Nothing else
-          leaves the machine: not the PDF file, not your identity. The uploaded file is used only to
-          run the analysis and is then discarded.
+          <strong>extracted text</strong> of your document to the configured LLM provider. Nothing else leaves the
+          machine: not the PDF file, not your identity. The uploaded file is used only to run the analysis and is then
+          discarded.
         </Box>
         <Box component="li" sx={itemSx}>
-          <strong>Only the report is stored.</strong> The graded assessment is saved to the database so
-          you can reopen it and browse it in the <strong>Archive</strong>. The source manuscript itself
-          is never kept.
+          <strong>Only the report is stored.</strong> The graded assessment is saved to the database so you can reopen
+          it and browse it in the <strong>Archive</strong>. The source manuscript itself is never kept.
         </Box>
         <Box component="li" sx={itemSx}>
-          <strong>Confidential or embargoed manuscripts need care.</strong> Treat this as &ldquo;this
-          text will be sent to a third-party API for processing&rdquo; and decide accordingly.
-          Submitting an identifier (arXiv/DOI/OpenAlex/URL) instead of a file fetches its open-access
-          PDF, which reveals to that provider which paper you&rsquo;re looking up.
+          <strong>Confidential or embargoed manuscripts need care.</strong> Treat this as &ldquo;this text will be sent
+          to a third-party API for processing&rdquo; and decide accordingly. Submitting an identifier
+          (arXiv/DOI/OpenAlex/URL) instead of a file fetches its open-access PDF, which reveals to that provider which
+          paper you&rsquo;re looking up.
         </Box>
       </Box>
     </Box>
@@ -351,8 +330,9 @@ export function ReviewerTokenField() {
     <Box sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 2, bgcolor: "action.hover" }}>
       <SubsectionTitle>Trusted reviewer token</SubsectionTitle>
       <Typography color="text.secondary" sx={{ mt: 0.75, fontSize: "0.95rem", lineHeight: 1.6 }}>
-        If you&rsquo;re a trusted reviewer, paste your shared-secret token. Your comments on the reports then become trusted &mdash; they enter the global override bank and can adjust how
-        similar steps are graded on other papers. Stored in this browser only.
+        If you&rsquo;re a trusted reviewer, paste your shared-secret token. Your comments on the reports then become
+        trusted &mdash; they enter the global override bank and can adjust how similar steps are graded on other papers.
+        Stored in this browser only.
       </Typography>
       <Box sx={{ display: "flex", gap: 1, mt: 1.5, alignItems: "center", flexWrap: "wrap" }}>
         <TextField

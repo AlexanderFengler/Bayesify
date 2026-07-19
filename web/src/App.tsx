@@ -1,20 +1,29 @@
 import { Alert, AlertTitle, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { lazy, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { AboutUs } from "./AboutUs";
 import { getPaper } from "./api";
-import { Analyzing, type GateFailure } from "./Analyzing";
-import { Archive } from "./Archive";
+import type { GateFailure } from "./Analyzing";
 import { useApp } from "./AppContext";
-import { Calibration } from "./Calibration";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { Inventory, LocalNotice } from "./Inventory";
 import { Landing } from "./Landing";
 import { Layout } from "./Layout";
 import { formatByline } from "./paper";
-import { Rate } from "./Rate";
-import { Report } from "./Report";
 import { type PaperState, STAGES } from "./types";
+
+// Route-level code splitting: every page below the landing entry loads on demand, so a first-time
+// visitor no longer downloads the report / rate / archive / etc. code up front — each chunk is
+// fetched (and cached) only when its route is first hit. Landing stays eagerly imported: it is the
+// entry page, so splitting it would only add a load waterfall + spinner to the most common first
+// paint (and it already needs KaTeX/MathText via its rubrics section). The Suspense fallback that
+// covers each pending chunk lives in Layout, so only the content area shows it — chrome stays put.
+const Analyzing = lazy(() => import("./Analyzing").then((m) => ({ default: m.Analyzing })));
+const Archive = lazy(() => import("./Archive").then((m) => ({ default: m.Archive })));
+const Calibration = lazy(() => import("./Calibration").then((m) => ({ default: m.Calibration })));
+const Inventory = lazy(() => import("./Inventory").then((m) => ({ default: m.Inventory })));
+const LocalNotice = lazy(() => import("./Inventory").then((m) => ({ default: m.LocalNotice })));
+const Rate = lazy(() => import("./Rate").then((m) => ({ default: m.Rate })));
+const Report = lazy(() => import("./Report").then((m) => ({ default: m.Report })));
+const AboutUs = lazy(() => import("./AboutUs").then((m) => ({ default: m.AboutUs })));
 
 // The whole app is client-side routed: a single Layout holds the app-wide state (mode, the upload
 // draft, the streaming lifecycle, the privacy modal) and every URL renders a page into its <Outlet />.
@@ -76,8 +85,7 @@ function ArchiveRoute() {
 }
 
 function ProcessingRoute() {
-  const { running, archiveHit, error, stageState, file, identifier, mode, reset, paper, rerunPaper } =
-    useApp();
+  const { running, archiveHit, error, stageState, file, identifier, mode, reset, paper, rerunPaper } = useApp();
   const navigate = useNavigate();
   if (error) return <ErrorPage error={error} onRetry={reset} />;
   if (archiveHit) return <ArchiveRedirect />;
@@ -112,8 +120,7 @@ function ProcessingRoute() {
       ? {
           isReview: r.not_applicable_reason === "not_an_application",
           rationale:
-            (r.not_applicable_reason === "not_an_application" && r.paper_class?.rationale) ||
-            r.relevance.rationale,
+            (r.not_applicable_reason === "not_an_application" && r.paper_class?.rationale) || r.relevance.rationale,
           confidence:
             r.not_applicable_reason === "not_an_application" && r.paper_class
               ? r.paper_class.confidence
