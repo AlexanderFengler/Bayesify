@@ -469,22 +469,28 @@ def _label_fact_survives(
 def _resolve_prior_label_conflicts(
     candidates: list[PaperClassLabel], facts: ClassifierFacts, context: str
 ) -> list[PaperClassLabel]:
-    """A prior can be a model component or a methodological contribution.
+    """A prior can be a model component or a methodological contribution — and the taxonomy, not
+    the box the LLM happened to tick, decides which. A generally-applicable prior (a prior family,
+    a default/weakly-informative prior for a parameter class) is method_development; a prior scoped
+    to a specific model is part of model_development.
 
-    When the LLM emits both model_development and method_development, require independent
-    non-prior model evidence before keeping model_development. This preserves genuine model+method
-    papers while suppressing the common over-emission where "new prior" alone is treated as both.
-    """
-    if (
-        PaperClassLabel.model_development not in candidates
-        or PaperClassLabel.method_development not in candidates
-    ):
+    Two repairs, both requiring the model quote to be a general-prior statement with no independent
+    model-development cue and no model-specific-prior cue:
+    - both labels emitted: drop model_development (the classic "new prior" double-count);
+    - model_development emitted ALONE: relabel it to method_development rather than trusting the
+      mis-filed box — dropping it here would lose the development contribution entirely (the
+      historically flaky meth1 mode)."""
+    if PaperClassLabel.model_development not in candidates:
         return candidates
 
     model_fact = facts.paper_type.develops_new_bayesian_model
     method_fact = facts.paper_type.develops_new_bayesian_method
     model_text = model_fact.evidence
-    search_text = f"{method_fact.evidence}\n{model_text}\n{context}"
+    both = PaperClassLabel.method_development in candidates
+    # With both labels present the LLM itself signaled a method reading, so context may corroborate;
+    # for a lone model label the model QUOTE itself must be the general-prior statement (a context-
+    # wide search would relabel genuine model papers that merely mention common prior boilerplate).
+    search_text = f"{method_fact.evidence}\n{model_text}\n{context}" if both else model_text
     if (
         _GENERAL_PRIOR_METHOD_RE.search(search_text) is None
         or _has_independent_model_development(model_text)
@@ -492,10 +498,17 @@ def _resolve_prior_label_conflicts(
     ):
         return candidates
 
-    _log.warning(
-        "model_development dropped: prior-method paper had no independent model-development cue"
-    )
-    return [label for label in candidates if label is not PaperClassLabel.model_development]
+    out = [label for label in candidates if label is not PaperClassLabel.model_development]
+    if both:
+        _log.warning(
+            "model_development dropped: prior-method paper had no independent model-development cue"
+        )
+    else:
+        _log.warning(
+            "model_development relabeled to method_development: general-prior contribution"
+        )
+        out.append(PaperClassLabel.method_development)
+    return out
 
 
 def _prioritize_labels(candidates: list[PaperClassLabel]) -> list[PaperClassLabel]:
