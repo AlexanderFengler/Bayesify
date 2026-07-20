@@ -184,8 +184,7 @@ def _classifier_facts():
         "evidence": "we fit the model to real data",
     }
     me = {name: dict(no) for name in ClassifierMethodFacts.model_fields}
-    sw = [{"name": "Stan", "confidence": "high", "evidence": "Bayesian inference in Stan"}]
-    return ClassifierFacts(paper_type=pt, methods=me, software=sw, disciplines=[])
+    return ClassifierFacts(paper_type=pt, methods=me, software=["Stan"], disciplines=[])
 
 
 class _FakeLLM:

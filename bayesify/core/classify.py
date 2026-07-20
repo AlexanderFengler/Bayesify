@@ -23,7 +23,6 @@ from bayesify.core.schema import (
     PaperClass,
     PaperClassLabel,
     ParsedDoc,
-    SoftwareFact,
 )
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
 from bayesify.llm import config as llm_config
@@ -121,6 +120,9 @@ _SOFTWARE_CANONICAL: dict[str, str] = {
     "blackjax": "BlackJAX",
     "pyro": "Pyro",
     "pyroppl": "Pyro",
+    "mcp": "mcp",
+    "scikitlearn": "scikit-learn",
+    "sklearn": "scikit-learn",
     "stan": "Stan",
     "pystan": "PyStan",
     "cmdstan": "CmdStan",
@@ -166,14 +168,6 @@ _CUSTOM_LANGUAGE_KEYS: dict[str, str] = {
 }
 
 _NON_INFERENCE_SOFTWARE_KEYS = {
-    # general-purpose tooling is not about the paper's core statistical workflow (scope: the
-    # Bayesian/inference stack only)
-    "scikitlearn",
-    "sklearn",
-    "mcp",
-    "pandas",
-    "numpy",
-    "matplotlib",
     "r",
     "rproject",
     "rlanguage",
@@ -408,10 +402,7 @@ def _paper_class_from_facts(
         PaperClassLabel.review,
         PaperClassLabel.theoretical_analysis,
     }
-    # Software passes the same grounding gate as every other fact (verified quote + high
-    # confidence), so the ontology below (software -> implied methods) fires on verified use only —
-    # a mention-only package can no longer inject a phantom method chip.
-    software = _canonical_software(facts.software, context, allow_empty=non_computational)
+    software = _canonical_software(facts.software, allow_empty=non_computational)
     methods = _methods_from_facts(facts, context, evidence, software)
 
     disciplines = _disciplines_from_facts(facts, labels, methods)
@@ -668,55 +659,27 @@ def _yes(fact: ClassifierFact) -> bool:
     return fact.answer is FactAnswer.yes
 
 
-def _canonical_software(
-    raw: list[SoftwareFact], context: str, *, allow_empty: bool = False
-) -> list[str]:
-    """Canonicalize the classifier's software claims, keeping only grounded ones: high confidence
-    plus a usage quote that verifies against the excerpts and names the package. Low confidence is
-    the model's own "perfunctory baseline / unclear it was executed" signal, so it drops here."""
+def _canonical_software(raw: list[str], *, allow_empty: bool = False) -> list[str]:
     out: list[str] = []
     custom_languages: list[str] = []
-    for fact in raw:
-        name = fact.name
+    for item in raw:
+        name = item.strip()
+        if not name:
+            continue
         key = _software_key(name)
         if key in _CUSTOM_LANGUAGE_KEYS:
             _append_unique(custom_languages, _CUSTOM_LANGUAGE_KEYS[key])
             _log.warning("programming language kept only as Custom qualifier: %s", name)
             continue
         if key in _NON_INFERENCE_SOFTWARE_KEYS:
-            _log.warning("non-inference software dropped: %s", name)
-            continue
-        if fact.confidence is not FactConfidence.high:
-            _log.warning("low-confidence software claim dropped: %s", name)
-            continue
-        if not _quote_in_text(fact.evidence, context):
-            _log.warning("software evidence quote not found in excerpts (dropped): %s", name)
+            _log.warning("programming language/general environment dropped from software: %s", name)
             continue
         canonical = _SOFTWARE_CANONICAL.get(key, name)
-        if not key.startswith("custom") and not _software_named_in_quote(
-            name, canonical, fact.evidence
-        ):
-            _log.warning("software evidence quote does not name the package (dropped): %s", name)
-            continue
         _append_unique_ci(out, canonical)
     out = _qualify_custom_software(out, custom_languages)
     if not out and allow_empty:
         return []  # review/theoretical-only papers run no analysis; never fabricate "Custom"
     return out or ["Custom"]
-
-
-def _software_named_in_quote(name: str, canonical: str, quote: str) -> bool:
-    """The usage quote must mention the package itself, so a real quote can't launder an unrelated
-    software name. Matches the raw or canonical name (also without a ``.jl``-style suffix), on word
-    boundaries, case-insensitively."""
-    low = quote.lower()
-    candidates = {name.lower(), canonical.lower()}
-    bases = {c.split(".")[0] for c in candidates if "." in c}
-    candidates |= {b for b in bases if len(b) > 2}
-    for token in candidates:
-        if token and re.search(rf"(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])", low):
-            return True
-    return False
 
 
 def _qualify_custom_software(software: list[str], languages: list[str]) -> list[str]:
