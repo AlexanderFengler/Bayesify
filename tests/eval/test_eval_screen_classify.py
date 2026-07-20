@@ -39,14 +39,22 @@ _CASES = json.loads(
 )
 
 
+def _run_case(client, case: dict):
+    parsed = ParsedDoc.model_validate(case["parsed"])
+    evidence = run_detectors(parsed)
+    relevance, paper_class, _ = screen_and_classify(parsed, evidence, client=client)
+    return case, relevance, paper_class
+
+
 def test_screen_classify_ship_gates() -> None:
     client = make_llm_client()
-    rows = []
-    for case in _CASES:
-        parsed = ParsedDoc.model_validate(case["parsed"])
-        evidence = run_detectors(parsed)
-        relevance, paper_class, _ = screen_and_classify(parsed, evidence, client=client)
-        rows.append((case, relevance, paper_class))
+    # Cases are independent, so fan out — on the agent-sdk backend each call pays ~10s of CLI
+    # session startup, which made the sequential loop take 10-15 min; parallel it is ~2. The client
+    # is shared safely (same pattern as the app's parallel assess fan-out).
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        rows = list(pool.map(lambda c: _run_case(client, c), _CASES))
 
     relevant = [r for r in rows if r[0]["expect_relevance"] in ("yes", "partial")]
     decoys = [r for r in rows if r[0]["expect_relevance"] == "no"]

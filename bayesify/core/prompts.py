@@ -106,8 +106,8 @@ Use an empty evidence string for "no":
 
 ## Paper type
 
-* `develops_new_bayesian_model`: The central contribution is a new or substantially extended probabilistic or generative model, latent stochastic process, simulator, likelihood, or joint dependence structure. A new prior counts here only if it is model-specific.
-* `develops_new_bayesian_method`: The central contribution is a new or substantially studied inference algorithm, sampler, diagnostic, validation or model-checking procedure, prior family, elicitation method, or general-purpose/default regularizing prior.
+* `develops_new_bayesian_model`: The central contribution is a new or substantially extended probabilistic or generative model, latent stochastic process, simulator, likelihood, or joint dependence structure. A new prior counts here only if it is model-specific (e.g. "a new prior for spatial models" is scoped to a modeling scenario, so it is model development).
+* `develops_new_bayesian_method`: The central contribution is a new or substantially studied inference algorithm, sampler, diagnostic, validation or model-checking procedure, prior family, elicitation method, or general-purpose/default regularizing prior (e.g. "a new weakly-informative prior for hierarchical variance parameters" applies across models, so it is method development even though it is a prior — answer yes HERE, not under model).
 * `develops_new_bayesian_software`: The central contribution is a Bayesian software package, library, or computational infrastructure. Implementation details alone are not enough.
 * `uses_bayesian_model_on_real_data`: The paper centrally fits a Bayesian model to observed real-world data and draws substantive domain conclusions. A demonstration or motivating example is low confidence.
 * `runs_numerical_or_simulation_study`: The paper centrally evaluates Bayesian models or methods using simulations, simulated data, synthetic data, benchmark data, numerical experiments, or fitting the model/method to simulator-generated data.

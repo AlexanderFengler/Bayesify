@@ -171,6 +171,77 @@ def test_prior_theory_conflict_drops_prior_only_model_overemit() -> None:
     ]
 
 
+def test_lone_model_label_with_general_prior_quote_is_relabeled_to_method() -> None:
+    # The historically flaky meth1 mode: the LLM files a generally-applicable prior under MODEL
+    # (alone) — the taxonomy routes it to method_development deterministically, not by luck.
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_model": _yes(
+                "we propose a new weakly-informative prior for hierarchical variance parameters"
+            ),
+        }
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.method_development]
+
+
+def test_lone_model_label_with_genuine_model_quote_is_kept() -> None:
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_model": _yes(
+                "we propose a new hierarchical model of choice behavior"
+            ),
+        }
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.model_development]
+
+
+def test_lone_model_label_with_scenario_scoped_prior_is_kept() -> None:
+    # A prior developed FOR a specific modeling scenario is part of building that model (the
+    # settled taxonomy) — no relabel.
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_model": _yes("we develop a new prior for spatial models"),
+        }
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.model_development]
+
+
+def test_lone_method_label_with_model_scoped_prior_is_relabeled_to_model() -> None:
+    # The meth3 mirror: a scenario-scoped prior filed under METHOD alone routes back to model —
+    # with a co-label preserved, exactly the meth3 fixture shape.
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_method": _yes("we develop a new prior for spatial models"),
+            "uses_bayesian_model_on_real_data": _yes("applied to real census data"),
+        }
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.model_development, PaperClassLabel.data_analysis]
+
+
+def test_lone_method_label_with_general_prior_quote_is_kept() -> None:
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_method": _yes(
+                "we propose a new weakly-informative prior for hierarchical variance parameters"
+            ),
+        }
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.method_development]
+
+
+def test_lone_method_label_with_procedure_quote_is_kept() -> None:
+    facts = _facts(
+        paper_type={"develops_new_bayesian_method": _yes("we introduce a new sampler")}
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.method_development]
+
+
 def test_prior_conflict_keeps_independent_model_contribution() -> None:
     facts = _facts(
         paper_type={

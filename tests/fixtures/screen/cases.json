@@ -418,7 +418,7 @@
     ],
     "expect_relevance": "yes",
     "id": "meth3",
-    "note": "scenario-scoped new prior (spatial models) -> model_development per taxonomy; + real-data application",
+    "note": "general prior family (beta prior on R2 -> induced global-variance prior for GLMMs) -> method_development; the deterministic relabel routes it even when the LLM files it under model",
     "parsed": {
       "parser": "fixture",
       "parser_version": "0",
