@@ -13,6 +13,7 @@ from collections import defaultdict
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from bayesify.core.quotes import sentence_span
 from bayesify.core.schema import (
     Evidence,
     EvidenceKind,
@@ -47,9 +48,6 @@ __all__ = [
     "catalog_fingerprint",
     "detector_ids",
 ]
-
-_QUOTE_PAD = 30
-
 
 # --- detection ------------------------------------------------------------------------------------
 
@@ -110,17 +108,12 @@ def _section_page(section: Section) -> int | None:
     return section.page_spans[0].page_start if section.page_spans else None
 
 
-def _quote(text: str, start: int, end: int, pad: int = _QUOTE_PAD) -> str:
+def _quote(text: str, start: int, end: int) -> str:
     """A readable, **verbatim substring** of ``text`` around the match (hard guarantee — e-assess
-    grounding and UI highlighting slice on it). Window trimmed to word boundaries; the match always
-    stays inside, so the result is contiguous within ``text``."""
-    lo = max(0, start - pad)
-    hi = min(len(text), end + pad)
-    while lo < start and not (lo == 0 or text[lo - 1].isspace()):
-        lo += 1
-    while hi > end and not (hi == len(text) or text[hi].isspace()):
-        hi -= 1
-    return text[lo:hi].strip()
+    grounding and UI highlighting slice on it). Sentence-aligned via ``sentence_span`` so the
+    report's "In the paper" spans read as complete sentences, not the old ±30-char shards; the
+    match always stays inside, so the result is contiguous within ``text``."""
+    return sentence_span(text, start, end)
 
 
 # --- inventory (the F3 local-only view) -----------------------------------------------------------

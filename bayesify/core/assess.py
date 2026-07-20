@@ -22,6 +22,7 @@ from pydantic import BaseModel, Field
 from bayesify.core import config
 from bayesify.core.context import assessment_context, evidence_digest
 from bayesify.core.prompts import ASSESS_JUDGE_SYSTEM, ASSESS_REFUTE_SYSTEM
+from bayesify.core.quotes import sentence_span
 from bayesify.core.rubric.applicability import step_applicability_for_labels
 from bayesify.core.rubric.models import RubricSpec, RubricStep
 from bayesify.core.schema import (
@@ -471,14 +472,18 @@ def _judge_quote_evidence(quotes: list[str], sections: list[Section]) -> list[Ev
     out: list[Evidence] = []
     for raw in quotes:
         q = raw.strip()
-        sid = next((s.id for s in sections if q and q in s.text), None)
-        if sid:
+        sec = next((s for s in sections if q and q in s.text), None)
+        if sec:
+            # The model verifiably quoted the paper, but usually a clause fragment — expand to the
+            # enclosing sentence(s) so "In the paper" reads coherently (still a verbatim substring).
+            i = sec.text.find(q)
+            quote = sentence_span(sec.text, i, i + len(q))
             out.append(
                 Evidence(
                     detector_id="assess.judge",
                     detector_version="0",
                     kind=EvidenceKind.judge_quote,
-                    span=EvidenceSpan(section_id=sid, page=None, quote=q),
+                    span=EvidenceSpan(section_id=sec.id, page=None, quote=quote),
                 )
             )
     return out
@@ -487,7 +492,10 @@ def _judge_quote_evidence(quotes: list[str], sections: list[Section]) -> list[Ev
 def _absence_search(searched: list[str], parsed) -> Evidence:
     top = next((s for s in parsed.sections if s.id in searched and s.text), None)
     sid = top.id if top else (parsed.sections[0].id if parsed.sections else "s00")
-    quote = top.text[:80].strip() if top and top.text else "(no text searched)"
+    # The first sentence of the searched section (was a blind [:80] slice — always a fragment).
+    quote = (
+        sentence_span(top.text, 0, 0, max_chars=200) if top and top.text else "(no text searched)"
+    )
     return Evidence(
         detector_id="assess.where_looked",
         detector_version="0",
