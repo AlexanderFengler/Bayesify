@@ -23,7 +23,7 @@ from dataclasses import dataclass
 
 from bayesify.core.schema import EvidenceKind
 
-_V = "0.1.0"  # catalog version stamp for all detectors at this revision
+_V = "0.1.1"  # catalog version stamp for all detectors at this revision
 
 # Family render/identity order (used by the inventory and the fingerprint).
 FAMILIES: tuple[str, ...] = ("software", "method", "diagnostic", "workflow", "sampler", "open_science")
