@@ -474,14 +474,17 @@ def _resolve_prior_label_conflicts(
     a default/weakly-informative prior for a parameter class) is method_development; a prior scoped
     to a specific model is part of model_development.
 
-    Two repairs, both requiring the model quote to be a general-prior statement with no independent
-    model-development cue and no model-specific-prior cue:
+    Three repairs; the first two require the model quote to be a general-prior statement with no
+    independent model-development cue and no model-specific-prior cue:
     - both labels emitted: drop model_development (the classic "new prior" double-count);
     - model_development emitted ALONE: relabel it to method_development rather than trusting the
       mis-filed box — dropping it here would lose the development contribution entirely (the
-      historically flaky meth1 mode)."""
+      historically flaky meth1 mode);
+    - the mirror image: method_development emitted ALONE whose quote is a model-SCOPED prior (and
+      neither a general prior nor an inference procedure) relabels to model_development (the
+      historically flaky meth3 mode)."""
     if PaperClassLabel.model_development not in candidates:
-        return candidates
+        return _route_model_scoped_prior(candidates, facts)
 
     model_fact = facts.paper_type.develops_new_bayesian_model
     method_fact = facts.paper_type.develops_new_bayesian_method
@@ -509,6 +512,40 @@ def _resolve_prior_label_conflicts(
         )
         out.append(PaperClassLabel.method_development)
     return out
+
+
+# Words that mark a genuinely procedural contribution — a method quote carrying one of these is
+# never rerouted to model_development, whatever prior it also mentions.
+_METHOD_PROCEDURE_RE = re.compile(
+    r"\b(sampler|algorithm|variational|diagnostic|elicitation|workflow|validation|"
+    r"model[- ]checking|inference (?:method|procedure|scheme))\b",
+    re.I,
+)
+
+
+def _route_model_scoped_prior(
+    candidates: list[PaperClassLabel], facts: ClassifierFacts
+) -> list[PaperClassLabel]:
+    """The mirror of the lone-model repair: a lone method_development whose own quote is a
+    model-SCOPED prior ("a new prior for spatial models") — not a general prior and not an
+    inference procedure — is part of building that model, so it relabels to model_development."""
+    if (
+        PaperClassLabel.method_development not in candidates
+        or PaperClassLabel.model_development in candidates
+    ):
+        return candidates
+    quote = facts.paper_type.develops_new_bayesian_method.evidence
+    if (
+        _MODEL_SPECIFIC_PRIOR_RE.search(quote) is None
+        or _GENERAL_PRIOR_METHOD_RE.search(quote) is not None
+        or _METHOD_PROCEDURE_RE.search(quote) is not None
+    ):
+        return candidates
+    _log.warning("method_development relabeled to model_development: model-scoped prior")
+    return [
+        PaperClassLabel.model_development if label is PaperClassLabel.method_development else label
+        for label in candidates
+    ]
 
 
 def _prioritize_labels(candidates: list[PaperClassLabel]) -> list[PaperClassLabel]:

@@ -209,6 +209,39 @@ def test_lone_model_label_with_scenario_scoped_prior_is_kept() -> None:
     assert cls.labels == [PaperClassLabel.model_development]
 
 
+def test_lone_method_label_with_model_scoped_prior_is_relabeled_to_model() -> None:
+    # The meth3 mirror: a scenario-scoped prior filed under METHOD alone routes back to model —
+    # with a co-label preserved, exactly the meth3 fixture shape.
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_method": _yes("we develop a new prior for spatial models"),
+            "uses_bayesian_model_on_real_data": _yes("applied to real census data"),
+        }
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.model_development, PaperClassLabel.data_analysis]
+
+
+def test_lone_method_label_with_general_prior_quote_is_kept() -> None:
+    facts = _facts(
+        paper_type={
+            "develops_new_bayesian_method": _yes(
+                "we propose a new weakly-informative prior for hierarchical variance parameters"
+            ),
+        }
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.method_development]
+
+
+def test_lone_method_label_with_procedure_quote_is_kept() -> None:
+    facts = _facts(
+        paper_type={"develops_new_bayesian_method": _yes("we introduce a new sampler")}
+    )
+    cls, _ = C.classify(_parsed("x"), [_ev()], client=FakeLLMClient(facts))
+    assert cls.labels == [PaperClassLabel.method_development]
+
+
 def test_prior_conflict_keeps_independent_model_contribution() -> None:
     facts = _facts(
         paper_type={
