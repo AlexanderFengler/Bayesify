@@ -413,12 +413,12 @@
   },
   {
     "expect_labels": [
-      "method_development",
+      "model_development",
       "data_analysis"
     ],
     "expect_relevance": "yes",
     "id": "meth3",
-    "note": "mixed: method contribution + real-data application",
+    "note": "scenario-scoped new prior (spatial models) -> model_development per taxonomy; + real-data application",
     "parsed": {
       "parser": "fixture",
       "parser_version": "0",
