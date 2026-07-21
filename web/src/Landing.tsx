@@ -43,6 +43,7 @@ export interface LandingProps {
   setDragging: (b: boolean) => void;
   fileInput: React.RefObject<HTMLInputElement>;
   onStart: (intent?: "analyze" | "rate") => void;
+  fetchError?: string | null; // set when the last identifier couldn't be fetched (recoverable here)
 }
 
 export function Landing(p: LandingProps) {
@@ -106,10 +107,9 @@ export function Landing(p: LandingProps) {
                   color: "text.secondary",
                 }}
               >
-                Bayesify is a multi-stage agentic AI framework for evaluating the integrity of
-                Bayesian workflows. Backed by curated rubrics from the methodological
-                literature, it grades your paper step by step and helps you bring your workflow
-                to the{" "}
+                Bayesify is a multi-stage agentic AI framework for evaluating the integrity of Bayesian workflows.
+                Backed by curated rubrics from the methodological literature, it grades your paper step by step and
+                helps you bring your workflow to the{" "}
                 <GoldText>
                   <strong>gold standard</strong>
                 </GoldText>
@@ -198,6 +198,9 @@ function UploadPanel(
 ) {
   // AI (engine analysis) vs Human (blind self-rating); AI is the default.
   const [intent, setIntent] = useState<"ai" | "human">("ai");
+  const identifierPrompt = p.fetchError
+    ? "Couldn't fetch the PDF — try another identifier or upload it"
+    : "or paste an identifier";
   return (
     <Paper
       // A real <form> so Enter in the identifier field starts the analysis (implicit submission),
@@ -284,8 +287,8 @@ function UploadPanel(
       </Box>
 
       <Divider sx={{ my: 2.5 }}>
-        <Typography variant="caption" color="text.secondary">
-          or paste an identifier
+        <Typography variant="caption" color={p.fetchError ? "error.main" : "text.secondary"}>
+          {identifierPrompt}
         </Typography>
       </Divider>
 
@@ -296,6 +299,8 @@ function UploadPanel(
         value={p.identifier}
         onChange={(e) => p.setIdentifier(e.target.value)}
         disabled={!!p.file}
+        error={!!p.fetchError}
+        helperText={p.fetchError || undefined}
       />
 
       <TextField

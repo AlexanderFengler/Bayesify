@@ -67,7 +67,13 @@ Return valid JSON only, with exactly this structure:
   "uses_em": Fact,
   "uses_exact_or_analytic_posterior": Fact
 },
-  "software": ["software-name"],
+  "software": [
+    {
+      "name": "software-name",
+      "confidence": "high" | "low",
+      "evidence": "exact quote from the paper excerpts showing this software being used"
+    }
+  ],
   "disciplines": ["lower-case-hyphenated-field"]
 }
 
@@ -93,15 +99,15 @@ Use an empty evidence string for "no":
 * Evidence must be an exact quote supporting the answer.
 * For paper type, use "high" confidence only when the fact is a central contribution of the paper.
 * Most papers have one or two paper-type "yes" answers. Three or four are valid when every selected type is a central contribution, such as a new model, a new method, simulation validation, and a real-data analysis. Use "low" confidence for secondary examples, demonstrations, or ambiguous contributions.
-* Count methods and software used in the paper's analyses, experiments, simulations, benchmarks, or reported baselines.
+* Count methods and software used in the paper's analyses, experiments, simulations, and benchmarks the authors themselves executed.
 * Do not count related work, motivation, future work, or methods merely listed as alternatives.
 * When evidence is incomplete or ambiguous, use "low" confidence.
 * Never infer use solely from a citation or general discussion.
 
 ## Paper type
 
-* `develops_new_bayesian_model`: The central contribution is a new or substantially extended probabilistic or generative model, latent stochastic process, simulator, likelihood, or joint dependence structure. A new prior counts here only if it is model-specific.
-* `develops_new_bayesian_method`: The central contribution is a new or substantially studied inference algorithm, sampler, diagnostic, validation or model-checking procedure, prior family, elicitation method, or general-purpose/default regularizing prior.
+* `develops_new_bayesian_model`: The central contribution is a new or substantially extended probabilistic or generative model, latent stochastic process, simulator, likelihood, or joint dependence structure. A new prior counts here only if it is model-specific (e.g. "a new prior for spatial models" is scoped to a modeling scenario, so it is model development).
+* `develops_new_bayesian_method`: The central contribution is a new or substantially studied inference algorithm, sampler, diagnostic, validation or model-checking procedure, prior family, elicitation method, or general-purpose/default regularizing prior (e.g. "a new weakly-informative prior for hierarchical variance parameters" applies across models, so it is method development even though it is a prior — answer yes HERE, not under model).
 * `develops_new_bayesian_software`: The central contribution is a Bayesian software package, library, or computational infrastructure. Implementation details alone are not enough.
 * `uses_bayesian_model_on_real_data`: The paper centrally fits a Bayesian model to observed real-world data and draws substantive domain conclusions. A demonstration or motivating example is low confidence.
 * `runs_numerical_or_simulation_study`: The paper centrally evaluates Bayesian models or methods using simulations, simulated data, synthetic data, benchmark data, numerical experiments, or fitting the model/method to simulator-generated data.
@@ -138,20 +144,32 @@ Do not classify a method as SBI merely because it uses ABC without a trained neu
 
 ## Software ontology
 
-Return all software actually used in an analysis, experiment, numerical study, or reported baseline.
+Return the software that served the paper's OWN Bayesian analysis workflow. Be conservative: a
+short, accurate list beats a complete-looking one.
 
+Each entry is {"name", "confidence", "evidence"}. The evidence must be an exact quote from the
+excerpts showing THAT software being run or used — not merely named.
+
+* In scope: probabilistic-programming frameworks, samplers, and inference tooling (Stan, PyMC,
+brms, JAGS, Turing.jl, NumPyro, BlackJAX, Pyro, BayesFlow, `sbi`, pyABC, HDDM, HSSM, ...) plus
+simulation tooling the inference pipeline depends on.
+* Out of scope: general-purpose tooling that is not about the paper's core statistical workflow —
+plotting, preprocessing, data handling, generic ML utilities (e.g. scikit-learn), and
+infrastructure. Do not list them even when the paper used them.
+* Benchmarks: include a package ONLY when the authors themselves executed it as a serious,
+equal-footing comparison in their experiments. Do not include packages that are perfunctory
+comparisons, cited published numbers, related work, installation instructions, or passing
+mentions. Use "low" confidence when it is unclear whether the authors actually ran it.
 * BayesFlow, `sbi`, NeuralEstimators.jl, or similar neural-inference packages imply `uses_sbi = yes`.
 * pyABC implies `uses_abc = yes`.
 * Explicit HMC or NUTS use implies `uses_mcmc = yes`.
 * Stan, PyMC, Bambi, brms, rstanarm, JAGS, BUGS, Turing.jl, NumPyro, BlackJAX, TensorFlow Probability, HDDM, or HSSM normally imply `uses_mcmc = yes`, unless the excerpt explicitly identifies another inference method.
-* Packages/libraries used in model fitting, simulation, posterior estimation, or reported baselines count as software, including `mcp` and scikit-learn when used in the analysis.
 * Pyro is software. It implies the method named in context, such as MCMC/NUTS/HMC or variational inference/SVI.
-* If the excerpt says a sampler, model, experiment, or analysis used settings or defaults in a named package such as BlackJAX or Pyro, return that package as software used.
 * Include `"Custom"` only when the excerpts explicitly say the analysis used custom code or a custom implementation. If a language is named for that custom code, return it only as a qualifier, e.g. `"Custom (Python)"` or `"Custom (R)"`.
 * Return packages/libraries/frameworks, not programming languages or general environments. Exclude standalone `R`, Python, Julia, MATLAB, RStudio, operating systems, shells, and generic language/runtime mentions.
-* If no named package/library/framework is specified for the analysis, return `"Custom"` so the software list is never empty.
-* Do not include software mentioned only in citations, related work, installation instructions, or unexecuted comparisons.
-* Use the software's canonical name and return each name only once.
+* When no named package survives these rules for a computational paper, return an empty list — the
+pipeline records `"Custom"` deterministically; never pad the list to look complete.
+* Use the software's canonical name and return each name only once. When unsure, leave it out.
 
 ## Disciplines
 

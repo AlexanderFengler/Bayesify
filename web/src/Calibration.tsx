@@ -130,8 +130,8 @@ function StatusBanner({ rep }: { rep: CalibrationReport }) {
     return (
       <Alert severity="error" variant="filled">
         <AlertTitle>⚠️ FAKE DATA — plumbing demonstration, not a measurement.</AlertTitle>
-        Every number below is computed from fabricated reports so the page can be built and critiqued
-        before real expert ratings exist. It is <strong>not</strong> the engine&rsquo;s accuracy.
+        Every number below is computed from fabricated reports so the page can be built and critiqued before real expert
+        ratings exist. It is <strong>not</strong> the engine&rsquo;s accuracy.
       </Alert>
     );
   }
@@ -139,8 +139,8 @@ function StatusBanner({ rep }: { rep: CalibrationReport }) {
     return (
       <Alert severity="warning">
         <AlertTitle>Development-set agreement.</AlertTitle>
-        Measured against the gold set the engine is tuned on — not held-out accuracy. Every number is
-        labeled &ldquo;development-set agreement.&rdquo;
+        Measured against the gold set the engine is tuned on — not held-out accuracy. Every number is labeled
+        &ldquo;development-set agreement.&rdquo;
       </Alert>
     );
   }
@@ -293,17 +293,14 @@ function Confusion({ table }: { table: Record<string, Record<string, number>> })
 function TierCCases({ cases }: { cases: TierCCase[] }) {
   return (
     <Paper variant="outlined" sx={{ p: { xs: 2.5, md: 3 }, borderRadius: 3 }}>
-      <SectionLabel>
-        Tier-C special cases — reported individually (too few to pool into a rate)
-      </SectionLabel>
+      <SectionLabel>Tier-C special cases — reported individually (too few to pool into a rate)</SectionLabel>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5, mt: 1.5 }}>
         {cases.map((c) => (
           <Box key={c.work_id}>
             <Box sx={{ display: "flex", alignItems: "baseline", gap: 1.5, flexWrap: "wrap", mb: 1 }}>
               <Typography sx={{ fontWeight: 700 }}>{c.work_id}</Typography>
               <Typography variant="caption" color="text.secondary">
-                relevance: consensus <code>{c.relevance_consensus}</code> / engine{" "}
-                <code>{c.relevance_engine}</code>
+                relevance: consensus <code>{c.relevance_consensus}</code> / engine <code>{c.relevance_engine}</code>
               </Typography>
             </Box>
             <TableContainer>

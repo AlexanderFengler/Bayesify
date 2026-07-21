@@ -23,6 +23,7 @@ from bayesify.core.schema import (
     PaperClass,
     PaperClassLabel,
     ParsedDoc,
+    SoftwareFact,
 )
 from bayesify.llm import LLMClient, call_with_policy, ledger_entry
 from bayesify.llm import config as llm_config
@@ -120,9 +121,6 @@ _SOFTWARE_CANONICAL: dict[str, str] = {
     "blackjax": "BlackJAX",
     "pyro": "Pyro",
     "pyroppl": "Pyro",
-    "mcp": "mcp",
-    "scikitlearn": "scikit-learn",
-    "sklearn": "scikit-learn",
     "stan": "Stan",
     "pystan": "PyStan",
     "cmdstan": "CmdStan",
@@ -168,6 +166,14 @@ _CUSTOM_LANGUAGE_KEYS: dict[str, str] = {
 }
 
 _NON_INFERENCE_SOFTWARE_KEYS = {
+    # general-purpose tooling is not about the paper's core statistical workflow (scope: the
+    # Bayesian/inference stack only)
+    "scikitlearn",
+    "sklearn",
+    "mcp",
+    "pandas",
+    "numpy",
+    "matplotlib",
     "r",
     "rproject",
     "rlanguage",
@@ -402,7 +408,10 @@ def _paper_class_from_facts(
         PaperClassLabel.review,
         PaperClassLabel.theoretical_analysis,
     }
-    software = _canonical_software(facts.software, allow_empty=non_computational)
+    # Software passes the same grounding gate as every other fact (verified quote + high
+    # confidence), so the ontology below (software -> implied methods) fires on verified use only —
+    # a mention-only package can no longer inject a phantom method chip.
+    software = _canonical_software(facts.software, context, allow_empty=non_computational)
     methods = _methods_from_facts(facts, context, evidence, software)
 
     disciplines = _disciplines_from_facts(facts, labels, methods)
@@ -460,22 +469,31 @@ def _label_fact_survives(
 def _resolve_prior_label_conflicts(
     candidates: list[PaperClassLabel], facts: ClassifierFacts, context: str
 ) -> list[PaperClassLabel]:
-    """A prior can be a model component or a methodological contribution.
+    """A prior can be a model component or a methodological contribution — and the taxonomy, not
+    the box the LLM happened to tick, decides which. A generally-applicable prior (a prior family,
+    a default/weakly-informative prior for a parameter class) is method_development; a prior scoped
+    to a specific model is part of model_development.
 
-    When the LLM emits both model_development and method_development, require independent
-    non-prior model evidence before keeping model_development. This preserves genuine model+method
-    papers while suppressing the common over-emission where "new prior" alone is treated as both.
-    """
-    if (
-        PaperClassLabel.model_development not in candidates
-        or PaperClassLabel.method_development not in candidates
-    ):
-        return candidates
+    Three repairs; the first two require the model quote to be a general-prior statement with no
+    independent model-development cue and no model-specific-prior cue:
+    - both labels emitted: drop model_development (the classic "new prior" double-count);
+    - model_development emitted ALONE: relabel it to method_development rather than trusting the
+      mis-filed box — dropping it here would lose the development contribution entirely (the
+      historically flaky meth1 mode);
+    - the mirror image: method_development emitted ALONE whose quote is a model-SCOPED prior (and
+      neither a general prior nor an inference procedure) relabels to model_development (the
+      historically flaky meth3 mode)."""
+    if PaperClassLabel.model_development not in candidates:
+        return _route_model_scoped_prior(candidates, facts)
 
     model_fact = facts.paper_type.develops_new_bayesian_model
     method_fact = facts.paper_type.develops_new_bayesian_method
     model_text = model_fact.evidence
-    search_text = f"{method_fact.evidence}\n{model_text}\n{context}"
+    both = PaperClassLabel.method_development in candidates
+    # With both labels present the LLM itself signaled a method reading, so context may corroborate;
+    # for a lone model label the model QUOTE itself must be the general-prior statement (a context-
+    # wide search would relabel genuine model papers that merely mention common prior boilerplate).
+    search_text = f"{method_fact.evidence}\n{model_text}\n{context}" if both else model_text
     if (
         _GENERAL_PRIOR_METHOD_RE.search(search_text) is None
         or _has_independent_model_development(model_text)
@@ -483,10 +501,51 @@ def _resolve_prior_label_conflicts(
     ):
         return candidates
 
-    _log.warning(
-        "model_development dropped: prior-method paper had no independent model-development cue"
-    )
-    return [label for label in candidates if label is not PaperClassLabel.model_development]
+    out = [label for label in candidates if label is not PaperClassLabel.model_development]
+    if both:
+        _log.warning(
+            "model_development dropped: prior-method paper had no independent model-development cue"
+        )
+    else:
+        _log.warning(
+            "model_development relabeled to method_development: general-prior contribution"
+        )
+        out.append(PaperClassLabel.method_development)
+    return out
+
+
+# Words that mark a genuinely procedural contribution — a method quote carrying one of these is
+# never rerouted to model_development, whatever prior it also mentions.
+_METHOD_PROCEDURE_RE = re.compile(
+    r"\b(sampler|algorithm|variational|diagnostic|elicitation|workflow|validation|"
+    r"model[- ]checking|inference (?:method|procedure|scheme))\b",
+    re.I,
+)
+
+
+def _route_model_scoped_prior(
+    candidates: list[PaperClassLabel], facts: ClassifierFacts
+) -> list[PaperClassLabel]:
+    """The mirror of the lone-model repair: a lone method_development whose own quote is a
+    model-SCOPED prior ("a new prior for spatial models") — not a general prior and not an
+    inference procedure — is part of building that model, so it relabels to model_development."""
+    if (
+        PaperClassLabel.method_development not in candidates
+        or PaperClassLabel.model_development in candidates
+    ):
+        return candidates
+    quote = facts.paper_type.develops_new_bayesian_method.evidence
+    if (
+        _MODEL_SPECIFIC_PRIOR_RE.search(quote) is None
+        or _GENERAL_PRIOR_METHOD_RE.search(quote) is not None
+        or _METHOD_PROCEDURE_RE.search(quote) is not None
+    ):
+        return candidates
+    _log.warning("method_development relabeled to model_development: model-scoped prior")
+    return [
+        PaperClassLabel.model_development if label is PaperClassLabel.method_development else label
+        for label in candidates
+    ]
 
 
 def _prioritize_labels(candidates: list[PaperClassLabel]) -> list[PaperClassLabel]:
@@ -659,27 +718,55 @@ def _yes(fact: ClassifierFact) -> bool:
     return fact.answer is FactAnswer.yes
 
 
-def _canonical_software(raw: list[str], *, allow_empty: bool = False) -> list[str]:
+def _canonical_software(
+    raw: list[SoftwareFact], context: str, *, allow_empty: bool = False
+) -> list[str]:
+    """Canonicalize the classifier's software claims, keeping only grounded ones: high confidence
+    plus a usage quote that verifies against the excerpts and names the package. Low confidence is
+    the model's own "perfunctory baseline / unclear it was executed" signal, so it drops here."""
     out: list[str] = []
     custom_languages: list[str] = []
-    for item in raw:
-        name = item.strip()
-        if not name:
-            continue
+    for fact in raw:
+        name = fact.name
         key = _software_key(name)
         if key in _CUSTOM_LANGUAGE_KEYS:
             _append_unique(custom_languages, _CUSTOM_LANGUAGE_KEYS[key])
             _log.warning("programming language kept only as Custom qualifier: %s", name)
             continue
         if key in _NON_INFERENCE_SOFTWARE_KEYS:
-            _log.warning("programming language/general environment dropped from software: %s", name)
+            _log.warning("non-inference software dropped: %s", name)
+            continue
+        if fact.confidence is not FactConfidence.high:
+            _log.warning("low-confidence software claim dropped: %s", name)
+            continue
+        if not _quote_in_text(fact.evidence, context):
+            _log.warning("software evidence quote not found in excerpts (dropped): %s", name)
             continue
         canonical = _SOFTWARE_CANONICAL.get(key, name)
+        if not key.startswith("custom") and not _software_named_in_quote(
+            name, canonical, fact.evidence
+        ):
+            _log.warning("software evidence quote does not name the package (dropped): %s", name)
+            continue
         _append_unique_ci(out, canonical)
     out = _qualify_custom_software(out, custom_languages)
     if not out and allow_empty:
         return []  # review/theoretical-only papers run no analysis; never fabricate "Custom"
     return out or ["Custom"]
+
+
+def _software_named_in_quote(name: str, canonical: str, quote: str) -> bool:
+    """The usage quote must mention the package itself, so a real quote can't launder an unrelated
+    software name. Matches the raw or canonical name (also without a ``.jl``-style suffix), on word
+    boundaries, case-insensitively."""
+    low = quote.lower()
+    candidates = {name.lower(), canonical.lower()}
+    bases = {c.split(".")[0] for c in candidates if "." in c}
+    candidates |= {b for b in bases if len(b) > 2}
+    for token in candidates:
+        if token and re.search(rf"(?<![a-z0-9]){re.escape(token)}(?![a-z0-9])", low):
+            return True
+    return False
 
 
 def _qualify_custom_software(software: list[str], languages: list[str]) -> list[str]:

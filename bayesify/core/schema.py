@@ -130,13 +130,15 @@ class PaperIds(_Base):
     doi: str | None = None
     arxiv_id: str | None = None
     openalex_id: str | None = None
+    pmid: str | None = None  # PubMed ID (bare digits)
+    pmcid: str | None = None  # PubMed Central ID (e.g. "PMC1234567")
 
 
 class SourceDoc(_Base):
     sha256: str
     ids: PaperIds = Field(default_factory=PaperIds)
     version_label: str  # e.g. "arXiv v2", "publisher VoR (Unpaywall)", "uploaded PDF"
-    source: str  # upload | arxiv | openalex | unpaywall | crossref | url (+ resolved URL)
+    source: str  # upload | arxiv | openalex | unpaywall | crossref | pubmed | osf | url
     fetched_at: datetime
 
 
@@ -294,6 +296,25 @@ class ClassifierFact(_Base):
         return self
 
 
+class SoftwareFact(_Base):
+    """One software claim from the checklist classifier. Listing a package is an implicit "yes", so
+    every entry carries the same grounding discipline as a binary fact: a verbatim usage quote and a
+    confidence the deterministic mapper can gate on (mention-only / perfunctory-baseline packages
+    are marked low and dropped)."""
+
+    name: str
+    confidence: FactConfidence
+    evidence: str = ""
+
+    @model_validator(mode="after")
+    def _non_empty(self) -> SoftwareFact:
+        self.name = self.name.strip()
+        self.evidence = self.evidence.strip()
+        if not self.name:
+            raise ValueError("software facts require a name")
+        return self
+
+
 class ClassifierPaperTypeFacts(_Base):
     develops_new_bayesian_model: ClassifierFact
     develops_new_bayesian_method: ClassifierFact
@@ -318,7 +339,7 @@ class ClassifierMethodFacts(_Base):
 class ClassifierFacts(_Base):
     paper_type: ClassifierPaperTypeFacts
     methods: ClassifierMethodFacts
-    software: list[str] = Field(default_factory=list)
+    software: list[SoftwareFact] = Field(default_factory=list)
     disciplines: list[str] = Field(default_factory=list)
 
 

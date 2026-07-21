@@ -4,6 +4,9 @@
       "data_analysis"
     ],
     "expect_relevance": "yes",
+    "expect_software": [
+      "Stan"
+    ],
     "id": "emp1",
     "note": "clear empirical Bayesian fit",
     "parsed": {
@@ -328,6 +331,9 @@
       "data_analysis"
     ],
     "expect_relevance": "yes",
+    "expect_software": [
+      "Stan"
+    ],
     "id": "emp4",
     "note": "applies a standard model with existing software (Stan) - must NOT get software/model_development",
     "parsed": {
@@ -407,12 +413,12 @@
   },
   {
     "expect_labels": [
-      "method_development",
+      "model_development",
       "data_analysis"
     ],
     "expect_relevance": "yes",
     "id": "meth3",
-    "note": "mixed: method contribution + real-data application",
+    "note": "general prior family (beta prior on R2 -> induced global-variance prior for GLMMs) -> method_development; the deterministic relabel routes it even when the LLM files it under model",
     "parsed": {
       "parser": "fixture",
       "parser_version": "0",

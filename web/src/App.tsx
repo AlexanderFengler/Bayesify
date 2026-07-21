@@ -1,20 +1,29 @@
-import { Alert, AlertTitle, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { Box, Button, CircularProgress, Container, Typography } from "@mui/material";
+import { lazy, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { AboutUs } from "./AboutUs";
 import { getPaper } from "./api";
-import { Analyzing, type GateFailure } from "./Analyzing";
-import { Archive } from "./Archive";
+import type { GateFailure } from "./Analyzing";
 import { useApp } from "./AppContext";
-import { Calibration } from "./Calibration";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { Inventory, LocalNotice } from "./Inventory";
 import { Landing } from "./Landing";
 import { Layout } from "./Layout";
 import { formatByline } from "./paper";
-import { Rate } from "./Rate";
-import { Report } from "./Report";
 import { type PaperState, STAGES } from "./types";
+
+// Route-level code splitting: every page below the landing entry loads on demand, so a first-time
+// visitor no longer downloads the report / rate / archive / etc. code up front — each chunk is
+// fetched (and cached) only when its route is first hit. Landing stays eagerly imported: it is the
+// entry page, so splitting it would only add a load waterfall + spinner to the most common first
+// paint (and it already needs KaTeX/MathText via its rubrics section). The Suspense fallback that
+// covers each pending chunk lives in Layout, so only the content area shows it — chrome stays put.
+const Analyzing = lazy(() => import("./Analyzing").then((m) => ({ default: m.Analyzing })));
+const Archive = lazy(() => import("./Archive").then((m) => ({ default: m.Archive })));
+const Calibration = lazy(() => import("./Calibration").then((m) => ({ default: m.Calibration })));
+const Inventory = lazy(() => import("./Inventory").then((m) => ({ default: m.Inventory })));
+const LocalNotice = lazy(() => import("./Inventory").then((m) => ({ default: m.LocalNotice })));
+const Rate = lazy(() => import("./Rate").then((m) => ({ default: m.Rate })));
+const Report = lazy(() => import("./Report").then((m) => ({ default: m.Report })));
+const AboutUs = lazy(() => import("./AboutUs").then((m) => ({ default: m.AboutUs })));
 
 // The whole app is client-side routed: a single Layout holds the app-wide state (mode, the upload
 // draft, the streaming lifecycle, the privacy modal) and every URL renders a page into its <Outlet />.
@@ -67,6 +76,7 @@ function LandingRoute() {
       setDragging={app.setDragging}
       fileInput={app.fileInput}
       onStart={app.start}
+      fetchError={app.fetchError}
     />
   );
 }
@@ -76,8 +86,7 @@ function ArchiveRoute() {
 }
 
 function ProcessingRoute() {
-  const { running, archiveHit, error, stageState, file, identifier, mode, reset, paper, rerunPaper } =
-    useApp();
+  const { running, archiveHit, error, stageState, file, identifier, mode, reset, paper, rerunPaper } = useApp();
   const navigate = useNavigate();
   if (error) return <ErrorPage error={error} onRetry={reset} />;
   if (archiveHit) return <ArchiveRedirect />;
@@ -112,8 +121,7 @@ function ProcessingRoute() {
       ? {
           isReview: r.not_applicable_reason === "not_an_application",
           rationale:
-            (r.not_applicable_reason === "not_an_application" && r.paper_class?.rationale) ||
-            r.relevance.rationale,
+            (r.not_applicable_reason === "not_an_application" && r.paper_class?.rationale) || r.relevance.rationale,
           confidence:
             r.not_applicable_reason === "not_an_application" && r.paper_class
               ? r.paper_class.confidence
@@ -228,20 +236,38 @@ function LoadingPage({ label }: { label: string }) {
   );
 }
 
+// A solid magenta card (not glass) so the error reads clearly over either aurora; white text keeps it
+// legible on the #ec008c fill, and the retry action sits full-width at the bottom rather than inline.
 function ErrorPage({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 4, md: 6 } }}>
-      <Alert
-        severity="error"
-        action={
-          <Button color="inherit" size="small" onClick={onRetry}>
-            Try again
-          </Button>
-        }
+      <Box
+        sx={{
+          bgcolor: "#ec008c",
+          color: "#fff",
+          borderRadius: 2,
+          p: { xs: 2.5, md: 3 },
+          boxShadow: "0 10px 30px rgba(236,0,140,0.35)",
+        }}
       >
-        <AlertTitle>Something went wrong</AlertTitle>
-        {error}
-      </Alert>
+        <Typography variant="h6" component="h2" sx={{ fontWeight: 700, mb: 1 }}>
+          Something went wrong
+        </Typography>
+        <Typography sx={{ color: "rgba(255,255,255,0.96)", lineHeight: 1.5 }}>{error}</Typography>
+        <Button
+          fullWidth
+          onClick={onRetry}
+          sx={{
+            mt: 3,
+            bgcolor: "#fff",
+            color: "#ec008c",
+            fontWeight: 700,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.88)" },
+          }}
+        >
+          Try again
+        </Button>
+      </Box>
     </Container>
   );
 }

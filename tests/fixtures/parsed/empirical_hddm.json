@@ -1,4 +1,5 @@
 {
+  "authors": [],
   "parser": "docling",
   "parser_version": "docling-2.x",
   "sections": [
@@ -86,10 +87,14 @@
     "ids": {
       "arxiv_id": null,
       "doi": null,
-      "openalex_id": null
+      "openalex_id": null,
+      "pmcid": null,
+      "pmid": null
     },
     "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
     "source": "upload",
     "version_label": "uploaded PDF"
-  }
+  },
+  "title": null,
+  "year": null
 }

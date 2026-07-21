@@ -104,7 +104,7 @@ def test_batch_strategy_grades_with_four_llm_calls(monkeypatch) -> None:
     classifier_facts = ClassifierFacts(
         paper_type=pt,
         methods={name: dict(no) for name in ClassifierMethodFacts.model_fields},
-        software=["Stan"],
+        software=[{"name": "Stan", "confidence": "high", "evidence": "NUTS was run in Stan"}],
         disciplines=[],
     )
     gate_facts = derive_gate_facts(evidence, paper_class)

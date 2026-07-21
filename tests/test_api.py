@@ -1197,7 +1197,8 @@ def _full_fake(
         pt = {name: dict(no) for name in ClassifierPaperTypeFacts.model_fields}
         pt[field] = {"answer": "yes", "confidence": "high", "evidence": quote}
         me = {name: dict(no) for name in ClassifierMethodFacts.model_fields}
-        return ClassifierFacts(paper_type=pt, methods=me, software=["Stan"], disciplines=[])
+        sw = [{"name": "Stan", "confidence": "high", "evidence": "Bayesian inference in Stan"}]
+        return ClassifierFacts(paper_type=pt, methods=me, software=sw, disciplines=[])
 
     class _F:
         def __init__(self) -> None:

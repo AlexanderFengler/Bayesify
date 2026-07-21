@@ -11,7 +11,7 @@ spelled-out phrases beside them stay case-insensitive via inline `(?i:...)` grou
 skip `kind: references`. Precision is gated (≥ 0.95 per family on the dev audit); recall is recorded
 here but never gated.
 
-Catalog version: **0.1.0** (all detectors at this revision).
+Catalog version: **0.1.1** (all detectors at this revision).
 
 ## software — emits `software_mention`
 
@@ -98,6 +98,10 @@ extracted, so "ESS for 4 parameters" stays a mention (precision-first); `op` def
 | `open.zenodo` | 0.1.0 | `zenodo` | |
 
 ## Changelog
+- **0.1.1** — sentence-aligned evidence quotes: `EvidenceSpan.quote` expands to the enclosing
+  sentence(s) (capped) instead of a ±30-char window, so report evidence reads as complete
+  sentences. Patterns unchanged; version bumped because emitted Evidence content changes
+  (invalidates the detect sub-cache / engine_version honestly).
 - **0.1.0** — initial catalog (M3): all six families (software, method [the d-screen relevance
   floor], diagnostic, workflow, sampler, open_science); numeric
   extraction for R-hat / ESS / divergences / Pareto-k / chains / iterations / warmup.
