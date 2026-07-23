@@ -38,7 +38,7 @@
                 "paper type":["Software development"],
                 "url":"https://www.biorxiv.org/content/10.64898/2026.06.05.730398v1",
                 "methods":["SBI", "MCMC", "Variational Inference", "Analytic", "MAP", "LAN"],
-                "software":[["HSSM", "PyMC", "ArviZ", "Bambi"], ["HSSM", "PyMC", "Bambi"], ["HSSM", "PyMC", "ArviZ", "Bayesflow", "sbi"]]
+                "software":[["HSSM", "PyMC", "ArviZ", "Bambi"], ["HSSM", "PyMC", "Bambi"], ["HSSM", "PyMC", "ArviZ", "BayesFlow", "sbi"]]
             },
 {"name": "hddm", 
                 "paper type": ["Software development"],
