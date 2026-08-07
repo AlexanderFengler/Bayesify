@@ -383,6 +383,43 @@ def test_method_fact_requires_its_quote_in_the_excerpts() -> None:
     assert cls.methods_used == [InferenceMethod.sbi]
 
 
+# --- the context ontology corroborates, it does not add (#92, M1) ---------------------------------
+
+
+def test_context_ontology_rescues_a_yes_that_never_names_the_method() -> None:
+    """The case the context ontology was built for, and which must survive M1: a paper that does
+    SBI without ever using the words. The classifier answers yes, but its quote carries no SBI cue
+    and no detector backs it, so only the document-level cue can support the fact."""
+    context = (
+        "Our approach uses invertible neural networks. "
+        "We recover the full posterior parameter distribution for this inverse problem."
+    )
+    quote = "We recover the full posterior parameter distribution for this inverse problem"
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        methods={"uses_sbi": _yes(quote)},
+    )
+    cls, _ = C.classify(_parsed(context), [_ev()], client=FakeLLMClient(facts))
+    assert cls.methods_used == [InferenceMethod.sbi]
+
+
+def test_context_ontology_cannot_override_the_classifier_saying_no() -> None:
+    """M1: the ontology may only corroborate a "yes", never manufacture one. Appended
+    unconditionally it outranked the classifier's own answer, so a paper that merely cites neural
+    posterior estimation in related work and separately mentions training on simulated data — two
+    sentences that can sit 100k characters apart — acquired an SBI chip it never earned."""
+    context = (
+        "Related work applies neural posterior estimation to these problems. "
+        "Our emulator was trained on simulated data drawn from the forward model."
+    )
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        methods={"uses_sbi": {"answer": "no", "confidence": "high", "evidence": ""}},
+    )
+    cls, _ = C.classify(_parsed(context), [_ev()], client=FakeLLMClient(facts))
+    assert InferenceMethod.sbi not in cls.methods_used
+
+
 def test_software_ontology_implies_methods() -> None:
     text = "We analyse real data. Amortized inference used BayesFlow throughout."
     facts = _facts(
