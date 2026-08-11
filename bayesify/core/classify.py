@@ -581,16 +581,19 @@ def _methods_from_facts(
     methods: list[InferenceMethod] = []
     ontology_methods = _software_implied_methods(software)
     ontology_method_set = set(ontology_methods)
-    context_methods = _context_implied_methods(context)
+    # The context ontology is a CORROBORATOR, not a source of truth (#92). It may only support a
+    # method the classifier itself answered "yes" to; it may never add one on its own. Appended
+    # unconditionally, a regex over the whole document outranks the classifier's own high-confidence
+    # "no" -- a paper that merely cites "neural posterior approximations" in related work acquired
+    # an SBI chip, from a sentence that can sit 100k characters from anything the paper ran.
+    context_method_set = set(_context_implied_methods(context))
     for attr, method in _METHOD_FACTS:
         fact = getattr(facts.methods, attr, None)
         if fact is not None and _method_fact_survives(
-            method, fact, context, evidence, ontology_method_set
+            method, fact, context, evidence, ontology_method_set, context_method_set
         ):
             _append_unique(methods, method)
     for method in ontology_methods:
-        _append_unique(methods, method)
-    for method in context_methods:
         _append_unique(methods, method)
     return methods
 
@@ -601,6 +604,7 @@ def _method_fact_survives(
     context: str,
     evidence: list[Evidence],
     ontology_methods: set[InferenceMethod],
+    context_methods: set[InferenceMethod],
 ) -> bool:
     if not _yes(fact):
         return False
@@ -611,6 +615,8 @@ def _method_fact_survives(
         )
         return False
     if method in ontology_methods:
+        return True
+    if method in context_methods:
         return True
     if _fact_detector_refs(fact, evidence, method=method):
         return True

@@ -50,3 +50,6 @@ validation/reports/
 secrets/
 *.pem
 *.env
+
+# Offline eval captures (parsed paper text; large, not distributable)
+.eval-cache/
