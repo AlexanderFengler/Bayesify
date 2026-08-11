@@ -151,6 +151,7 @@ _INFERENCE_LABELS: dict[InferenceMethod, str] = {
     InferenceMethod.smc: "SMC",
     InferenceMethod.abc: "ABC",
     InferenceMethod.laplace_inla: "Laplace/INLA",
+    InferenceMethod.map: "MAP",
     InferenceMethod.em: "EM",
     InferenceMethod.exact_analytic: "Analytic",
 }

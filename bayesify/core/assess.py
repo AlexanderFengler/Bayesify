@@ -163,6 +163,7 @@ def _inference_from_paper_class(paper_class: PaperClass) -> InferenceMethod:
         InferenceMethod.abc,
         InferenceMethod.smc,
         InferenceMethod.laplace_inla,
+        InferenceMethod.map,
         InferenceMethod.em,
     ):
         if method in paper_class.methods_used:

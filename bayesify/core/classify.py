@@ -108,6 +108,7 @@ _METHOD_FACTS: tuple[tuple[str, InferenceMethod], ...] = (
     ("uses_abc", InferenceMethod.abc),
     ("uses_smc_or_particle_filter", InferenceMethod.smc),
     ("uses_laplace_or_inla", InferenceMethod.laplace_inla),
+    ("uses_map", InferenceMethod.map),
     ("uses_em", InferenceMethod.em),
     ("uses_exact_or_analytic_posterior", InferenceMethod.exact_analytic),
 )
@@ -230,6 +231,7 @@ _METHOD_DETECTOR_IDS: dict[InferenceMethod, frozenset[str]] = {
     InferenceMethod.abc: frozenset({"method.abc"}),
     InferenceMethod.smc: frozenset({"method.smc"}),
     InferenceMethod.laplace_inla: frozenset({"method.laplace_inla"}),
+    InferenceMethod.map: frozenset({"method.map"}),
     InferenceMethod.em: frozenset({"method.em"}),
     InferenceMethod.exact_analytic: frozenset({"method.analytic"}),
 }
@@ -260,6 +262,9 @@ _METHOD_QUOTE_PATTERNS: dict[InferenceMethod, re.Pattern[str]] = {
         re.I,
     ),
     InferenceMethod.laplace_inla: re.compile(r"\b(laplace approximation|inla)\b", re.I),
+    InferenceMethod.map: re.compile(
+        r"\b(maximum[- ]a[- ]posteriori|map estimat\w*|map estimates?|posterior mode)\b", re.I
+    ),
     InferenceMethod.em: re.compile(
         r"\b(expectation[- ]maximization|em algorithm|em-style)\b",
         re.I,

@@ -10,6 +10,7 @@ export const METHOD_LABELS: Record<string, string> = {
   smc: "SMC",
   abc: "ABC",
   laplace_inla: "Laplace/INLA",
+  map: "MAP",
   em: "EM",
   exact_analytic: "Analytic",
 };

@@ -1,61 +1,214 @@
 [
-{"name":"bf-paper",
-                "paper type":["Method development","Numerical analysis","Theoretical analysis"],
-                "url":"https://arxiv.org/abs/2003.06281",
-                "methods":["ABC","SMC","SBI"],
-                "software":[["pyABC","BayesFlow"],["pyABC","Custom(TensorFlow)"]]},
-{"name":"amortized-cog",
-                "paper type":["Numerical analysis","Data analysis"],
-                "url":"https://arxiv.org/abs/2005.03899",
-                "methods":["SBI"],
-                "software":[["Custom"],["BayesFlow"]]},
-{"name":"bf-soft",
-                "paper type":["Software development"],
-                "url":"https://doi.org/10.21105/joss.05702",
-                "methods":[["SBI","MCMC"],["SBI"]],
-                "software":["BayesFlow","TensorFlow Probability"]},
-{"name":"immersive",
-                "paper type":["Numerical analysis","Model development"],
-                "url":"https://arxiv.org/abs/2511.08763",
-                "methods":["SBI"],
-                "software":["BayesFlow"]},
-{"name":"inn",
-                "paper type":["Method development","Numerical analysis","Theoretical analysis"],
-                "url":"https://arxiv.org/abs/1808.04730",
-                "methods":["SBI"],
-                "software":["Custom"]},
-{"name":"wcst",
-                "paper type":["Model development","Data analysis","Numerical analysis"],
-                "url":"https://arxiv.org/abs/2003.07394",
-                "methods":["SBI"],
-                "software":[["Custom"],["BayesFlow"]]},
-{"name":"found",
-                "paper type":["Numerical analysis","Data analysis"],
-                "url":"https://arxiv.org/abs/2604.23865",
-                "methods":["SBI"],
-                "software":["BayesFlow"]},
-{"name":"hssm", 
-                "paper type":["Software development"],
-                "url":"https://www.biorxiv.org/content/10.64898/2026.06.05.730398v1",
-                "methods":["SBI", "MCMC", "Variational Inference", "Analytic", "MAP", "LAN"],
-                "software":[["HSSM", "PyMC", "ArviZ", "Bambi"], ["HSSM", "PyMC", "Bambi"], ["HSSM", "PyMC", "ArviZ", "BayesFlow", "sbi"]]
-            },
-{"name": "hddm", 
-                "paper type": ["Software development"],
-                "url": "https://www.frontiersin.org/journals/neuroinformatics/articles/10.3389/fninf.2013.00014/full",
-                "methods": ["MCMC", "MAP"],
-                "software": ["HDDM", "PyMC2", "Kabuki"]
-            },
-{"name": "hddm-beyond",
-                "paper type": ["Software development"],
-                "url": "https://www.biorxiv.org/content/10.1101/2022.06.19.496747v3.full",
-                "methods": ["MCMC", "MAP", "SBI", "LAN"],
-                "software": ["HDDM", "PyMC2", "Kabuki", "PyTorch"]
-            },
-{"name": "dockerHDDM", 
-                "paper type": ["Software development"],
-                "url": "https://osf.io/preprints/psyarxiv/6uzga_v2",
-                "methods": ["MCMC", "MAP", "SBI", "LAN"],
-                "software": ["HDDM", "PyMC2", "Kabuki", "PyTorch"]
-            }
+  {
+    "methods": [
+      "ABC",
+      "SMC",
+      "SBI"
+    ],
+    "name": "bf-paper",
+    "paper type": [
+      "Method development",
+      "Numerical analysis",
+      "Theoretical analysis"
+    ],
+    "software": [
+      [
+        "pyABC",
+        "BayesFlow"
+      ],
+      [
+        "pyABC",
+        "Custom (TensorFlow)"
+      ]
+    ],
+    "url": "https://arxiv.org/abs/2003.06281"
+  },
+  {
+    "methods": [
+      "SBI"
+    ],
+    "name": "amortized-cog",
+    "paper type": [
+      "Numerical analysis",
+      "Data analysis"
+    ],
+    "software": [
+      [
+        "Custom"
+      ],
+      [
+        "BayesFlow"
+      ]
+    ],
+    "url": "https://arxiv.org/abs/2005.03899"
+  },
+  {
+    "methods": [
+      [
+        "SBI",
+        "MCMC"
+      ],
+      [
+        "SBI"
+      ]
+    ],
+    "name": "bf-soft",
+    "paper type": [
+      "Software development"
+    ],
+    "software": [
+      "BayesFlow",
+      "TensorFlow Probability"
+    ],
+    "url": "https://doi.org/10.21105/joss.05702"
+  },
+  {
+    "methods": [
+      "SBI"
+    ],
+    "name": "immersive",
+    "paper type": [
+      "Numerical analysis",
+      "Model development"
+    ],
+    "software": [
+      "BayesFlow"
+    ],
+    "url": "https://arxiv.org/abs/2511.08763"
+  },
+  {
+    "methods": [
+      "SBI"
+    ],
+    "name": "inn",
+    "paper type": [
+      "Method development",
+      "Numerical analysis",
+      "Theoretical analysis"
+    ],
+    "software": [
+      "Custom"
+    ],
+    "url": "https://arxiv.org/abs/1808.04730"
+  },
+  {
+    "methods": [
+      "SBI"
+    ],
+    "name": "wcst",
+    "paper type": [
+      "Model development",
+      "Data analysis",
+      "Numerical analysis"
+    ],
+    "software": [
+      [
+        "Custom"
+      ],
+      [
+        "BayesFlow"
+      ]
+    ],
+    "url": "https://arxiv.org/abs/2003.07394"
+  },
+  {
+    "methods": [
+      "SBI"
+    ],
+    "name": "found",
+    "paper type": [
+      "Numerical analysis",
+      "Data analysis"
+    ],
+    "software": [
+      "BayesFlow"
+    ],
+    "url": "https://arxiv.org/abs/2604.23865"
+  },
+  {
+    "methods": [
+      "SBI",
+      "MCMC",
+      "Variational inference",
+      "Analytic",
+      "MAP"
+    ],
+    "name": "hssm",
+    "paper type": [
+      "Software development"
+    ],
+    "software": [
+      [
+        "HSSM",
+        "PyMC",
+        "ArviZ",
+        "Bambi"
+      ],
+      [
+        "HSSM",
+        "PyMC",
+        "Bambi"
+      ],
+      [
+        "HSSM",
+        "PyMC",
+        "ArviZ",
+        "BayesFlow",
+        "sbi"
+      ]
+    ],
+    "url": "https://www.biorxiv.org/content/10.64898/2026.06.05.730398v1"
+  },
+  {
+    "methods": [
+      "MCMC",
+      "MAP"
+    ],
+    "name": "hddm",
+    "paper type": [
+      "Software development"
+    ],
+    "software": [
+      "HDDM",
+      "PyMC2",
+      "Kabuki"
+    ],
+    "url": "https://www.frontiersin.org/journals/neuroinformatics/articles/10.3389/fninf.2013.00014/full"
+  },
+  {
+    "methods": [
+      "MCMC",
+      "MAP",
+      "SBI"
+    ],
+    "name": "hddm-beyond",
+    "paper type": [
+      "Software development"
+    ],
+    "software": [
+      "HDDM",
+      "PyMC2",
+      "Kabuki",
+      "PyTorch"
+    ],
+    "url": "https://www.biorxiv.org/content/10.1101/2022.06.19.496747v3.full"
+  },
+  {
+    "methods": [
+      "MCMC",
+      "MAP",
+      "SBI"
+    ],
+    "name": "dockerHDDM",
+    "paper type": [
+      "Software development"
+    ],
+    "software": [
+      "HDDM",
+      "PyMC2",
+      "Kabuki",
+      "PyTorch"
+    ],
+    "url": "https://osf.io/preprints/psyarxiv/6uzga_v2"
+  }
 ]

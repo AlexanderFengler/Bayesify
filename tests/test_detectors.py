@@ -87,6 +87,7 @@ _POSITIVE = [
     ("We tracked the latent state with a particle filter.", "method.smc"),
     ("Parameters were estimated via approximate Bayesian computation (ABC).", "method.abc"),
     ("We used INLA for fast approximate inference.", "method.laplace_inla"),
+    ("Parameters were obtained via maximum a posteriori estimation.", "method.map"),
     ("A Laplace approximation to the posterior was used.", "method.laplace_inla"),
     # workflow
     ("We performed prior predictive checks.", "workflow.prior_predictive"),
@@ -141,6 +142,7 @@ _FALSE_POSITIVES = [
         "method.abc",
     ),  # ABCD != ABC (word boundary)
     ("The smc pathway was upregulated.", "method.smc"),  # lowercase, case-sensitive SMC
+    ("Consult the map of cortical regions.", "method.map"),  # lowercase "map" != MAP
 ]
 
 
