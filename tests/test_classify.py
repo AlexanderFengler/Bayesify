@@ -373,10 +373,10 @@ def test_method_fact_requires_its_quote_in_the_excerpts() -> None:
     cls, _ = C.classify(_parsed("nothing of the sort here"), [_ev()], client=FakeLLMClient(facts))
     assert cls.methods_used == []
 
-    # quote present in the paper (and carrying the SBI cue) -> kept
+    # quote present in the paper (carrying the SBI cue AND usage language) -> kept
     facts2 = _facts(
         paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
-        methods={"uses_sbi": _yes("simulation-based inference approach")},
+        methods={"uses_sbi": _yes("We take a simulation-based inference approach to estimation")},
     )
     parsed = _parsed("We take a simulation-based inference approach to estimation.")
     cls, _ = C.classify(parsed, [_ev()], client=FakeLLMClient(facts2))
@@ -384,6 +384,34 @@ def test_method_fact_requires_its_quote_in_the_excerpts() -> None:
 
 
 # --- the context ontology corroborates, it does not add (#92, M1) ---------------------------------
+
+
+def test_descriptive_method_quote_is_dropped_discussed_not_used() -> None:
+    # The Betancourt-style trap: a verified quote that DESCRIBES the method (even containing "we"
+    # in a non-usage clause) must not produce a method chip.
+    text = (
+        "Hamiltonian Monte Carlo has proven a remarkable empirical success, but only recently "
+        "have we begun to develop a rigorous understanding of why it performs so well on "
+        "difficult problems and how it is best applied in practice."
+    )
+    facts = _facts(
+        paper_type={"investigates_theoretical_behavior": _yes("we derive a theorem and its proof")},
+        methods={"uses_mcmc": _yes(text)},
+    )
+    cls, _ = C.classify(_parsed(text + " Theorem 1 and its proof follow."), [_ev()],
+                        client=FakeLLMClient(facts))
+    assert cls.methods_used == []
+
+
+def test_passive_run_report_quote_is_kept() -> None:
+    text = "Posterior inference was performed with the NUTS sampler across all analyses."
+    facts = _facts(
+        paper_type={"uses_bayesian_model_on_real_data": _yes("we analyse real data")},
+        methods={"uses_mcmc": _yes(text)},
+    )
+    cls, _ = C.classify(_parsed("We analyse real data. " + text), [_ev()],
+                        client=FakeLLMClient(facts))
+    assert InferenceMethod.mcmc in cls.methods_used
 
 
 def test_context_ontology_rescues_a_yes_that_never_names_the_method() -> None:
