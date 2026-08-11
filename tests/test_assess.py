@@ -323,3 +323,28 @@ def test_parallel_assess_matches_sequential() -> None:
     assert any(  # at least one refuter actually ran under fan-out
         a.adversarial_verdict and a.adversarial_verdict.challenged for a in par_a
     )
+
+
+# --- span dedup (#91): sentence-aligned quotes made distinct hits render as repeats --------------
+
+
+def test_identical_spans_collapse_once_per_step() -> None:
+    # One sentence carries BOTH an R-hat and an ESS value: two detectors fire, and post-#90 both
+    # quote the same full sentence; the judge quotes a fragment of it too. The step must show the
+    # sentence once.
+    text = "All R-hat < 1.01 and bulk-ESS was 1,500 across parameters."
+    parsed = _parsed((SectionKind.body, "Results", text))
+    from bayesify.core.detectors import run_detectors
+
+    evidence = run_detectors(parsed)
+    same_span = {(e.span.section_id, e.span.quote) for e in evidence}
+    assert len(evidence) >= 2 and len(same_span) == 1  # the collision this test exists for
+
+    judge = StepJudgment(
+        status="adequate", confidence=0.9, evidence_quotes=["All R-hat < 1.01"]
+    )
+    assessments, _, _, _ = _assess(parsed, evidence, judge)
+    s4 = next(a for a in assessments if a.step_id == "S4")
+    spans = [(e.span.section_id, e.span.quote) for e in s4.evidence]
+    assert len(spans) == len(set(spans))  # no verbatim repeats in "In the paper"
+    assert sum(1 for _, q in spans if q == text) == 1

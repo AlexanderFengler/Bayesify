@@ -375,7 +375,9 @@ def _to_assessment(
     if status is None:
         raise AssessError(f"{step.id}: judge returned an invalid status {judgment.status!r}")
 
-    evidence = list(step_ev) + _judge_quote_evidence(judgment.evidence_quotes, parsed.sections)
+    evidence = _dedupe_spans(
+        list(step_ev) + _judge_quote_evidence(judgment.evidence_quotes, parsed.sections)
+    )
     if status is StepStatus.missing:
         evidence.append(_absence_search(searched, parsed))
 
@@ -431,7 +433,9 @@ def _apply_refutation(
 
     evidence = [e for e in assessment.evidence if e.kind is not EvidenceKind.absence_search]
     if verdict.rescuing_quote:
-        evidence += _judge_quote_evidence([verdict.rescuing_quote], parsed.sections)
+        evidence = _dedupe_spans(
+            evidence + _judge_quote_evidence([verdict.rescuing_quote], parsed.sections)
+        )
     suggestions = [] if new_status is StepStatus.adequate else assessment.suggestions
     return assessment.model_copy(
         update={
@@ -466,6 +470,21 @@ def _clamp(x: float) -> float:
 
 def _bump(status: StepStatus) -> StepStatus:
     return StepStatus.partial if status is StepStatus.missing else StepStatus.adequate
+
+
+def _dedupe_spans(evidence: list[Evidence]) -> list[Evidence]:
+    """Collapse evidence items whose (section, quote) span is identical, keeping the first.
+    Sentence-aligned quotes (#90) made distinct detectors on one sentence — and judge quotes
+    expanded onto it — render as verbatim repeats in "In the paper" (#91). Display-level identity
+    only: the global Evidence[] and evidence_refs are untouched."""
+    seen: set[tuple[str, str]] = set()
+    out: list[Evidence] = []
+    for e in evidence:
+        key = (e.span.section_id, e.span.quote)
+        if key not in seen:
+            seen.add(key)
+            out.append(e)
+    return out
 
 
 def _judge_quote_evidence(quotes: list[str], sections: list[Section]) -> list[Evidence]:
