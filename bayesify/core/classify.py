@@ -603,6 +603,25 @@ def _methods_from_facts(
     return methods
 
 
+# A method quote must report the paper RUNNING the method, not describe it. Reviews quote
+# verifiable sentences like "Hamiltonian Monte Carlo has proven a remarkable empirical success"
+# (even containing "we": "we begun to develop an understanding") - mention-level cues pass, so this
+# gate demands usage language: first-person near a run-verb, past-passive run-reporting, or an
+# explicit in-this-paper marker. Software-ontology-implied methods bypass it (their usage was
+# already quote-verified on the software side).
+_METHOD_USAGE_RE = re.compile(
+    r"\b(?:we|our)\b(?:(?!\b(?:it|that|which|why|how|they)\b)[^.;]){0,60}"
+    r"\b(?:fit(?:ted|ting)?|ran|run(?:ning)?|sampl\w*|estimat\w*|"
+    r"train(?:ed|ing)?|appl(?:y|ied|ying)|us(?:e|ed|ing)|implement\w*|comput\w*|"
+    r"dr[ae]w\w*|obtain\w*|infer\w*|recover\w*|approximat\w*)\b"
+    r"|\b(?:was|were)\s+(?:fit(?:ted)?|run|sampled|estimated|trained|implemented|applied|"
+    r"performed|computed|obtained|drawn|inferred|carried out)\b"
+    r"|\bin (?:the\s+)?present (?:article|paper|work|study)\b"
+    r"|\bthis (?:paper|article|study|work)\b",
+    re.I,
+)
+
+
 def _method_fact_survives(
     method: InferenceMethod,
     fact: ClassifierFact,
@@ -621,6 +640,11 @@ def _method_fact_survives(
         return False
     if method in ontology_methods:
         return True
+    if _METHOD_USAGE_RE.search(fact.evidence) is None:
+        _log.warning(
+            "method quote lacks usage language (discussed, not used - dropped): %s", method.value
+        )
+        return False
     if method in context_methods:
         return True
     if _fact_detector_refs(fact, evidence, method=method):

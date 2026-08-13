@@ -104,6 +104,7 @@ Use an empty evidence string for "no":
 * Do not count related work, motivation, future work, or methods merely listed as alternatives.
 * When evidence is incomplete or ambiguous, use "low" confidence.
 * Never infer use solely from a citation or general discussion.
+* For `uses_*` method questions, the evidence quote must show the paper actually RUNNING the method — "we fitted/sampled/ran ...", "models were fitted with ..." — never a sentence that describes, reviews, teaches, or motivates the method. If no such sentence exists, the answer is "no".
 
 ## Paper type
 
