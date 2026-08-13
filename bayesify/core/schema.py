@@ -82,6 +82,7 @@ class InferenceMethod(StrEnum):
     smc = "smc"
     abc = "abc"
     laplace_inla = "laplace_inla"
+    map = "map"
     em = "em"
     exact_analytic = "exact_analytic"
     unstated = "unstated"
@@ -332,6 +333,7 @@ class ClassifierMethodFacts(_Base):
     uses_abc: ClassifierFact
     uses_smc_or_particle_filter: ClassifierFact
     uses_laplace_or_inla: ClassifierFact
+    uses_map: ClassifierFact
     uses_em: ClassifierFact
     uses_exact_or_analytic_posterior: ClassifierFact
 

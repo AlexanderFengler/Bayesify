@@ -47,6 +47,7 @@ Without this family a purely analytic/conjugate Bayesian paper — no software, 
 | `method.smc` | 0.1.0 | "sequential Monte Carlo", `SMC`, "particle filter(s)" | acronym sensitive | grounds the `smc` method chip |
 | `method.abc` | 0.1.0 | "approximate Bayesian computation", `ABC` | acronym sensitive | grounds the `abc` method chip |
 | `method.laplace_inla` | 0.1.0 | `INLA`, "integrated nested Laplace", "Laplace approximation" | acronym sensitive | grounds the `laplace_inla` method chip |
+| `method.map` | 0.1.1 | "maximum a posteriori", `MAP estimate(s)` | acronym sensitive | grounds the `map` method chip |
 
 ## diagnostic — emits `diagnostic_value` (with number) or `diagnostic_mention` (without)
 

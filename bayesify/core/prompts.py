@@ -64,6 +64,7 @@ Return valid JSON only, with exactly this structure:
   "uses_abc": Fact,
   "uses_smc_or_particle_filter": Fact,
   "uses_laplace_or_inla": Fact,
+  "uses_map": Fact,
   "uses_em": Fact,
   "uses_exact_or_analytic_posterior": Fact
 },
@@ -122,6 +123,7 @@ Use an empty evidence string for "no":
 * `uses_abc`: Uses approximate Bayesian computation, rejection ABC, ABC-SMC, or simulator matching through a distance or tolerance.
 * `uses_smc_or_particle_filter`: Uses sequential Monte Carlo, particle filtering, particle MCMC, or related particle inference.
 * `uses_laplace_or_inla`: Uses a Laplace approximation or INLA.
+* `uses_map`: Obtains maximum a posteriori (MAP) point estimates as a reported inference result (not merely as an initializer for sampling).
 * `uses_em`: Uses expectation-maximization or an EM-style procedure in a Bayesian analysis or baseline.
 * `uses_exact_or_analytic_posterior`: Uses conjugate, closed-form, or otherwise exact analytic Bayesian updating.
 

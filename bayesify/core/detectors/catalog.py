@@ -147,6 +147,8 @@ CATALOG: list[Detector] = [
              _c(r"(?i:approximate bayesian computation)|\bABC\b", ci=False)),
     Detector("method.laplace_inla", ME, "method",
              _c(r"\bINLA\b|(?i:integrated nested laplace)|(?i:laplace approximation)", ci=False)),
+    Detector("method.map", ME, "method",
+             _c(r"(?i:maximum[- ]a[- ]posteriori)|\bMAP estimat\w*\b|\bMAP estimates?\b", ci=False)),
     # --- diagnostics with numeric extraction (value -> diagnostic_value, else diagnostic_mention) ---
     Detector("diag.rhat", DV, "diagnostic",
              _c(r"(?:\bR[-\s]?hat\b|R̂|\bRhat\b)" + _val(_NUM)),
