@@ -33,7 +33,7 @@ export function SectionHeader({
   leadMaxWidth = 1520,
 }: {
   title: string;
-  lead: React.ReactNode;
+  lead?: React.ReactNode;
   leadMaxWidth?: number;
 }) {
   return (
@@ -49,11 +49,19 @@ export function SectionHeader({
       >
         {title}
       </Typography>
-      <Typography
-        sx={{ mt: 1.5, color: "text.secondary", maxWidth: leadMaxWidth, fontSize: { md: "1.05rem" }, lineHeight: 1.6 }}
-      >
-        {lead}
-      </Typography>
+      {lead && (
+        <Typography
+          sx={{
+            mt: 1.5,
+            color: "text.secondary",
+            maxWidth: leadMaxWidth,
+            fontSize: { md: "1.05rem" },
+            lineHeight: 1.6,
+          }}
+        >
+          {lead}
+        </Typography>
+      )}
     </Box>
   );
 }

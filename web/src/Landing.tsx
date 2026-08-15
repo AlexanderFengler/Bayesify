@@ -21,6 +21,7 @@ import type { RubricSummary } from "./api";
 import { GoldText } from "./GoldText";
 import { Guide, ReviewerTokenField } from "./Guide";
 import { Rubrics } from "./Rubrics";
+import { SectionHeader } from "./SectionHeader";
 
 // The main page — the first (and only) landing screen. A bold hero band fills the initial viewport:
 // headline + blurb on the left, the upload panel on the right; scrolling continues into the
@@ -129,6 +130,28 @@ export function Landing(p: LandingProps) {
       <Guide id="how-it-works" />
       <Divider />
       <Rubrics id="rubrics" />
+
+      <Divider />
+
+      <Container maxWidth="xl" sx={{ py: { xs: 6, md: 8 }, px: { xs: 2.5, sm: 4, md: 5 } }}>
+        <SectionHeader title="Known limitations" />
+        <Box
+          component="ul"
+          sx={{
+            mt: 0,
+            mb: 0,
+            pl: 3,
+            color: "text.secondary",
+            fontSize: { xs: "1rem", md: "1.1rem" },
+            lineHeight: 1.7,
+            "& li + li": { mt: 1.5 },
+          }}
+        >
+          <li>Paper type extraction can be unreliable due to fuzzy intent communication by the source.</li>
+          <li>Some Bayesian methods and software may be misclassified or overextracted.</li>
+          <li>Fetching from many non-arXiv sources is not supported; use PDF upload for papers from these sources.</li>
+        </Box>
+      </Container>
 
       {/* reviewer plumbing lives at the very bottom of the page, out of the pitch's way */}
       <Divider />
