@@ -194,10 +194,10 @@ team default) or a username + password — so nothing shared is ever committed t
    ```sh
    # X.509 — identity comes from the cert (no user/password). Use the ABSOLUTE path to the .pem,
    # keep %24external url-encoded, and single-quote the whole value.
-   MONGODB_URI='mongodb+srv://bayesify.zrwhvfo.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&appName=bayesify&tlsCertificateKeyFile=/abs/path/to/secrets/atlas-x509.pem'
+   MONGODB_URI='mongodb+srv://<cluster-host>.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&appName=bayesify&tlsCertificateKeyFile=/abs/path/to/secrets/atlas-x509.pem'
 
    # Password (SCRAM) — url-encode special chars in the password (@ -> %40, : -> %3A, / -> %2F):
-   # MONGODB_URI='mongodb+srv://<user>:<password>@bayesify.zrwhvfo.mongodb.net/?appName=bayesify'
+   # MONGODB_URI='mongodb+srv://<user>:<password>@<cluster-host>.mongodb.net/?appName=bayesify'
    ```
 
 6. **Run.** The app **auto-loads** `bayesify.env` at startup (override the path with `BAYESIFY_ENV_FILE`)
@@ -210,7 +210,7 @@ team default) or a username + password — so nothing shared is ever committed t
 7. **Verify the startup log** reads:
    ```
    INFO:     Loaded 1 setting(s) from bayesify.env: MONGODB_URI
-   INFO:     MongoDB status: connected; uri=mongodb+srv://bayesify.zrwhvfo.mongodb.net/bayesify; db=bayesify; mode=atlas/remote; server_api=v1
+   INFO:     MongoDB status: connected; uri=mongodb+srv://<cluster-host>.mongodb.net/bayesify; db=bayesify; mode=atlas/remote; server_api=v1
    ```
    A `WARNING` means it did not connect — check, in order: (1) your IP is allowlisted, (2) the `.pem`
    path is correct and the cert hasn't expired, (3) a SCRAM password is url-encoded. The credential is
