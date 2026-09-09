@@ -54,9 +54,9 @@ def resend_api_key() -> str | None:
     return os.environ.get("RESEND_API_KEY") or None
 
 
-def contact_to_email() -> str:
-    """Where contact-form messages are delivered."""
-    return os.environ.get("CONTACT_TO_EMAIL") or "fengleralexander@gmail.com"
+def contact_to_email() -> str | None:
+    """Where contact-form messages are delivered. Absent → the form is disabled (503)."""
+    return os.environ.get("CONTACT_TO_EMAIL") or None
 
 
 def contact_from_email() -> str:
