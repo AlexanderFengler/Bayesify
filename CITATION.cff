@@ -1,0 +1,31 @@
+# Citation metadata (Citation File Format 1.2.0). Read by GitHub's "Cite this repository" button
+# and by Zenodo when it archives a release (version + date come from the release tag).
+# Validate with: uvx cffconvert --validate
+cff-version: 1.2.0
+message: "If you use Bayesify, please cite it using the metadata in this file."
+type: software
+title: "Bayesify"
+abstract: >-
+  Bayesify assesses how well an academic paper follows Bayesian-workflow best practices. It
+  ingests a paper (PDF) and produces a structured, evidence-linked report that grades the paper
+  against a rubric of workflow components derived from the methodological literature (Gelman et
+  al., Schad, Betancourt & Vasishth, Kruschke, WAMBS, and the MCMC/PSIS-LOO/SBC diagnostics
+  literature), with per-step grades, suggestions, and transparent coverage and quality scores.
+authors:
+  # TODO: add `orcid: "https://orcid.org/XXXX-XXXX-XXXX-XXXX"` and `affiliation:` per author.
+  - family-names: Fengler
+    given-names: Alexander
+  - family-names: Radev
+    given-names: Stefan T.
+  - family-names: Huang
+    given-names: Jerry M.
+  - family-names: Muia
+    given-names: Francesco
+repository-code: "https://github.com/AlexanderFengler/Bayesify"
+license: MIT
+keywords:
+  - bayesian-workflow
+  - bayesian-statistics
+  - reproducibility
+  - research-assessment
+  - computational-cognitive-science
