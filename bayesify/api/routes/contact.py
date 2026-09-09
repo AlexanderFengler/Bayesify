@@ -29,12 +29,12 @@ class ContactMessage(BaseModel):
 @router.post("/api/contact")
 async def send_contact(payload: ContactMessage) -> dict[str, bool]:
     api_key = resend_api_key()
-    if not api_key:
-        # The form is wired up but no provider is configured — surface a clean "unavailable"
-        # rather than a 500, so the UI can tell the visitor to email directly.
+    to_addr = contact_to_email()
+    if not api_key or not to_addr:
+        # The form is wired up but no provider/recipient is configured — surface a clean
+        # "unavailable" rather than a 500, so the UI can tell the visitor to email directly.
         raise HTTPException(status_code=503, detail="The contact form is not available right now.")
 
-    to_addr = contact_to_email()
     body = {
         "from": f"Bayesify Contact <{contact_from_email()}>",
         "to": [to_addr],
