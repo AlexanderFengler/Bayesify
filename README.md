@@ -1,5 +1,7 @@
 # Bayesify
 
+[![DOI](https://zenodo.org/badge/1251503879.svg)](https://zenodo.org/badge/latestdoi/1251503879)
+
 **A tool for assessing how well academic papers follow Bayesian workflow best practices.**
 
 Bayesify ingests an academic paper (PDF) and produces a structured, evidence-linked report
