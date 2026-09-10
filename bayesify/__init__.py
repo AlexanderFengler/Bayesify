@@ -4,4 +4,4 @@ The importable package. ``bayesify.core`` is the UI-agnostic engine (no web deps
 app and React frontend live outside it. See ``plans/02-mvp-tool-plan.md``.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.1.2"

@@ -12,7 +12,7 @@ from types import MappingProxyType
 API_CONFIG = MappingProxyType(
     {
         "title": "Bayesify API",
-        "version": "0.1.0",
+        "version": "0.1.2",
         "cors": MappingProxyType(
             {
                 "allow_origins": ("http://localhost:5173", "http://127.0.0.1:5173"),

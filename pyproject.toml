@@ -1,6 +1,6 @@
 [project]
 name = "bayesify"
-version = "0.1.0"
+version = "0.1.2"
 description = "Assess how well academic papers follow Bayesian-workflow best practices."
 readme = "README.md"
 requires-python = ">=3.12"
